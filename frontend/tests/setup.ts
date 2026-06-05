@@ -9,15 +9,15 @@ import { vi } from "vitest";
 // Mock axios globally so tests don't make real HTTP calls
 vi.mock("axios", () => ({
   default: {
-    get:    vi.fn(),
-    post:   vi.fn(),
-    patch:  vi.fn(),
-    delete: vi.fn(),
+    get:    vi.fn().mockResolvedValue({ data: { success: true, data: [] } }),
+    post:   vi.fn().mockResolvedValue({ data: { success: true } }),
+    patch:  vi.fn().mockResolvedValue({ data: { success: true } }),
+    delete: vi.fn().mockResolvedValue({ data: { success: true } }),
     create: vi.fn(() => ({
-      get:    vi.fn(),
-      post:   vi.fn(),
-      patch:  vi.fn(),
-      delete: vi.fn(),
+      get:    vi.fn().mockResolvedValue({ data: { success: true, data: [] } }),
+      post:   vi.fn().mockResolvedValue({ data: { success: true } }),
+      patch:  vi.fn().mockResolvedValue({ data: { success: true } }),
+      delete: vi.fn().mockResolvedValue({ data: { success: true } }),
     })),
   },
 }));
@@ -25,14 +25,14 @@ vi.mock("axios", () => ({
 // Mock window.location for redirect tests
 Object.defineProperty(window, "location", {
   value: {
-    href: "http://localhost/",
-    origin: "http://localhost",
+    href:     "http://localhost/",
+    origin:   "http://localhost",
     pathname: "/",
-    assign: vi.fn(),
-    reload: vi.fn()
+    assign:   vi.fn(),
+    reload:   vi.fn(),
   },
-  writable: true,
-  configurable: true
+  writable:     true,
+  configurable: true,
 });
 
 // Suppress noisy console.error in tests unless explicitly tested
