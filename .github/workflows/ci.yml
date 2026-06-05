@@ -1,0 +1,159 @@
+# .github/workflows/ci.yml
+# Asella Organic — CI/CD Pipeline
+#
+# Runs on every push to main/develop or any pull request targeting main/develop.
+# Blocks merge if tests fail or security audit finds high/critical issues.
+#
+# Secrets to add in GitHub → Settings → Secrets:
+#   DB_HOST, DB_USER, DB_PASSWORD, DB_NAME  (test database credentials)
+#   JWT_SECRET                               (any 64-char string for tests)
+
+name: CI — Test, Audit & Deploy Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ── Backend ────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend — Test & Audit
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testroot
+          MYSQL_DATABASE:      asella_test
+          MYSQL_USER:          asella_user
+          MYSQL_PASSWORD:      asella_pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    env:
+      NODE_ENV:    test
+      DB_HOST:     127.0.0.1
+      DB_PORT:     3306
+      DB_USER:     asella_user
+      DB_PASSWORD: asella_pass
+      DB_NAME:     asella_test
+      JWT_SECRET:  ${{ secrets.JWT_SECRET || 'ci_test_secret_not_for_production_use_only_in_ci_environment_64chars_xyz' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: TypeScript type check
+        run: cd backend && npm run typecheck --if-present
+
+      - name: ESLint
+        run: cd backend && npm run lint --if-present
+
+      - name: Run DB migrations on test DB
+        run: cd backend && node migrate.cjs
+
+      - name: Run unit & integration tests
+        run: cd backend && npm test -- --coverage --forceExit
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          directory: backend/coverage
+          flags:     backend
+        continue-on-error: true
+
+      - name: Security audit (fail on high/critical)
+        run: cd backend && npm audit --audit-level=high
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend — Build, Test & Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm ci
+          else
+            echo "No frontend/package.json found, skipping."
+          fi
+
+      - name: TypeScript type check
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm run typecheck --if-present
+          fi
+
+      - name: ESLint
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm run lint --if-present
+          fi
+
+      - name: Production build
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm run build
+          fi
+        env:
+          VITE_API_URL: http://localhost:3001
+
+      - name: Frontend unit tests
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm test --if-present -- --run
+          fi
+
+      - name: Security audit (fail on high/critical)
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm audit --audit-level=high
+          fi
+
+  # ── Deploy gate ────────────────────────────────────────────────────────────
+  # Only runs on pushes to main — signals that both jobs passed and the
+  # code is deployable.
+  deploy-check:
+    name: Deploy Gate
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: All checks passed — ready to deploy
+        run: |
+          echo "╔══════════════════════════════════════╗"
+          echo "║  ✅ All CI checks passed              ║"
+          echo "║  Safe to deploy to production.       ║"
+          echo "╚══════════════════════════════════════╝"
+          echo "Commit: ${{ github.sha }}"
+          echo "Run: ./scripts/deploy.sh to deploy"

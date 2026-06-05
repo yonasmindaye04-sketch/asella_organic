@@ -1,0 +1,145 @@
+{
+  "id": "57b29f7f-7b30-493d-aa62-632f5518e1f3",
+  "name": "Asella Organic \u2014 Local v4",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001/api",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "enabled": true,
+      "type": "secret"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "enabled": true,
+      "type": "secret"
+    },
+    {
+      "key": "manager_token",
+      "value": "",
+      "enabled": true,
+      "type": "secret"
+    },
+    {
+      "key": "employee_token",
+      "value": "",
+      "enabled": true,
+      "type": "secret"
+    },
+    {
+      "key": "delivery_token",
+      "value": "",
+      "enabled": true,
+      "type": "secret"
+    },
+    {
+      "key": "test_username",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "new_staff_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "referred_order_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "inv_test_order_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "concurrent_order_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "new_product_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "new_affiliate_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "ext_affiliate_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "commission_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "stock_req_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "moringa_qty_before",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "admin_user_id",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "total_revenue",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "product_count",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "low_stock_count",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    },
+    {
+      "key": "new_aff_code",
+      "value": "",
+      "enabled": true,
+      "type": "default"
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}
