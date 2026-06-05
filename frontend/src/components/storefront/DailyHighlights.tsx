@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 const highlightsMapping = [
@@ -15,51 +15,63 @@ const highlightsMapping = [
   { image: '/image/dailyimages/Turemic Erid.png', searchKey: 'Turmeric', tag: 'Spice' },
 ];
 
+// Pure helper outside the component — safe to call anywhere
+function getRandomIndex(length: number): number {
+  return Math.floor(Math.random() * length);
+}
+
+function pickTwoUnique(length: number): [number, number] {
+  const first = getRandomIndex(length);
+  let second = getRandomIndex(length);
+  while (second === first) second = getRandomIndex(length);
+  return [first, second];
+}
+
 const DailyHighlights: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [displayIndices, setDisplayIndices] = useState<[number, number]>([0, 1]);
+  const productsRef = useRef<any[]>([]);
 
   useEffect(() => {
-    // Fetch products
     axios.get('/api/products?limit=200').then(res => {
       if (res.data.success) {
-        // Find matching products
         const matched = highlightsMapping.map(m => {
-          const product = res.data.data.find((p: any) => 
+          const product = res.data.data.find((p: any) =>
             p.name.toLowerCase().includes(m.searchKey.toLowerCase())
           );
           return { ...m, product };
-        }).filter(m => m.product); // only keep if we found a product
-        
+        }).filter(m => m.product);
+
+        productsRef.current = matched;
         setProducts(matched);
+
         if (matched.length >= 2) {
-          // Pick two random unique indices initially
-          const first = Math.floor(Math.random() * matched.length);
-          let second = Math.floor(Math.random() * matched.length);
-          while (second === first) second = Math.floor(Math.random() * matched.length);
-          setDisplayIndices([first, second]);
+          setDisplayIndices(pickTwoUnique(matched.length));
         }
       }
-    }).catch(err => console.error("Failed to fetch products for highlights", err));
+    }).catch(err => console.error('Failed to fetch products for highlights', err));
   }, []);
 
-  const changeRandomProduct = (position: 0 | 1) => {
-    if (products.length <= 2) return; // Not enough products to cycle
-    
-    const currentOther = displayIndices[position === 0 ? 1 : 0];
-    const currentSelf = displayIndices[position];
-    
-    let nextIndex = Math.floor(Math.random() * products.length);
-    while (nextIndex === currentOther || nextIndex === currentSelf) {
-      nextIndex = Math.floor(Math.random() * products.length);
-    }
+  const changeRandomProduct = useCallback((position: 0 | 1) => {
+    const current = productsRef.current;
+    if (current.length <= 2) return;
 
     setDisplayIndices(prev => {
+      const currentOther = prev[position === 0 ? 1 : 0];
+      const currentSelf = prev[position];
+
+      let nextIndex = getRandomIndex(current.length);
+      let attempts = 0;
+      while ((nextIndex === currentOther || nextIndex === currentSelf) && attempts < 100) {
+        nextIndex = getRandomIndex(current.length);
+        attempts++;
+      }
+
       const next = [...prev] as [number, number];
       next[position] = nextIndex;
       return next;
     });
-  };
+  }, []);
 
   return (
     <section className="py-16 bg-[#FAF9F6] overflow-hidden">
@@ -102,8 +114,6 @@ const DailyHighlights: React.FC = () => {
                           {item.product.description || "Experience the pure, natural benefits of this authentic product. Harvested and prepared with care."}
                         </p>
                       </div>
-                      
-
                     </div>
                   </div>
                 </div>
@@ -118,10 +128,7 @@ const DailyHighlights: React.FC = () => {
         <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#FAF9F6] to-transparent z-10"></div>
         <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#FAF9F6] to-transparent z-10"></div>
         
-        {/* Marquee Container */}
         <div className="flex animate-marquee group-hover:[animation-play-state:paused] whitespace-nowrap items-center w-[200%]">
-          
-          {/* Group 1 */}
           <div className="flex items-center gap-12 px-6 w-1/2 justify-around">
             {['Shilajit', 'Organic Honey', 'Black Seed Oil', "Lion's Mane", 'Turmeric Gold', 'Moringa Tea', 'Raw Cacao'].map(item => (
               <span key={item} className="font-bold text-sm text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
@@ -129,8 +136,6 @@ const DailyHighlights: React.FC = () => {
               </span>
             ))}
           </div>
-
-          {/* Group 2 (Duplicate for seamless loop) */}
           <div className="flex items-center gap-12 px-6 w-1/2 justify-around">
             {['Shilajit', 'Organic Honey', 'Black Seed Oil', "Lion's Mane", 'Turmeric Gold', 'Moringa Tea', 'Raw Cacao'].map(item => (
               <span key={item + '-dup'} className="font-bold text-sm text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
@@ -138,7 +143,6 @@ const DailyHighlights: React.FC = () => {
               </span>
             ))}
           </div>
-
         </div>
       </div>
 
