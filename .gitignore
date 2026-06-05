@@ -1,0 +1,59 @@
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+.env*.txt
+
+# Keys & Credentials
+*.key
+*.pem
+*.p8
+*.p12
+*.pfx
+*.jks
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build Output
+dist/
+build/
+*.tsbuildinfo
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime
+tmp/
+temp/
+*.pid
+*.seed
+
+# OS
+Thumbs.db
+
+# Testing
+.nyc_output/
+coverage/
+
+# Private / Local
+local.ts
+*.local.ts
+SECRETS.md
+TODO.md
