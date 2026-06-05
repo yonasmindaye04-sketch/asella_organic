@@ -14,8 +14,8 @@ const ContactSection: React.FC = () => {
       await axios.post('/api/appointments', formData);
       setStatus('success');
       setFormData({ full_name: '', phone_number: '', preferred_date: '', email: 'asellamoringa@gmail.com' });
-    } catch (error) 
-    {
+    } catch {
+      
       setStatus('error');
     } finally {
       setLoading(false);

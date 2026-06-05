@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { api } from '../services/api';
 
@@ -85,7 +85,7 @@ const AffiliateControlPage: React.FC = () => {
     phone: '',
   });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -116,11 +116,11 @@ const AffiliateControlPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [commissionFilter]);
 
   useEffect(() => {
     void load();
-  }, [commissionFilter]);
+  }, [load]);
 
   const activeRate = useMemo(() => {
     if (!stats.total_affiliates) return 0;
@@ -180,7 +180,7 @@ const AffiliateControlPage: React.FC = () => {
     setError('');
     setMessage('');
     try {
-      const nextActive = !Boolean(affiliate.is_active);
+      const nextActive = !affiliate.is_active;
       const res = await api.patch(`/api/referrals/affiliates/${affiliate.id}`, { is_active: nextActive });
       if (!res.success) throw new Error(res.error || 'Failed to update affiliate.');
       setMessage(`${affiliate.full_name} ${nextActive ? 'activated' : 'deactivated'}.`);
