@@ -2,7 +2,7 @@
  * src/routes/referrals.ts
  * Asella Organic — Affiliate & Commission System (MySQL)
  */
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import crypto from "crypto";
 import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
