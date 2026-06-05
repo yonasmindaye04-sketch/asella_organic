@@ -57,3 +57,8 @@ local.ts
 *.local.ts
 SECRETS.md
 TODO.md
+
+# Local-only / legacy
+newman/
+backend/.env
+backend/.env.local
