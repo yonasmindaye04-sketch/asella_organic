@@ -16,6 +16,7 @@
 
 import request from "supertest";
 import bcrypt  from "bcryptjs";
+import { jest } from "@jest/globals";
 import type { Request, Response } from "express";
 import app from "../../src/app.js";
 import pool from "../../src/config/db.js";

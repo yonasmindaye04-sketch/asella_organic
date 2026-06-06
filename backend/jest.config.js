@@ -8,10 +8,10 @@ const config = {
   testEnvironment:     "node",
   extensionsToTreatAsEsm: [".ts"],
   transform: {
-    // Match both TS (.ts/.tsx) and JS (.js/.jsx) so we can transform
-    // ESM-only .js files shipped by packages like @scure/base, otplib,
-    // uuid, etc. that live under node_modules.
-    "^.+\\.(t|j)sx?$": ["ts-jest", {
+    // Match TS (.ts/.tsx), JS (.js/.jsx), and our ESM mock (.mjs) so we
+    // can transform ESM-only .js files shipped by packages like
+    // @scure/base, otplib, uuid, etc. that live under node_modules.
+    "^.+\\.(t|j|m)sx?$": ["ts-jest", {
       useESM: true,
       tsconfig: "./tsconfig.test.json",
     }],
@@ -21,7 +21,7 @@ const config = {
     // Stub isomorphic-dompurify so we don't pull in the jsdom + parse5
     // + @asamuzakjp/css-color ESM chain during unit tests. Integration
     // tests bypass this via testPathPatterns/integration.
-    "^isomorphic-dompurify$": "<rootDir>/tests/setup/isomorphic-dompurify-mock.js",
+    "^isomorphic-dompurify$": "<rootDir>/tests/setup/isomorphic-dompurify-mock.mjs",
   },
 
   transformIgnorePatterns: [
