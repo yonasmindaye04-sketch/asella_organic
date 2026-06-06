@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "rootDir": "./src",
     "outDir": "./dist",
     "module": "Node16",
     "moduleResolution": "node16",
@@ -8,7 +7,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "target": "esnext",
-    "types": ["node"],
+    "types": ["jest", "node"],
     "isolatedModules": true,
     "sourceMap": true,
     "declaration": true,
@@ -16,6 +15,6 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
 }

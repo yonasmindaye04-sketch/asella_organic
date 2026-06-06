@@ -11,7 +11,7 @@
 
 import type { ParsedQs } from "qs";
 
-type QueryValue = string | string[] | ParsedQs | ParsedQs[] | undefined;
+type QueryValue = string | string[] | ParsedQs | ParsedQs[] | undefined | null;
 
 /**
  * Safely extract a single string from any Express query param.

@@ -3,6 +3,8 @@
  * Asella Organic — Products & Stock Route Tests
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import request from "supertest";
 import app from "../../src/app.js";
 import pool from "../../src/config/db.js";
