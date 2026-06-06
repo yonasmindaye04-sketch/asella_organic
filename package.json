@@ -1,0 +1,17 @@
+{
+  "name": "asella-organic",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Asella Organic — MySQL-backed e-commerce/inventory system. Monorepo with backend/, frontend/, and Playwright E2E tests at the root.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:smoke": "playwright test tests/dashboard/navigation.spec.ts",
+    "test:public": "playwright test --project=public",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
