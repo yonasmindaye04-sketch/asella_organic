@@ -31,11 +31,11 @@ router.post("/", generalRateLimit, validate(CreateAppointmentSchema), async (req
       // Fallback: Send to Telegram Admin
       const adminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
       if (adminChat) {
-        const msg = `📅 *New Appointment Request*\n\n` +
-                    `👤 *Name:* ${data.full_name}\n` +
-                    `📞 *Phone:* ${data.phone_number}\n` +
-                    `🗓 *Date:* ${data.preferred_date}\n` +
-                    `📧 *Email:* ${data.email || "N/A"}`;
+        const msg = ` *New Appointment Request*\n\n` +
+                    ` *Name:* ${data.full_name}\n` +
+                    ` *Phone:* ${data.phone_number}\n` +
+                    ` *Date:* ${data.preferred_date}\n` +
+                    ` *Email:* ${data.email || "N/A"}`;
         await sendSimpleMessage(adminChat, msg);
       }
 
