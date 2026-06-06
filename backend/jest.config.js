@@ -8,24 +8,34 @@ const config = {
   testEnvironment:     "node",
   extensionsToTreatAsEsm: [".ts"],
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { useESM: true }],
+    "^.+\\.tsx?$": ["ts-jest", {
+      useESM: true,
+      tsconfig: {
+        module: "Node16",
+        moduleResolution: "node16",
+        target: "esnext",
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+        verbatimModuleSyntax: false,
+        types: ["jest", "node"],
+        noUncheckedIndexedAccess: false,
+        exactOptionalPropertyTypes: false,
+      }
+    }],
   },
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
 
-  // Allow Jest to transform ESM-only packages that would otherwise break
   transformIgnorePatterns: [
     "/node_modules/(?!(@exodus|encoding-lite|html-encoding-sniffer|jsdom)/)",
   ],
 
-  // Test file locations
   testMatch: [
     "<rootDir>/tests/**/*.test.ts",
     "<rootDir>/tests/**/*.spec.ts",
   ],
 
-  // Coverage
   collectCoverage:     true,
   coverageDirectory:   "coverage",
   coverageReporters:   ["text", "lcov", "html"],
@@ -44,17 +54,14 @@ const config = {
     },
   },
 
-  // Execution
   testTimeout:       30_000,
   maxWorkers:        1,
   forceExit:         true,
   detectOpenHandles: true,
 
-  // Setup
   globalSetup:    "<rootDir>/tests/setup/globalSetup.ts",
   globalTeardown: "<rootDir>/tests/setup/globalTeardown.ts",
 
-  // Verbose output
   verbose: true,
 
   testEnvironmentOptions: {
