@@ -82,7 +82,7 @@ async function handleCallback(query: any): Promise<void> {
 
     // ────── DELIVERY REJECTION ────────────────────────────────────────────
     if (data.startsWith("delivery_reject_")) {
-      const orderId = data.replace("delivery_reject_", "");
+      const _orderId = data.replace("delivery_reject_", "");
       await answerCallbackQuery(
         callbackQueryId,
         "❌ Order rejected. Thank you.",
