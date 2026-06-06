@@ -25,6 +25,7 @@ const mockConn = {
 const mockGetConnection = jest.fn() as unknown as jest.MockedFunction<(...args: any[]) => any>;
 
 jest.mock("../../src/config/db.js", () => ({
+  __esModule: true,
   default: { getConnection: (...args: any[]) => mockGetConnection(...args) },
 }));
 

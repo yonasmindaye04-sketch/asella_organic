@@ -161,7 +161,19 @@ router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const update = req.body;
+  // The app-wide raw-body middleware (app.ts) captures this path as a
+  // Buffer so the secret-token check has access to the raw bytes. We
+  // now need to parse that Buffer back into a JSON object.
+  let update: any = req.body;
+  if (Buffer.isBuffer(update)) {
+    try {
+      update = JSON.parse(update.toString("utf8"));
+    } catch (err) {
+      console.error("[telegram webhook] Rejected: invalid JSON body", err);
+      res.sendStatus(200);
+      return;
+    }
+  }
 
   // ── Replay Protection ─────────────────────────────────────────────────────
   const updateId: number | undefined = update?.update_id;

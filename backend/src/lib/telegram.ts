@@ -259,11 +259,11 @@ export async function sendStockRequestAlert({
     chat_id: chatId,
     text:
       `📝 *Stock Request*\n━━━━━━━━━━━━━━━━━━\n` +
-      `🔹 *${item}* (${packageSize})\n` +
+      ` *${item}* (${packageSize})\n` +
       `Remaining: *${current}* → Need: *${needed}*\n` +
       `Needed by: ${deliveryDate}\n` +
       `Requested by: ${requestedBy}\n` +
-      `📅 ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}`,
+      ` ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}`,
     parse_mode: "Markdown",
   });
 }
@@ -300,11 +300,11 @@ export async function sendVendorPO(
     .join("\n");
 
   const message =
-    `📋 *Purchase Order — Asella Organic*\n━━━━━━━━━━━━━━━━━━\n` +
-    `🆔 Ref: *${orderId}*\n🏪 Vendor: ${vendorName}\n\n` +
-    `🛒 Items:\n${itemLines || "  (see attached sheet)"}\n\n` +
-    `👤 Placed by: ${employeeId}\n` +
-    `📅 ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n\n` +
+    ` *Purchase Order — Asella Organic*\n━━━━━━━━━━━━━━━━━━\n` +
+    ` Ref: *${orderId}*\n Vendor: ${vendorName}\n\n` +
+    ` Items:\n${itemLines || "  (see attached sheet)"}\n\n` +
+    ` Placed by: ${employeeId}\n` +
+    ` ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n\n` +
     `Please confirm by tapping a button below.`;
 
   const buttons = [
@@ -352,14 +352,14 @@ export async function sendMorningBriefing(): Promise<void> {
     await sendWithButtons(
       adminChat,
       `☀️ *Morning Briefing — Asella Organic*\n━━━━━━━━━━━━━━━━━━\n` +
-      `📅 Yesterday (${yesterday}):\n` +
+      ` Yesterday (${yesterday}):\n` +
       `   Orders: *${s?.orders ?? 0}* | Revenue: *ETB ${Number(s?.revenue ?? 0).toLocaleString()}*\n` +
       `━━━━━━━━━━━━━━━━━━\n` +
-      `⏳ Pending now: *${p?.count ?? 0}*`,
+      ` Pending now: *${p?.count ?? 0}*`,
       [
         [
-          { text: "⏳ Pending Orders", callback_data: "pending_orders" },
-          { text: "📊 Stats",          callback_data: "analytics_summary" },
+          { text: " Pending Orders", callback_data: "pending_orders" },
+          { text: " Stats",          callback_data: "analytics_summary" },
         ],
       ]
     );

@@ -53,14 +53,19 @@ beforeAll(async () => {
     .post("/api/auth/login")
     .send({ email: ADMIN.email, password: ADMIN.password });
 
-  adminToken = res.body?.data?.accessToken ?? res.body?.accessToken;
+  // Login response shape: { success, data: { token, refreshToken, user } }
+  // (the field is `token`, not `accessToken`).
+  adminToken = res.body?.data?.token ?? res.body?.data?.accessToken ?? res.body?.accessToken;
   if (!adminToken) throw new Error("Login failed during test setup");
 });
 
 afterAll(async () => {
-  await pool.query(`DELETE FROM staff_users   WHERE username = ?`, [ADMIN.username]);
-  await pool.query(`DELETE FROM vendor_orders WHERE created_by IN
-    (SELECT id FROM staff_users WHERE username = ?)`, [ADMIN.username]);
+  await pool.query(`DELETE FROM staff_users WHERE username = ?`, [ADMIN.username]);
+  // The vendor_orders table has no created_by column, so we can't
+  // scope cleanup to this admin. Orders created by the test are
+  // identifiable by their vendor_name.
+  await pool.query(`DELETE FROM vendor_orders WHERE vendor_name = ?`,
+    ["Supplier Co."]);
   await pool.end();
 });
 
@@ -312,10 +317,10 @@ describe("GET /api/vendor-orders", () => {
 // PATCH /api/vendor-orders/:id
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe("PATCH /api/vendor-orders/:id", () => {
+describe("PATCH /api/vendor-orders/:id/status", () => {
   it("returns 401 when not authenticated", async () => {
     const res = await request(app)
-      .patch("/api/vendor-orders/fake-id")
+      .patch("/api/vendor-orders/fake-id/status")
       .send({ status: "confirmed" });
     expect(res.status).toBe(401);
   });
@@ -323,7 +328,7 @@ describe("PATCH /api/vendor-orders/:id", () => {
   it("returns 422 for an invalid status value", async () => {
     const id = vendorOrderId ?? "test-id";
     const res = await request(app)
-      .patch(`/api/vendor-orders/${id}`)
+      .patch(`/api/vendor-orders/${id}/status`)
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ status: "shipped" });  // not in enum
 
@@ -337,7 +342,7 @@ describe("PATCH /api/vendor-orders/:id", () => {
     }
 
     const res = await request(app)
-      .patch(`/api/vendor-orders/${vendorOrderId}`)
+      .patch(`/api/vendor-orders/${vendorOrderId}/status`)
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ status: "confirmed" });
 
@@ -346,7 +351,7 @@ describe("PATCH /api/vendor-orders/:id", () => {
 
   it("returns 404 for a non-existent vendor order ID", async () => {
     const res = await request(app)
-      .patch("/api/vendor-orders/00000000-0000-0000-0000-000000000000")
+      .patch("/api/vendor-orders/00000000-0000-0000-0000-000000000000/status")
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ status: "confirmed" });
 
