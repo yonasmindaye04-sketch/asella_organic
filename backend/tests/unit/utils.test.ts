@@ -3,6 +3,8 @@
  * Asella Organic — Utils Tests
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { qs, qsInt } from "../../src/lib/utils.js";
 
 describe("Utils (qs, qsInt)", () => {

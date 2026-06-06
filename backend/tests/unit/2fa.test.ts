@@ -3,6 +3,8 @@
  * Asella Organic — 2FA Middleware Tests
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import express from "express";
 import request from "supertest";
 import pool from "../../src/config/db.js";
@@ -16,12 +18,12 @@ app.use(express.json());
 let mockUserId: string | null = null;
 
 // Mock authenticate middleware
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   if (mockUserId) (req as any).user = { id: mockUserId };
   next();
 });
 
-app.post("/test-2fa", require2FA, (req, res) => {
+app.post("/test-2fa", require2FA, (_req, res) => {
   res.json({ success: true });
 });
 

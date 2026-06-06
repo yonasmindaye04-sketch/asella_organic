@@ -1,5 +1,5 @@
 /**
- * backend/jest.config.ts
+ * backend/jest.config.js
  * Asella Organic — Jest Test Configuration
  */
 
@@ -13,6 +13,11 @@ const config = {
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
+
+  // Allow Jest to transform ESM-only packages that would otherwise break
+  transformIgnorePatterns: [
+    "/node_modules/(?!(@exodus|encoding-lite|html-encoding-sniffer|jsdom)/)",
+  ],
 
   // Test file locations
   testMatch: [
@@ -32,17 +37,17 @@ const config = {
   ],
   coverageThreshold: {
     global: {
-      branches:  70,
-      functions: 75,
-      lines:     75,
+      branches:   70,
+      functions:  75,
+      lines:      75,
       statements: 75,
     },
   },
 
   // Execution
-  testTimeout:   30_000,   // 30s for integration tests with real DB
-  maxWorkers:    1,        // Single worker to avoid DB race conditions
-  forceExit:     true,
+  testTimeout:       30_000,
+  maxWorkers:        1,
+  forceExit:         true,
   detectOpenHandles: true,
 
   // Setup
@@ -52,7 +57,6 @@ const config = {
   // Verbose output
   verbose: true,
 
-  // Environment variables for tests
   testEnvironmentOptions: {
     env: {
       NODE_ENV: "test",
