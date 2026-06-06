@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS staff_users (
     created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_staff_username ON staff_users(username);
-CREATE INDEX IF NOT EXISTS idx_staff_role     ON staff_users(role);
+CREATE INDEX idx_staff_username ON staff_users(username);
+CREATE INDEX idx_staff_role     ON staff_users(role);
 
 -- ── Session Blocklist (JWT revocation) ──────────────────────────
 CREATE TABLE IF NOT EXISTS session_blocklist (
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS session_blocklist (
     revoked_at DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
     expires_at DATETIME     NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_session_blocklist_expires ON session_blocklist(expires_at);
+CREATE INDEX idx_session_blocklist_expires ON session_blocklist(expires_at);
 
 -- ── Rate Limit Log ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS rate_limit_log (
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS rate_limit_log (
     endpoint    VARCHAR(255) NOT NULL,
     occurred_at DATETIME     DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_rate_limit_ip ON rate_limit_log(ip, occurred_at);
+CREATE INDEX idx_rate_limit_ip ON rate_limit_log(ip, occurred_at);
 
 -- ── Commission Config ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS referral_configs (
@@ -68,8 +68,8 @@ CREATE TABLE IF NOT EXISTS affiliate_profiles (
     updated_at      DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES staff_users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_affiliate_code ON affiliate_profiles(referral_code);
-CREATE INDEX IF NOT EXISTS idx_affiliate_user ON affiliate_profiles(user_id);
+CREATE INDEX idx_affiliate_code ON affiliate_profiles(referral_code);
+CREATE INDEX idx_affiliate_user ON affiliate_profiles(user_id);
 
 -- ── Customers ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS customers (
@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at                DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (referred_by_affiliate_id) REFERENCES affiliate_profiles(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_customer_phone     ON customers(phone);
-CREATE INDEX IF NOT EXISTS idx_customer_affiliate ON customers(referred_by_affiliate_id);
+CREATE INDEX idx_customer_phone     ON customers(phone);
+CREATE INDEX idx_customer_affiliate ON customers(referred_by_affiliate_id);
 
 -- ── Products ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
@@ -113,8 +113,8 @@ CREATE TABLE IF NOT EXISTS products (
     created_at          DATETIME      DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_products_name   ON products(name);
-CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
+CREATE INDEX idx_products_name   ON products(name);
+CREATE INDEX idx_products_active ON products(active);
 
 -- ── Inventory Movements ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS inventory_movements (
@@ -133,9 +133,9 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
     FOREIGN KEY (product_id)   REFERENCES products(id)     ON DELETE RESTRICT,
     FOREIGN KEY (performed_by) REFERENCES staff_users(id)  ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_inv_movements_product   ON inventory_movements(product_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_inv_movements_reference ON inventory_movements(reference_type, reference_id);
-CREATE INDEX IF NOT EXISTS idx_inv_movements_type      ON inventory_movements(movement_type, created_at);
+CREATE INDEX idx_inv_movements_product   ON inventory_movements(product_id, created_at);
+CREATE INDEX idx_inv_movements_reference ON inventory_movements(reference_type, reference_id);
+CREATE INDEX idx_inv_movements_type      ON inventory_movements(movement_type, created_at);
 
 -- ── Orders ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS orders (
@@ -162,9 +162,9 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at          DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at);
-CREATE INDEX IF NOT EXISTS idx_orders_phone          ON orders(phone);
-CREATE INDEX IF NOT EXISTS idx_orders_customer       ON orders(customer_id);
+CREATE INDEX idx_orders_status_created ON orders(status, created_at);
+CREATE INDEX idx_orders_phone          ON orders(phone);
+CREATE INDEX idx_orders_customer       ON orders(customer_id);
 
 -- ── Order Items ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS order_items (
@@ -177,8 +177,8 @@ CREATE TABLE IF NOT EXISTS order_items (
     unit_price   DECIMAL(12,2) NOT NULL CHECK (unit_price >= 0),
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_order_items_order   ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id);
+CREATE INDEX idx_order_items_order   ON order_items(order_id);
+CREATE INDEX idx_order_items_product ON order_items(product_id);
 
 -- ── Payments ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS payments (
@@ -195,8 +195,8 @@ CREATE TABLE IF NOT EXISTS payments (
     FOREIGN KEY (order_id)    REFERENCES orders(id)      ON DELETE CASCADE,
     FOREIGN KEY (recorded_by) REFERENCES staff_users(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_payments_order  ON payments(order_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX idx_payments_order  ON payments(order_id);
+CREATE INDEX idx_payments_status ON payments(status);
 
 -- ── Order Status History ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS order_status_history (
@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS order_status_history (
     created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_status_history_order ON order_status_history(order_id, created_at);
+CREATE INDEX idx_status_history_order ON order_status_history(order_id, created_at);
 
 -- ── Delivery Assignments ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS delivery_assignments (
@@ -233,8 +233,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     new_values JSON         NULL,
     created_at DATETIME     DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_audit_order ON audit_log(order_id);
-CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor);
+CREATE INDEX idx_audit_order ON audit_log(order_id);
+CREATE INDEX idx_audit_actor ON audit_log(actor);
 
 -- ── Telegram Users ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS telegram_users (
@@ -313,16 +313,16 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES staff_users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user    ON refresh_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash    ON refresh_tokens(token_hash);
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
+CREATE INDEX idx_refresh_tokens_user    ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_hash    ON refresh_tokens(token_hash);
+CREATE INDEX idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 
 -- ── Webhook Events (Telegram replay protection) ──────────────────
 CREATE TABLE IF NOT EXISTS webhook_events (
     update_id    BIGINT   PRIMARY KEY,
     processed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_webhook_events_processed_at ON webhook_events(processed_at);
+CREATE INDEX idx_webhook_events_processed_at ON webhook_events(processed_at);
 
 -- ── Migrations Log ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS migrations_log (

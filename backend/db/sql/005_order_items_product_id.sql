@@ -22,7 +22,7 @@ JOIN   products p
 SET    oi.product_id = p.id
 WHERE  oi.product_id IS NULL;
 
-CREATE INDEX IF NOT EXISTS idx_order_items_product_id
+CREATE INDEX idx_order_items_product_id
     ON order_items(product_id);
 
 -- ── Re-create inventory deduction trigger to use product_id first ──
