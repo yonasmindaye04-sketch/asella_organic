@@ -98,8 +98,8 @@ CREATE TABLE IF NOT EXISTS referral_commissions (
     FOREIGN KEY (customer_id)  REFERENCES customers(id)          ON DELETE SET NULL,
     FOREIGN KEY (order_id)     REFERENCES orders(id)             ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_commission_affiliate ON referral_commissions(affiliate_id, status);
-CREATE INDEX IF NOT EXISTS idx_commission_order     ON referral_commissions(order_id);
+CREATE INDEX idx_commission_affiliate ON referral_commissions(affiliate_id, status);
+CREATE INDEX idx_commission_order     ON referral_commissions(order_id);
 
 -- ── Affiliate dashboard view (MySQL-compatible, no COALESCE on UUID join) ──
 CREATE OR REPLACE VIEW vw_affiliate_dashboard AS
