@@ -1,47 +1,21 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    // File Layout
-     "rootDir": "./src",
-      "outDir": "./dist",
-
+    "rootDir": "./src",
+    "outDir": "./dist",
     "module": "Node16",
     "moduleResolution": "node16",
     "verbatimModuleSyntax": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
-
     "target": "esnext",
-    "types": ["jest", "node"],
+    "types": ["node"],
     "isolatedModules": true,
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
-
-    // Other Outputs
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-
-    // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-
-    // Style Options
-    // "noImplicitReturns": true,
-    // "noImplicitOverride": true,
-    // "noUnusedLocals": true,
-    // "noUnusedParameters": true
+    "exactOptionalPropertyTypes": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  // Test files are checked by the separate `tsconfig.test.json` so the
-  // build program's `rootDir: ./src` constraint isn't violated. The IDE
-  // picks up the test program automatically via the `references` below.
-  "references": [{ "path": "./tsconfig.test.json" }]
+  "exclude": ["node_modules", "dist"]
 }
-
