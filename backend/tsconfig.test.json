@@ -1,0 +1,44 @@
+{
+  // Backend test-only tsconfig.
+  //
+  // The main `tsconfig.json` constrains `rootDir` to `./src` so the
+  // emitted `dist/` mirrors `src/`. That makes the TypeScript program
+  // ignore everything under `tests/`, which means:
+  //   • globals like `describe`, `it`, `expect`, `beforeEach` aren't in scope
+  //   • `jest.Mock` / `jest.SpyInstance` / `jest.MockedFunction<…>` aren't
+  //     resolved, so the IDE shows them as "Cannot find name …"
+  //
+  // `ts-jest` doesn't have this problem at runtime (it just transpiles
+  // files and lets Jest's globals inject), but the IDE's typecheck does.
+  // This file gives the IDE a separate program that *does* include the
+  // tests, with the same compiler options as the build config, so
+  // `npm run typecheck` on this file will surface real test bugs.
+  //
+  // `tsconfig.json` references this file so the IDE picks it up
+  // automatically without manual project switching.
+
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "./dist-tests",
+
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "verbatimModuleSyntax": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    "target": "esnext",
+    "types": ["jest", "node"],
+    "isolatedModules": true,
+
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": false,
+
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "dist-tests"]
+}
