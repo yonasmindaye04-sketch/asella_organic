@@ -74,7 +74,7 @@ jobs:
           cd backend && node --max-old-space-size=4096 \
             --experimental-vm-modules \
             ./node_modules/jest/bin/jest.js \
-            --testPathPattern="tests/unit" \
+            --testPathPatterns="tests/unit" \
             --coverage \
             --forceExit \
             --maxWorkers=1
@@ -84,7 +84,7 @@ jobs:
           cd backend && node --max-old-space-size=4096 \
             --experimental-vm-modules \
             ./node_modules/jest/bin/jest.js \
-            --testPathPattern="tests/integration" \
+            --testPathPatterns="tests/integration" \
             --forceExit \
             --maxWorkers=1
         continue-on-error: true
