@@ -197,9 +197,16 @@ describe("generateResetToken + verifyResetToken", () => {
 
   it("throws 'Invalid signature' when signature is tampered", () => {
     const token  = generateResetToken("user-123");
-    const [b64]  = token.split(".");
-    const badSig = "AAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    expect(() => verifyResetToken(`${b64}.${badSig}`)).toThrow("Invalid signature");
+    const parts  = token.split(".");
+    const b64    = parts[0];
+    const realSig = parts[1] ?? "";
+    // Flip a single character in the real signature so the bytes are
+    // the same length but the HMAC is wrong. The implementation uses
+    // crypto.timingSafeEqual() which requires equal-length buffers —
+    // a shorter or longer badSig would throw "Input buffers must have
+    // the same byte length" instead of "Invalid signature".
+    const flipped = (realSig[0] === "A" ? "B" : "A") + realSig.slice(1);
+    expect(() => verifyResetToken(`${b64}.${flipped}`)).toThrow("Invalid signature");
   });
 
   it("throws 'Token expired' for a token whose exp is in the past", () => {
