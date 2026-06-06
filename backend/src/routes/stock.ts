@@ -59,7 +59,7 @@ const UpdateStockRequestStatusSchema = z.object({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function stockStatus(qty: number, threshold: number): "ok" | "low" | "critical" | "out_of_stock" {
+function _stockStatus(qty: number, threshold: number): "ok" | "low" | "critical" | "out_of_stock" {
   if (qty === 0)            return "out_of_stock";
   if (qty <= threshold / 2) return "critical";
   if (qty <= threshold)     return "low";
