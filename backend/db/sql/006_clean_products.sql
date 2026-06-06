@@ -29,8 +29,8 @@ VALUES
 ('11111111-0001-0001-0001-000000000002', 'Moringa Seed', '200g', 450, 'Herbs',
  '/image/products/Moringa 200g,500g and 1kg.png',
  'Rich in antioxidants and nutrients that support immunity, energy, and overall wellness.', false, true, 0, 10, NOW(), NOW()),
---moringa powder
- ('11111111-0001-0001-0001-000000000003', 'Moringa powder', '500g', 1000, 'Herbs',
+
+('11111111-0001-0001-0001-000000000003', 'Moringa powder', '500g', 1000, 'Herbs',
  '/image/products/Moringa 200g,500g and 1kg.png',
  'Rich in antioxidants and nutrients that support immunity, energy, and overall wellness Packed with essential vitamins and minerals to help support a healthy lifestyle.', true, true, 0, 10, NOW(), NOW()),
 
