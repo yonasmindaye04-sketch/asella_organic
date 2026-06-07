@@ -1,18 +1,6 @@
 /**
  * backend/tests/unit/appointments.test.ts
  * Asella Organic — Appointments Route Tests
- *
- * Tests src/routes/appointments.ts: POST /api/appointments
- *   - Validates the request body via Zod
- *   - Falls back to Telegram when SMTP_USER / SMTP_PASS are not set
- *   - Sends emails via nodemailer when SMTP creds are available
- *   - Returns 500 if the email send fails
- *
- * The Telegram fallback path uses the real globalThis.fetch (mocked
- * here). The SMTP path mocks nodemailer.createTransport.
- *
- * Run with:
- *   npx jest tests/unit/appointments.test.ts
  */
 
 import request from "supertest";
@@ -72,7 +60,6 @@ describe("POST /api/appointments — validation", () => {
   it("accepts a payload without email (email is optional)", async () => {
     const { email, ...rest } = VALID_PAYLOAD;
     const res = await request(app).post("/api/appointments").send(rest);
-    // Should not 422
     expect(res.status).not.toBe(422);
   });
 });
@@ -81,20 +68,25 @@ describe("POST /api/appointments — Telegram fallback (no SMTP)", () => {
   let originalSmtpUser: string | undefined;
   let originalSmtpPass: string | undefined;
   let originalAdminChat: string | undefined;
+  let originalBotToken: string | undefined;
 
   beforeAll(() => {
-    originalSmtpUser   = process.env.SMTP_USER;
-    originalSmtpPass   = process.env.SMTP_PASS;
-    originalAdminChat  = process.env.TELEGRAM_ADMIN_CHAT_ID;
-    process.env.SMTP_USER  = "";
-    process.env.SMTP_PASS  = "";
-    process.env.TELEGRAM_ADMIN_CHAT_ID = "111";
+    originalSmtpUser  = process.env.SMTP_USER;
+    originalSmtpPass  = process.env.SMTP_PASS;
+    originalAdminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    originalBotToken  = process.env.TELEGRAM_BOT_TOKEN;
+
+    process.env.SMTP_USER               = "";
+    process.env.SMTP_PASS               = "";
+    process.env.TELEGRAM_ADMIN_CHAT_ID  = "111";
+    process.env.TELEGRAM_BOT_TOKEN      = "test-bot-token-for-ci";
   });
 
   afterAll(() => {
-    process.env.SMTP_USER  = originalSmtpUser;
-    process.env.SMTP_PASS  = originalSmtpPass;
-    process.env.TELEGRAM_ADMIN_CHAT_ID = originalAdminChat;
+    process.env.SMTP_USER               = originalSmtpUser;
+    process.env.SMTP_PASS               = originalSmtpPass;
+    process.env.TELEGRAM_ADMIN_CHAT_ID  = originalAdminChat;
+    process.env.TELEGRAM_BOT_TOKEN      = originalBotToken;
   });
 
   it("falls back to Telegram and returns 200 when SMTP is missing", async () => {
@@ -119,7 +111,6 @@ describe("POST /api/appointments — Telegram fallback (no SMTP)", () => {
     const { email, ...rest } = VALID_PAYLOAD;
     await request(app).post("/api/appointments").send(rest);
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    // Route format: ` *Email:* ${data.email || "N/A"}` (markdown bold)
     expect(body.text).toContain("*Email:* N/A");
   });
 });
@@ -156,15 +147,13 @@ describe("POST /api/appointments — SMTP path", () => {
   it("sends the business notification via SMTP", async () => {
     const res = await request(app).post("/api/appointments").send(VALID_PAYLOAD);
     expect(res.status).toBe(200);
-    expect(sendMailMock).toHaveBeenCalledTimes(2); // business + customer
+    expect(sendMailMock).toHaveBeenCalledTimes(2);
 
-    // First email goes to the business
     const businessCall = sendMailMock.mock.calls[0][0];
     expect(businessCall.to).toBe("asellamoringa@gmail.com");
     expect(businessCall.subject).toBe("New Appointment Request");
     expect(businessCall.html).toContain("Yonas T.");
 
-    // Second goes to the customer (because email was provided)
     const customerCall = sendMailMock.mock.calls[1][0];
     expect(customerCall.to).toBe(VALID_PAYLOAD.email);
     expect(customerCall.subject).toContain("Appointment Request Received");
@@ -174,7 +163,7 @@ describe("POST /api/appointments — SMTP path", () => {
     const { email, ...rest } = VALID_PAYLOAD;
     const res = await request(app).post("/api/appointments").send(rest);
     expect(res.status).toBe(200);
-    expect(sendMailMock).toHaveBeenCalledTimes(1); // business only
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
     expect(sendMailMock.mock.calls[0][0].to).toBe("asellamoringa@gmail.com");
   });
 

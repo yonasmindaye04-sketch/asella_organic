@@ -1,17 +1,6 @@
 /**
  * backend/tests/unit/telegram-lib.test.ts
  * Asella Organic — Telegram Bot Helpers Unit Tests
- *
- * Tests src/lib/telegram.ts: pure formatters, senders that hit the
- * Telegram Bot API, and DB-backed helpers.
- *
- * The HTTP layer (`globalThis.fetch` to api.telegram.org) is stubbed so
- * no real network calls are made. DB-backed helpers use the real
- * pool — they're integration-flavored but live in the unit suite
- * because their behaviour is small and self-contained.
- *
- * Run with:
- *   npx jest tests/unit/telegram-lib.test.ts
  */
 
 import { jest } from "@jest/globals";
@@ -23,13 +12,34 @@ import pool from "../../src/config/db.js";
 const mockFetch = jest.fn() as unknown as jest.MockedFunction<(...args: any[]) => any>;
 let originalFetch: typeof globalThis.fetch;
 
+// Store original env values
+let originalBotToken: string | undefined;
+let originalAdminChat: string | undefined;
+let originalDeliveryGroup: string | undefined;
+
 beforeAll(() => {
   originalFetch = globalThis.fetch;
   (globalThis as any).fetch = mockFetch;
+
+  // Save originals
+  originalBotToken    = process.env.TELEGRAM_BOT_TOKEN;
+  originalAdminChat   = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  originalDeliveryGroup = process.env.TELEGRAM_DELIVERY_GROUP_ID;
+
+  // Set required env vars so tg() doesn't return null
+  process.env.TELEGRAM_BOT_TOKEN          = "test-bot-token-for-unit-tests";
+  process.env.TELEGRAM_ADMIN_CHAT_ID      = "111";
+  process.env.TELEGRAM_DELIVERY_GROUP_ID  = "-100123";
 });
 
 afterAll(async () => {
   (globalThis as any).fetch = originalFetch;
+
+  // Restore originals
+  process.env.TELEGRAM_BOT_TOKEN          = originalBotToken;
+  process.env.TELEGRAM_ADMIN_CHAT_ID      = originalAdminChat;
+  process.env.TELEGRAM_DELIVERY_GROUP_ID  = originalDeliveryGroup;
+
   await pool.end();
 });
 
@@ -41,6 +51,10 @@ beforeEach(() => {
     status: 200,
     json: async () => ({ ok: true, result: { message_id: 12345 } }),
   });
+  // Ensure token is set before each test (some tests may clear it)
+  process.env.TELEGRAM_BOT_TOKEN         = "test-bot-token-for-unit-tests";
+  process.env.TELEGRAM_ADMIN_CHAT_ID     = "111";
+  process.env.TELEGRAM_DELIVERY_GROUP_ID = "-100123";
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,10 +107,7 @@ describe("formatGroupDeliveryMessage", () => {
   });
 
   it("falls back to 'Std' size and 'Item' name when fields are missing", () => {
-    const text = formatGroupDeliveryMessage({
-      id: "X",
-      items: [{}],
-    });
+    const text = formatGroupDeliveryMessage({ id: "X", items: [{}] });
     expect(text).toContain("• Item [Std] × 1");
   });
 
@@ -113,7 +124,7 @@ describe("formatGroupDeliveryMessage", () => {
   it("uses 'N/A' for missing order id, city, location", () => {
     const text = formatGroupDeliveryMessage({});
     expect(text).toContain("🆔 *Order:* N/A");
-    expect(text).toContain("🏙 *City:* Addis Ababa"); // default
+    expect(text).toContain("🏙 *City:* Addis Ababa");
     expect(text).toContain("📍 *Location:* N/A");
   });
 });
@@ -224,25 +235,16 @@ describe("sendWithButtons", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Order / vendor / notification senders
-// ─────────────────────────────────────────────────────────────────────────────
-
 describe("sendOrderToAdmin", () => {
-  const originalAdminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
-  beforeAll(() => { process.env.TELEGRAM_ADMIN_CHAT_ID = "111"; });
-  afterAll(()  => { process.env.TELEGRAM_ADMIN_CHAT_ID = originalAdminChat; });
-
   it("skips regular orders (returns without fetching)", async () => {
-    await sendOrderToAdmin({ id: "ORD-1", message_type: "order" });
+    await sendOrderToAdmin({ id: "ORD-1", message_type: "regular" });
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("skips when no admin chat id is set", async () => {
-    const orig = process.env.TELEGRAM_ADMIN_CHAT_ID;
     process.env.TELEGRAM_ADMIN_CHAT_ID = "";
     await sendOrderToAdmin({ id: "ORD-1", message_type: "issue" });
-    process.env.TELEGRAM_ADMIN_CHAT_ID = orig;
+    process.env.TELEGRAM_ADMIN_CHAT_ID = "111";
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -255,21 +257,16 @@ describe("sendOrderToAdmin", () => {
 });
 
 describe("sendToDeliveryGroup", () => {
-  const originalGroup = process.env.TELEGRAM_DELIVERY_GROUP_ID;
-  beforeAll(() => { process.env.TELEGRAM_DELIVERY_GROUP_ID = "-100123"; });
-  afterAll(()  => { process.env.TELEGRAM_DELIVERY_GROUP_ID = originalGroup; });
-
   it("returns null when no group chat id is set", async () => {
-    const orig = process.env.TELEGRAM_DELIVERY_GROUP_ID;
     process.env.TELEGRAM_DELIVERY_GROUP_ID = "";
     const result = await sendToDeliveryGroup({ id: "ORD-1" });
-    process.env.TELEGRAM_DELIVERY_GROUP_ID = orig;
+    process.env.TELEGRAM_DELIVERY_GROUP_ID = "-100123";
     expect(result).toBeNull();
   });
 
   it("sends the formatted message with accept/reject buttons", async () => {
     const result = await sendToDeliveryGroup({ id: "ORD-42", items: [] });
-    expect(result).toBe(12345); // mocked message_id
+    expect(result).toBe(12345);
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.chat_id).toBe("-100123");
     expect(body.reply_markup.inline_keyboard[0][0].callback_data).toBe("delivery_accept_ORD-42");
@@ -300,7 +297,6 @@ describe("sendTelegramToCustomer", () => {
   const TEST_CHAT = "555000111";
 
   beforeAll(async () => {
-    // Set up a customer row with a linked telegram chat id
     await pool.query(
       `INSERT INTO customers (id, phone, name, telegram_chat_id)
        VALUES (UUID(), ?, 'Test Customer', ?)
@@ -321,8 +317,6 @@ describe("sendTelegramToCustomer", () => {
   it("sends the message to the customer's linked chat", async () => {
     await sendTelegramToCustomer({ phone: TEST_PHONE, message: "Order shipped!" });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    // MySQL bigint columns are returned as numbers, not strings.
-    // The body we send to Telegram can be either; we coerce for the assertion.
     expect(String(body.chat_id)).toBe(String(TEST_CHAT));
     expect(body.text).toBe("Order shipped!");
   });
@@ -337,10 +331,9 @@ describe("sendTelegramToCustomer", () => {
 
 describe("sendLowStockAlert", () => {
   it("skips when admin chat id is not set", async () => {
-    const orig = process.env.TELEGRAM_ADMIN_CHAT_ID;
     process.env.TELEGRAM_ADMIN_CHAT_ID = "";
     await sendLowStockAlert({ name: "X", size: "100g", current: 1, threshold: 5 });
-    process.env.TELEGRAM_ADMIN_CHAT_ID = orig;
+    process.env.TELEGRAM_ADMIN_CHAT_ID = "111";
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -351,7 +344,6 @@ describe("sendLowStockAlert", () => {
     expect(body.chat_id).toBe("111");
     expect(body.text).toContain("⚠️ *Low Stock Alert*");
     expect(body.text).toContain("Moringa");
-    // The message uses code-formatted values: "Current: `2` — Threshold: `10`"
     expect(body.text).toMatch(/Current:\s*`?2`?/);
     expect(body.text).toMatch(/Threshold:\s*`?10`?/);
   });
@@ -367,7 +359,6 @@ describe("sendStockRequestAlert", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.text).toContain("📝 *Stock Request*");
     expect(body.text).toContain("Honey");
-    // Format: "Remaining: *1* → Need: *5*"
     expect(body.text).toContain("Remaining: *1*");
     expect(body.text).toContain("Need: *5*");
   });
@@ -388,25 +379,21 @@ describe("storePendingVendorMessage", () => {
   it("inserts a row and updates on duplicate", async () => {
     await storePendingVendorMessage(TEST_CHAT, TEST_NAME, TEST_ORDER, "first");
     const [before] = await pool.query(
-      `SELECT message FROM pending_vendor_messages
-       WHERE vendor_chat_id = ? AND order_id = ?`,
+      `SELECT message FROM pending_vendor_messages WHERE vendor_chat_id = ? AND order_id = ?`,
       [TEST_CHAT, TEST_ORDER]
     ) as [any[], any];
     expect(before[0].message).toBe("first");
 
     await storePendingVendorMessage(TEST_CHAT, TEST_NAME, TEST_ORDER, "second");
     const [after] = await pool.query(
-      `SELECT message FROM pending_vendor_messages
-       WHERE vendor_chat_id = ? AND order_id = ?`,
+      `SELECT message FROM pending_vendor_messages WHERE vendor_chat_id = ? AND order_id = ?`,
       [TEST_CHAT, TEST_ORDER]
     ) as [any[], any];
     expect(after[0].message).toBe("second");
   });
 
   it("swallows DB errors without throwing", async () => {
-    // Force a constraint violation by passing invalid type
     await expect(
-      // Cast to any to bypass TS; intentionally pass undefined to trigger error
       storePendingVendorMessage(undefined as any, undefined as any, undefined as any, undefined as any)
     ).resolves.toBeUndefined();
   });
@@ -422,32 +409,23 @@ describe("sendVendorPO", () => {
 
     const orderId = `PO-PWV-${Date.now()}`;
     await sendVendorPO(
-      "555000333",
-      "PW Vendor",
-      orderId,
+      "555000333", "PW Vendor", orderId,
       [{ name: "Honey", amount: "50 units", price: "1500", deliveryDate: "2026-06-10" }],
       "staff-uuid"
     );
 
-    // First fetch was the vendor send (ok:false). The second was the
-    // admin "vendor not registered" notice.
     expect(mockFetch).toHaveBeenCalledTimes(2);
     const adminBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     expect(adminBody.text).toContain("⚠️ *Vendor Not Registered*");
 
-    // Cleanup
-    await pool.query(
-      `DELETE FROM pending_vendor_messages WHERE order_id = ?`, [orderId]
-    );
+    await pool.query(`DELETE FROM pending_vendor_messages WHERE order_id = ?`, [orderId]);
   });
 
   it("sends the PO with 4 buttons on success", async () => {
     process.env.TELEGRAM_ADMIN_CHAT_ID = "111";
     const orderId = `PO-PWV-OK-${Date.now()}`;
     await sendVendorPO(
-      "555000334",
-      "PW Vendor OK",
-      orderId,
+      "555000334", "PW Vendor OK", orderId,
       [{ name: "Moringa", amount: "100kg", price: "8000", deliveryDate: "2026-06-15" }],
       "staff-uuid"
     );
@@ -460,10 +438,9 @@ describe("sendVendorPO", () => {
 
 describe("sendMorningBriefing", () => {
   it("skips when admin chat id is not set", async () => {
-    const orig = process.env.TELEGRAM_ADMIN_CHAT_ID;
     process.env.TELEGRAM_ADMIN_CHAT_ID = "";
     await sendMorningBriefing();
-    process.env.TELEGRAM_ADMIN_CHAT_ID = orig;
+    process.env.TELEGRAM_ADMIN_CHAT_ID = "111";
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
