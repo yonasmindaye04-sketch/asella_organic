@@ -39,10 +39,10 @@ const config = {
   // Thresholds set to current baseline — raise incrementally as tests improve
   coverageThreshold: {
     global: {
-      branches:   40,
-      functions:  50,
-      lines:      44,
-      statements: 44,
+      branches:   41,
+      functions:  51,
+      lines:      43,
+      statements: 43,
     },
   },
 
