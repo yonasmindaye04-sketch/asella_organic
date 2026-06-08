@@ -11,7 +11,6 @@
 
 import { z } from "zod";
 
-import "dotenv/config"; // Load .env file into process.env
 
 const EnvSchema = z.object({
   // ── Node ────────────────────────────────────────────────
