@@ -79,9 +79,9 @@ const DailyHighlights: React.FC = () => {
         
         {/* Title */}
         <div className="text-center mb-12">
-          <p className="font-mono text-sm text-highland-gold uppercase tracking-[0.2em] mb-3">Learn While Visiting Us</p>
-          <h2 className="font-bebas text-5xl md:text-6xl text-obsidian mb-3 tracking-wide">Build Your Healthy Self</h2>
-          <p className="text-slate-700 max-w-2xl mx-auto text-sm">Click the cards to explore different natural benefits of our authentic Ethiopian harvest.</p>
+          <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-6">Learn While Visiting Us</p>
+          <h2 className="font-bebas text-5xl md:text-6xl text-obsidian mb-6 tracking-wide">Build Your Healthy Self</h2>
+          <p className="text-slate-700 max-w-5xl mx-auto text-2xl leading-relaxed">Click the cards to explore different natural benefits of our authentic Ethiopian harvest.</p>
         </div>
 
         {/* 2 Wide Cards Grid */}
@@ -131,14 +131,14 @@ const DailyHighlights: React.FC = () => {
         <div className="flex animate-marquee group-hover:[animation-play-state:paused] whitespace-nowrap items-center w-[200%]">
           <div className="flex items-center gap-12 px-6 w-1/2 justify-around">
             {['Shilajit', 'Organic Honey', 'Black Seed Oil', "Lion's Mane", 'Turmeric Gold', 'Moringa Tea', 'Raw Cacao'].map(item => (
-              <span key={item} className="font-bold text-sm text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
+              <span key={item} className="font-bold text-base text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
                 {item} <span className="w-1.5 h-1.5 rounded-full bg-highland-gold"></span>
               </span>
             ))}
           </div>
           <div className="flex items-center gap-12 px-6 w-1/2 justify-around">
             {['Shilajit', 'Organic Honey', 'Black Seed Oil', "Lion's Mane", 'Turmeric Gold', 'Moringa Tea', 'Raw Cacao'].map(item => (
-              <span key={item + '-dup'} className="font-bold text-sm text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
+              <span key={item + '-dup'} className="font-bold text-base text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
                 {item} <span className="w-1.5 h-1.5 rounded-full bg-highland-gold"></span>
               </span>
             ))}

@@ -20,7 +20,7 @@ const Reviews: React.FC = () => {
         
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <p className="font-mono text-sm text-highland-gold uppercase tracking-[0.2em] mb-3">
+          <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-3">
             Real Experiences
           </p>
           <h2 className="font-display-lg font-black text-obsidian text-4xl md:text-5xl leading-tight tracking-tight">
@@ -45,7 +45,7 @@ const Reviews: React.FC = () => {
         
         {/* More Button */}
         <div className="mt-10 text-center">
-          <Link to="/community-videos" className="inline-flex items-center gap-2 bg-obsidian hover:bg-obsidian-mid text-[#FAF9F6] px-8 py-4 rounded-full font-mono text-sm font-bold uppercase tracking-widest transition-all duration-300 shadow-md">
+          <Link to="/community-videos" className="inline-flex items-center gap-2 bg-obsidian hover:bg-obsidian-mid text-[#FAF9F6] px-8 py-4 rounded-full font-mono text-base font-bold uppercase tracking-widest transition-all duration-300 shadow-md">
             More Videos
             <span className="material-symbols-outlined text-[16px] text-highland-gold">arrow_forward</span>
           </Link>

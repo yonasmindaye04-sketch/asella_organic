@@ -16,19 +16,17 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Main Grid: Columns */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-6 text-sm font-sans">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-6 text-base font-sans">
           
           {/* Column 1: About */}
           <div className="col-span-2 md:col-span-1">
-            <p className="text-parchment/90 leading-relaxed max-w-[220px] text-sm">
-              Premium organic supplements ethically sourced from Ethiopian farms. Bridging ancient wisdom and modern vitality.
-            </p>
+            
           </div>
 
           {/* Column 2: Payment */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-xs uppercase tracking-widest">Payment Options</h4>
-            <ul className="space-y-2 text-parchment/90 font-mono text-sm">
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Payment Options</h4>
+            <ul className="space-y-2 text-parchment font-mono text-base">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-highland-gold rounded-full"></span> Telebirr
               </li>
@@ -43,8 +41,8 @@ const Footer: React.FC = () => {
 
           {/* Column 3: Links */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-xs uppercase tracking-widest">Important Links</h4>
-            <ul className="space-y-2 text-parchment/90 font-mono text-sm">
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Important Links</h4>
+            <ul className="space-y-2 text-parchment font-mono text-base">
               <li><a href="#" className="hover:text-white transition-colors">Home</a></li>
               <li><a href="#products" className="hover:text-white transition-colors">Catalog</a></li>
               <li><a href="#story" className="hover:text-white transition-colors">Our Story</a></li>
@@ -54,8 +52,8 @@ const Footer: React.FC = () => {
 
           {/* Column 4: Social Media */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-xs uppercase tracking-widest">Follow Us</h4>
-            <ul className="space-y-2 text-parchment/90 font-mono text-sm">
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Follow Us</h4>
+            <ul className="space-y-2 text-parchment font-mono text-base">
               <li><a href="https://t.me/asellamoringashop" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-telegram text-base"></i> Telegram</a></li>
               <li><a href="https://www.facebook.com/share/1FkhkuGamB/" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-facebook-f text-base"></i> Facebook</a></li>
               <li><a href="https://www.instagram.com/asella_organic" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-instagram text-base"></i> Instagram</a></li>
@@ -65,8 +63,8 @@ const Footer: React.FC = () => {
 
           {/* Column 5: Contact */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-xs uppercase tracking-widest">Contact</h4>
-            <ul className="space-y-2 text-parchment/90 font-mono text-sm">
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Contact</h4>
+            <ul className="space-y-2 text-parchment font-mono text-base">
               <li className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-lg">mail</span>
                 info@asella-organic.com
@@ -84,7 +82,7 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-4 border-t border-highland-gold/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-parchment/70 font-mono">
+        <div className="pt-4 border-t border-highland-gold/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-parchment font-mono">
           <p>© 2026 Asella Organic Enterprise. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

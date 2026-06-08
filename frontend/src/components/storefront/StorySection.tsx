@@ -13,19 +13,19 @@ const StorySection: React.FC = () => {
         
         {/* Left: Typography & Story */}
         <div className="col-span-1 lg:col-span-5 flex flex-col gap-6 pt-2">
-          <div className="inline-flex items-center gap-2 bg-parchment-mid border border-[#d4ecd4] text-obsidian px-4 py-2 rounded-full w-max shadow-sm">
-            <span className="material-symbols-outlined text-[16px] text-highland-gold animate-pulse-gold">eco</span>
-            <span className="text-xs font-mono font-bold uppercase tracking-widest">Our Heritage</span>
-          </div>
+          
           
           <h2 className="font-display-lg font-black text-obsidian leading-[1.15]" style={{ fontSize: 'clamp(36px, 4.5vw, 56px)', letterSpacing: '-0.02em' }}>
             Rooted in Heritage,<br/>
             <span className="text-highland-gold">Driven by Purity.</span>
           </h2>
           
-          <p className="max-w-lg font-sans text-slate-700 text-sm leading-relaxed">
-            Founded in the fertile valleys of Asella, our enterprise began with a simple mission: to preserve the ancient agricultural wisdom of Ethiopia while meeting international organic standards. We believe that true health comes from the earth, untouched and honored.
-          </p>
+         <p className="max-w-4xl font-sans text-slate-1000 text-2xl leading-10">
+  Founded in the fertile valleys of Asella, our enterprise began with a simple
+  mission: to preserve the ancient agricultural wisdom of Ethiopia while
+  meeting international organic standards. We believe that true health comes
+  from the earth, untouched and honored.
+</p>
         </div>
         
         {/* Right: Asymmetrical Feature Cards */}
@@ -38,49 +38,49 @@ const StorySection: React.FC = () => {
           </div>
           
           {/* Staggered Features */}
-          <div className="relative z-10 flex flex-col gap-6 h-full justify-start">
+          <div className="relative z-10 flex flex-col gap-4 h-full justify-start">
             
             {/* Feature 1 */}
-            <div className="flex items-start gap-5 bg-white p-6 rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[90%]">
+            <div className="flex items-start gap-4 bg-white p-4 rounded-xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%]">
               <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
                 <span className="material-symbols-outlined">nature</span>
               </div>
               <div>
-                <h3 className="text-sm font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">100% Organic</h3>
-                <p className="text-slate-700 text-sm leading-relaxed">Every product is certified to be free from synthetic additives.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">100% Organic</h3>
+                <p className="text-slate-700 text-2xl leading-relaxed">Every product is certified to be free from synthetic additives.</p>
               </div>
             </div>
             
             {/* Feature 2 */}
-            <div className="flex items-start gap-5 bg-white p-6 rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[90%] lg:ml-8">
+            <div className="flex items-start gap-4 bg-white p-4 rounded-xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-8">
               <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
                 <span className="material-symbols-outlined">handshake</span>
               </div>
               <div>
-                <h3 className="text-sm font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Ethically Sourced</h3>
-                <p className="text-slate-700 text-sm leading-relaxed">We support our community by providing fair wages and sustainable practices.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Ethically Sourced</h3>
+                <p className="text-slate-700 text-2xl leading-relaxed">We support our community by providing fair wages and sustainable practices.</p>
               </div>
             </div>
             
             {/* Feature 3 */}
-            <div className="flex items-start gap-5 bg-white p-6 rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[90%] lg:ml-16">
+            <div className="flex items-start gap-4 bg-white p-4 rounded-xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-16">
               <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
                 <span className="material-symbols-outlined">science</span>
               </div>
               <div>
-                <h3 className="text-sm font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Quality Tested</h3>
-                <p className="text-slate-700 text-sm leading-relaxed">Rigorous laboratory testing for purity and potency in every batch.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Quality Tested</h3>
+                <p className="text-slate-700 text-2xl leading-relaxed">Rigorous laboratory testing for purity and potency in every batch.</p>
               </div>
             </div>
             
             {/* Feature 4 */}
-            <div className="flex items-start gap-5 bg-white p-6 rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[90%] lg:ml-24">
+            <div className="flex items-start gap-4 bg-white p-4 rounded-xl border border-[#d4ecd4] shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-24">
               <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
                 <span className="material-symbols-outlined">award_star</span>
               </div>
               <div>
-                <h3 className="text-sm font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Heritage & Tradition</h3>
-                <p className="text-slate-700 text-sm leading-relaxed">Combining generational agricultural knowledge with modern scientific refinement.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Heritage & Tradition</h3>
+                <p className="text-slate-700 text-2xl leading-relaxed">Combining generational agricultural knowledge with modern scientific refinement.</p>
               </div>
             </div>
             
