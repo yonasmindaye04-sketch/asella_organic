@@ -55,13 +55,15 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
-  retry = true
+  retry = true,
+  extraHeaders?: Record<string, string>,
 ): Promise<ApiResponse<T>> {
   const options: RequestInit = {
     method,
     credentials: "include", // Send HttpOnly cookies automatically
     headers: {
       "Content-Type": "application/json",
+      ...extraHeaders,
     },
   };
 
@@ -106,10 +108,10 @@ async function request<T>(
 // ─── Typed API surface ────────────────────────────────────────────────────────
 
 export const api = {
-  get:    <T>(path: string)                    => request<T>("GET",    path),
-  post:   <T>(path: string, body: unknown)     => request<T>("POST",   path, body),
-  patch:  <T>(path: string, body: unknown)     => request<T>("PATCH",  path, body),
-  delete: <T>(path: string)                    => request<T>("DELETE", path),
+  get:    <T>(path: string)                           => request<T>("GET",    path),
+  post:   <T>(path: string, body: unknown)            => request<T>("POST",   path, body),
+  patch:  <T>(path: string, body: unknown)            => request<T>("PATCH",  path, body),
+  delete: <T>(path: string, headers?: Record<string, string>) => request<T>("DELETE", path, undefined, true, headers),
 };
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -236,11 +238,8 @@ export const staff = {
   get:    (id: string)                       => api.get<StaffProfile>(`/api/staff/${id}`),
   create: (body: unknown)                    => api.post<StaffProfile>("/api/staff", body),
   update: (id: string, body: unknown)        => api.patch<StaffProfile>(`/api/staff/${id}`, body),
-  delete: (id: string, _twoFaToken: string)   => 
-    {
-    // DELETE with 2FA token in header — we need the raw fetch for custom headers
-    return request(`DELETE`, `/api/staff/${id}`, undefined).then((r) => r); // header set via interceptor below
-  },
+  delete: (id: string, twoFaToken: string) =>
+    api.delete(`/api/staff/${id}`, { "x-2fa-token": twoFaToken }),
 
   setup2FA:   ()              => api.post("/api/staff/2fa/setup", {}),
   verify2FA:  (token: string) => api.post("/api/staff/2fa/verify", { token }),

@@ -11,7 +11,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { RootState } from '../../store';
 import { logout } from '../../store/slices/authSlice';
-import { api } from '../../services/api';
+import { api, auth as authApi } from '../../services/api';
 
 const Sidebar: React.FC = () => {
   const dispatch   = useDispatch();
@@ -216,7 +216,7 @@ const Sidebar: React.FC = () => {
       {/* Logout */}
       <div className="p-4 shrink-0 border-t border-[#E2F0D9]/10">
         <button
-          onClick={() => { dispatch(logout()); navigate('/login'); }}
+          onClick={async () => { await authApi.logout(); dispatch(logout()); navigate('/login'); }}
           className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium text-sm w-full text-red-400 hover:bg-red-400/10"
         >
           <span className="material-symbols-outlined w-6 text-center text-[20px] text-red-400">logout</span>
