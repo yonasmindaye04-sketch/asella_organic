@@ -38,16 +38,12 @@ const EnvSchema = z.object({
 
 
   // ── Google Sheets ─────────────────────────────────────────
-  GOOGLE_SPREADSHEET_ID: z.string().min(20),
-  GOOGLE_SERVICE_ACCOUNT_JSON: z
-    .string()
-    .min(50)
-    .refine((s) => {
-      try { JSON.parse(s); return true; } catch { return false; }
-    }, "GOOGLE_SERVICE_ACCOUNT_JSON must be valid JSON"),
-
+ GOOGLE_SPREADSHEET_ID: z.string().min(20),
+GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(50).refine((s) => {
+    try { JSON.parse(s); return true; } catch { return false; }
+  }, "GOOGLE_SERVICE_ACCOUNT_JSON must be valid JSON").optional(),
+GOOGLE_SERVICE_ACCOUNT_PATH: z.string().optional(),
 });
-
 const result = EnvSchema.safeParse(process.env);
 
 if (!result.success) {
