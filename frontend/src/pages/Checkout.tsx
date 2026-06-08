@@ -17,7 +17,7 @@
  * The cart is sticky (localStorage) so it survives page reloads.
  */
 import React, { useEffect, useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { useToast } from '../components/ui/ToastProvider';
 import Header from '../components/storefront/Header';
@@ -66,9 +66,8 @@ const EMPTY_FORM: CheckoutForm = {
 };
 
 const Checkout: React.FC = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const { products, loading: productsLoading } = useProducts();
+  const { products } = useProducts();
   const [cart, setCart] = useState<CartItem[]>(loadCart);
   const [form, setForm] = useState<CheckoutForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -103,7 +102,7 @@ const Checkout: React.FC = () => {
         image_url:    product.image_url,
       }];
     });
-    toast({ message: `Added ${product.name} to cart`, type: 'success' });
+    toast(`Added ${product.name} to cart`);
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -128,11 +127,11 @@ const Checkout: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) {
-      toast({ message: 'Please fill in your name, phone, and address', type: 'error' });
+      toast('Please fill in your name, phone, and address');
       return;
     }
     if (cart.length === 0) {
-      toast({ message: 'Your cart is empty', type: 'error' });
+      toast('Your cart is empty');
       return;
     }
 
@@ -166,10 +165,10 @@ const Checkout: React.FC = () => {
 
       setConfirmation({ orderId: data.data.id, total });
       setCart([]);
-      toast({ message: 'Order placed successfully!', type: 'success' });
+      toast('Order placed successfully!');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Order failed';
-      toast({ message: msg, type: 'error' });
+      toast(msg);
     } finally {
       setSubmitting(false);
     }
