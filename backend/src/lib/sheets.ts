@@ -5,17 +5,24 @@
  * Handles real-time order mirroring, bulk backups, and full database syncing.
  * Automatically provisions missing tabs and headers to prevent parsing errors.
  */
-
 import { google } from "googleapis";
 import pool from "../config/db.js";
+import fs from "fs";
 
 // ─── Auth singleton ───────────────────────────────────────────────
 
 function getAuth() {
-  const json = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!json) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not set");
+  let credentials: object;
 
-  const credentials = JSON.parse(json);
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_PATH) {
+    const raw = fs.readFileSync(process.env.GOOGLE_SERVICE_ACCOUNT_PATH, "utf8");
+    credentials = JSON.parse(raw);
+  } else if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  } else {
+    throw new Error("Neither GOOGLE_SERVICE_ACCOUNT_PATH nor GOOGLE_SERVICE_ACCOUNT_JSON is set");
+  }
+
   return new google.auth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
@@ -35,8 +42,8 @@ const SPREADSHEET_ID = () => {
 // ─── Schema Definitions ───────────────────────────────────────────
 
 const ORDER_HEADERS = [
-  "ID", "Date", "Source", "Customer Name", "Phone", "City", 
-  "Location", "Gender", "Age Group", "Order Type", "Franchise Type", 
+  "ID", "Date", "Source", "Customer Name", "Phone", "City",
+  "Location", "Gender", "Age Group", "Order Type", "Franchise Type",
   "Items Summary", "Total", "Payment Method", "Status", "Notes"
 ];
 
@@ -47,7 +54,7 @@ async function ensureSheetAndHeaders(sheetName: string, headers: string[]): Prom
   const spreadsheetId = SPREADSHEET_ID();
 
   const doc = await sheets.spreadsheets.get({ spreadsheetId });
-  const sheetExists = doc.data.sheets?.some(s => s.properties?.title === sheetName);
+  const sheetExists = doc.data.sheets?.some((s: any) => s.properties?.title === sheetName);
 
   if (!sheetExists) {
     await sheets.spreadsheets.batchUpdate({
@@ -86,7 +93,7 @@ async function ensureSheetAndHeaders(sheetName: string, headers: string[]): Prom
 // ─── Application Functions ────────────────────────────────────────
 
 function mapOrderToRow(order: Record<string, any>): any[] {
-  const dateValue = order.created_at 
+  const dateValue = order.created_at
     ? new Date(order.created_at).toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })
     : new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" });
 
@@ -120,7 +127,7 @@ export async function mirrorToSheets(order: Record<string, any>): Promise<void> 
   try {
     const sheets = getSheets();
     const sheetName = "Orders";
-    
+
     await ensureSheetAndHeaders(sheetName, ORDER_HEADERS);
     const row = mapOrderToRow(order);
 
@@ -144,7 +151,6 @@ export async function syncAllOrdersToSheets(): Promise<void> {
 
     await ensureSheetAndHeaders(sheetName, ORDER_HEADERS);
 
-    // MySQL Array destructuring update
     const [dbOrders] = await pool.query(
       `SELECT * FROM orders ORDER BY created_at ASC`
     ) as [any[], any];
