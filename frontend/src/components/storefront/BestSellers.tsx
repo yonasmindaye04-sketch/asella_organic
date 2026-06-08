@@ -83,9 +83,6 @@ const BestSellers: React.FC = () => {
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
-            <p className="font-mono text-sm text-highland-gold uppercase tracking-[0.2em] mb-3">
-              Curated Collection
-            </p>
             <h2
               className="font-display-lg font-black text-obsidian"
               style={{ fontSize: 'clamp(32px, 5vw, 56px)', lineHeight: 1.15, letterSpacing: '-0.02em' }}
@@ -94,7 +91,7 @@ const BestSellers: React.FC = () => {
               <span className="text-highland-gold">Supplements</span>
             </h2>
           </div>
-          <p className="font-sans text-highland-gold max-w-xs text-lg font-medium leading-relaxed">
+          <p className="font-sans text-highland-gold max-w-md text-2xl font-medium leading-relaxed">
             Sourced from Ethiopian highlands. Every product is third-party tested
             and certified organic.
           </p>
@@ -124,7 +121,7 @@ const BestSellers: React.FC = () => {
             <p className="font-display-lg font-semibold text-obsidian text-xl mb-2">
               Coming Soon
             </p>
-            <p className="font-sans text-slate-500 text-sm">
+            <p className="font-sans text-slate-700 text-2xl">
               Our product catalog is being updated. Check back shortly.
             </p>
           </div>
@@ -151,7 +148,7 @@ const BestSellers: React.FC = () => {
                       {/* Featured badge */}
                       {product.featured && (
                         <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-highland-gold
-                                        text-obsidian font-mono text-xs font-bold uppercase
+                                        text-obsidian font-mono text-sm font-bold uppercase
                                         tracking-widest rounded-full shadow-sm">
                           Featured
                         </div>
@@ -160,7 +157,7 @@ const BestSellers: React.FC = () => {
                       {/* Category badge */}
                       {product.tag && (
                         <div className="absolute top-4 right-4 z-10 px-3 py-1 bg-white/90
-                                        backdrop-blur-sm text-obsidian font-mono text-xs
+                                        backdrop-blur-sm text-obsidian font-mono text-sm
                                         rounded-full border border-[#d4ecd4]">
                           {product.tag}
                         </div>
@@ -192,7 +189,7 @@ const BestSellers: React.FC = () => {
                                    transition-all duration-500 pointer-events-none"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs text-white/90 font-bold">Price From</span>
+                          <span className="font-mono text-sm text-white/90 font-bold">Price From</span>
                           <span className="font-display-lg font-bold text-highland-gold text-xl drop-shadow-md">
                             {product.price ? Number(product.price).toLocaleString() : '—'} ETB
                           </span>
@@ -208,7 +205,7 @@ const BestSellers: React.FC = () => {
                       >
                         {product.name}
                       </h3>
-                      <p className="font-sans text-slate-700 text-[14px] leading-relaxed line-clamp-2 mb-6 flex-1">
+                      <p className="font-sans text-slate-700 text-2xl leading-relaxed line-clamp-3 mb-6 flex-1">
                         {product.description || "Premium organic supplement sourced from the Ethiopian highlands."}
                       </p>
 
@@ -225,7 +222,7 @@ const BestSellers: React.FC = () => {
                             })
                           );
                         }}
-                        className="flex items-center justify-center gap-2 w-full py-3 mt-auto bg-highland-gold hover:bg-highland-gold-light text-obsidian font-mono font-bold text-sm rounded-xl uppercase tracking-widest transition-colors shadow-lg"
+                        className="flex items-center justify-center gap-2 w-full py-3 mt-auto bg-highland-gold hover:bg-highland-gold-light text-obsidian font-mono font-bold text-base rounded-xl uppercase tracking-widest transition-colors shadow-lg"
                       >
                         Buy Now
                         <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
@@ -244,7 +241,7 @@ const BestSellers: React.FC = () => {
             onClick={() => dispatch(openOrderModal({ mode: 'sales' }))}
             className="inline-flex items-center gap-2 px-8 py-4 bg-obsidian text-[#FAF9F6]
                        font-display-lg font-semibold rounded-full hover:bg-obsidian-mid
-                       transition-colors duration-300 text-sm shadow-xl"
+                       transition-colors duration-300 text-base shadow-xl"
           >
             Order Any Product
             <span className="material-symbols-outlined text-[16px]">arrow_forward</span>

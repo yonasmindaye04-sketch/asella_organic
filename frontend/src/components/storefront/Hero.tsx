@@ -37,24 +37,24 @@ const Hero: React.FC = () => {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg md:text-xl lg:text-2xl xl:text-3xl text-obsidian/70 mb-14 lg:mb-16 max-w-4xl mx-auto font-medium leading-relaxed">
+        <p className="text-lg md:text-xl lg:text-2xl xl:text-3xl text-obsidian mb-14 lg:mb-16 max-w-4xl mx-auto font-medium leading-relaxed">
           Premium organic supplements, ethically sourced from Ethiopian farms and delivered with care.
         </p>
 
         {/* Buttons */}
         <div className="flex flex-col md:flex-row justify-center items-center gap-4 lg:gap-6 mb-14 lg:mb-20 w-full max-w-4xl mx-auto px-4 md:px-0">
           
-          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-[#FAF9F6] rounded-full font-bold text-[13px] md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-bounce">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-[#FAF9F6] rounded-full font-bold text-base md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-bounce">
             <span className="material-symbols-outlined text-base lg:text-xl">shopping_cart</span>
             Place an Order
           </button>
 
-          <a href="#story" className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-[#FAF9F6] rounded-full font-bold text-[13px] md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <a href="#story" className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-[#FAF9F6] rounded-full font-bold text-base md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined text-base lg:text-xl">info</span>
             About Us
           </a>
 
-          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-[#FAF9F6] rounded-full font-bold text-[13px] md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-[#FAF9F6] rounded-full font-bold text-base md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined text-base lg:text-xl">inventory_2</span>
             Bulk Orders
           </button>
@@ -71,7 +71,7 @@ const Hero: React.FC = () => {
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian leading-none">17+</div>
-                <div className="text-sm lg:text-base font-bold text-obsidian/70 mt-1.5 tracking-widest uppercase">Products</div>
+                <div className="text-base lg:text-lg font-bold text-obsidian mt-1.5 tracking-widest uppercase">Products</div>
               </div>
             </div>
 
@@ -82,7 +82,7 @@ const Hero: React.FC = () => {
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian leading-none">5000+</div>
-                <div className="text-sm lg:text-base font-bold text-obsidian/70 mt-1.5 tracking-widest uppercase">Customers</div>
+                <div className="text-base lg:text-lg font-bold text-obsidian mt-1.5 tracking-widest uppercase">Customers</div>
               </div>
             </div>
 
@@ -93,7 +93,7 @@ const Hero: React.FC = () => {
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian leading-none">100%</div>
-                <div className="text-sm lg:text-base font-bold text-obsidian/70 mt-1.5 tracking-widest uppercase">Natural</div>
+                <div className="text-base lg:text-lg font-bold text-obsidian mt-1.5 tracking-widest uppercase">Natural</div>
               </div>
             </div>
 
@@ -104,7 +104,7 @@ const Hero: React.FC = () => {
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian leading-none">10</div>
-                <div className="text-sm lg:text-base font-bold text-obsidian/70 mt-1.5 tracking-widest uppercase">Local Farms</div>
+                <div className="text-base lg:text-lg font-bold text-obsidian mt-1.5 tracking-widest uppercase">Local Farms</div>
               </div>
             </div>
 
