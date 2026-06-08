@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Storefront           from './pages/Storefront';
+import Checkout             from './pages/Checkout';
 import Dashboard            from './pages/Dashboard';
 import OrderTracking        from './pages/OrderTracking';
 import Login                from './pages/Login';
@@ -15,6 +16,7 @@ import UserManagementPage   from './pages/UserManagementPage';
 import AffiliateControlPage from './pages/AffiliateControlPage';
 import NewOrderPage         from './pages/NewOrderPage';
 import CustomerOrderTracking from './pages/CustomerOrderTracking';
+import AccessDatabasePage   from './pages/AccessDatabasePage';
 import ProtectedRoute       from './components/ui/ProtectedRoute';
 import { ToastProvider }    from './components/ui/ToastProvider';
 import { LanguageProvider } from './LanguageContext';
@@ -31,9 +33,11 @@ function App() {
           <Routes>
             {/* Public */}
             <Route path="/"                 element={<Storefront />} />
+            <Route path="/checkout"         element={<Checkout />} />
             <Route path="/community-videos" element={<CommunityVideos />} />
             <Route path="/login"            element={<Login />} />
             <Route path="/track"            element={<CustomerOrderTracking />} />
+            <Route path="/track/:orderId"   element={<CustomerOrderTracking />} />
 
             {/* Dashboard */}
             <Route path="/dashboard"        element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -50,6 +54,7 @@ function App() {
 
             {/* Combined Products page — replaces /dashboard/catalog and /dashboard/inventory */}
             <Route path="/dashboard/products"     element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+            <Route path="/dashboard/access-db"   element={<ProtectedRoute><AccessDatabasePage /></ProtectedRoute>} />
           </Routes>
         </ToastProvider>
         </LanguageProvider>
