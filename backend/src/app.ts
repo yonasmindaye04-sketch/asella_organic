@@ -12,12 +12,12 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import "dotenv/config";
 import path from "path";
 
 import { securityHeaders }  from "./middleware/securityHeaders.js";
 import { generalRateLimit } from "./middleware/rateLimit.js";
 import { requestId }        from "./middleware/requestId.js";
+import { idempotencyMiddleware } from "./middleware/idempotency.js";
 import { logger }           from "./lib/logger.js";
 
 import authRoutes     from "./routes/auth.js";
@@ -31,6 +31,7 @@ import staffRoutes          from "./routes/staff.js";
 import vendorOrderRoutes   from "./routes/vendor-orders.js";
 import notificationRoutes  from "./routes/notification.js";
 import appointmentRoutes   from "./routes/appointments.js";
+import adminRoutes          from "./routes/admin.js";
 
 const app = express();
 
@@ -90,8 +91,20 @@ app.use(express.json({ limit: "1mb", strict: true }));
 // ── 9. General rate limiter ───────────────────────────────────────────────────
 app.use("/api", generalRateLimit);
 
+// ── 9b. Idempotency-Key middleware (POST endpoints only) ────────────────────
+//
+// Clients that send `Idempotency-Key: <uuid>` on a POST get safe
+// retry semantics: the first request runs the handler, subsequent
+// requests with the same key return the cached response. Used by
+// order creation to handle flaky-mobile-network retries.
+app.use("/api", idempotencyMiddleware);
+
 // ── 10. Health check ──────────────────────────────────────────────────────────
-app.get("/api/health", async (_req: Request, res: Response) => {
+//
+// Shared function used by both /api/v1/health (preferred) and
+// /api/health (backward-compat shim). The two endpoints return the
+// same data; v1 includes an `api: "v1"` discriminator.
+async function healthCheck() {
   const pool = (await import("./config/db.js")).default;
   let db       = false;
   let telegram = false;
@@ -117,25 +130,63 @@ app.get("/api/health", async (_req: Request, res: Response) => {
     }
   } catch { /* silent */ }
 
-  res.status(db && telegram ? 200 : 503).json({
+  return {
     db,
     telegram,
+    healthy: db && telegram,
+  };
+}
+
+app.get("/api/v1/health", async (_req, res) => {
+  const h = await healthCheck();
+  res.status(h.healthy ? 200 : 503).json({
+    api:       "v1",
+    db:        h.db,
+    telegram:  h.telegram,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Backward-compat health check (no api version field)
+app.get("/api/health", async (_req, res) => {
+  const h = await healthCheck();
+  res.status(h.healthy ? 200 : 503).json({
+    db:        h.db,
+    telegram:  h.telegram,
     timestamp: new Date().toISOString(),
   });
 });
 
 // ── 11. Routes ────────────────────────────────────────────────────────────────
-app.use("/api/auth",      authRoutes);
-app.use("/api/staff",     staffRoutes);
-app.use("/api/orders",    orderRoutes);
-app.use("/api/products",  productRoutes);
-app.use("/api/referrals", referralRoutes);
-app.use("/api/telegram",  telegramRoutes);
-app.use("/api/stock",     stockRoutes);
-app.use("/api/upload",         uploadRoutes);
-app.use("/api/vendor-orders",  vendorOrderRoutes);
-app.use("/api/notifications",  notificationRoutes);
-app.use("/api/appointments",   appointmentRoutes);
+//
+// All routes are mounted at BOTH /api/v1/* and /api/* for backward
+// compatibility. New clients should use /api/v1. The /api/* paths will
+// be removed in v2.
+//
+// We use express.Router() sub-routers so the routes themselves don't
+// have to know their prefix; each router file can do `router.get("/")`
+// etc. and we mount it at multiple paths.
+const routeMounts: Array<[string, express.Router]> = [
+  ["/auth",         authRoutes],
+  ["/staff",        staffRoutes],
+  ["/orders",       orderRoutes],
+  ["/products",     productRoutes],
+  ["/referrals",    referralRoutes],
+  ["/telegram",     telegramRoutes],
+  ["/stock",        stockRoutes],
+  ["/upload",       uploadRoutes],
+  ["/vendor-orders",vendorOrderRoutes],
+  ["/notifications",notificationRoutes],
+  ["/appointments", appointmentRoutes],
+  ["/admin",        adminRoutes],
+];
+
+for (const [path, router] of routeMounts) {
+  // Versioned — preferred path
+  app.use(`/api/v1${path}`, router);
+  // Backward-compat shim — will be removed in v2
+  app.use(`/api${path}`, router);
+}
 
 // ── 12. 404 ───────────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
