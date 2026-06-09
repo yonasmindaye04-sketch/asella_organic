@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-
+import "dotenv/config";
 
 const EnvSchema = z.object({
   // ── Node ────────────────────────────────────────────────
