@@ -56,9 +56,9 @@ const ContactSection: React.FC = () => {
                 <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md transition-shadow">
                   <div>
                     <p className="text-sm font-mono text-slate-700 uppercase tracking-widest mb-1">Amharic Support</p>
-                    <p className="text-lg font-bold text-obsidian font-mono">+251 911 234 567</p>
+                    <p className="text-lg font-bold text-obsidian font-mono">+251 909 122 623</p>
                   </div>
-                  <a href="tel:+251911234567" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian transition-colors shadow-sm border border-[#d4ecd4]">
+                  <a href="tel:+251909122623" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian transition-colors shadow-sm border border-[#d4ecd4]">
                     <span className="material-symbols-outlined text-lg">call</span>
                   </a>
                 </div>
@@ -67,9 +67,9 @@ const ContactSection: React.FC = () => {
                 <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md transition-shadow">
                   <div>
                     <p className="text-sm font-mono text-slate-700 uppercase tracking-widest mb-1">Afaan Oromoo Support</p>
-                    <p className="text-lg font-bold text-obsidian font-mono">+251 922 345 678</p>
+                    <p className="text-lg font-bold text-obsidian font-mono">+251 942 223 999</p>
                   </div>
-                  <a href="tel:+251922345678" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian transition-colors shadow-sm border border-[#d4ecd4]">
+                  <a href="tel:+251942223999" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian transition-colors shadow-sm border border-[#d4ecd4]">
                     <span className="material-symbols-outlined text-lg">call</span>
                   </a>
                 </div>
