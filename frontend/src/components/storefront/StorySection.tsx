@@ -68,7 +68,7 @@ const StorySection: React.FC = () => {
                 <span className="material-symbols-outlined">science</span>
               </div>
               <div>
-                <h3 className="text-base font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Quality Tested</h3>
+                <h3 className="text-base font-mono font-bold text-obsidian mb-1 uppercase tracking-wider">Quality Tested and approved by ECAE and AAFDA</h3>
                 <p className="text-slate-700 text-2xl leading-relaxed">Rigorous laboratory testing for purity and potency in every batch.</p>
               </div>
             </div>

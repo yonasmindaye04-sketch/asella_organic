@@ -54,7 +54,7 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Follow Us</h4>
             <ul className="space-y-2 text-parchment font-mono text-base">
-              <li><a href="https://t.me/asellamoringashop" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-telegram text-base"></i> Telegram</a></li>
+              <li><a href="https://t.me/asella_organic" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-telegram text-base"></i> Telegram</a></li>
               <li><a href="https://www.facebook.com/share/1FkhkuGamB/" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-facebook-f text-base"></i> Facebook</a></li>
               <li><a href="https://www.instagram.com/asella_organic" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-instagram text-base"></i> Instagram</a></li>
               <li><a href="https://www.tiktok.com/@asellaorganic" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-tiktok text-base"></i> TikTok</a></li>
@@ -67,7 +67,7 @@ const Footer: React.FC = () => {
             <ul className="space-y-2 text-parchment font-mono text-base">
               <li className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-lg">mail</span>
-                info@asella-organic.com
+                support@asellaorganic.com
               </li>
               <li className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-lg">call</span>

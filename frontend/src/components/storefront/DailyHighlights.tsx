@@ -1,5 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { useDispatch } from 'react-redux';
+import { openOrderModal } from '../../store/slices/uiSlice';
+
+const categoryCards = [
+  { name: 'Powders', image: '/image/products/Moringa 200g,500g and 1kg.png' },
+  { name: 'Oils', image: '/image/products/Blackseed Oil ( 30ml ).JPG' },
+  { name: 'Seeds', image: '/image/products/Chiaseed 250g and 1kg.png' },
+  { name: 'Supplements', image: '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png' },
+  { name: 'Herbs & Spices', image: '/image/products/Erid Turmeric ( 220g ).png' },
+  { name: 'Essential Oils', image: '/image/products/Frankincense Oil  30ml and 60 ml.jpeg' },
+  { name: 'Natural Beauty', image: '/image/products/Qasil Powder ( 200g ).png' },
+  { name: 'Wellness', image: '/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png' },
+];
 
 const highlightsMapping = [
   { image: '/image/dailyimages/Moringa Powder.png', searchKey: 'Moringa', tag: 'Trending' },
@@ -28,6 +41,7 @@ function pickTwoUnique(length: number): [number, number] {
 }
 
 const DailyHighlights: React.FC = () => {
+  const dispatch = useDispatch();
   const [products, setProducts] = useState<any[]>([]);
   const [displayIndices, setDisplayIndices] = useState<[number, number]>([0, 1]);
   const productsRef = useRef<any[]>([]);
@@ -123,24 +137,23 @@ const DailyHighlights: React.FC = () => {
         )}
       </div>
 
-      {/* Category Marquee */}
-      <div className="w-full bg-obsidian/[0.03] border-y border-[#d4ecd4] py-6 overflow-hidden flex items-center relative group">
-        <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#FAF9F6] to-transparent z-10"></div>
-        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#FAF9F6] to-transparent z-10"></div>
-        
-        <div className="flex animate-marquee group-hover:[animation-play-state:paused] whitespace-nowrap items-center w-[200%]">
-          <div className="flex items-center gap-12 px-6 w-1/2 justify-around">
-            {['Shilajit', 'Organic Honey', 'Black Seed Oil', "Lion's Mane", 'Turmeric Gold', 'Moringa Tea', 'Raw Cacao'].map(item => (
-              <span key={item} className="font-bold text-base text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
-                {item} <span className="w-1.5 h-1.5 rounded-full bg-highland-gold"></span>
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center gap-12 px-6 w-1/2 justify-around">
-            {['Shilajit', 'Organic Honey', 'Black Seed Oil', "Lion's Mane", 'Turmeric Gold', 'Moringa Tea', 'Raw Cacao'].map(item => (
-              <span key={item + '-dup'} className="font-bold text-base text-obsidian tracking-[0.2em] uppercase flex items-center gap-4">
-                {item} <span className="w-1.5 h-1.5 rounded-full bg-highland-gold"></span>
-              </span>
+      {/* Static Category Cards */}
+      <div className="w-full bg-[#FAF9F6] border-y border-[#d4ecd4] py-8">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12">
+          <div className="flex overflow-x-auto items-center gap-6 md:gap-8 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {categoryCards.map((cat, idx) => (
+              <div 
+                key={idx} 
+                onClick={() => dispatch(openOrderModal({ mode: 'sales' }))}
+                className="shrink-0 flex flex-col items-center justify-center w-36 md:w-44 cursor-pointer bg-white p-4 rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md transition-all duration-300 hover:border-highland-gold hover:-translate-y-1"
+              >
+                <div className="w-24 h-24 md:w-28 md:h-28 mb-3 rounded-xl overflow-hidden bg-parchment-mid/20 flex items-center justify-center p-2">
+                   <img src={cat.image} alt={cat.name} className="w-full h-full object-contain mix-blend-multiply" />
+                </div>
+                <span className="font-bold text-sm md:text-base text-obsidian tracking-wider uppercase whitespace-normal text-center leading-tight">
+                  {cat.name}
+                </span>
+              </div>
             ))}
           </div>
         </div>
