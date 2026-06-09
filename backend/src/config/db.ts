@@ -3,7 +3,7 @@
  * Asella Organic — MySQL Pool Configuration
  */
 import mysql from 'mysql2/promise';
-
+import "dotenv/config";
 
 if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
   throw new Error(
