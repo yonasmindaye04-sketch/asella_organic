@@ -20,11 +20,9 @@ export function registerServiceWorker(): void {
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((reg) => {
-        // eslint-disable-next-line no-console
         console.log("[PWA] service worker registered:", reg.scope);
       })
       .catch((err) => {
-        // eslint-disable-next-line no-console
         console.warn("[PWA] service worker registration failed:", err);
       });
   });

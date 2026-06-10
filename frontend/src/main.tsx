@@ -25,14 +25,6 @@ window.addEventListener('unhandledrejection', (event) => {
   getSentry().captureException(event.reason);
 });
 
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 // PWA: register the service worker for offline catalog + install-to-home-screen.
 // Only runs in production builds (see src/lib/sw-register.ts).
 registerServiceWorker();

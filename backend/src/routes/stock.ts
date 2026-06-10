@@ -463,7 +463,7 @@ router.post(
     } catch (err: any) {
       await conn.rollback();
       console.error("[POST /stock/receive/:vendorOrderId]", err);
-      res.status(500).json({ success: false, error: err.message ?? "Internal server error" });
+      res.status(500).json({ success: false, error: "Internal server error" });
     } finally {
       conn.release();
     }
@@ -659,7 +659,7 @@ router.patch(
     } catch (err: any) {
       await conn.rollback();
       console.error("[PATCH /stock/requests/:id/status]", err);
-      res.status(500).json({ success: false, error: err.message ?? "Internal server error" });
+      res.status(500).json({ success: false, error: "Internal server error" });
     } finally {
       conn.release();
     }

@@ -20,7 +20,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
 
   // ── Database ─────────────────────────────────────────────
-  DATABASE_URL: z.string().url("DATABASE_URL must be a valid connection URL"),
+  DATABASE_URL: z.string().url("DATABASE_URL must be a valid connection URL").optional(),
 
   // ── Auth ─────────────────────────────────────────────────
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
@@ -29,16 +29,16 @@ const EnvSchema = z.object({
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
 
   // ── Telegram ─────────────────────────────────────────────
-  TELEGRAM_BOT_TOKEN: z.string().min(20, "TELEGRAM_BOT_TOKEN looks too short"),
+  TELEGRAM_BOT_TOKEN: z.string().min(20, "TELEGRAM_BOT_TOKEN looks too short").optional().or(z.literal("")),
   TELEGRAM_WEBHOOK_SECRET: z
     .string()
-    .min(16, "TELEGRAM_WEBHOOK_SECRET must be at least 16 characters"),
-  TELEGRAM_ADMIN_CHAT_ID: z.string().min(1),
-  TELEGRAM_DELIVERY_GROUP_ID: z.string().min(1),
+    .min(16, "TELEGRAM_WEBHOOK_SECRET must be at least 16 characters").optional().or(z.literal("")),
+  TELEGRAM_ADMIN_CHAT_ID: z.string().min(1).optional().or(z.literal("")),
+  TELEGRAM_DELIVERY_GROUP_ID: z.string().min(1).optional().or(z.literal("")),
 
 
   // ── Google Sheets ─────────────────────────────────────────
- GOOGLE_SPREADSHEET_ID: z.string().min(20),
+ GOOGLE_SPREADSHEET_ID: z.string().min(20).optional().or(z.literal("")),
 GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(50).refine((s) => {
     try { JSON.parse(s); return true; } catch { return false; }
   }, "GOOGLE_SERVICE_ACCOUNT_JSON must be valid JSON").optional(),

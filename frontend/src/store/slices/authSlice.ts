@@ -3,7 +3,6 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 interface AuthState {
-  token: string | null;
   user: {
     id: string;
     email: string | null;
@@ -16,27 +15,22 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-  token: localStorage.getItem('token'),
   user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
-  isAuthenticated: !!localStorage.getItem('token'),
+  isAuthenticated: !!localStorage.getItem('user'),
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (state, action: PayloadAction<{ token: string; user: NonNullable<AuthState['user']> }>) => {
-      state.token = action.payload.token;
+    setCredentials: (state, action: PayloadAction<{ user: NonNullable<AuthState['user']> }>) => {
       state.user = action.payload.user;
       state.isAuthenticated = true;
-      localStorage.setItem('token', action.payload.token);
       localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
     logout: (state) => {
-      state.token = null;
       state.user = null;
       state.isAuthenticated = false;
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
     },
   },
