@@ -47,7 +47,7 @@ export interface SentryLike {
   ErrorBoundary?:   React.ComponentType<{ children: React.ReactNode }>;
 }
 
-let sentryInstance: SentryLike | null = null;
+const sentryInstance: SentryLike | null = null;
 
 /**
  * Initialize Sentry. Called from main.tsx before React renders.
@@ -141,7 +141,6 @@ export function getSentry(): SentryLike {
  * defers the lookup to render time, after both have been initialised.
  */
 function SentryErrorBoundaryImpl({ children }: { children: React.ReactNode }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Boundary = (sentryInstance as any)?.ErrorBoundary ?? DefaultErrorBoundary;
   return <Boundary>{children}</Boundary>;
 }
@@ -155,7 +154,6 @@ class DefaultErrorBoundary extends React.Component<
   static getDerivedStateFromError() { return { hasError: true }; }
   componentDidCatch(err: Error) {
     getSentry().captureException(err);
-    // eslint-disable-next-line no-console
     console.error("[ErrorBoundary]", err);
   }
   render() {

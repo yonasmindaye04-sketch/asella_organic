@@ -66,11 +66,9 @@ router.get(
         },
       });
     } catch (err) {
-      res.status(500).json({
-        success: false,
-        error:   "Failed to read pool stats",
-        details: err instanceof Error ? err.message : String(err),
-      });
+      const log = createLogger(req);
+      log.error("Failed to read pool stats", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
 );

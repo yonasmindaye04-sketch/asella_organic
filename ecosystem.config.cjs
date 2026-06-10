@@ -18,7 +18,7 @@ module.exports = {
   apps: [
     {
       name:          "asella-api",
-      script:        "./backend/src/server.js",
+      script:        "./backend/dist/server.js",
 
       // Cluster mode — one worker per CPU core (adjust to your host's CPU)
       // Set instances: 1 if on a shared host with limited resources
