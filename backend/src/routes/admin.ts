@@ -15,29 +15,12 @@ import { createLogger } from "../lib/logger.js";
 
 const router = Router();
 
-/**
- * Returns the MySQL connection pool's current state. Useful for
- * monitoring (Prometheus / Datadog / etc.) and for on-call debugging
- * "why is the app slow" tickets.
- *
- * mysql2's pool exposes:
- *   - pool.pool._allConnections.length  — total connections ever created
- *   - pool.pool._freeConnections.length — idle connections in the pool
- *   - pool.pool._connectionQueue.length  — requests waiting for a connection
- *
- * These are private APIs (underscore prefix) but stable enough across
- * the mysql2 major versions we use. If a future mysql2 release breaks
- * this, we wrap with a try/catch and return a "metrics unavailable"
- * payload rather than crashing the metrics endpoint.
- */
 router.get(
   "/pool-stats",
   authenticate,
   authorise("admin", "manager"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
-      // mysql2's pool internals — typed as any to avoid a hard dep
-      // on a private API surface.
       const internals = (pool as any).pool ?? {};
       const total      = (internals._allConnections  ?? []).length;
       const free       = (internals._freeConnections ?? []).length;
@@ -45,7 +28,6 @@ router.get(
       const inUse      = total - free;
       const utilization = total > 0 ? inUse / total : 0;
 
-      // Configured limits from the pool config (db.ts)
       const config = pool.config ?? {};
       const connectionLimit = config.connectionLimit ?? null;
 
@@ -57,7 +39,7 @@ router.get(
             free,
             inUse,
             queued,
-            utilization:        Math.round(utilization * 1000) / 1000, // 3 decimals
+            utilization:        Math.round(utilization * 1000) / 1000,
             connectionLimit,
             database:           config.database ?? null,
             host:               config.host     ?? null,
@@ -66,7 +48,7 @@ router.get(
         },
       });
     } catch (err) {
-      const log = createLogger(req);
+      const log = createLogger(_req);
       log.error("Failed to read pool stats", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
