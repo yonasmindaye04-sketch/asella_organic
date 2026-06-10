@@ -10,8 +10,12 @@ const getEmbedUrl = (url: string) => {
 
 const Reviews: React.FC = () => {
   const videos = [
-    { id: 1, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 1" },
-    { id: 2, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 2" },
+    { id: 1, url: "https://youtube.com/shorts/gmab7MMwTS0", title: "Customer Testimonial 1" },
+    { id: 2, url: "https://youtube.com/shorts/3mDx-b_aJUs", title: "Customer Testimonial 2" },
+    { id: 3, url: "https://youtube.com/shorts/guFlqRD0I_E", title: "Customer Testimonial 3" },
+    { id: 4, url: "https://youtube.com/shorts/zQhZzCupONw", title: "Customer Testimonial 4" },
+    
+
   ];
 
   return (
@@ -29,7 +33,7 @@ const Reviews: React.FC = () => {
         </div>
 
         {/* Videos Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-12 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
           {videos.map((v) => (
             <div key={v.id} className="bg-black rounded-3xl overflow-hidden shadow-sm border border-[#d4ecd4] hover:shadow-xl hover:border-highland-gold transition-all duration-500 h-[550px] w-full">
               <iframe

@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import type { RootState } from '../../store';
 import { useLanguage, type Language } from '../../LanguageContext';
+import ThemeToggle from '../ui/ThemeToggle';
 
 const Header: React.FC = () => {
   const [langOpen, setLangOpen] = useState(false);
@@ -104,12 +105,10 @@ const Header: React.FC = () => {
             </Link>
           )}
 
-          {/* Dark Mode - Hidden on landing page */}
-          <button 
-            className="hidden w-10 h-10 rounded-full border border-[#d4ecd4] bg-white items-center justify-center text-obsidian/60 hover:border-highland-gold hover:text-highland-gold transition-all shadow-sm" 
-          >
-            <span className="material-symbols-outlined text-[20px]">dark_mode</span>
-          </button>
+          {/* Theme Toggle */}
+          <div className="w-10 h-10 rounded-full border border-[#d4ecd4] bg-white flex items-center justify-center text-obsidian/60 hover:border-highland-gold hover:text-highland-gold transition-all shadow-sm">
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Mobile Toggle */}

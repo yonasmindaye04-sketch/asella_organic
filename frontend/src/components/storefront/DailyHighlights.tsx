@@ -138,8 +138,13 @@ const DailyHighlights: React.FC = () => {
       </div>
 
       {/* Static Category Cards */}
-      <div className="w-full bg-[#FAF9F6] border-y border-[#d4ecd4] py-8">
+      <div className="w-full bg-[#FAF9F6] border-y border-[#d4ecd4] py-12">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12">
+          
+          {/* Section Header */}
+          <div className="text-center mb-10">
+            <h3 className="font-bebas text-4xl md:text-5xl text-obsidian tracking-wide">Shop By Category</h3>
+          </div>
           <div className="flex overflow-x-auto items-center gap-6 md:gap-8 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {categoryCards.map((cat, idx) => (
               <div 
