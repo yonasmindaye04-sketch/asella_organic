@@ -1,6 +1,14 @@
 /**
  * src/middleware/rateLimit.ts
  * Asella Organic — Rate Limiting Middleware
+ *
+ * Two-tier rate limiting:
+ *   - For UNAUTHENTICATED requests: key on IP (the existing behavior).
+ *   - For AUTHENTICATED requests:    key on `user:<id>` (per-user).
+ *
+ * This solves the "multiple users behind one corporate NAT share one
+ * bucket" problem. The IP key is the fallback when auth isn't present
+ * (e.g. /api/auth/login before login).
  */
 
 import { Request, Response, NextFunction } from "express";
@@ -27,12 +35,27 @@ function getIp(req: Request): string {
   return req.socket.remoteAddress ?? "unknown";
 }
 
+/**
+ * Build a stable per-request key. If the request is authenticated
+ * (req.user is populated by the auth middleware), we key on user id.
+ * Otherwise we fall back to the IP.
+ */
+function getRateLimitKey(req: Request): string {
+  // The auth middleware in src/middleware/auth.ts sets req.user =
+  // { id, username, role } after verifying a JWT.
+  const user = (req as any).user as { id?: string } | undefined;
+  if (user && typeof user.id === "string" && user.id.length > 0) {
+    return `user:${user.id}`;
+  }
+  return `ip:${getIp(req)}`;
+}
+
 const generalCache = makeCache(60 * 1_000);
 const loginCache   = makeCache(5 * 60 * 1_000);
 const orderCache   = makeCache(5 * 60 * 1_000);  // 5 minutes for order creation
 
 export function generalRateLimit(req: Request, res: Response, next: NextFunction): void {
-  if (!check(generalCache, getIp(req), 600)) {
+  if (!check(generalCache, getRateLimitKey(req), 600)) {
     res.status(429).json({ success: false, error: "Too many requests. Try again in a minute." });
     return;
   }
@@ -40,7 +63,7 @@ export function generalRateLimit(req: Request, res: Response, next: NextFunction
 }
 
 export function loginRateLimit(req: Request, res: Response, next: NextFunction): void {
-  if (!check(loginCache, getIp(req), 10)) {
+  if (!check(loginCache, getRateLimitKey(req), 10)) {
     res.status(429).json({ success: false, error: "Too many login attempts. Wait 5 minutes." });
     return;
   }
@@ -48,7 +71,7 @@ export function loginRateLimit(req: Request, res: Response, next: NextFunction):
 }
 
 export function orderRateLimit(req: Request, res: Response, next: NextFunction): void {
-  if (!check(orderCache, getIp(req), 10)) {
+  if (!check(orderCache, getRateLimitKey(req), 10)) {
     res.status(429).json({ success: false, error: "Too many orders. Maximum 10 orders per 5 minutes." });
     return;
   }
