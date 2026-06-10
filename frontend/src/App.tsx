@@ -1,11 +1,15 @@
+import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import type { RootState } from './store';
+import { setResolvedTheme } from './store/slices/uiSlice';
 import Storefront           from './pages/Storefront';
 import Checkout             from './pages/Checkout';
 import Dashboard            from './pages/Dashboard';
 import OrderTracking        from './pages/OrderTracking';
 import Login                from './pages/Login';
 import CommunityVideos      from './pages/CommunityVideos';
-import ProductsPage         from './pages/ProductsPage';       // ← combined Products + Stock
+import ProductsPage         from './pages/ProductsPage';
 import BulkOrdersPage       from './pages/BulkOrdersPage';
 import VendorPurchasePage   from './pages/VendorPurchasePage';
 import StockAlertPage       from './pages/StockAlertPage';
@@ -21,10 +25,30 @@ import ProtectedRoute       from './components/ui/ProtectedRoute';
 import { ToastProvider }    from './components/ui/ToastProvider';
 import { LanguageProvider } from './LanguageContext';
 
-// Removed: InventoryPage, ProductCatalogPage, PackagingLogPage
-// All replaced by the combined ProductsPage at /dashboard/products
-
 function App() {
+  const dispatch = useDispatch();
+  const resolvedTheme = useSelector((state: RootState) => state.ui.resolvedTheme);
+  const theme = useSelector((state: RootState) => state.ui.theme);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (resolvedTheme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    if (theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      dispatch(setResolvedTheme(e.matches ? 'dark' : 'light'));
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme, dispatch]);
+
   return (
     <BrowserRouter>
       <main className="min-h-screen bg-[var(--cream)]">

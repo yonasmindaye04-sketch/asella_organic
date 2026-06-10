@@ -25,10 +25,15 @@
     --forest-mid: #3E7B42;
   }
   
-  /* Dark mode overrides (to be implemented more fully later) */
+  /* Dark mode overrides */
   .dark {
-    --white: #121212; --cream: #1a1a1a; --ink: #f4faf4; --ink2: #c8e6c9;
+    --white: #121212; --cream: #1a1a1a; --ink: #e8f5e9; --ink2: #a5d6a7;
     --border: #2e7d32; --g50: #0d2e10; --g100: #1a4d1e; --g200: #2e7d32;
+    --g300: #388e3c; --g500: #4caf50; --g600: #66bb6a; --g700: #81c784; --g800: #a5d6a7; --g900: #c8e6c9;
+    --muted: #81c784; --red: #ef5350; --amber: #ffca28;
+    --sh: 0 2px 20px rgba(0,0,0,.4); --sh2: 0 8px 40px rgba(0,0,0,.5); --sh3: 0 20px 60px rgba(0,0,0,.6);
+    --obsidian: #1a4d1e; --obsidian-mid: #2e7d32; --highland-gold: #d4b878; --highland-gold-light: #e0c88a;
+    --parchment: #1a1a1a; --parchment-mid: #0d2e10; --clay: #a0522d; --forest-mid: #66bb6a;
   }
 
   body {
@@ -128,4 +133,11 @@ body::before {
 }
 .dark .glassmorphism {
   background: rgba(18, 18, 18, 0.97);
+}
+.dark .pcard {
+  background: #1e2a1e;
+  border-color: var(--border);
+}
+.dark .products-auto-row .pcard {
+  background: #1e2a1e;
 }

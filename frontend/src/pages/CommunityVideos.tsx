@@ -10,12 +10,12 @@ const getEmbedUrl = (url: string) => {
 
 const CommunityVideos: React.FC = () => {
   const videos = [
-    { id: 1, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 1" },
-    { id: 2, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 2" },
-    { id: 3, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 3" },
-    { id: 4, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 4" },
-    { id: 5, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 5" },
-    { id: 6, url: "https://www.youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 6" },
+    { id: 1, url: "https://youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 1" },
+    { id: 2, url: "https://youtube.com/shorts/gmab7MMwTS0", title: "Customer Testimonial 2" },
+    { id: 3, url: "https://youtube.com/shorts/3mDx-b_aJUs", title: "Customer Testimonial 3" },
+    { id: 4, url: "https://youtube.com/shorts/guFlqRD0I_E", title: "Customer Testimonial 4" },
+    { id: 5, url: "https://youtube.com/shorts/zQhZzCupONw", title: "Customer Testimonial 5" },
+    { id: 6, url: "https://youtube.com/shorts/B1xbxdx4Ipc", title: "Customer Testimonial 6" },
   ];
 
   return (

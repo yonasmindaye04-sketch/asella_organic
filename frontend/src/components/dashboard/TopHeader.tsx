@@ -1,4 +1,5 @@
 import React from 'react';
+import ThemeToggle from '../ui/ThemeToggle';
 
 const TopHeader: React.FC = () => {
   return (
@@ -32,6 +33,9 @@ const TopHeader: React.FC = () => {
           <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-variant text-sm pointer-events-none">search</span>
           <input className="pl-10 pr-4 py-2 bg-surface border border-surface-container rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64 font-data-mono placeholder-on-surface-variant transition-shadow" placeholder="Type to search" type="text" />
         </div>
+
+        {/* Theme Toggle */}
+        <ThemeToggle />
 
         {/* Notifications */}
         <button className="relative text-on-surface-variant hover:text-on-surface transition-colors">
