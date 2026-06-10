@@ -4,7 +4,6 @@ import { Provider } from 'react-redux'
 import { store } from './store'
 import App from './App.tsx'
 import './index.css'
-import axios from 'axios'
 import { registerServiceWorker } from './lib/sw-register'
 import { initSentry, SentryErrorBoundary, getSentry } from './lib/sentry'
 
