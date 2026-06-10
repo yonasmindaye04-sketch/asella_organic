@@ -459,10 +459,27 @@ router.delete(
   require2FA,
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
+    // Soft-delete with audit fields. The deleted_by is taken from
+    // req.user.id (set by the auth middleware). deleted_at_ip is the
+    // client's IP (respecting X-Forwarded-For if behind a proxy).
+    // deleted_reason is optional — admins can pass it via the JSON
+    // body to document WHY they deleted the order.
+    const userId = (req as any).user?.id ?? null;
+    const forwarded = req.headers["x-forwarded-for"];
+    const ip = (typeof forwarded === "string"
+      ? (forwarded.split(",")[0] ?? "").trim()
+      : req.socket.remoteAddress) || null;
+    const reason = (req.body as any)?.reason ?? null;
+
     const [result] = await pool.query(
-      `UPDATE orders SET deleted_at = NOW(), updated_at = NOW()
+      `UPDATE orders
+         SET deleted_at     = NOW(),
+             deleted_at_ip  = ?,
+             deleted_by     = ?,
+             deleted_reason = ?,
+             updated_at     = NOW()
        WHERE id = ? AND deleted_at IS NULL`,
-      [req.params.id]
+      [ip, userId, reason, req.params.id]
     ) as [any, any];
 
     if (result.affectedRows === 0) {

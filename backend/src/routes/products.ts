@@ -12,6 +12,7 @@
 
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
+import { z }  from "zod";
 import pool   from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { require2FA }   from "../middleware/2fa.js";
@@ -400,6 +401,80 @@ router.get(
     } catch (err) {
       log.error("Failed to fetch movements", err);
       res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/products/bulk  — bulk create products (transactional)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Body shape:
+//   { products: Array<ProductInput> }
+//
+// All-or-nothing transaction: if any single product fails (duplicate
+// name, invalid data, FK violation), the entire batch rolls back.
+// Useful for catalog import from a CSV or a new supplier feed.
+const BulkCreateProductsSchema = z.object({
+  products: z.array(CreateProductSchema).min(1).max(100),
+});
+
+router.post(
+  "/bulk",
+  authenticate,
+  authorise("admin", "manager"),
+  validate(BulkCreateProductsSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    const body = req.body as { products: any[] };
+    const products = body.products;
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const created: any[] = [];
+      for (const product of products) {
+        const id = crypto.randomUUID();
+        await connection.query(
+          `INSERT INTO products
+             (id, name, package_size, price, inventory_quantity,
+              low_stock_threshold, active, image_url, description,
+              tag, featured)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            product.name,
+            product.package_size,
+            product.price,
+            product.inventory_quantity ?? 0,
+            product.low_stock_threshold ?? 5,
+            product.active ?? true,
+            product.image_url ?? null,
+            product.description ?? null,
+            product.tag ?? null,
+            product.featured ?? false,
+          ]
+        );
+        created.push({ id, name: product.name });
+      }
+
+      await connection.commit();
+      log.info("Bulk product creation", { count: created.length });
+      res.status(201).json({
+        success: true,
+        data: { created, count: created.length },
+      });
+    } catch (err) {
+      await connection.rollback();
+      log.error("Bulk product creation failed", err);
+      res.status(500).json({
+        success: false,
+        error:   "Bulk creation failed; all changes rolled back",
+        details: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      connection.release();
     }
   }
 );
