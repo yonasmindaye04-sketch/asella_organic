@@ -25,7 +25,6 @@ const Login: React.FC = () => {
       if (res.data.success) {
         dispatch(
           setCredentials({
-            token: res.data.data.token,
             user: res.data.data.user,
           })
         );
