@@ -52,47 +52,42 @@ describe("authSlice", () => {
 
   it("returns the unauthenticated initial state when nothing is persisted", () => {
     const state = authReducer(undefined, { type: "@@INIT" });
-    expect(state.token).toBeNull();
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
   });
 
-  it("setCredentials — stores token and user, sets isAuthenticated=true", () => {
+  it("setCredentials — stores user, sets isAuthenticated=true", () => {
     const user = { id: "u1", email: "yonas@asella.com", role: "admin" };
-    const state = authReducer(undefined, setCredentials({ token: "tok-abc-123", user }));
+    const state = authReducer(undefined, setCredentials({ user }));
 
-    expect(state.token).toBe("tok-abc-123");
     expect(state.user).toEqual(user);
     expect(state.isAuthenticated).toBe(true);
   });
 
-  it("setCredentials — persists token and user to localStorage", () => {
+  it("setCredentials — persists user to localStorage", () => {
     const user = { id: "u1", email: "yonas@asella.com", role: "admin" };
-    authReducer(undefined, setCredentials({ token: "tok-persist", user }));
+    authReducer(undefined, setCredentials({ user }));
 
-    expect(localStorage.getItem("token")).toBe("tok-persist");
     expect(JSON.parse(localStorage.getItem("user")!)).toEqual(user);
   });
 
-  it("logout — clears token, user, and isAuthenticated", () => {
+  it("logout — clears user and isAuthenticated", () => {
     // Start authenticated
     const user = { id: "u1", email: "y@asella.com", role: "admin" };
-    let state = authReducer(undefined, setCredentials({ token: "tok-abc", user }));
+    let state = authReducer(undefined, setCredentials({ user }));
     expect(state.isAuthenticated).toBe(true);
 
     state = authReducer(state, logout());
 
-    expect(state.token).toBeNull();
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
   });
 
-  it("logout — removes token and user from localStorage", () => {
+  it("logout — removes user from localStorage", () => {
     const user = { id: "u1", email: "y@asella.com", role: "admin" };
-    authReducer(undefined, setCredentials({ token: "tok-1", user }));
+    authReducer(undefined, setCredentials({ user }));
     authReducer(undefined, logout());
 
-    expect(localStorage.getItem("token")).toBeNull();
     expect(localStorage.getItem("user")).toBeNull();
   });
 
@@ -100,11 +95,10 @@ describe("authSlice", () => {
     const store = makeStore();
     const user = { id: "u1", email: "y@asella.com", role: "admin" };
 
-    store.dispatch(setCredentials({ token: "tok-xyz", user }));
+    store.dispatch(setCredentials({ user }));
     expect(store.getState().auth.isAuthenticated).toBe(true);
 
     store.dispatch(logout());
-    expect(store.getState().auth.token).toBeNull();
     expect(store.getState().auth.user).toBeNull();
     expect(store.getState().auth.isAuthenticated).toBe(false);
   });
