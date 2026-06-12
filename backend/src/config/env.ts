@@ -20,8 +20,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
 
   // ── Database ─────────────────────────────────────────────
-  DATABASE_URL: z.string().url("DATABASE_URL must be a valid connection URL").optional(),
-
+DATABASE_URL: z.string().min(10, "DATABASE_URL must be a valid connection URL"),
   // ── Auth ─────────────────────────────────────────────────
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
 
@@ -39,7 +38,8 @@ const EnvSchema = z.object({
 
   // ── Google Sheets ─────────────────────────────────────────
  GOOGLE_SPREADSHEET_ID: z.string().min(20).optional().or(z.literal("")),
-GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(50).refine((s) => {
+GOOGLE_SERVICE_ACCOUNT_JSON: z.string().refine((s) => {
+    if (!s || s.length < 50) return true;
     try { JSON.parse(s); return true; } catch { return false; }
   }, "GOOGLE_SERVICE_ACCOUNT_JSON must be valid JSON").optional(),
 GOOGLE_SERVICE_ACCOUNT_PATH: z.string().optional(),
