@@ -59,14 +59,17 @@ export default {
         "surface-container-low": "#f4f4ee",
         "surface-container-low": "#f4f4ee",
         "primary-container": "#a3f69c",
-        "obsidian": "#0D2E10",
-        "obsidian-mid": "#1A4D1E",
-        "highland-gold": "#C5A059",
-        "highland-gold-light": "#D4B878",
-        "parchment": "#FAF9F6",
-        "parchment-mid": "#E8F5E9",
-        "clay": "#8B4513",
-        "forest-mid": "#3E7B42"
+        "obsidian": "var(--obsidian)",
+        "obsidian-mid": "var(--obsidian-mid)",
+        "highland-gold": "var(--highland-gold)",
+        "highland-gold-light": "var(--highland-gold-light)",
+        "parchment": "var(--parchment)",
+        "parchment-mid": "var(--parchment-mid)",
+        "clay": "var(--clay)",
+        "forest-mid": "var(--forest-mid)",
+        "cream": "var(--cream)",
+        "border": "var(--border)",
+        "ink": "var(--ink)"
       },
       keyframes: {
         marquee: {

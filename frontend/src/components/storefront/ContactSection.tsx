@@ -23,7 +23,7 @@ const ContactSection: React.FC = () => {
   };
 
   return (
-    <section className="py-16 bg-[#FAF9F6]" id="contact">
+    <section className="py-16 bg-parchment" id="contact">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
         
         {/* Header */}
@@ -31,10 +31,10 @@ const ContactSection: React.FC = () => {
           <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-3">
             Get In Touch
           </p>
-          <h2 className="font-display-lg font-black text-obsidian text-4xl md:text-5xl leading-tight tracking-tight mb-4">
+          <h2 className="font-display-lg font-black text-obsidian dark:text-white text-4xl md:text-5xl leading-tight tracking-tight mb-4">
             Connect With Our <span className="text-highland-gold">Heritage</span>
           </h2>
-          <p className="text-slate-700 max-w-4xl mx-auto leading-relaxed text-2xl">
+          <p className="text-slate-700 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed text-2xl">
             Whether you're looking to visit our facilities, inquire about our sustainable practices, or arrange a meeting with our team, we welcome your connection to our heritage.
           </p>
         </div>
@@ -46,30 +46,30 @@ const ContactSection: React.FC = () => {
             
             {/* Customer Support */}
             <div>
-              <h3 className="text-xl font-display-lg font-bold text-obsidian mb-6 flex items-center gap-2">
+              <h3 className="text-xl font-display-lg font-bold text-obsidian dark:text-white mb-6 flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-[28px]">support_agent</span>
                 Customer Support
               </h3>
               
               <div className="space-y-4">
                 {/* Amharic */}
-                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between p-4 bg-white dark:bg-obsidian rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
                   <div>
-                    <p className="text-sm font-mono text-slate-700 uppercase tracking-widest mb-1">Amharic Support</p>
-                    <p className="text-lg font-bold text-obsidian font-mono">+251 909 122 623</p>
+                    <p className="text-sm font-mono text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Amharic Support</p>
+                    <p className="text-lg font-bold text-obsidian dark:text-white font-mono">+251 909 122 623</p>
                   </div>
-                  <a href="tel:+251909122623" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian transition-colors shadow-sm border border-[#d4ecd4]">
+                  <a href="tel:+251909122623" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian dark:text-white transition-colors shadow-sm border border-border">
                     <span className="material-symbols-outlined text-lg">call</span>
                   </a>
                 </div>
 
                 {/* Afaan Oromoo */}
-                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between p-4 bg-white dark:bg-obsidian rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
                   <div>
-                    <p className="text-sm font-mono text-slate-700 uppercase tracking-widest mb-1">Afaan Oromoo Support</p>
-                    <p className="text-lg font-bold text-obsidian font-mono">+251 942 223 999</p>
+                    <p className="text-sm font-mono text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Afaan Oromoo Support</p>
+                    <p className="text-lg font-bold text-obsidian dark:text-white font-mono">+251 942 223 999</p>
                   </div>
-                  <a href="tel:+251942223999" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian transition-colors shadow-sm border border-[#d4ecd4]">
+                  <a href="tel:+251942223999" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian dark:text-white transition-colors shadow-sm border border-border">
                     <span className="material-symbols-outlined text-lg">call</span>
                   </a>
                 </div>
@@ -77,11 +77,11 @@ const ContactSection: React.FC = () => {
             </div>
 
             {/* Locations */}
-            <div className="grid sm:grid-cols-2 gap-6 pt-4 border-t border-[#d4ecd4]/60">
-              <div className="bg-white p-5 rounded-2xl border border-[#d4ecd4]">
+            <div className="grid sm:grid-cols-2 gap-6 pt-4 border-t border-border/60">
+              <div className="bg-white dark:bg-obsidian p-5 rounded-2xl border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="material-symbols-outlined text-highland-gold text-[20px]">storefront</span>
-                  <h4 className="font-bold text-obsidian text-base">Piasa Store</h4>
+                  <h4 className="font-bold text-obsidian dark:text-white text-base">Piasa Store</h4>
                 </div>
                 <p className="text-base text-slate-900 mb-3 leading-relaxed">
                   Addis Ababa, Piazza Giorgis, Ethel Appartment
@@ -92,10 +92,10 @@ const ContactSection: React.FC = () => {
                 </a>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-[#d4ecd4]">
+              <div className="bg-white dark:bg-obsidian p-5 rounded-2xl border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="material-symbols-outlined text-highland-gold text-[20px]">apartment</span>
-                  <h4 className="font-bold text-obsidian text-base">Main Office</h4>
+                  <h4 className="font-bold text-obsidian dark:text-white text-base">Main Office</h4>
                 </div>
                 <p className="text-base text-slate-900 mb-3 leading-relaxed">
                   Jemo Mickael Woreda 03,Africa Building, Addis Ababa, Ethiopia
@@ -180,7 +180,7 @@ const ContactSection: React.FC = () => {
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full py-3 bg-highland-gold hover:bg-highland-gold-light text-obsidian font-mono font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-base uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white font-mono font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-base uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Sending...' : 'Submit Request'}
                   {!loading && <span className="material-symbols-outlined text-[16px]">arrow_forward</span>}
@@ -196,3 +196,5 @@ const ContactSection: React.FC = () => {
 };
 
 export default ContactSection;
+
+

@@ -132,7 +132,7 @@ export const auth = {
    * Returns the staff profile (no token ever touches JS).
    */
   login: (username: string, password: string) =>
-    api.post<StaffProfile>("/api/auth/login", { username, password }),
+    api.post<{ token: string; refreshToken: string; user: StaffProfile }>("/api/auth/login", { username, password }),
 
   /**
    * Log out. The backend clears both cookies and revokes the refresh token.

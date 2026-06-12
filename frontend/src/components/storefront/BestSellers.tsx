@@ -77,14 +77,14 @@ const BestSellers: React.FC = () => {
   }, []);
 
   return (
-    <section id="products" className="py-16 bg-[#FAF9F6]">
+    <section id="products" className="py-16 bg-parchment">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
 
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
             <h2
-              className="font-display-lg font-black text-obsidian"
+              className="font-display-lg font-black text-obsidian dark:text-white"
               style={{ fontSize: 'clamp(32px, 5vw, 56px)', lineHeight: 1.15, letterSpacing: '-0.02em' }}
             >
               Featured Organic<br />
@@ -102,7 +102,7 @@ const BestSellers: React.FC = () => {
           /* Loading Skeletons */
           <div className="flex overflow-x-auto gap-6 pb-8 hide-scrollbar">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="flex-none w-[320px] bg-white rounded-3xl border border-[#d4ecd4] overflow-hidden">
+              <div key={i} className="flex-none w-[320px] bg-white dark:bg-obsidian rounded-3xl border border-border overflow-hidden">
                 <div className="aspect-square bg-parchment-mid animate-pulse" />
                 <div className="p-5 space-y-3">
                   <div className="h-5 bg-[#d4ecd4]/60 rounded-lg animate-pulse w-3/4" />
@@ -118,10 +118,10 @@ const BestSellers: React.FC = () => {
             <span className="material-symbols-outlined text-highland-gold text-5xl mb-4 block animate-breathe">
               eco
             </span>
-            <p className="font-display-lg font-semibold text-obsidian text-xl mb-2">
+            <p className="font-display-lg font-semibold text-obsidian dark:text-white text-xl mb-2">
               Coming Soon
             </p>
-            <p className="font-sans text-slate-700 text-2xl">
+            <p className="font-sans text-slate-700 dark:text-slate-300 text-2xl">
               Our product catalog is being updated. Check back shortly.
             </p>
           </div>
@@ -140,15 +140,15 @@ const BestSellers: React.FC = () => {
                 return (
                   <div
                     key={product.id}
-                    className="snap-start w-[85vw] sm:w-[320px] lg:w-[340px] group bg-white rounded-3xl overflow-hidden border border-[#d4ecd4]
+                    className="snap-start w-[85vw] sm:w-[320px] lg:w-[340px] group bg-white dark:bg-obsidian rounded-3xl overflow-hidden border border-border
                                shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer flex flex-col h-full"
                   >
                     {/* Image container */}
-                    <div className="relative aspect-[4/3] bg-white shrink-0 border-b border-[#d4ecd4]/30">
+                    <div className="relative aspect-[4/3] bg-white dark:bg-obsidian shrink-0 border-b border-border/30">
                       {/* Featured badge */}
                       {product.featured && (
                         <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-highland-gold
-                                        text-obsidian font-mono text-sm font-bold uppercase
+                                        text-obsidian dark:text-white font-mono text-sm font-bold uppercase
                                         tracking-widest rounded-full shadow-sm">
                           Featured
                         </div>
@@ -156,9 +156,9 @@ const BestSellers: React.FC = () => {
 
                       {/* Category badge */}
                       {product.tag && (
-                        <div className="absolute top-4 right-4 z-10 px-3 py-1 bg-white/90
-                                        backdrop-blur-sm text-obsidian font-mono text-sm
-                                        rounded-full border border-[#d4ecd4]">
+                        <div className="absolute top-4 right-4 z-10 px-3 py-1 bg-white dark:bg-obsidian/90
+                                        backdrop-blur-sm text-obsidian dark:text-white font-mono text-sm
+                                        rounded-full border border-border">
                           {product.tag}
                         </div>
                       )}
@@ -198,14 +198,14 @@ const BestSellers: React.FC = () => {
                     </div>
 
                     {/* Card body */}
-                    <div className="p-6 flex flex-col flex-1 bg-white">
+                    <div className="p-6 flex flex-col flex-1 bg-white dark:bg-obsidian">
                       <h3
-                        className="font-display-lg font-bold text-obsidian text-xl mb-3
+                        className="font-display-lg font-bold text-obsidian dark:text-white text-xl mb-3
                                    group-hover:text-highland-gold transition-colors duration-300"
                       >
                         {product.name}
                       </h3>
-                      <p className="font-sans text-slate-700 text-2xl leading-relaxed line-clamp-3 mb-6 flex-1">
+                      <p className="font-sans text-slate-700 dark:text-slate-300 text-2xl leading-relaxed line-clamp-3 mb-6 flex-1">
                         {product.description || "Premium organic supplement sourced from the Ethiopian highlands."}
                       </p>
 
@@ -222,7 +222,7 @@ const BestSellers: React.FC = () => {
                             })
                           );
                         }}
-                        className="flex items-center justify-center gap-2 w-full py-3 mt-auto bg-highland-gold hover:bg-highland-gold-light text-obsidian font-mono font-bold text-base rounded-xl uppercase tracking-widest transition-colors shadow-lg"
+                        className="flex items-center justify-center gap-2 w-full py-3 mt-auto bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white font-mono font-bold text-base rounded-xl uppercase tracking-widest transition-colors shadow-lg"
                       >
                         Buy Now
                         <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
@@ -239,7 +239,7 @@ const BestSellers: React.FC = () => {
         <div className="text-center mt-6">
           <button
             onClick={() => dispatch(openOrderModal({ mode: 'sales' }))}
-            className="inline-flex items-center gap-2 px-8 py-4 bg-obsidian text-[#FAF9F6]
+            className="inline-flex items-center gap-2 px-8 py-4 bg-obsidian text-parchment
                        font-display-lg font-semibold rounded-full hover:bg-obsidian-mid
                        transition-colors duration-300 text-base shadow-xl"
           >
@@ -253,3 +253,5 @@ const BestSellers: React.FC = () => {
 };
 
 export default BestSellers;
+
+

@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { setCredentials } from '../store/slices/authSlice';
 import { useToast } from '../components/ui/ToastProvider';
-import axios from 'axios';
+import { auth } from '../services/api';
 
 const Login: React.FC = () => {
   const dispatch = useDispatch();
@@ -18,25 +18,21 @@ const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post('/api/auth/login', {
-        email,
-        password,
-      });
-      if (res.data.success) {
+      const res = await auth.login(email, password);
+      if (res.success && res.data) {
         dispatch(
           setCredentials({
-            user: res.data.data.user,
+            user: res.data.user,
           })
         );
         toast('Welcome back!', 'success');
         navigate('/dashboard');
       } else {
-        toast(res.data.error || 'Login failed', 'error');
+        toast(res.error || 'Login failed', 'error');
       }
     } 
-    catch
-     (err: any) {
-      toast(err.response?.data?.error || 'Invalid credentials', 'error');
+    catch (err: any) {
+      toast('Invalid credentials or network error', 'error');
     } 
     finally {
       setLoading(false);

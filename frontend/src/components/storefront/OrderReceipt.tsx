@@ -61,7 +61,7 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
       className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
       onClick={handleOverlay}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[94vh]">
+      <div className="bg-white dark:bg-obsidian rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[94vh]">
         
         {/* Action buttons at the top */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80">
@@ -266,3 +266,5 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
 };
 
 export default OrderReceipt;
+
+
