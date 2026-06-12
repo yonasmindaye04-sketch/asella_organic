@@ -1,12 +1,6 @@
 /**
  * src/config/env.ts
  * Asella Organic — Typed Environment Validation
- *
- * Validates all required environment variables at startup using Zod.
- * The app will crash immediately with a clear error if any are missing,
- * rather than failing silently at runtime.
- *
- * Usage: import env from "./config/env"  — then use env.DATABASE_URL etc.
  */
 
 import { z } from "zod";
@@ -17,10 +11,11 @@ const EnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
-  PORT: z.coerce.number().default(3001),
+  PORT: z.union([z.string(), z.coerce.number()]).default(3001),
 
   // ── Database ─────────────────────────────────────────────
-DATABASE_URL: z.string().min(10, "DATABASE_URL must be a valid connection URL"),
+  DATABASE_URL: z.string().min(10, "DATABASE_URL must be a valid connection URL"),
+
   // ── Auth ─────────────────────────────────────────────────
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
 
@@ -35,15 +30,15 @@ DATABASE_URL: z.string().min(10, "DATABASE_URL must be a valid connection URL"),
   TELEGRAM_ADMIN_CHAT_ID: z.string().min(1).optional().or(z.literal("")),
   TELEGRAM_DELIVERY_GROUP_ID: z.string().min(1).optional().or(z.literal("")),
 
-
   // ── Google Sheets ─────────────────────────────────────────
- GOOGLE_SPREADSHEET_ID: z.string().min(20).optional().or(z.literal("")),
-GOOGLE_SERVICE_ACCOUNT_JSON: z.string().refine((s) => {
+  GOOGLE_SPREADSHEET_ID: z.string().min(20).optional().or(z.literal("")),
+  GOOGLE_SERVICE_ACCOUNT_JSON: z.string().refine((s) => {
     if (!s || s.length < 50) return true;
     try { JSON.parse(s); return true; } catch { return false; }
   }, "GOOGLE_SERVICE_ACCOUNT_JSON must be valid JSON").optional(),
-GOOGLE_SERVICE_ACCOUNT_PATH: z.string().optional(),
+  GOOGLE_SERVICE_ACCOUNT_PATH: z.string().optional(),
 });
+
 const result = EnvSchema.safeParse(process.env);
 
 if (!result.success) {

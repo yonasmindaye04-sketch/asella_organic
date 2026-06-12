@@ -6,9 +6,9 @@
 import "./config/env.js";
 import app from "./app.js";
 
-const PORT = parseInt(process.env.PORT ?? "3001", 10);
+const PORT = process.env.PORT ?? "3001";
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT as any, () => {
   console.log(`\n Asella Organic API running`);
   console.log(`   http://localhost:${PORT}/api/health\n`);
 });
