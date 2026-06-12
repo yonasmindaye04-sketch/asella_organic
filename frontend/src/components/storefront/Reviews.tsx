@@ -19,7 +19,7 @@ const Reviews: React.FC = () => {
   ];
 
   return (
-    <section className="py-16 lg:py-20 bg-[#FAF9F6] border-t border-[#d4ecd4]/60">
+    <section className="py-16 lg:py-20 bg-parchment border-t border-border/60">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
         
         {/* Section Header */}
@@ -27,7 +27,7 @@ const Reviews: React.FC = () => {
           <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-3">
             Real Experiences
           </p>
-          <h2 className="font-display-lg font-black text-obsidian text-4xl md:text-5xl leading-tight tracking-tight">
+          <h2 className="font-display-lg font-black text-obsidian dark:text-white text-4xl md:text-5xl leading-tight tracking-tight">
             Voices of Our <span className="text-highland-gold">Community</span>
           </h2>
         </div>
@@ -35,7 +35,7 @@ const Reviews: React.FC = () => {
         {/* Videos Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
           {videos.map((v) => (
-            <div key={v.id} className="bg-black rounded-3xl overflow-hidden shadow-sm border border-[#d4ecd4] hover:shadow-xl hover:border-highland-gold transition-all duration-500 h-[550px] w-full">
+            <div key={v.id} className="bg-black rounded-3xl overflow-hidden shadow-sm border border-border hover:shadow-xl hover:border-highland-gold transition-all duration-500 h-[550px] w-full">
               <iframe
                 src={getEmbedUrl(v.url)}
                 title={v.title}
@@ -49,7 +49,7 @@ const Reviews: React.FC = () => {
         
         {/* More Button */}
         <div className="mt-10 text-center">
-          <Link to="/community-videos" className="inline-flex items-center gap-2 bg-obsidian hover:bg-obsidian-mid text-[#FAF9F6] px-8 py-4 rounded-full font-mono text-base font-bold uppercase tracking-widest transition-all duration-300 shadow-md">
+          <Link to="/community-videos" className="inline-flex items-center gap-2 bg-obsidian hover:bg-obsidian-mid text-parchment px-8 py-4 rounded-full font-mono text-base font-bold uppercase tracking-widest transition-all duration-300 shadow-md">
             More Videos
             <span className="material-symbols-outlined text-[16px] text-highland-gold">arrow_forward</span>
           </Link>
@@ -60,3 +60,5 @@ const Reviews: React.FC = () => {
 };
 
 export default Reviews;
+
+

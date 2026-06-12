@@ -88,14 +88,14 @@ const DailyHighlights: React.FC = () => {
   }, []);
 
   return (
-    <section className="py-16 bg-[#FAF9F6] overflow-hidden">
+    <section className="py-16 bg-parchment overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-6 md:px-12 mb-16">
         
         {/* Title */}
         <div className="text-center mb-12">
           <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-6">Learn While Visiting Us</p>
-          <h2 className="font-bebas text-5xl md:text-6xl text-obsidian mb-6 tracking-wide">Build Your Healthy Self</h2>
-          <p className="text-slate-700 max-w-5xl mx-auto text-2xl leading-relaxed">Click the cards to explore different natural benefits of our authentic Ethiopian harvest.</p>
+          <h2 className="font-bebas text-5xl md:text-6xl text-obsidian dark:text-white mb-6 tracking-wide">Build Your Healthy Self</h2>
+          <p className="text-slate-700 dark:text-slate-300 max-w-5xl mx-auto text-2xl leading-relaxed">Click the cards to explore different natural benefits of our authentic Ethiopian harvest.</p>
         </div>
 
         {/* 2 Wide Cards Grid */}
@@ -109,7 +109,7 @@ const DailyHighlights: React.FC = () => {
               return (
                 <div 
                   key={`${pos}-${item.product.id}`}
-                  className="group relative rounded-3xl overflow-hidden aspect-[4/3] md:aspect-[16/9] lg:aspect-[3/2] shadow-sm hover:shadow-2xl transition-all duration-500 bg-white border border-[#d4ecd4] cursor-pointer"
+                  className="group relative rounded-3xl overflow-hidden aspect-[4/3] md:aspect-[16/9] lg:aspect-[3/2] shadow-sm hover:shadow-2xl transition-all duration-500 bg-white dark:bg-obsidian border border-border cursor-pointer"
                   onClick={() => changeRandomProduct(pos as 0 | 1)}
                 >
                   <div 
@@ -138,24 +138,24 @@ const DailyHighlights: React.FC = () => {
       </div>
 
       {/* Static Category Cards */}
-      <div className="w-full bg-[#FAF9F6] border-y border-[#d4ecd4] py-12">
+      <div className="w-full bg-parchment border-y border-border py-12">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12">
           
           {/* Section Header */}
           <div className="text-center mb-10">
-            <h3 className="font-bebas text-4xl md:text-5xl text-obsidian tracking-wide">Shop By Category</h3>
+            <h3 className="font-bebas text-4xl md:text-5xl text-obsidian dark:text-white tracking-wide">Shop By Category</h3>
           </div>
           <div className="flex overflow-x-auto items-center gap-6 md:gap-8 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {categoryCards.map((cat, idx) => (
               <div 
                 key={idx} 
                 onClick={() => dispatch(openOrderModal({ mode: 'sales' }))}
-                className="shrink-0 flex flex-col items-center justify-center w-36 md:w-44 cursor-pointer bg-white p-4 rounded-2xl border border-[#d4ecd4] shadow-sm hover:shadow-md transition-all duration-300 hover:border-highland-gold hover:-translate-y-1"
+                className="shrink-0 flex flex-col items-center justify-center w-36 md:w-44 cursor-pointer bg-white dark:bg-obsidian p-4 rounded-2xl border border-border shadow-sm hover:shadow-md transition-all duration-300 hover:border-highland-gold hover:-translate-y-1"
               >
                 <div className="w-24 h-24 md:w-28 md:h-28 mb-3 rounded-xl overflow-hidden bg-parchment-mid/20 flex items-center justify-center p-2">
                    <img src={cat.image} alt={cat.name} className="w-full h-full object-contain mix-blend-multiply" />
                 </div>
-                <span className="font-bold text-sm md:text-base text-obsidian tracking-wider uppercase whitespace-normal text-center leading-tight">
+                <span className="font-bold text-sm md:text-base text-obsidian dark:text-white tracking-wider uppercase whitespace-normal text-center leading-tight">
                   {cat.name}
                 </span>
               </div>
@@ -169,3 +169,4 @@ const DailyHighlights: React.FC = () => {
 };
 
 export default DailyHighlights;
+
