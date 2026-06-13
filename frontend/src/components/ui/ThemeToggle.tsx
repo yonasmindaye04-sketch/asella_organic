@@ -9,7 +9,7 @@ const ThemeToggle: React.FC = () => {
   const theme = useSelector((state: RootState) => state.ui.theme);
 
   const handleToggle = () => {
-    const next: ThemeMode = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark';
+    const next: ThemeMode = theme === 'dark' ? 'light' : 'dark';
     dispatch(setTheme(next));
   };
 
@@ -18,9 +18,8 @@ const ThemeToggle: React.FC = () => {
       case 'dark':
         return 'dark_mode';
       case 'light':
+      default:
         return 'light_mode';
-      case 'system':
-        return 'brightness_auto';
     }
   };
 

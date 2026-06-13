@@ -11,10 +11,10 @@ import { z } from "zod";
 // ─── Auth ─────────────────────────────────────────────────────────────────
 
 export const LoginSchema = z.object({
-  email: z
+  username: z
     .string()
     .trim()
-    .email("Email must be a valid email address"),
+    .min(3, "Username/Email must be at least 3 characters"),
   password: z
     .string()
     .min(6, "Password must be at least 6 characters")

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { api } from '../../services/api';
 
 const ContactSection: React.FC = () => {
   const [formData, setFormData] = useState({ full_name: '', phone_number: '', preferred_date: '', email: 'asellamoringa@gmail.com' });
@@ -11,11 +11,14 @@ const ContactSection: React.FC = () => {
     setLoading(true);
     setStatus('idle');
     try {
-      await axios.post('/api/appointments', formData);
-      setStatus('success');
-      setFormData({ full_name: '', phone_number: '', preferred_date: '', email: 'asellamoringa@gmail.com' });
+      const res = await api.post('/api/appointments', formData);
+      if (res.success) {
+        setStatus('success');
+        setFormData({ full_name: '', phone_number: '', preferred_date: '', email: 'asellamoringa@gmail.com' });
+      } else {
+        setStatus('error');
+      }
     } catch {
-      
       setStatus('error');
     } finally {
       setLoading(false);
@@ -77,7 +80,7 @@ const ContactSection: React.FC = () => {
             </div>
 
             {/* Locations */}
-            <div className="grid sm:grid-cols-2 gap-6 pt-4 border-t border-border/60">
+            <div className="grid sm:grid-cols-2 gap-6 pt-4 border-t border-border">
               <div className="bg-white dark:bg-obsidian p-5 rounded-2xl border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="material-symbols-outlined text-highland-gold text-[20px]">storefront</span>
@@ -196,5 +199,6 @@ const ContactSection: React.FC = () => {
 };
 
 export default ContactSection;
+
 
 

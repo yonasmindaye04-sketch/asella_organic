@@ -58,17 +58,18 @@ async function request<T>(
   retry = true,
   extraHeaders?: Record<string, string>,
 ): Promise<ApiResponse<T>> {
+  const isFormData = body instanceof FormData;
   const options: RequestInit = {
     method,
     credentials: "include", // Send HttpOnly cookies automatically
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...extraHeaders,
     },
   };
 
   if (body !== undefined) {
-    options.body = JSON.stringify(body);
+    options.body = isFormData ? (body as FormData) : JSON.stringify(body);
   }
 
   const res = await fetch(`${BASE_URL}${path}`, options);
@@ -243,5 +244,5 @@ export const staff = {
 
   setup2FA:   ()              => api.post("/api/staff/2fa/setup", {}),
   verify2FA:  (token: string) => api.post("/api/staff/2fa/verify", { token }),
-  disable2FA: ()              => api.delete("/api/staff/2fa/disable"),
+  disable2FA: (token: string) => api.delete("/api/staff/2fa/disable", { "x-2fa-token": token }),
 };

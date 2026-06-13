@@ -19,7 +19,7 @@ const Reviews: React.FC = () => {
   ];
 
   return (
-    <section className="py-16 lg:py-20 bg-parchment border-t border-border/60">
+    <section className="py-16 lg:py-20 bg-parchment border-t border-border">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
         
         {/* Section Header */}
@@ -60,5 +60,6 @@ const Reviews: React.FC = () => {
 };
 
 export default Reviews;
+
 
 

@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
-import axios from 'axios';
+import { api } from '../services/api';
 
 // ── FLAG COUNTRY CODE DATA ──────────────────────────────────────
 const _CC = [
@@ -122,9 +122,9 @@ export default function NewOrderPage() {
       if (receiptFile) {
         const fileData = new FormData();
         fileData.append('receipt', receiptFile);
-        const uploadRes = await axios.post('/api/upload/receipt', fileData);
-        if (uploadRes.data.success) {
-          receiptUrl = uploadRes.data.data.url;
+        const uploadRes = await api.post<any>('/api/upload/receipt', fileData);
+        if (uploadRes.success && uploadRes.data) {
+          receiptUrl = uploadRes.data.url;
         }
       }
 
@@ -153,18 +153,21 @@ export default function NewOrderPage() {
         })),
       };
 
-      const { data } = await axios.post('/api/orders', payload);
-      navigate(`/dashboard/tracking`, {
-        state: { successMessage: `Order ${data.data.id} created — Total: ETB ${total.toLocaleString()}` }
-      });
+      const res = await api.post<any>('/api/orders', payload);
+      if (res.success && res.data) {
+        navigate(`/dashboard/tracking`, {
+          state: { successMessage: `Order ${res.data.id} created — Total: ETB ${total.toLocaleString()}` }
+        });
+      } else {
+        setError(
+          res.details
+            ? Object.values(res.details).flat().join(', ')
+            : res.error ?? 'Failed to create order. Please try again.'
+        );
+      }
     } catch (err: any) {
       console.error(err);
-      const errorObj = err.response?.data;
-      setError(
-        errorObj?.details
-          ? Object.values(errorObj.details.fieldErrors ?? {}).flat().join(', ')
-          : errorObj?.error ?? 'Failed to create order. Please try again.'
-      );
+      setError(err.message || 'An error occurred');
     } finally {
       setSubmitting(false);
     }

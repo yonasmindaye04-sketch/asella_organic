@@ -77,12 +77,12 @@ async function audit(
 router.post("/login", loginRateLimit, validate(LoginSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
-    const { email, password } = req.body as { email: string; password: string };
+    const { username, password } = req.body as { username: string; password: string };
 
     const [rows] = await pool.query(
       `SELECT id, full_name, username, password_hash, role
-       FROM staff_users WHERE email = ? AND active = true`,
-      [email]
+       FROM staff_users WHERE (email = ? OR username = ?) AND active = true`,
+      [username, username]
     ) as [any[], any];
 
     const user  = rows[0];
@@ -90,10 +90,10 @@ router.post("/login", loginRateLimit, validate(LoginSchema),
       ? await bcrypt.compare(password, user.password_hash)
       : (await bcrypt.compare(password, DUMMY_HASH), false);
 
-    await audit(email, "LOGIN", `success=${valid}`);
+    await audit(username, "LOGIN", `success=${valid}`);
 
     if (!valid || !user) {
-      log.warn("Failed login attempt", { email });
+      log.warn("Failed login attempt", { username });
       res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
     }

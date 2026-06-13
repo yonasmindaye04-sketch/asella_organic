@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import { api } from '../../services/api';
 import { useDispatch } from 'react-redux';
 import { openOrderModal } from '../../store/slices/uiSlice';
 
@@ -47,10 +47,10 @@ const DailyHighlights: React.FC = () => {
   const productsRef = useRef<any[]>([]);
 
   useEffect(() => {
-    axios.get('/api/products?limit=200').then(res => {
-      if (res.data.success) {
+    api.get<any[]>('/api/products?limit=200').then(res => {
+      if (res.success && res.data) {
         const matched = highlightsMapping.map(m => {
-          const product = res.data.data.find((p: any) =>
+          const product = res.data!.find((p: any) =>
             p.name.toLowerCase().includes(m.searchKey.toLowerCase())
           );
           return { ...m, product };
@@ -169,4 +169,5 @@ const DailyHighlights: React.FC = () => {
 };
 
 export default DailyHighlights;
+
 

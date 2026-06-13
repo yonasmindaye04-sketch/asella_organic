@@ -31,7 +31,7 @@ const Hero: React.FC = () => {
       <div className="relative z-10 w-[95%] max-w-[1600px] mx-auto text-center flex flex-col items-center">
         
         {/* Title */}
-        <h1 className="font-serif text-[48px] md:text-[70px] lg:text-[90px] xl:text-[100px] leading-[1.05] mb-6 font-extrabold tracking-tight drop-shadow-md transition-all duration-300 hover:scale-105 hover:drop-shadow-2xl cursor-default">
+        <h1 className="font-serif text-4xl md:text-5xl lg:text-7xl xl:text-[90px] leading-[1.05] mb-6 font-extrabold tracking-tight drop-shadow-md transition-all duration-300 hover:scale-105 hover:drop-shadow-2xl cursor-default">
           <span className="text-obsidian dark:text-white block">Nature's Purity,</span>
           <span className="text-highland-gold block mt-1">Packaged for You.</span>
         </h1>
@@ -61,7 +61,7 @@ const Hero: React.FC = () => {
         </div>
 
         {/* Stats Bar */}
-        <div className="bg-white dark:bg-obsidian/80 backdrop-blur-md rounded-[32px] shadow-sm border border-border py-4 lg:py-5 px-6 lg:px-10 w-full max-w-[80rem] mx-auto">
+        <div className="bg-white dark:bg-obsidian backdrop-blur-md rounded-[32px] shadow-sm border border-border py-4 lg:py-5 px-6 lg:px-10 w-full max-w-[80rem] mx-auto">
           <div className="flex flex-wrap justify-between items-center gap-x-6 lg:gap-x-10 gap-y-6">
             
             {/* Stat 1 */}
@@ -123,5 +123,6 @@ const Hero: React.FC = () => {
 };
 
 export default Hero;
+
 
 

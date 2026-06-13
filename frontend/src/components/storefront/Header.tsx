@@ -23,7 +23,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-parchment sticky top-0 z-50 border-b border-border/60 backdrop-blur-md">
+    <header className="bg-parchment sticky top-0 z-50 border-b border-border backdrop-blur-md">
       <nav className="flex justify-between items-center w-full px-6 lg:px-12 h-[72px] max-w-[1400px] mx-auto">
         
         {/* Logo - Top Left Corner */}
@@ -111,13 +111,18 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Toggle */}
-        <button 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden w-10 h-10 rounded-full border border-border bg-white dark:bg-obsidian flex items-center justify-center text-obsidian dark:text-white shadow-sm"
-        >
-          <span className="material-symbols-outlined text-2xl">{mobileMenuOpen ? 'close' : 'menu'}</span>
-        </button>
+        {/* Mobile Toggle & Theme */}
+        <div className="md:hidden flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full border border-border bg-white dark:bg-obsidian flex items-center justify-center text-obsidian/60 dark:text-white/70 shadow-sm">
+            <ThemeToggle />
+          </div>
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="w-10 h-10 rounded-full border border-border bg-white dark:bg-obsidian flex items-center justify-center text-obsidian dark:text-white shadow-sm"
+          >
+            <span className="material-symbols-outlined text-2xl">{mobileMenuOpen ? 'close' : 'menu'}</span>
+          </button>
+        </div>
       </nav>
 
       {/* Mobile Menu Dropdown */}
@@ -149,5 +154,6 @@ const Header: React.FC = () => {
 };
 
 export default Header;
+
 
 

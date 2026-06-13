@@ -268,3 +268,4 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
 export default OrderReceipt;
 
 
+

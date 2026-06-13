@@ -11,7 +11,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { api } from '../../services/api';
 
 type MonthData = { label: string; value: number };
 
@@ -31,8 +31,8 @@ const ChartsRow: React.FC = () => {
   const [rangeMonths, setRangeMonths] = useState<6 | 12>(6);
 
   useEffect(() => {
-    axios.get('/api/orders', { params: { limit: 2000 } })
-      .then(res => { if (res.data.success) setOrders(res.data.data); })
+    api.get<any[]>('/api/orders?limit=2000')
+      .then(res => { if (res.success && res.data) setOrders(res.data); })
       .catch(() => {});
   }, []);
 
