@@ -6,7 +6,7 @@ import { useToast } from '../ui/ToastProvider';
 import { useProducts } from '../../hooks/useProducts';
 import OrderReceipt from './OrderReceipt';
 import type { ReceiptData } from './OrderReceipt';
-import axios from 'axios';
+import { api } from '../../services/api';
 
 // ── FLAG COUNTRY CODE DATA ──────────────────────────────────────
 const _CC = [
@@ -125,9 +125,9 @@ const OrderForm: React.FC = () => {
       if (receiptFile) {
         const fileData = new FormData();
         fileData.append('receipt', receiptFile);
-        const uploadRes = await axios.post('/api/upload/receipt', fileData);
-        if (uploadRes.data.success) {
-          receiptUrl = uploadRes.data.data.url;
+        const uploadRes = await api.post<any>('/api/upload/receipt', fileData);
+        if (uploadRes.success && uploadRes.data) {
+          receiptUrl = uploadRes.data.url;
         }
       }
 
@@ -177,28 +177,27 @@ const OrderForm: React.FC = () => {
         orderData.delivery_date = topLevelDeliveryDate;
       }
 
-      const res = await axios.post('/api/orders', orderData);
+      const res = await api.post<any>('/api/orders', orderData);
       
-      if (res.data.success) {
+      if (res.success && res.data) {
         toast('Order submitted successfully!', 'success');
         setReceiptData({
-          orderId: res.data.data.id,
+          orderId: res.data.id,
           customerName: formData.name,
           phone: fullPhoneNumber,
           city: formData.city,
           location: formData.location,
           orderType: formData.order_type,
-          total: res.data.data.total,
+          total: res.data.total,
           items: orderItems,
           date: new Date().toISOString(),
         });
       } else {
-        const details = res.data.details ? '\n' + JSON.stringify(res.data.details) : '';
-        toast((res.data.error || 'Failed to submit order') + details, 'error');
+        const details = res.details ? '\n' + JSON.stringify(res.details) : '';
+        toast((res.error || 'Failed to submit order') + details, 'error');
       }
     } catch (err: any) {
-      const details = err.response?.data?.details ? '\n' + JSON.stringify(err.response.data.details) : '';
-      toast((err.response?.data?.error || 'An error occurred') + details, 'error');
+      toast(err.message || 'An error occurred', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -343,7 +342,7 @@ const OrderForm: React.FC = () => {
                   const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
                   
                   return (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end relative border-b border-border/50 pb-4 last:border-b-0 last:pb-0">
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end relative border-b border-border pb-4 last:border-b-0 last:pb-0">
                       <div>
                         <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">Item</label>
                         <select required value={item.name} onChange={e => updateItem(index, 'name', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none">
@@ -443,4 +442,5 @@ const OrderForm: React.FC = () => {
 };
 
 export default OrderForm;
+
 

@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import axios from 'axios';
+import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useProducts } from '../hooks/useProducts';
 
@@ -66,9 +66,9 @@ const BulkOrdersPage: React.FC = () => {
       if (receiptFile) {
         const fileData = new FormData();
         fileData.append('receipt', receiptFile);
-        const uploadRes = await axios.post('/api/upload/receipt', fileData);
-        if (uploadRes.data.success) {
-          receiptUrl = uploadRes.data.data.url;
+        const uploadRes = await api.post<any>('/api/upload/receipt', fileData);
+        if (uploadRes.success && uploadRes.data) {
+          receiptUrl = uploadRes.data.url;
         }
       }
 
@@ -106,19 +106,18 @@ const BulkOrdersPage: React.FC = () => {
         items: orderItems
       };
 
-      const res = await axios.post('/api/orders', orderData);
+      const res = await api.post<any>('/api/orders', orderData);
       
-      if (res.data.success) {
-        setMessage({ type: 'success', text: `Bulk Order submitted successfully! Order ID: ${res.data.data.id}` });
+      if (res.success && res.data) {
+        setMessage({ type: 'success', text: `Bulk Order submitted successfully! Order ID: ${res.data.id}` });
         setFormData({ name: '', phone: '', city: 'Addis Ababa', location: '', order_type: 'Walk-in', notes: '', franchiseType: 'Cosmetics Store' });
         setItems([{ name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
         setReceiptFile(null);
       } else {
-        setMessage({ type: 'error', text: res.data.error || 'Failed to submit order' });
+        setMessage({ type: 'error', text: res.error || 'Failed to submit order' });
       }
     } catch (err: any) {
-      const details = err.response?.data?.details ? ' - ' + JSON.stringify(err.response.data.details) : '';
-      setMessage({ type: 'error', text: (err.response?.data?.error || 'An error occurred') + details });
+      setMessage({ type: 'error', text: err.message || 'An error occurred' });
     } finally {
       setSubmitting(false);
     }

@@ -9,7 +9,7 @@ const Login: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await auth.login(email, password);
+      const res = await auth.login(username, password);
       if (res.success && res.data) {
         dispatch(
           setCredentials({
@@ -55,16 +55,16 @@ const Login: React.FC = () => {
         <div className="w-full mt-4">
           <form onSubmit={handleSubmit} className="space-y-8">
             <div>
-              <label htmlFor="login-email" className="block text-sm font-mono font-black uppercase tracking-widest text-[#8ff59c] mb-3 ml-1 drop-shadow-md">
-                Email Address
+              <label htmlFor="login-username" className="block text-sm font-mono font-black uppercase tracking-widest text-[#8ff59c] mb-3 ml-1 drop-shadow-md">
+                Email or Username
               </label>
               <div className="relative">
                 <input
-                  id="login-email"
-                  type="email"
+                  id="login-username"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="EMP-001 or Email"
                   className="w-full px-6 py-5 bg-[#0a2410]/50 backdrop-blur-md border-[3px] border-[#3e6b45] rounded-2xl text-white font-bold placeholder-[#5b9e65] text-lg focus:outline-none focus:border-[#d5ad6d] focus:ring-2 focus:ring-[#d5ad6d]/50 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
                 />

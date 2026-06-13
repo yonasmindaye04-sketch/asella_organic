@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import KPICards from '../components/dashboard/KPICards';
 import ChartsRow from '../components/dashboard/ChartsRow';
@@ -14,10 +14,10 @@ const Dashboard: React.FC = () => {
     const fetchData = async () => {
       try {
         const [ordRes] = await Promise.all([
-          axios.get('/api/orders'),
-          axios.get('/api/products'),
+          api.get<any[]>('/api/orders'),
+          api.get<any[]>('/api/products'),
         ]);
-        if (ordRes.data.success) setOrders(ordRes.data.data);
+        if (ordRes.success && ordRes.data) setOrders(ordRes.data);
       } catch (err) {
         console.error(err);
       }

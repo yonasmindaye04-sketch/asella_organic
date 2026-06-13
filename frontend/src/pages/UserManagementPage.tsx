@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 
 interface User {
@@ -31,12 +31,14 @@ const UserManagementPage: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/staff');
-      if (res.data.success) {
-        setUsers(res.data.data);
+      const res = await api.get<User[]>('/api/staff');
+      if (res.success) {
+        setUsers(res.data || []);
+      } else {
+        setError(res.error || 'Failed to fetch users');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.message || 'Network error');
     } finally {
       setLoading(false);
     }
@@ -74,25 +76,35 @@ const UserManagementPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let res;
       if (editingUser) {
-        await axios.patch(`/api/staff/${editingUser.id}`, formData);
+        res = await api.patch(`/api/staff/${editingUser.id}`, formData);
       } else {
-        await axios.post('/api/staff', formData);
+        res = await api.post('/api/staff', formData);
       }
-      setIsModalOpen(false);
-      fetchUsers();
+      
+      if (res.success) {
+        setIsModalOpen(false);
+        fetchUsers();
+      } else {
+        alert(res.error || 'Failed to save user');
+      }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to save user');
+      alert(err.message || 'Network error');
     }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        await axios.delete(`/api/staff/${id}`);
-        fetchUsers();
+        const res = await api.delete(`/api/staff/${id}`);
+        if (res.success) {
+          fetchUsers();
+        } else {
+          alert(res.error || 'Failed to delete user');
+        }
       } catch (err: any) {
-        alert(err.response?.data?.error || 'Failed to delete user');
+        alert(err.message || 'Network error');
       }
     }
   };

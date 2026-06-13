@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { api } from '../../services/api';
 import { useDispatch } from 'react-redux';
 import { openOrderModal } from '../../store/slices/uiSlice';
 
@@ -50,12 +50,12 @@ const BestSellers: React.FC = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await axios.get('/api/products?limit=200');
-        if (response.data.success && response.data.data.length > 0) {
+        const response = await api.get<Product[]>('/api/products?limit=200');
+        if (response.success && response.data && response.data.length > 0) {
           // Remove duplicates by name
           const uniqueProducts: Product[] = [];
           const seenNames = new Set<string>();
-          for (const p of response.data.data) {
+          for (const p of response.data) {
             const normalizedName = p.name.trim().toLowerCase();
             if (!seenNames.has(normalizedName)) {
               uniqueProducts.push(p);
@@ -144,7 +144,7 @@ const BestSellers: React.FC = () => {
                                shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer flex flex-col h-full"
                   >
                     {/* Image container */}
-                    <div className="relative aspect-[4/3] bg-white dark:bg-obsidian shrink-0 border-b border-border/30">
+                    <div className="relative aspect-[4/3] bg-white dark:bg-obsidian shrink-0 border-b border-border">
                       {/* Featured badge */}
                       {product.featured && (
                         <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-highland-gold
@@ -156,7 +156,7 @@ const BestSellers: React.FC = () => {
 
                       {/* Category badge */}
                       {product.tag && (
-                        <div className="absolute top-4 right-4 z-10 px-3 py-1 bg-white dark:bg-obsidian/90
+                        <div className="absolute top-4 right-4 z-10 px-3 py-1 bg-white dark:bg-obsidian
                                         backdrop-blur-sm text-obsidian dark:text-white font-mono text-sm
                                         rounded-full border border-border">
                           {product.tag}
@@ -253,5 +253,6 @@ const BestSellers: React.FC = () => {
 };
 
 export default BestSellers;
+
 
 

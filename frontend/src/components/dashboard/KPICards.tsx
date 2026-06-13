@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { api } from '../../services/api';
 
 const KPICards: React.FC = () => {
   const [orders, setOrders]     = useState<any[]>([]);
@@ -21,11 +21,11 @@ const KPICards: React.FC = () => {
       setLoading(true);
       try {
         const [ordRes, prodRes] = await Promise.all([
-          axios.get('/api/orders', { params: { limit: 2000 } }),
-          axios.get('/api/products', { params: { limit: 500 } }),
+          api.get<any[]>('/api/orders?limit=2000'),
+          api.get<any[]>('/api/products?limit=500'),
         ]);
-        setOrders(ordRes.data.success && ordRes.data.data?.length > 0 ? ordRes.data.data : []);
-        setProducts(prodRes.data.success && prodRes.data.data?.length > 0 ? prodRes.data.data : []);
+        setOrders(ordRes.success && ordRes.data?.length ? ordRes.data : []);
+        setProducts(prodRes.success && prodRes.data?.length ? prodRes.data : []);
       } catch {
         // On error, show empty state (no fallback dummy data)
         setOrders([]);

@@ -799,17 +799,17 @@ function StockTab({ reloadKey }: StockTabProps) {
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Total Products', value: summary.total_products, icon: 'category', color: 'text-[#112415] bg-[#e8f5e9] border-[#c8e6c9]' },
-            { label: 'Total Units',    value: Number(summary.total_units ?? 0).toLocaleString(), icon: 'inventory_2', color: 'text-blue-700 bg-blue-50 border-blue-200' },
-            { label: 'Stock Value',    value: `${Number(summary.total_stock_value ?? 0).toLocaleString()} ETB`, icon: 'payments', color: 'text-purple-700 bg-purple-50 border-purple-200' },
-            { label: 'Out of Stock',   value: summary.out_of_stock_count, icon: 'report', color: 'text-red-700 bg-red-50 border-red-200' },
+            { label: 'Total Products', value: summary.total_products, icon: 'category', color: 'text-white bg-[#1a3821] shadow-lg' },
+            { label: 'Total Units',    value: Number(summary.total_units ?? 0).toLocaleString(), icon: 'inventory_2', color: 'text-white bg-blue-600 shadow-lg' },
+            { label: 'Stock Value',    value: `${Number(summary.total_stock_value ?? 0).toLocaleString()} ETB`, icon: 'payments', color: 'text-white bg-purple-600 shadow-lg' },
+            { label: 'Out of Stock',   value: summary.out_of_stock_count, icon: 'report', color: 'text-white bg-red-600 shadow-lg' },
           ].map(k => (
-            <div key={k.label} className={`border rounded-2xl p-4 ${k.color}`}>
+            <div key={k.label} className={`rounded-2xl p-5 ${k.color}`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="material-symbols-outlined text-[20px]">{k.icon}</span>
-                <span className="text-xs font-semibold uppercase tracking-wide opacity-70">{k.label}</span>
+                <span className="text-xs font-semibold uppercase tracking-wide opacity-80">{k.label}</span>
               </div>
-              <p className="text-2xl font-bold font-mono">{k.value}</p>
+              <p className="text-3xl font-extrabold font-mono drop-shadow-sm">{k.value}</p>
             </div>
           ))}
         </div>

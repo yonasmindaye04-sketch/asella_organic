@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../services/api';
 
 export interface Product {
   id: string;
@@ -23,11 +23,11 @@ export const useProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/products?limit=100');
-      if (res.data.success) {
-        setProducts(res.data.data);
+      const res = await api.get<Product[]>('/api/products?limit=100');
+      if (res.success && res.data) {
+        setProducts(res.data);
       } else {
-        setError('Failed to fetch products');
+        setError(res.error || 'Failed to fetch products');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred fetching products');

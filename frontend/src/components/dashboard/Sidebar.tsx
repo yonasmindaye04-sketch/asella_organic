@@ -176,8 +176,8 @@ const Sidebar: React.FC = () => {
                 </li>
                 <li>
                   <Link to="/dashboard/change-password" className={link('/dashboard/change-password')}>
-                    <span className={icon('/dashboard/change-password')}>key</span>
-                    Change Password
+                    <span className={icon('/dashboard/change-password')}>security</span>
+                    Security Settings
                   </Link>
                 </li>
               </ul>
