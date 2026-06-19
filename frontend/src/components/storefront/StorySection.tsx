@@ -2,7 +2,7 @@ import React from 'react';
 
 const StorySection: React.FC = () => {
   return (
-    <section className="relative w-full py-16 lg:py-20 bg-parchment overflow-hidden" id="story">
+    <section className="relative w-full py-16 lg:py-20 bg-parchment dark:bg-[#121212] overflow-hidden" id="story">
       {/* Subtle background blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-parchment-mid rounded-full blur-[100px] opacity-40 -translate-y-1/2 translate-x-1/4"></div>

@@ -2,7 +2,7 @@ import React from 'react';
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-obsidian text-white py-8 relative border-t border-highland-gold/10">
+    <footer className="bg-obsidian dark:bg-[#0A0A0A] text-white py-8 relative border-t border-highland-gold/10">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
         
         {/* Top Row: Brand (Left) | Social Icons (Right) */}

@@ -6,21 +6,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { api } from '../services/api';
-
-// ── FLAG COUNTRY CODE DATA ──────────────────────────────────────
-const _CC = [
-  { f: '🇪🇹', n: 'Ethiopia', c: '+251' }, { f: '🇺🇸', n: 'United States', c: '+1' },
-  { f: '🇬🇧', n: 'United Kingdom', c: '+44' }, { f: '🇨🇦', n: 'Canada', c: '+1' },
-  { f: '🇦🇺', n: 'Australia', c: '+61' }, { f: '🇩🇪', n: 'Germany', c: '+49' },
-  { f: '🇫🇷', n: 'France', c: '+33' }, { f: '🇮🇹', n: 'Italy', c: '+39' },
-  { f: '🇪🇸', n: 'Spain', c: '+34' }, { f: '🇨🇳', n: 'China', c: '+86' },
-  { f: '🇮🇳', n: 'India', c: '+91' }, { f: '🇯🇵', n: 'Japan', c: '+81' },
-  { f: '🇰🇷', n: 'South Korea', c: '+82' }, { f: '🇧🇷', n: 'Brazil', c: '+55' },
-  { f: '🇷🇺', n: 'Russia', c: '+7' }, { f: '🇳🇬', n: 'Nigeria', c: '+234' },
-  { f: '🇰🇪', n: 'Kenya', c: '+254' }, { f: '🇹🇿', n: 'Tanzania', c: '+255' },
-  { f: '🇺🇬', n: 'Uganda', c: '+256' }, { f: '🇷🇼', n: 'Rwanda', c: '+250' },
-  { f: '🇿🇦', n: 'South Africa', c: '+27' }, { f: '🇦🇪', n: 'UAE', c: '+971' },
-];
+import { COUNTRY_CODES as _CC } from '../constants/countries';
 
 interface OrderItem {
   product_id:   string;
@@ -97,10 +83,21 @@ export default function NewOrderPage() {
     setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== index) }));
   }
 
+  const regionalFees: Record<string, number> = {
+    'Addis Ababa': 150,
+    'Adama': 200,
+    'Bahir Dar': 300,
+    'Hawassa': 250,
+    'Other Regions': 400,
+    'Abroad': 0
+  };
+
+  const deliveryFee = form.order_type === 'delivery' ? regionalFees[form.city] || 150 : 0;
+
   const total = form.items.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
-  );
+  ) + deliveryFee;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

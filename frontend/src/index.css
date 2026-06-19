@@ -22,18 +22,18 @@
     --parchment: #FAF9F6;
     --parchment-mid: #E8F5E9;
     --clay: #8B4513;
-    --forest-mid: #3E7B42;
   }
-  
-  /* Dark mode overrides */
+  /* Proper Dark Mode Palette */
   .dark {
-    --white: #121212; --cream: #1a1a1a; --ink: #e8f5e9; --ink2: #a5d6a7;
-    --border: #2e7d32; --g50: #0d2e10; --g100: #1a4d1e; --g200: #2e7d32;
+    --white: #ffffff;
+    --cream: #121212; /* Professional dark gray/black background */
+    --ink: #ffffff; /* Default text to white */
+    --ink2: #a5d6a7;
+    --border: #2A2A2A; /* Dark subtle borders */
+    --g50: #0d2e10; --g100: #1a4d1e; --g200: #2e7d32;
     --g300: #388e3c; --g500: #4caf50; --g600: #66bb6a; --g700: #81c784; --g800: #a5d6a7; --g900: #c8e6c9;
     --muted: #81c784; --red: #ef5350; --amber: #ffca28;
-    --sh: 0 2px 20px rgba(0,0,0,.4); --sh2: 0 8px 40px rgba(0,0,0,.5); --sh3: 0 20px 60px rgba(0,0,0,.6);
-    --obsidian: #1a4d1e; --obsidian-mid: #2e7d32; --highland-gold: #d4b878; --highland-gold-light: #e0c88a;
-    --parchment: #1a1a1a; --parchment-mid: #0d2e10; --clay: #a0522d; --forest-mid: #66bb6a;
+    --sh: 0 4px 24px rgba(0,0,0,.6); --sh2: 0 8px 40px rgba(0,0,0,.8); --sh3: 0 20px 60px rgba(0,0,0,.9);
   }
 
   body {

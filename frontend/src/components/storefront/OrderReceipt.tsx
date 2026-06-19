@@ -92,170 +92,167 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
             <div
               className="receipt mx-auto"
               style={{
-                maxWidth: 340,
+                maxWidth: 300,
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                fontSize: 12,
-                lineHeight: 1.55,
-                color: '#1a1a1a',
+                fontSize: 11,
+                lineHeight: 1.3,
+                color: '#000',
                 background: '#fff',
-                padding: '20px 16px',
-                border: '1px solid #e5e5e5',
-                borderRadius: 12,
+                padding: '8px 8px',
+                border: '1px solid #000',
+                borderRadius: 4,
               }}
             >
               {/* Header */}
-              <div style={{ textAlign: 'center', marginBottom: 14 }}>
-                <p style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.5 }}>
+              <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                <p style={{ fontSize: 13, fontWeight: 800 }}>
                   Asella Organic Enterprise
                 </p>
-                <p style={{ fontSize: 11, fontWeight: 600, marginTop: 2 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>
                   TIN: 0093291109
                 </p>
-                <p style={{ fontSize: 10, color: '#555', marginTop: 4, lineHeight: 1.4 }}>
+                <p style={{ fontSize: 10, color: '#000', marginTop: 2, lineHeight: 1.2, fontWeight: 600 }}>
                   Addis Ababa, Piazza Giorgis, Ethel<br />Appartment
                 </p>
-                <p style={{ fontSize: 10, color: '#555', marginTop: 2 }}>
+                <p style={{ fontSize: 10, color: '#000', marginTop: 2, fontWeight: 600 }}>
                   Tel: +251 909 122 623 / +251 942 223 999
                 </p>
-                <p style={{ fontSize: 10, fontWeight: 700, marginTop: 6 }}>
+                <p style={{ fontSize: 10, fontWeight: 800, marginTop: 4 }}>
                   DATE: {dateStr} {timeStr}
                 </p>
               </div>
 
               {/* Divider */}
-              <p style={{ textAlign: 'center', fontSize: 11, fontWeight: 800, margin: '10px 0', letterSpacing: 2 }}>
+              <p style={{ textAlign: 'center', fontSize: 11, fontWeight: 800, margin: '6px 0' }}>
                 == CASH INVOICE ==
               </p>
 
               {/* Order info */}
-              <div style={{ margin: '10px 0', fontSize: 11 }}>
+              <div style={{ margin: '6px 0', fontSize: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span>Order ID</span>
-                  <span style={{ fontWeight: 700 }}>{data.orderId}</span>
+                  <span style={{ fontWeight: 600 }}>Order ID</span>
+                  <span style={{ fontWeight: 800 }}>{data.orderId}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span>Customer</span>
-                  <span style={{ fontWeight: 700 }}>{data.customerName}</span>
+                  <span style={{ fontWeight: 600 }}>Customer</span>
+                  <span style={{ fontWeight: 800 }}>{data.customerName}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span>Phone</span>
-                  <span style={{ fontWeight: 700 }}>{data.phone}</span>
+                  <span style={{ fontWeight: 600 }}>Phone</span>
+                  <span style={{ fontWeight: 800 }}>{data.phone}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span>Location</span>
-                  <span style={{ fontWeight: 700 }}>{data.location || data.city}</span>
+                  <span style={{ fontWeight: 600 }}>Location</span>
+                  <span style={{ fontWeight: 800 }}>{data.location || data.city}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span>Order Type</span>
-                  <span style={{ fontWeight: 700 }}>{data.orderType}</span>
+                  <span style={{ fontWeight: 600 }}>Order Type</span>
+                  <span style={{ fontWeight: 800 }}>{data.orderType}</span>
                 </div>
               </div>
 
               {/* Items header dashes */}
-              <p style={{ fontSize: 9, color: '#999', letterSpacing: -0.5, overflow: 'hidden', margin: '8px 0 4px' }}>
+              <p style={{ fontSize: 9, color: '#000', letterSpacing: -0.5, overflow: 'hidden', margin: '4px 0 2px', fontWeight: 800 }}>
                 {dashes}
               </p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 800, textDecoration: 'underline', marginBottom: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 800, borderBottom: '1px dashed #000', paddingBottom: 2, marginBottom: 2 }}>
                 <span style={{ flex: 2 }}>DESCRIPTION</span>
                 <span style={{ width: 30, textAlign: 'center' }}>QTY</span>
                 <span style={{ width: 54, textAlign: 'right' }}>PRICE</span>
                 <span style={{ width: 62, textAlign: 'right' }}>AMOUNT</span>
               </div>
-              <p style={{ fontSize: 9, color: '#999', letterSpacing: -0.5, overflow: 'hidden', margin: '2px 0 6px' }}>
-                {dashes}
-              </p>
 
               {/* Items */}
               {data.items.map((item, i) => {
                 const amount = item.quantity * item.unit_price;
                 return (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '2px 0', alignItems: 'flex-start' }}>
-                    <span style={{ flex: 2, wordBreak: 'break-word', paddingRight: 4 }}>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '2px 0', alignItems: 'flex-start' }}>
+                    <span style={{ flex: 2, wordBreak: 'break-word', paddingRight: 4, fontWeight: 700 }}>
                       {item.name} ({item.package_size})
                     </span>
-                    <span style={{ width: 30, textAlign: 'center' }}>{item.quantity}</span>
-                    <span style={{ width: 54, textAlign: 'right' }}>{item.unit_price.toLocaleString()}</span>
-                    <span style={{ width: 62, textAlign: 'right', fontWeight: 700 }}>{amount.toLocaleString()}</span>
+                    <span style={{ width: 30, textAlign: 'center', fontWeight: 700 }}>{item.quantity}</span>
+                    <span style={{ width: 54, textAlign: 'right', fontWeight: 700 }}>{item.unit_price.toLocaleString()}</span>
+                    <span style={{ width: 62, textAlign: 'right', fontWeight: 800 }}>{amount.toLocaleString()}</span>
                   </div>
                 );
               })}
 
               {/* Totals */}
-              <p style={{ fontSize: 9, color: '#999', letterSpacing: -0.5, overflow: 'hidden', margin: '8px 0' }}>
+              <p style={{ fontSize: 9, color: '#000', letterSpacing: -0.5, overflow: 'hidden', margin: '4px 0', fontWeight: 800 }}>
                 {dashes}
               </p>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '1px 0', fontWeight: 700 }}>
                 <span>TXBL1</span>
                 <span>{Number(data.total).toLocaleString()}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, padding: '4px 0', margin: '4px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 800, padding: '2px 0', margin: '2px 0' }}>
                 <span>TOTAL</span>
                 <span>{Number(data.total).toLocaleString()}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '1px 0', fontWeight: 700 }}>
                 <span>CASH</span>
                 <span>{Number(data.total).toLocaleString()}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '1px 0', fontWeight: 700 }}>
                 <span>ITEM#</span>
                 <span>{itemCount}</span>
               </div>
 
               {/* QR Code */}
-              <div style={{ textAlign: 'center', margin: '18px 0 6px' }}>
+              <div style={{ textAlign: 'center', margin: '8px 0 4px' }}>
                 <img
                   src="/image/receipt/Payment Qr Code_.png"
                   alt="Payment QR Code"
-                  style={{ width: 220, height: 220, margin: '0 auto', display: 'block', imageRendering: 'pixelated' }}
+                  style={{ width: 140, height: 140, margin: '0 auto', display: 'block', imageRendering: 'pixelated' }}
                 />
               </div>
 
-              <p style={{ textAlign: 'center', fontSize: 10, color: '#555', margin: '6px 0 10px' }}>
+              <p style={{ textAlign: 'center', fontSize: 9, color: '#000', fontWeight: 800, margin: '2px 0 6px' }}>
                 Scan to view receipt online
               </p>
 
               {/* EthQR Logo */}
-              <div style={{ textAlign: 'center', margin: '4px 0 16px' }}>
+              <div style={{ textAlign: 'center', margin: '2px 0 6px' }}>
                 <img
                   src="/image/receipt/image_2026-05-31_21-04-10.png"
                   alt="Ethiopian Interoperable Payment QR Code"
-                  style={{ width: 180, height: 'auto', margin: '0 auto', display: 'block' }}
+                  style={{ width: 110, height: 'auto', margin: '0 auto', display: 'block' }}
                 />
               </div>
 
               {/* Order Tracking Box */}
               <div style={{
-                border: '2px dashed #0D2E10',
-                borderRadius: 8,
-                padding: '12px 14px',
+                border: '1px dashed #000',
+                borderRadius: 4,
+                padding: '6px 8px',
                 textAlign: 'center',
-                margin: '12px 0',
-                background: '#f0f7f1',
+                margin: '6px 0',
+                background: '#fff',
               }}>
-                <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#555', marginBottom: 4 }}>
+                <p style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', color: '#000', marginBottom: 2 }}>
                   Track Your Order
                 </p>
-                <p style={{ fontSize: 16, fontWeight: 800, color: '#0D2E10', letterSpacing: 1, margin: '4px 0' }}>
+                <p style={{ fontSize: 13, fontWeight: 800, color: '#000', margin: '2px 0' }}>
                   {data.orderId}
                 </p>
-                <p style={{ fontSize: 9, color: '#666', marginTop: 4, lineHeight: 1.4 }}>
-                  Visit <span style={{ fontWeight: 700 }}>asella-organic.com/track</span><br />
+                <p style={{ fontSize: 8, color: '#000', fontWeight: 700, marginTop: 2, lineHeight: 1.2 }}>
+                  Visit asella-organic.com/track<br />
                   and enter this ID to track your order
                 </p>
               </div>
 
               {/* Footer */}
-              <div style={{ border: '1px solid #ccc', borderRadius: 6, padding: '8px 12px', textAlign: 'center', fontSize: 10, fontStyle: 'italic', margin: '10px 0' }}>
-                This receipt is valid only for Asella<br />Organic orders.
+              <div style={{ border: '1px solid #000', borderRadius: 4, padding: '4px 6px', textAlign: 'center', fontSize: 9, fontStyle: 'italic', margin: '6px 0', fontWeight: 800 }}>
+                This receipt is valid only for Asella Organic orders.
               </div>
 
-              <div style={{ textAlign: 'center', fontSize: 11, marginTop: 10 }}>
-                <p style={{ fontWeight: 700 }}>Thank you for your order!</p>
-                <p style={{ fontSize: 10, color: '#666', marginTop: 2 }}>asella-organic.com</p>
+              <div style={{ textAlign: 'center', fontSize: 10, marginTop: 6 }}>
+                <p style={{ fontWeight: 800 }}>Thank you for your order!</p>
+                <p style={{ fontSize: 9, color: '#000', fontWeight: 800, marginTop: 2 }}>asella-organic.com</p>
               </div>
             </div>
           </div>
