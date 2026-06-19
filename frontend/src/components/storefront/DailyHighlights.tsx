@@ -88,7 +88,7 @@ const DailyHighlights: React.FC = () => {
   }, []);
 
   return (
-    <section className="py-16 bg-parchment overflow-hidden">
+    <section className="py-16 bg-parchment dark:bg-[#121212] overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-6 md:px-12 mb-16">
         
         {/* Title */}
@@ -138,7 +138,7 @@ const DailyHighlights: React.FC = () => {
       </div>
 
       {/* Static Category Cards */}
-      <div className="w-full bg-parchment border-y border-border py-12">
+      <div className="w-full bg-parchment dark:bg-[#0A0A0A] border-y border-border py-12">
         <div className="max-w-[1400px] mx-auto px-6 md:px-12">
           
           {/* Section Header */}
@@ -152,8 +152,8 @@ const DailyHighlights: React.FC = () => {
                 onClick={() => dispatch(openOrderModal({ mode: 'sales' }))}
                 className="shrink-0 flex flex-col items-center justify-center w-36 md:w-44 cursor-pointer bg-white dark:bg-obsidian p-4 rounded-2xl border border-border shadow-sm hover:shadow-md transition-all duration-300 hover:border-highland-gold hover:-translate-y-1"
               >
-                <div className="w-24 h-24 md:w-28 md:h-28 mb-3 rounded-xl overflow-hidden bg-parchment-mid/20 flex items-center justify-center p-2">
-                   <img src={cat.image} alt={cat.name} className="w-full h-full object-contain mix-blend-multiply" />
+                <div className="w-24 h-24 md:w-28 md:h-28 mb-3 rounded-xl overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm border border-gray-100">
+                   <img src={cat.image} alt={cat.name} className="w-full h-full object-contain" />
                 </div>
                 <span className="font-bold text-sm md:text-base text-obsidian dark:text-white tracking-wider uppercase whitespace-normal text-center leading-tight">
                   {cat.name}

@@ -8,46 +8,7 @@ import OrderReceipt from './OrderReceipt';
 import type { ReceiptData } from './OrderReceipt';
 import { api } from '../../services/api';
 
-// ── FLAG COUNTRY CODE DATA ──────────────────────────────────────
-const _CC = [
-  { f: '🇪🇹', n: 'Ethiopia', c: '+251' }, { f: '🇺🇸', n: 'United States', c: '+1' },
-  { f: '🇬🇧', n: 'United Kingdom', c: '+44' }, { f: '🇨🇦', n: 'Canada', c: '+1' },
-  { f: '🇦🇺', n: 'Australia', c: '+61' }, { f: '🇩🇪', n: 'Germany', c: '+49' },
-  { f: '🇫🇷', n: 'France', c: '+33' }, { f: '🇮🇹', n: 'Italy', c: '+39' },
-  { f: '🇪🇸', n: 'Spain', c: '+34' }, { f: '🇨🇳', n: 'China', c: '+86' },
-  { f: '🇮🇳', n: 'India', c: '+91' }, { f: '🇯🇵', n: 'Japan', c: '+81' },
-  { f: '🇰🇷', n: 'South Korea', c: '+82' }, { f: '🇧🇷', n: 'Brazil', c: '+55' },
-  { f: '🇷🇺', n: 'Russia', c: '+7' }, { f: '🇳🇬', n: 'Nigeria', c: '+234' },
-  { f: '🇰🇪', n: 'Kenya', c: '+254' }, { f: '🇹🇿', n: 'Tanzania', c: '+255' },
-  { f: '🇺🇬', n: 'Uganda', c: '+256' }, { f: '🇷🇼', n: 'Rwanda', c: '+250' },
-  { f: '🇸🇴', n: 'Somalia', c: '+252' }, { f: '🇸🇩', n: 'Sudan', c: '+249' },
-  { f: '🇸🇸', n: 'South Sudan', c: '+211' }, { f: '🇩🇯', n: 'Djibouti', c: '+253' },
-  { f: '🇪🇷', n: 'Eritrea', c: '+291' }, { f: '🇿🇦', n: 'South Africa', c: '+27' },
-  { f: '🇬🇭', n: 'Ghana', c: '+233' }, { f: '🇪🇬', n: 'Egypt', c: '+20' },
-  { f: '🇲🇦', n: 'Morocco', c: '+212' }, { f: '🇸🇦', n: 'Saudi Arabia', c: '+966' },
-  { f: '🇦🇪', n: 'UAE', c: '+971' }, { f: '🇶🇦', n: 'Qatar', c: '+974' },
-  { f: '🇰🇼', n: 'Kuwait', c: '+965' }, { f: '🇮🇷', n: 'Iran', c: '+98' },
-  { f: '🇮🇶', n: 'Iraq', c: '+964' }, { f: '🇹🇷', n: 'Turkey', c: '+90' },
-  { f: '🇮🇱', n: 'Israel', c: '+972' }, { f: '🇵🇰', n: 'Pakistan', c: '+92' },
-  { f: '🇧🇩', n: 'Bangladesh', c: '+880' }, { f: '🇱🇰', n: 'Sri Lanka', c: '+94' },
-  { f: '🇳🇵', n: 'Nepal', c: '+977' }, { f: '🇮🇩', n: 'Indonesia', c: '+62' },
-  { f: '🇲🇾', n: 'Malaysia', c: '+60' }, { f: '🇹🇭', n: 'Thailand', c: '+66' },
-  { f: '🇻🇳', n: 'Vietnam', c: '+84' }, { f: '🇵🇭', n: 'Philippines', c: '+63' },
-  { f: '🇸🇬', n: 'Singapore', c: '+65' }, { f: '🇲🇽', n: 'Mexico', c: '+52' },
-  { f: '🇦🇷', n: 'Argentina', c: '+54' }, { f: '🇨🇴', n: 'Colombia', c: '+57' },
-  { f: '🇨🇱', n: 'Chile', c: '+56' }, { f: '🇳🇱', n: 'Netherlands', c: '+31' },
-  { f: '🇧🇪', n: 'Belgium', c: '+32' }, { f: '🇵🇱', n: 'Poland', c: '+48' },
-  { f: '🇸🇪', n: 'Sweden', c: '+46' }, { f: '🇳🇴', n: 'Norway', c: '+47' },
-  { f: '🇩🇰', n: 'Denmark', c: '+45' }, { f: '🇫🇮', n: 'Finland', c: '+358' },
-  { f: '🇨🇭', n: 'Switzerland', c: '+41' }, { f: '🇦🇹', n: 'Austria', c: '+43' },
-  { f: '🇵🇹', n: 'Portugal', c: '+351' }, { f: '🇬🇷', n: 'Greece', c: '+30' },
-  { f: '🇷🇴', n: 'Romania', c: '+40' }, { f: '🇨🇿', n: 'Czech Republic', c: '+420' },
-  { f: '🇭🇺', n: 'Hungary', c: '+36' }, { f: '🇺🇦', n: 'Ukraine', c: '+380' },
-  { f: '🇮🇪', n: 'Ireland', c: '+353' }, { f: '🇳🇿', n: 'New Zealand', c: '+64' },
-  { f: '🇿🇲', n: 'Zambia', c: '+260' }, { f: '🇿🇼', n: 'Zimbabwe', c: '+263' },
-  { f: '🇲🇿', n: 'Mozambique', c: '+258' }, { f: '🇦☉', n: 'Angola', c: '+244' },
-  { f: '🇨🇩', n: 'DR Congo', c: '+243' }, { f: '🇨🇲', n: 'Cameroon', c: '+237' }
-];
+import { COUNTRY_CODES as _CC } from '../../constants/countries';
 
 const OrderForm: React.FC = () => {
   const dispatch = useDispatch();
@@ -94,7 +55,16 @@ const OrderForm: React.FC = () => {
 
   const deliveryFee = formData.order_type === 'delivery' ? regionalFees[formData.city] || 150 : 0;
   
-  const total = orderFormMode === 'buy_now' ? (selectedProductPrice || 0) + deliveryFee : 0;
+  const itemsTotal = orderFormMode === 'buy_now' 
+    ? (selectedProductPrice || 0) 
+    : items.reduce((sum, item) => {
+        const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
+        const price = product ? Number(product.price) : 0;
+        const qty = Number(item.qty) || 1;
+        return sum + (price * qty);
+      }, 0);
+
+  const total = itemsTotal + deliveryFee;
 
   const addItemRow = () => {
     setItems([...items, { name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
@@ -417,11 +387,9 @@ const OrderForm: React.FC = () => {
           </button>
           
           <div className="text-right">
-            {orderFormMode === 'buy_now' && (
-              <div className="text-white text-lg md:text-xl font-mono font-bold leading-none">
-                Total: <span className="text-highland-gold">{total.toLocaleString()} ETB</span>
-              </div>
-            )}
+            <div className="text-white text-lg md:text-xl font-mono font-bold leading-none">
+              Total: <span className="text-highland-gold">{total.toLocaleString()} ETB</span>
+            </div>
           </div>
         </div>
 

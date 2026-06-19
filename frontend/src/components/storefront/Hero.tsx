@@ -18,7 +18,7 @@ const Hero: React.FC = () => {
     <section 
       id="hero"
       onMouseMove={handleMouseMove}
-      className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden bg-parchment py-12 lg:py-16" 
+      className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden bg-parchment dark:bg-[#121212] py-12 lg:py-16" 
     >
       {/* Interactive Gold Glow that follows the mouse */}
       <div 

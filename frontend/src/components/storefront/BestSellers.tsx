@@ -111,7 +111,7 @@ const BestSellers: React.FC = () => {
   }, [products]);
 
   return (
-    <section id="products" className="py-12 bg-parchment">
+    <section id="products" className="py-12 bg-parchment dark:bg-[#121212]">
       <div className="max-w-[1600px] mx-auto px-4 lg:px-10">
 
         {/* Section Header */}
@@ -183,7 +183,7 @@ const BestSellers: React.FC = () => {
                              shadow-sm hover:shadow-lg transition-all duration-400 cursor-pointer flex flex-col"
                 >
                   {/* Image container */}
-                  <div className="relative aspect-[4/3] bg-white dark:bg-obsidian shrink-0 border-b border-border">
+                  <div className="relative aspect-[4/3] bg-white shrink-0 border-b border-border">
                     {/* Featured badge */}
                     {product.featured && (
                       <div className="absolute top-2 left-2 z-10 px-2 py-0.5 bg-highland-gold

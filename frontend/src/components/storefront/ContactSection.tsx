@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../services/api';
 
 const ContactSection: React.FC = () => {
-  const [formData, setFormData] = useState({ full_name: '', phone_number: '', preferred_date: '', email: 'asellamoringa@gmail.com' });
+  const [formData, setFormData] = useState({ full_name: '', phone_number: '', preferred_date: '', email: '' });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -14,7 +14,7 @@ const ContactSection: React.FC = () => {
       const res = await api.post('/api/appointments', formData);
       if (res.success) {
         setStatus('success');
-        setFormData({ full_name: '', phone_number: '', preferred_date: '', email: 'asellamoringa@gmail.com' });
+        setFormData({ full_name: '', phone_number: '', preferred_date: '', email: '' });
       } else {
         setStatus('error');
       }
@@ -26,7 +26,7 @@ const ContactSection: React.FC = () => {
   };
 
   return (
-    <section className="py-16 bg-parchment" id="contact">
+    <section className="py-16 bg-parchment dark:bg-[#121212]" id="contact">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
         
         {/* Header */}
@@ -61,7 +61,7 @@ const ContactSection: React.FC = () => {
                     <p className="text-sm font-mono text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Amharic Support</p>
                     <p className="text-lg font-bold text-obsidian dark:text-white font-mono">+251 909 122 623</p>
                   </div>
-                  <a href="tel:+251909122623" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian dark:text-white transition-colors shadow-sm border border-border">
+                  <a href="tel:+251909122623" className="w-11 h-11 bg-parchment-mid dark:bg-[#1A301D] rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian dark:text-white transition-colors shadow-sm border border-border">
                     <span className="material-symbols-outlined text-lg">call</span>
                   </a>
                 </div>
@@ -72,7 +72,7 @@ const ContactSection: React.FC = () => {
                     <p className="text-sm font-mono text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">Afaan Oromoo Support</p>
                     <p className="text-lg font-bold text-obsidian dark:text-white font-mono">+251 942 223 999</p>
                   </div>
-                  <a href="tel:+251942223999" className="w-11 h-11 bg-parchment-mid rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian dark:text-white transition-colors shadow-sm border border-border">
+                  <a href="tel:+251942223999" className="w-11 h-11 bg-parchment-mid dark:bg-[#1A301D] rounded-full flex items-center justify-center text-highland-gold hover:bg-highland-gold hover:text-obsidian dark:text-white transition-colors shadow-sm border border-border">
                     <span className="material-symbols-outlined text-lg">call</span>
                   </a>
                 </div>
@@ -86,7 +86,7 @@ const ContactSection: React.FC = () => {
                   <span className="material-symbols-outlined text-highland-gold text-[20px]">storefront</span>
                   <h4 className="font-bold text-obsidian dark:text-white text-base">Piasa Store</h4>
                 </div>
-                <p className="text-base text-slate-900 mb-3 leading-relaxed">
+                <p className="text-base text-slate-900 dark:text-slate-300 mb-3 leading-relaxed">
                   Addis Ababa, Piazza Giorgis, Ethel Appartment
                 </p>
                 <a href="https://maps.app.goo.gl/mssptHZ9dAXRCbCh7" className="inline-flex items-center gap-1.5 text-sm font-mono font-bold uppercase tracking-wider text-highland-gold hover:text-highland-gold-light transition-colors">
@@ -100,7 +100,7 @@ const ContactSection: React.FC = () => {
                   <span className="material-symbols-outlined text-highland-gold text-[20px]">apartment</span>
                   <h4 className="font-bold text-obsidian dark:text-white text-base">Main Office</h4>
                 </div>
-                <p className="text-base text-slate-900 mb-3 leading-relaxed">
+                <p className="text-base text-slate-900 dark:text-slate-300 mb-3 leading-relaxed">
                   Jemo Mickael Woreda 03,Africa Building, Addis Ababa, Ethiopia
                 </p>
                 <a href="https://maps.app.goo.gl/qUfZBHcAL2784skT6?g_st=ic" className="inline-flex items-center gap-1.5 text-sm font-mono font-bold uppercase tracking-wider text-highland-gold hover:text-highland-gold-light transition-colors">
@@ -112,7 +112,7 @@ const ContactSection: React.FC = () => {
           </div>
 
           {/* Right Column: Appointment Form */}
-          <div className="bg-obsidian rounded-[32px] p-6 md:p-8 text-white shadow-xl flex flex-col justify-center border border-highland-gold/20 relative overflow-hidden">
+          <div className="bg-obsidian dark:bg-[#0A0A0A] rounded-[32px] p-6 md:p-8 text-white shadow-xl flex flex-col justify-center border border-highland-gold/20 relative overflow-hidden">
             {/* Subtle background glow */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-highland-gold/5 rounded-full blur-2xl pointer-events-none"></div>
             
@@ -141,7 +141,7 @@ const ContactSection: React.FC = () => {
                   value={formData.full_name}
                   onChange={e => setFormData(p => ({...p, full_name: e.target.value}))}
                   placeholder="Enter your name" 
-                  className="w-full px-4 py-2.5 bg-obsidian-mid/50 border border-highland-gold/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-highland-gold/50 focus:border-highland-gold transition-all text-base font-sans" 
+                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-sans" 
                 />
               </div>
 
@@ -153,7 +153,7 @@ const ContactSection: React.FC = () => {
                   value={formData.phone_number}
                   onChange={e => setFormData(p => ({...p, phone_number: e.target.value}))}
                   placeholder="Enter your phone number" 
-                  className="w-full px-4 py-2.5 bg-obsidian-mid/50 border border-highland-gold/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-highland-gold/50 focus:border-highland-gold transition-all text-base font-mono" 
+                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
                 />
               </div>
 
@@ -164,7 +164,7 @@ const ContactSection: React.FC = () => {
                   value={formData.email}
                   onChange={e => setFormData(p => ({...p, email: e.target.value}))}
                   placeholder="Enter your email" 
-                  className="w-full px-4 py-2.5 bg-obsidian-mid/50 border border-highland-gold/20 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-highland-gold/50 focus:border-highland-gold transition-all text-base font-mono" 
+                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
                 />
               </div>
 
@@ -175,7 +175,7 @@ const ContactSection: React.FC = () => {
                   required
                   value={formData.preferred_date}
                   onChange={e => setFormData(p => ({...p, preferred_date: e.target.value}))}
-                  className="w-full px-4 py-2.5 bg-obsidian-mid/50 border border-highland-gold/20 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-highland-gold/50 focus:border-highland-gold transition-all text-base font-mono [color-scheme:dark]" 
+                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
                 />
               </div>
 
