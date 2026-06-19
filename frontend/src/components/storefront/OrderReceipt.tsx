@@ -61,11 +61,11 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
       className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
       onClick={handleOverlay}
     >
-      <div className="bg-white dark:bg-obsidian rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[94vh]">
+      <div className="bg-white dark:bg-[#121212] rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[94vh]">
         
         {/* Action buttons at the top */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80">
-          <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-border bg-gray-50/80 dark:bg-[#1A1A1A]">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-white flex items-center gap-2">
             <span className="material-symbols-outlined text-[18px] text-green-700">receipt_long</span>
             Order Receipt
           </h3>

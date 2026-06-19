@@ -23,7 +23,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-parchment sticky top-0 z-50 border-b border-border backdrop-blur-md">
+    <header className="bg-parchment dark:bg-[#121212] sticky top-0 z-50 border-b border-border backdrop-blur-md">
       <nav className="flex justify-between items-center w-full px-6 lg:px-12 h-[72px] max-w-[1400px] mx-auto">
         
         {/* Logo - Top Left Corner */}
