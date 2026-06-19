@@ -58,9 +58,9 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
   ];
 
   return (
-    <div className="bg-white border border-[#c8dfc4] rounded-2xl overflow-hidden shadow-sm mt-4">
+    <div className="bg-white dark:bg-[#121212] border border-[#c8dfc4] dark:border-border rounded-2xl overflow-hidden shadow-sm mt-4">
       {/* ── Toolbar ───────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-5 border-b border-[#c8dfc4]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-5 border-b border-[#c8dfc4] dark:border-border">
         {/* Search */}
         <form onSubmit={handleSearch} className="flex gap-3 flex-1 max-w-lg">
           <input
@@ -68,9 +68,9 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search product name..."
-            className="flex-1 bg-[#f7faf7] border border-[#c8dfc4] rounded-lg px-4 py-2.5
-                       text-[15px] text-[#112415] placeholder-[#4a6741] focus:outline-none
-                       focus:ring-2 focus:ring-[#112415] transition-shadow"
+            className="flex-1 bg-[#f7faf7] dark:bg-[#1A1A1A] border border-[#c8dfc4] dark:border-border rounded-lg px-4 py-2.5
+                       text-[15px] text-[#112415] dark:text-white placeholder-[#4a6741] focus:outline-none
+                       focus:ring-2 focus:ring-[#112415] dark:focus:ring-white transition-shadow"
           />
           <button
             type="submit"
@@ -100,7 +100,7 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
 
       {/* ── Table ─────────────────────────────────────────────────── */}
       {itemsLoading ? (
-        <div className="flex items-center justify-center py-16 text-[#112415] font-medium">
+        <div className="flex items-center justify-center py-16 text-[#112415] dark:text-white font-medium">
           <span className="animate-spin mr-2 material-symbols-outlined">refresh</span> Loading inventory...
         </div>
       ) : items.length === 0 ? (
@@ -108,10 +108,10 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
           No products match the current filter.
         </div>
       ) : (
-        <div className="overflow-x-auto bg-white">
+        <div className="overflow-x-auto bg-white dark:bg-[#121212]">
           <table className="w-full text-[15px]">
             <thead>
-              <tr className="text-xs text-[#4a6741] uppercase tracking-widest font-extrabold border-b border-[#c8dfc4]">
+              <tr className="text-xs text-[#4a6741] dark:text-slate-400 uppercase tracking-widest font-extrabold border-b border-[#c8dfc4] dark:border-border">
                 <th className="text-left px-6 py-5">Product</th>
                 <th className="text-left px-6 py-5">Qty</th>
                 <th className="text-left px-6 py-5">Threshold</th>
@@ -127,12 +127,12 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
                 return (
                   <tr
                     key={item.id}
-                    className={`border-b border-[#c8dfc4] transition-colors
-                                ${idx % 2 === 0 ? "bg-white" : "bg-[#f7faf7]"}`}
+                    className={`border-b border-[#c8dfc4] dark:border-border transition-colors
+                                ${idx % 2 === 0 ? "bg-white dark:bg-[#121212]" : "bg-[#f7faf7] dark:bg-[#1A1A1A]"}`}
                   >
                     {/* Product */}
                     <td className="px-6 py-5">
-                      <p className="font-bold text-[#112415] text-[16px]">{item.name}</p>
+                      <p className="font-bold text-[#112415] dark:text-white text-[16px]">{item.name}</p>
                       <p className="text-sm text-[#4a6741] mt-0.5">{item.package_size}</p>
                     </td>
 
@@ -142,7 +142,7 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
                         ${item.stock_status === "out_of_stock" ? "text-red-600"
                           : item.stock_status === "critical"   ? "text-orange-600"
                           : item.stock_status === "low"        ? "text-amber-600"
-                          : "text-[#112415]"}`}>
+                          : "text-[#112415] dark:text-white"}`}>
                         {item.current_quantity}
                       </span>
                     </td>
@@ -162,7 +162,7 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
                     </td>
 
                     {/* Stock value */}
-                    <td className="px-6 py-5 text-left text-[#112415] font-mono text-sm">
+                    <td className="px-6 py-5 text-left text-[#112415] dark:text-white font-mono text-sm">
                       ETB {Number(item.stock_value).toLocaleString()}
                     </td>
 
@@ -170,7 +170,7 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
                     <td className="px-6 py-5 text-[#4a6741] text-[13px]">
                       {item.last_movement_at ? (
                         <>
-                          <span className="text-[#112415] font-medium">
+                          <span className="text-[#112415] dark:text-white font-medium">
                             {MOVEMENT_LABEL[item.last_movement_type ?? ""] ?? item.last_movement_type}
                           </span>
                           <br />

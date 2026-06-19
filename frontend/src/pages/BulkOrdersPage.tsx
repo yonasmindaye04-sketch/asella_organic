@@ -114,21 +114,21 @@ const BulkOrdersPage: React.FC = () => {
   return (
     <DashboardLayout>
       <div className="p-4 md:p-8 font-sans w-full max-w-5xl mx-auto">
-        <div className="bg-[#FAF9F6] border border-[#d4ecd4] rounded-3xl w-full shadow-lg overflow-hidden animate-in fade-in duration-300 flex flex-col">
+        <div className="bg-[#FAF9F6] dark:bg-[#121212] border border-[#d4ecd4] dark:border-border rounded-3xl w-full shadow-lg overflow-hidden animate-in fade-in duration-300 flex flex-col">
           
           {/* Header */}
-          <div className="px-8 pt-8 pb-4 bg-[#FAF9F6] flex justify-between items-start">
+          <div className="px-8 pt-8 pb-4 bg-[#FAF9F6] dark:bg-[#121212] flex justify-between items-start">
             <div>
-              <h3 className="font-sans font-black text-3xl text-obsidian mb-1 tracking-tight">Franchise Partner Portal</h3>
-              <p className="text-sm font-sans text-slate-500">Place bulk/wholesale requests for franchise stores.</p>
+              <h3 className="font-sans font-black text-3xl text-obsidian dark:text-white mb-1 tracking-tight">Franchise Partner Portal</h3>
+              <p className="text-sm font-sans text-slate-500 dark:text-slate-300">Place bulk/wholesale requests for franchise stores.</p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-parchment-mid border border-highland-gold/30 text-highland-gold flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-parchment-mid dark:bg-[#1A301D] border border-highland-gold/30 text-highland-gold flex items-center justify-center">
               <span className="material-symbols-outlined">inventory_2</span>
             </div>
           </div>
 
           <div className="px-8 pb-4">
-            <hr className="border-[#d4ecd4]" />
+            <hr className="border-[#d4ecd4] dark:border-border" />
           </div>
 
           {message && (
@@ -144,13 +144,13 @@ const BulkOrdersPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               
               <div className="col-span-1 md:col-span-1">
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Company / Entity Name *</label>
-                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-[#d4ecd4] focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="Franchise business name" />
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Company / Entity Name *</label>
+                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="Franchise business name" />
               </div>
 
               <div className="col-span-1 md:col-span-1">
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Franchise Type</label>
-                <select value={formData.franchiseType} onChange={e => setFormData({...formData, franchiseType: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-[#d4ecd4] focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Franchise Type</label>
+                <select value={formData.franchiseType} onChange={e => setFormData({...formData, franchiseType: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
                   <option>Cosmetics Store</option>
                   <option>Pharmacy</option>
                   <option>Retail Store</option>
@@ -159,12 +159,12 @@ const BulkOrdersPage: React.FC = () => {
               </div>
 
               <div className="col-span-1 md:col-span-2">
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Phone Number *</label>
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Phone Number *</label>
                 <div className="flex w-full">
                   <select 
                     value={countryCode} 
                     onChange={e => setCountryCode(e.target.value)} 
-                    className="flex-shrink-0 px-3 py-3 bg-parchment-mid border border-[#d4ecd4] border-r-0 rounded-l-xl text-obsidian text-sm font-bold font-mono outline-none cursor-pointer max-w-[150px] transition-all focus:border-highland-gold"
+                    className="flex-shrink-0 px-3 py-3 bg-parchment-mid dark:bg-[#1A301D] border border-[#d4ecd4] dark:border-border border-r-0 rounded-l-xl text-obsidian dark:text-white text-sm font-bold font-mono outline-none cursor-pointer max-w-[150px] transition-all focus:border-highland-gold"
                   >
                     {_CC.map((country) => (
                       <option key={`${country.c}-${country.n}`} value={country.c}>
@@ -172,13 +172,13 @@ const BulkOrdersPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-3 rounded-r-xl bg-white border border-[#d4ecd4] focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm font-mono" placeholder="911 234 567" />
+                  <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-3 rounded-r-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm font-mono" placeholder="911 234 567" />
                 </div>
               </div>
 
               <div className="col-span-1 md:col-span-1">
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">City *</label>
-                <select value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-[#d4ecd4] focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">City *</label>
+                <select value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
                   <option>Addis Ababa</option>
                   <option>Other Regions</option>
                   <option>Abroad</option>
@@ -186,13 +186,13 @@ const BulkOrdersPage: React.FC = () => {
               </div>
 
               <div className="col-span-1 md:col-span-1">
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Specific Location *</label>
-                <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-[#d4ecd4] focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="e.g. Bole, Lideta..." />
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Specific Location *</label>
+                <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="e.g. Bole, Lideta..." />
               </div>
 
               <div className="col-span-1 md:col-span-1">
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Order Channel</label>
-                <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-[#d4ecd4] focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Order Channel</label>
+                <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
                   <option>Walk-in</option>
                   <option>Phone</option>
                   <option>Online</option>
@@ -203,14 +203,14 @@ const BulkOrdersPage: React.FC = () => {
 
             {/* Item Details */}
             <div className="mb-8">
-              <h4 className="text-sm font-mono font-bold text-obsidian mb-4 flex items-center gap-2">
+              <h4 className="text-sm font-mono font-bold text-obsidian dark:text-white mb-4 flex items-center gap-2">
                 Item Details
               </h4>
               
               {productsLoading ? (
                 <p className="text-sm text-slate-500 mb-4">Loading products...</p>
               ) : (
-                <div className="bg-white border border-[#d4ecd4] rounded-2xl p-4 md:p-6 mb-4 space-y-4 shadow-sm">
+                <div className="bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border rounded-2xl p-4 md:p-6 mb-4 space-y-4 shadow-sm">
                   {items.map((item, index) => {
                     const selectedProductVariants = products.filter(p => p.name === item.name);
                     const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
@@ -219,11 +219,11 @@ const BulkOrdersPage: React.FC = () => {
                       <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end relative border-b border-[#d4ecd4]/50 pb-4 last:border-b-0 last:pb-0">
                         
                         <div>
-                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 uppercase tracking-widest mb-1">Item *</label>
+                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Item *</label>
                           <select required value={item.name} onChange={e => {
                             updateItem(index, 'name', e.target.value);
                             updateItem(index, 'packageSize', ''); // Reset size when item changes
-                          }} className="w-full px-3 py-2 rounded-lg bg-white border border-[#d4ecd4] focus:border-highland-gold text-sm outline-none">
+                          }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none">
                             <option value="">Select item...</option>
                             {Array.from(new Set(products.map(p => p.name))).map(name => (
                               <option key={name} value={name}>{name}</option>
@@ -232,8 +232,8 @@ const BulkOrdersPage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 uppercase tracking-widest mb-1">Package Size *</label>
-                          <select required value={item.packageSize} onChange={e => updateItem(index, 'packageSize', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white border border-[#d4ecd4] focus:border-highland-gold text-sm outline-none">
+                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Package Size *</label>
+                          <select required value={item.packageSize} onChange={e => updateItem(index, 'packageSize', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none">
                             <option value="">Select...</option>
                             {availableSizes.length > 0 ? (
                               availableSizes.map(size => (
@@ -246,16 +246,16 @@ const BulkOrdersPage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 uppercase tracking-widest mb-1">Qty *</label>
+                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Qty *</label>
                           <input required type="number" min="1" value={item.qty} onChange={e => {
                             const v = parseInt(e.target.value);
                             updateItem(index, 'qty', isNaN(v) ? 1 : v);
-                          }} className="w-full px-3 py-2 rounded-lg bg-white border border-[#d4ecd4] focus:border-highland-gold text-sm outline-none font-mono" />
+                          }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none font-mono" />
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 uppercase tracking-widest mb-1">Target Date</label>
-                          <input type="date" value={item.deliveryDate} onChange={e => updateItem(index, 'deliveryDate', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white border border-[#d4ecd4] focus:border-highland-gold text-sm outline-none font-mono" />
+                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Target Date</label>
+                          <input type="date" value={item.deliveryDate} onChange={e => updateItem(index, 'deliveryDate', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none font-mono" />
                         </div>
 
                         <div>
@@ -272,7 +272,7 @@ const BulkOrdersPage: React.FC = () => {
                 </div>
               )}
 
-              <button type="button" onClick={addItemRow} className="w-full py-3 border-2 border-dashed border-highland-gold text-highland-gold rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-parchment-mid hover:border-highland-gold-light transition-all flex items-center justify-center gap-2">
+              <button type="button" onClick={addItemRow} className="w-full py-3 border-2 border-dashed border-highland-gold text-highland-gold rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-parchment-mid dark:hover:bg-[#1A301D] hover:border-highland-gold-light transition-all flex items-center justify-center gap-2">
                 <span className="text-lg leading-none font-sans">+</span> Add Another Item
               </button>
             </div>
@@ -280,13 +280,13 @@ const BulkOrdersPage: React.FC = () => {
             {/* Notes & Attachments */}
             <div className="grid grid-cols-1 gap-6 mb-4">
               <div>
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Contract / Notes / Instructions</label>
-                <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-[#d4ecd4] focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm min-h-[100px]" placeholder="Agreement details or instructions..." />
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Contract / Notes / Instructions</label>
+                <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm min-h-[100px]" placeholder="Agreement details or instructions..." />
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Attachment (Contract / ID / Receipt)</label>
-                <input type="file" accept="image/*,.pdf" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-parchment-mid file:text-obsidian hover:file:bg-[#d4ecd4] transition-all border border-dashed border-[#d4ecd4] p-4 rounded-xl cursor-pointer" />
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Attachment (Contract / ID / Receipt)</label>
+                <input type="file" accept="image/*,.pdf" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian dark:text-white hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-[#d4ecd4] dark:border-border p-4 rounded-xl cursor-pointer" />
               </div>
             </div>
 
@@ -294,7 +294,7 @@ const BulkOrdersPage: React.FC = () => {
 
           {/* Footer Submit */}
           <div className="bg-obsidian border-t border-highland-gold/10 px-8 py-5 flex items-center justify-end mt-auto">
-            <button disabled={submitting || productsLoading} onClick={handleSubmit} className="px-8 py-3.5 bg-highland-gold hover:bg-highland-gold-light text-obsidian rounded-xl font-mono text-xs font-bold uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2">
+            <button disabled={submitting || productsLoading} onClick={handleSubmit} className="px-8 py-3.5 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white rounded-xl font-mono text-xs font-bold uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2">
               {submitting ? (
                 <>Processing...</>
               ) : (

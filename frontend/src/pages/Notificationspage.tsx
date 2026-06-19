@@ -115,22 +115,24 @@ export default function NotificationsPage() {
 
         {/* Summary KPI row */}
         {summary && (
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {[
-              { key: 'low_stock',     label: 'Low Stock Alerts', icon: '⚠️', value: summary.low_stock,     color: 'border-red-200 bg-red-50' },
-              { key: 'stock_request', label: 'Stock Requests',   icon: '📋', value: summary.stock_request,  color: 'border-amber-200 bg-amber-50' },
-              { key: 'new_order',     label: 'Pending Orders',   icon: '🛒', value: summary.new_order,      color: 'border-blue-200 bg-blue-50' },
-              { key: 'vendor',        label: 'Vendor Movements', icon: '🚚', value: summary.vendor,         color: 'border-green-200 bg-green-50' },
+              { key: 'low_stock',     label: 'Low Stock Alerts', icon: 'warning',        value: summary.low_stock,     color: 'bg-red-600 shadow-lg',     ring: 'ring-red-400' },
+              { key: 'stock_request', label: 'Stock Requests',   icon: 'assignment',     value: summary.stock_request, color: 'bg-amber-500 shadow-lg',   ring: 'ring-amber-300' },
+              { key: 'new_order',     label: 'Pending Orders',   icon: 'shopping_cart',  value: summary.new_order,     color: 'bg-blue-600 shadow-lg',    ring: 'ring-blue-400' },
+              { key: 'vendor',        label: 'Vendor Movements', icon: 'local_shipping', value: summary.vendor,        color: 'bg-[#1a3821] shadow-lg',   ring: 'ring-green-500' },
             ].map(item => (
               <button
                 key={item.key}
                 onClick={() => setCategory(item.key as Category)}
-                className={`border rounded-xl p-4 text-left transition hover:shadow-md ${item.color} ${activeCategory === item.key ? 'ring-2 ring-[#112415]' : ''}`}
+                className={`rounded-2xl p-5 text-left transition text-white ${item.color} ${activeCategory === item.key ? `ring-2 ${item.ring}` : ''} hover:opacity-90 hover:scale-[1.02] duration-200`}
               >
-                <div className="text-2xl mb-1">{item.icon}</div>
-                <div className="text-2xl font-bold text-[#112415]">{item.value}</div>
-                <div className="text-xs text-gray-600 font-medium">{item.label}</div>
-                <div className="text-[10px] text-gray-400 mt-0.5">Last 24h</div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined text-[20px] opacity-90">{item.icon}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide opacity-80">{item.label}</span>
+                </div>
+                <p className="text-3xl font-extrabold font-mono drop-shadow-sm">{item.value}</p>
+                <p className="text-[11px] opacity-60 mt-1 font-medium">Last 24h</p>
               </button>
             ))}
           </div>

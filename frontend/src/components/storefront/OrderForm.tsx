@@ -187,10 +187,10 @@ const OrderForm: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 overflow-y-auto" onClick={handleOverlayClick}>
-      <div className="bg-parchment border border-highland-gold/20 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[90vh]">
+      <div className="bg-parchment dark:bg-[#121212] border border-highland-gold/20 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 flex items-center justify-between bg-parchment">
+        <div className="px-8 pt-8 pb-4 flex items-center justify-between bg-parchment dark:bg-[#121212]">
           <div>
             <h3 className="font-display-lg font-black text-3xl text-obsidian dark:text-white mb-1">{getFormTitle()}</h3>
             <p className="text-base font-sans text-slate-700 dark:text-slate-300">{getFormSubTitle()}</p>
@@ -284,7 +284,7 @@ const OrderForm: React.FC = () => {
                 <select 
                   value={countryCode} 
                   onChange={e => setCountryCode(e.target.value)} 
-                  className="flex-shrink-0 px-3 py-3 bg-parchment-mid border border-border border-r-0 rounded-l-xl text-obsidian dark:text-white text-base font-bold font-mono outline-none cursor-pointer max-w-[150px] transition-all focus:border-highland-gold"
+                  className="flex-shrink-0 px-3 py-3 bg-parchment-mid dark:bg-[#1A301D] border border-border border-r-0 rounded-l-xl text-obsidian dark:text-white text-base font-bold font-mono outline-none cursor-pointer max-w-[150px] transition-all focus:border-highland-gold"
                 >
                   {_CC.map((country) => (
                     <option key={`${country.c}-${country.n}`} value={country.c}>
@@ -355,13 +355,13 @@ const OrderForm: React.FC = () => {
                 })}
               </div>
 
-              <button type="button" onClick={addItemRow} className="w-full py-3 border-2 border-dashed border-highland-gold text-highland-gold rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-parchment-mid hover:border-highland-gold-light transition-all flex items-center justify-center gap-2">
+              <button type="button" onClick={addItemRow} className="w-full py-3 border-2 border-dashed border-highland-gold text-highland-gold rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-parchment-mid dark:hover:bg-[#1A301D] hover:border-highland-gold-light transition-all flex items-center justify-center gap-2">
                 <span className="text-lg leading-none font-sans">+</span> Add Another Item
               </button>
             </div>
           )}
 
-          <div className="bg-parchment-mid border border-border rounded-xl p-5 mb-6">
+          <div className="bg-parchment-mid dark:bg-[#1A301D] border border-border rounded-xl p-5 mb-6">
             <p className="text-obsidian dark:text-white text-sm leading-relaxed">
               <strong>Delivery Fee Information:</strong><br />
               Addis Ababa: 150–200 ETB &nbsp;|&nbsp; Outside Addis Ababa: 300 ETB &nbsp;|&nbsp; International: Based on region
@@ -375,7 +375,7 @@ const OrderForm: React.FC = () => {
           
           <div className="mb-4">
             <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Attachment (Receipt / ID)</label>
-            <input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-700 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-parchment-mid file:text-obsidian dark:text-white hover:file:bg-[#d4ecd4] transition-all border border-dashed border-border p-4 rounded-xl cursor-pointer" />
+            <input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-700 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian dark:text-white hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-border p-4 rounded-xl cursor-pointer" />
           </div>
 
         </form>
