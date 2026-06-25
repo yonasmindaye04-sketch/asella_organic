@@ -288,7 +288,7 @@ CREATE TABLE IF NOT EXISTS stock_requests (
     delivery_date        DATE         NULL,
     requested_by         VARCHAR(255) NULL,
     requested_by_user_id CHAR(36)     NULL,
-    status               ENUM('pending','ordered','received','cancelled') DEFAULT 'pending',
+    status               ENUM('pending','ordered','received','cancelled','rejected','returned') DEFAULT 'pending',
     notes                TEXT         NULL,
     created_at           DATETIME     DEFAULT CURRENT_TIMESTAMP,
     updated_at           DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

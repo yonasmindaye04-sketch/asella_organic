@@ -32,6 +32,7 @@ import vendorOrderRoutes   from "./routes/vendor-orders.js";
 import notificationRoutes  from "./routes/notification.js";
 import appointmentRoutes   from "./routes/appointments.js";
 import adminRoutes          from "./routes/admin.js";
+import expenseRoutes        from "./routes/expenses.js";
 
 const app = express();
 
@@ -57,6 +58,36 @@ app.use(cors({
   exposedHeaders: ["x-request-id"],
   credentials:    true,
 }));
+
+// ── 3b. Strict Origin Checking (CSRF Defense-in-Depth) ──────────────────────
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // Safe methods don't mutate state
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    next();
+    return;
+  }
+  
+  // Skip external webhooks that don't come from a browser
+  if (req.path.includes("/payment/callback") || req.path.includes("/telegram/webhook")) {
+    next();
+    return;
+  }
+
+  const origin = req.headers.origin || req.headers.referer;
+  
+  if (!origin) {
+    res.status(403).json({ success: false, error: "CSRF protection: Missing Origin or Referer header" });
+    return;
+  }
+  
+  const isAllowed = allowedOrigins.some(allowed => origin.startsWith(allowed));
+  if (!isAllowed) {
+    res.status(403).json({ success: false, error: "CSRF protection: Origin mismatch" });
+    return;
+  }
+  
+  next();
+});
 
 // ── 4. Cookie parser (needed for HttpOnly cookie auth) ────────────────────────
 app.use(cookieParser());
@@ -179,6 +210,7 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/notifications",notificationRoutes],
   ["/appointments", appointmentRoutes],
   ["/admin",        adminRoutes],
+  ["/expenses",     expenseRoutes],
 ];
 
 for (const [path, router] of routeMounts) {

@@ -53,8 +53,9 @@ const CreateStockRequestSchema = z.object({
 });
 
 const UpdateStockRequestStatusSchema = z.object({
-  status: z.enum(["pending", "ordered", "received", "cancelled"]),
+  status: z.enum(["pending", "ordered", "received", "cancelled", "rejected", "returned"]),
   notes:  z.string().max(500).optional(),
+  qty_needed: z.number().int().positive().optional(),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -585,7 +586,7 @@ router.patch(
   authorise("admin", "manager"),
   validate(UpdateStockRequestStatusSchema),
   async (req: Request, res: Response): Promise<void> => {
-    const { status, notes } = req.body as { status: string; notes?: string };
+    const { status, notes, qty_needed } = req.body as { status: string; notes?: string; qty_needed?: number };
     const requestId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     if (!requestId) {
       res.status(400).json({ success: false, error: "Stock request ID is required." });
@@ -616,8 +617,8 @@ router.patch(
       }
 
       await conn.query(
-        `UPDATE stock_requests SET status = ?, notes = ?, updated_at = NOW() WHERE id = ?`,
-        [status, notes ?? null, requestId]
+        `UPDATE stock_requests SET status = ?, notes = ?, qty_needed = COALESCE(?, qty_needed), updated_at = NOW() WHERE id = ?`,
+        [status, notes ?? null, qty_needed ?? null, requestId]
       );
 
       // Auto-increment inventory when request is received AND linked to a product

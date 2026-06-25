@@ -144,7 +144,7 @@ export function issueTokens(
   payload: Omit<TokenPayload, "jti">
 ): { accessToken: string; refreshToken: string; jti: string } {
   const jti          = crypto.randomBytes(16).toString("hex");
-  const accessToken  = jwt.sign({ ...payload, jti }, getJwtSecret(), { expiresIn: "7d" } as any);
+  const accessToken  = jwt.sign({ ...payload, jti }, getJwtSecret(), { expiresIn: "1h" } as any);
   const refreshToken = crypto.randomBytes(40).toString("hex");
   return { accessToken, refreshToken, jti };
 }
