@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import Header from '../components/storefront/Header';
 import Footer from '../components/storefront/Footer';
 
@@ -65,11 +66,22 @@ function formatDate(value: string) {
 }
 
 const CustomerOrderTracking: React.FC = () => {
-  const [query, setQuery] = useState('');
+  const { orderId } = useParams();
+  const [query, setQuery] = useState(orderId || '');
   const [order, setOrder] = useState<TrackOrder | null>(null);
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
+  
+  // Use a ref to prevent double-fetching in strict mode or on remounts
+  const hasFetched = useRef(false);
+
+  useEffect(() => {
+    if (orderId && !hasFetched.current) {
+      hasFetched.current = true;
+      handleSearch(undefined, orderId);
+    }
+  }, [orderId]);
 
   const currentStatus = normalizeStatus(order?.status ?? 'pending');
   const currentStepIndex = useMemo(() => {
@@ -80,10 +92,10 @@ const CustomerOrderTracking: React.FC = () => {
 
   const progress = currentStepIndex <= 0 ? 0 : (currentStepIndex / (STEPS.length - 1)) * 100;
 
-  const handleSearch = async (event?: React.FormEvent) => {
+  const handleSearch = async (event?: React.FormEvent, directId?: string) => {
     event?.preventDefault();
-    const orderId = query.trim();
-    if (!orderId) return;
+    const searchId = (directId || query).trim();
+    if (!searchId) return;
 
     setSearching(true);
     setNotFound(false);
@@ -91,14 +103,21 @@ const CustomerOrderTracking: React.FC = () => {
     setOrder(null);
 
     try {
-      const res = await fetch(`/api/orders/track/${encodeURIComponent(orderId)}`);
-      const json = await res.json();
+      const res = await fetch(`/api/orders/track/${encodeURIComponent(searchId)}`);
+      const contentType = res.headers.get('content-type');
+      let json: any = null;
+      if (contentType && contentType.includes('application/json')) {
+        json = await res.json();
+      }
 
       if (res.status === 404) {
         setNotFound(true);
         return;
       }
-      if (!res.ok || !json.success) {
+      if (!res.ok) {
+        throw new Error(json?.error ?? 'Unable to track this order');
+      }
+      if (json && !json.success) {
         throw new Error(json.error ?? 'Unable to track this order');
       }
 

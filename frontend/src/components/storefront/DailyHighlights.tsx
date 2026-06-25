@@ -124,7 +124,7 @@ const DailyHighlights: React.FC = () => {
                         <h3 className="font-serif text-[32px] md:text-[40px] text-white mb-3 font-bold drop-shadow-md leading-tight">
                           {item.product.name}
                         </h3>
-                        <p className="font-sans text-[15px] md:text-[17px] text-white/90 max-w-lg drop-shadow-sm line-clamp-3 leading-relaxed">
+                        <p className="font-sans text-[15px] md:text-[17px] text-white/90 max-w-lg drop-shadow-sm line-clamp-4 leading-relaxed">
                           {item.product.description || "Experience the pure, natural benefits of this authentic product. Harvested and prepared with care."}
                         </p>
                       </div>

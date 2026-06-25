@@ -334,9 +334,21 @@ const AffiliateControlPage: React.FC = () => {
                       <td className="px-4 py-3 font-mono">{affiliate.pending_count || 0}</td>
                       <td className="px-4 py-3 font-mono">{affiliate.paid_count || 0}</td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => toggleAffiliate(affiliate)} disabled={saving === affiliate.id} className={`rounded-md px-3 py-1.5 text-xs font-extrabold ${affiliate.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} disabled:opacity-50`}>
-                          {affiliate.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/?ref=${affiliate.referral_code}`);
+                              setMessage(`Link for ${affiliate.full_name} copied!`);
+                            }}
+                            className="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-extrabold text-blue-700 hover:bg-blue-100"
+                            title="Copy Affiliate Link"
+                          >
+                            Copy Link
+                          </button>
+                          <button onClick={() => toggleAffiliate(affiliate)} disabled={saving === affiliate.id} className={`rounded-md px-3 py-1.5 text-xs font-extrabold ${affiliate.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} disabled:opacity-50`}>
+                            {affiliate.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

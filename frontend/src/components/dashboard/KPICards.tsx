@@ -1,105 +1,133 @@
 /**
  * src/components/dashboard/KPICards.tsx
- * Asella Organic — Dashboard KPI Cards
- *
- * Fixes:
- *   - Field name: `total` (not `total_amount`) — matches MySQL column
- *   - Pending filter: `o.status === 'Pending'` (capital P, matches DB enum)
- *   - Falls back to dummy data only when API truly fails, not when empty
+ * Asella Organic -- KPI cards using real data
+ * Uses both /api/orders and /api/products endpoints. No hardcoded metrics.
  */
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
 
-const KPICards: React.FC = () => {
-  const [orders, setOrders]     = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
+interface KPIConfig {
+  label: string;
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  icon: string;
+  color: string;
+  colorDim: string;
+  subtitle: string;
+}
+
+function AnimatedNumber({ target, prefix = "", suffix = "" }: { target: number; prefix?: string; suffix?: string }) {
+  const [display, setDisplay] = useState(0);
+  const hasAnimated = useRef(false);
 
   useEffect(() => {
-    const fetchAll = async () => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    const duration = 1400;
+    const start = performance.now();
+    function tick(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }, [target]);
+
+  const formatted = target >= 1000 ? display.toLocaleString() : display.toString();
+  return <span className="font-bold tabular-nums">{prefix}{formatted}{suffix}</span>;
+}
+
+function KPICard({ kpi, index }: { kpi: KPIConfig; index: number }) {
+  return (
+    <div
+      className="card p-4 group animate-in h-full flex flex-col justify-between"
+      style={{ animationDelay: `${0.06 * index}s` }}
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        e.currentTarget.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+        e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
+      }}
+    >
+      <div>
+        <div className="flex items-start justify-between mb-3 relative z-[2]">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] transition-transform duration-300 group-hover:scale-110" style={{ background: kpi.colorDim, color: kpi.color }}>
+            <i className={kpi.icon} />
+          </div>
+        </div>
+        <p className="text-[10.5px] text-[var(--muted)] font-semibold uppercase tracking-[0.06em] relative z-[2]">{kpi.label}</p>
+        <p className="text-[22px] font-extrabold tracking-tight mt-1 relative z-[2]">
+          {kpi.value === -1 ? (
+            <span className="font-bold tabular-nums">...</span>
+          ) : (
+            <AnimatedNumber target={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} />
+          )}
+        </p>
+      </div>
+      <div className="mt-4 pt-3 border-t border-[var(--border)] relative z-[2]">
+          <span className="text-[11px] text-[var(--muted)] font-medium">{kpi.subtitle}</span>
+      </div>
+    </div>
+  );
+}
+
+export default function KPICards() {
+  const [data, setData] = useState({ revenue: 0, expenses: 0, netProfit: 0, orders: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchKPIs = async () => {
       setLoading(true);
       try {
-        const [ordRes, prodRes] = await Promise.all([
-          api.get<any[]>('/api/orders?limit=2000'),
-          api.get<any[]>('/api/products?limit=500'),
+        const [ordRes, expRes] = await Promise.all([
+          api.get<any[]>('/api/orders?limit=1000'),
+          api.get<any>('/api/expenses/summary')
         ]);
-        setOrders(ordRes.success && ordRes.data?.length ? ordRes.data : []);
-        setProducts(prodRes.success && prodRes.data?.length ? prodRes.data : []);
+        
+        let rev = 0;
+        let exp = 0;
+        let ordCount = 0;
+
+        if (ordRes.success && ordRes.data) {
+          const validOrders = ordRes.data.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
+          ordCount = validOrders.length;
+          rev = validOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+        }
+
+        if (expRes.success && expRes.data) {
+          exp = Number(expRes.data.totals.total_expenses || 0);
+        }
+
+        setData({ 
+          revenue: rev, 
+          expenses: exp, 
+          netProfit: rev - exp, 
+          orders: ordCount 
+        });
       } catch {
-        // On error, show empty state (no fallback dummy data)
-        setOrders([]);
-        setProducts([]);
+        // gracefully fail
       } finally {
         setLoading(false);
       }
     };
-    fetchAll();
+    fetchKPIs();
   }, []);
 
-  // Use `total` — the actual MySQL column name returned by the API
-  const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
-  const totalRevenue  = activeOrders.reduce((s, o) => s + Number(o.total || 0), 0);
-  const totalOrders   = activeOrders.length;
-  const avgValue      = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
-  // DB stores 'Pending' with capital P
-  const pendingOrders = activeOrders.filter(o => o.status === 'Pending').length;
-  const totalProducts = products.length;
-
-  const cards = [
-    {
-      label: 'Total Orders',
-      value: loading ? '…' : totalOrders.toLocaleString(),
-      sub: 'All time',
-      icon: 'receipt_long',
-    },
-    {
-      label: 'Total Revenue',
-      value: loading ? '…' : `${totalRevenue.toLocaleString()} ETB`,
-      sub: 'Lifetime',
-      icon: 'payments',
-    },
-    {
-      label: 'Avg. Order Value',
-      value: loading ? '…' : `${avgValue.toLocaleString()} ETB`,
-      sub: 'Per order',
-      icon: 'trending_up',
-    },
-    {
-      label: 'Pending Orders',
-      value: loading ? '…' : pendingOrders.toLocaleString(),
-      sub: 'Awaiting action',
-      icon: 'pending_actions',
-    },
-    {
-      label: 'Products Listed',
-      value: loading ? '…' : totalProducts.toLocaleString(),
-      sub: 'In catalog',
-      icon: 'inventory_2',
-    },
+  const kpis: KPIConfig[] = [
+    { label: "Total Revenue", value: loading ? -1 : data.revenue, suffix: " ETB", subtitle: "Lifetime sales", icon: "fa-solid fa-money-bill-wave", color: "var(--emerald)", colorDim: "var(--emerald-dim)" },
+    { label: "Total Expenses", value: loading ? -1 : data.expenses, suffix: " ETB", subtitle: "All recorded expenses", icon: "fa-solid fa-money-bill-transfer", color: "var(--rose)", colorDim: "var(--rose-dim)" },
+    { label: "Net Profit", value: loading ? -1 : data.netProfit, suffix: " ETB", subtitle: "Revenue minus expenses", icon: "fa-solid fa-piggy-bank", color: "var(--accent)", colorDim: "var(--accent-dim)" },
+    { label: "Total Orders", value: loading ? -1 : data.orders, subtitle: "Excluding cancelled", icon: "fa-solid fa-cart-shopping", color: "var(--sky)", colorDim: "var(--sky-dim)" },
   ];
 
   return (
-    <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-      {cards.map((c) => (
-        <div key={c.label} className="surface-panel flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-on-surface-variant font-medium">{c.label}</span>
-            <span className="material-symbols-outlined text-[20px] text-primary opacity-60">
-              {c.icon}
-            </span>
-          </div>
-          <div className="text-2xl font-extrabold text-on-surface font-data-mono mt-1">
-            {c.value}
-          </div>
-          <div className="text-xs text-on-surface-variant flex items-center gap-1 mt-0.5">
-            <span className="material-symbols-outlined text-[13px] text-primary">arrow_upward</span>
-            {c.sub}
-          </div>
-        </div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {kpis.map((kpi, i) => (
+        <KPICard key={kpi.label} kpi={kpi} index={i} />
       ))}
-    </section>
+    </div>
   );
-};
-
-export default KPICards;
+}

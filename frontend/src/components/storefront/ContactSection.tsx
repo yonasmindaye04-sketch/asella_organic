@@ -128,7 +128,7 @@ const ContactSection: React.FC = () => {
                 </div>
               )}
               {status === 'error' && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-base mb-4">
+                <div className="bg-red-600 text-white border border-red-500/30 text-red-400 p-3 rounded-xl text-base mb-4">
                   Failed to send request. Please try again.
                 </div>
               )}
@@ -199,6 +199,9 @@ const ContactSection: React.FC = () => {
 };
 
 export default ContactSection;
+
+
+
 
 
 

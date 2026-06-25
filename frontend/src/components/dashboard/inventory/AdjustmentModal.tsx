@@ -154,8 +154,8 @@ const AdjustmentModal: React.FC<Props> = ({ initialProductId, onClose, onSuccess
                     className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors
                       ${direction === d
                         ? d === "in"
-                          ? "bg-emerald-600/20 border-emerald-500 text-emerald-300"
-                          : "bg-red-600/20 border-red-500 text-red-300"
+                           ? "bg-emerald-500 border-emerald-500 text-white"
+                          : "bg-red-500 border-red-500 text-white"
                         : "bg-slate-800 border-slate-600 text-slate-400"}`}
                   >
                     {d === "in" ? "↑ Add Stock" : "↓ Remove Stock"}

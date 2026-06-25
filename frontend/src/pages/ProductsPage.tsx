@@ -78,7 +78,7 @@ interface StockRequest {
   requested_by:    string | null;
   product_name:    string | null;
   current_stock:   number | null;
-  status:          'pending' | 'ordered' | 'received' | 'cancelled';
+  status:          'pending' | 'ordered' | 'received' | 'cancelled' | 'rejected' | 'returned';
   created_at:      string;
 }
 
@@ -495,7 +495,7 @@ function AdjustmentModal({ item, onClose, onSaved }: AdjModalProps) {
               <button type="button" onClick={() => setDir('in')}
                 className={`py-2.5 rounded-lg text-sm font-bold transition border ${
                   direction === 'in'
-                    ? 'border-green-500 bg-green-500/20 text-green-400'
+                    ? 'border-green-500 bg-green-500 text-white'
                     : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/25'
                 }`}>
                 ↑ Add Stock
@@ -503,7 +503,7 @@ function AdjustmentModal({ item, onClose, onSaved }: AdjModalProps) {
               <button type="button" onClick={() => setDir('out')}
                 className={`py-2.5 rounded-lg text-sm font-bold transition border ${
                   direction === 'out'
-                    ? 'border-red-500 bg-red-500/20 text-red-400'
+                    ? 'border-red-500 bg-red-500 text-white'
                     : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/25'
                 }`}>
                 ↓ Remove Stock
@@ -561,6 +561,114 @@ function AdjustmentModal({ item, onClose, onSaved }: AdjModalProps) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-component: ReviewRequestModal 
+
+interface ReviewModalProps {
+  request: StockRequest;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function ReviewRequestModal({ request, onClose, onSaved }: ReviewModalProps) {
+  const [qty, setQty] = useState(request.qty_needed.toString());
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleAction = async (status: 'ordered' | 'returned' | 'rejected') => {
+    setError('');
+    const qtyNum = parseInt(qty, 10);
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      setError('Please enter a valid quantity > 0.');
+      return;
+    }
+    if ((status === 'returned' || status === 'rejected') && !notes.trim()) {
+      setError(`Please provide notes for ${status} request.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await api.patch(`/api/stock/requests/${request.id}/status`, {
+        status,
+        notes: notes.trim() || undefined,
+        qty_needed: qtyNum
+      });
+      if (res.success) {
+        onSaved();
+      } else {
+        setError(res.error || 'Failed to update request');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#0d1a10]/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 bg-[#1a2e1d] rounded-2xl shadow-2xl w-full max-w-md p-6 text-white">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-lg">Review Request</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div className="bg-white/10 rounded-xl px-4 py-3 mb-5 flex justify-between">
+          <div>
+            <p className="font-semibold text-white text-sm">{request.product_name ?? request.item}</p>
+            <p className="text-gray-400 text-xs mt-0.5">Requested by: {request.requested_by ?? 'System'}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[#4ade80] font-mono font-bold text-lg">{request.current_stock ?? request.stock_available}</p>
+            <p className="text-gray-400 text-xs">in stock</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Approved Quantity</label>
+            <input type="number" min="1" value={qty}
+              onChange={e => setQty(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 outline-none focus:border-[#4ade80] text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Admin Response (Notes)</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)}
+              placeholder="Why are you returning/rejecting, or any order notes..." rows={3}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 outline-none focus:border-[#4ade80] text-sm resize-none" />
+          </div>
+
+          {error && (
+            <div className="bg-red-900/40 border border-red-700/50 text-red-300 rounded-lg px-4 py-2.5 text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-2 pt-2">
+            <button type="button" disabled={saving} onClick={() => void handleAction('ordered')}
+              className="py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50 transition text-[11px] uppercase tracking-wide">
+              Accept
+            </button>
+            <button type="button" disabled={saving} onClick={() => void handleAction('returned')}
+              className="py-2.5 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 disabled:opacity-50 transition text-[11px] uppercase tracking-wide">
+              Return
+            </button>
+            <button type="button" disabled={saving} onClick={() => void handleAction('rejected')}
+              className="py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50 transition text-[11px] uppercase tracking-wide">
+              Reject
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -760,6 +868,7 @@ function StockTab({ reloadKey }: StockTabProps) {
   const [filter,    setFilter]   = useState<'all' | StockItem['stock_status']>('all');
   const [search,    setSearch]   = useState('');
   const [adjTarget, setAdjTarget] = useState<StockItem | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<StockRequest | null>(null);
   const [activeSection, setSection] = useState<'stock' | 'movements' | 'requests'>('stock');
 
   const loadAll = useCallback(async () => {
@@ -1014,19 +1123,18 @@ function StockTab({ reloadKey }: StockTabProps) {
                             r.status === 'pending'   ? 'bg-amber-100 text-amber-700' :
                             r.status === 'ordered'   ? 'bg-blue-100 text-blue-700'   :
                             r.status === 'received'  ? 'bg-green-100 text-green-700' :
+                            r.status === 'returned'  ? 'bg-purple-100 text-purple-700' :
+                            r.status === 'rejected'  ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-500'
                           }`}>{r.status}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           {r.status === 'pending' && (
                             <div className="flex gap-1 justify-center">
-                              <button onClick={() => void handleRequestStatus(r.id, 'ordered')}
-                                className="px-2 py-1 text-[10px] font-bold rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition">
-                                Order
-                              </button>
-                              <button onClick={() => void handleRequestStatus(r.id, 'cancelled')}
-                                className="px-2 py-1 text-[10px] font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
-                                Cancel
+                              <button onClick={() => setReviewTarget(r)}
+                                className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-[#e8f5e9] text-[#112415] hover:bg-[#4ade80] transition inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">rate_review</span>
+                                Review
                               </button>
                             </div>
                           )}
@@ -1053,6 +1161,14 @@ function StockTab({ reloadKey }: StockTabProps) {
           item={adjTarget}
           onClose={() => setAdjTarget(null)}
           onSaved={() => { setAdjTarget(null); void loadAll(); }}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewRequestModal
+          request={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onSaved={() => { setReviewTarget(null); void loadAll(); }}
         />
       )}
     </div>

@@ -38,7 +38,7 @@ const EMPTY_ITEM: OrderItem = {
   unit_price:   0,
 };
 
-const SOURCES = ['website', 'phone', 'walk-in', 'instagram', 'facebook', 'other'];
+const SOURCES = ['website', 'phone', 'walk-in','other'];
 const AGE_GROUPS = ['under-18', '18-24', '25-34', '35-44', '45-54', '55+'];
 const CITIES = ['Addis Ababa', 'Adama', 'Dire Dawa', 'Bahir Dar', 'Hawassa', 'Mekele', 'Abroad', 'Other Regions'];
 
@@ -92,7 +92,7 @@ export default function NewOrderPage() {
     'Abroad': 0
   };
 
-  const deliveryFee = form.order_type === 'delivery' ? regionalFees[form.city] || 150 : 0;
+  const deliveryFee = form.order_type === 'delivery' ? regionalFees[form.city] || 200 : 0;
 
   const total = form.items.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,

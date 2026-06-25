@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store';
 import { closeOrderModal } from '../../store/slices/uiSlice';
@@ -28,7 +28,7 @@ const OrderForm: React.FC = () => {
     franchiseType: 'Cosmetics Store',
     gender: 'other',
     ageGroup: '25-34',
-    referral_code: ''
+    referral_code: localStorage.getItem('referral_code') || ''
   });
   
   const [countryCode, setCountryCode] = useState('+251');
@@ -36,6 +36,16 @@ const OrderForm: React.FC = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+
+  useEffect(() => {
+    if (orderModalOpen) {
+      if (orderFormMode === 'buy_now' && selectedProductName) {
+        setItems([{ name: selectedProductName, packageSize: '', qty: 1, deliveryDate: '' }]);
+      } else {
+        setItems([{ name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
+      }
+    }
+  }, [orderModalOpen, orderFormMode, selectedProductName]);
 
   const regionalFees: Record<string, number> = {
     'Addis Ababa': 150,
@@ -55,14 +65,12 @@ const OrderForm: React.FC = () => {
 
   const deliveryFee = formData.order_type === 'delivery' ? regionalFees[formData.city] || 150 : 0;
   
-  const itemsTotal = orderFormMode === 'buy_now' 
-    ? (selectedProductPrice || 0) 
-    : items.reduce((sum, item) => {
-        const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
-        const price = product ? Number(product.price) : 0;
-        const qty = Number(item.qty) || 1;
-        return sum + (price * qty);
-      }, 0);
+  const itemsTotal = items.reduce((sum, item) => {
+    const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
+    const price = product ? Number(product.price) : 0;
+    const qty = Number(item.qty) || 1;
+    return sum + (price * qty);
+  }, 0);
 
   const total = itemsTotal + deliveryFee;
 
@@ -86,7 +94,7 @@ const OrderForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (orderFormMode === 'buy_now' && !selectedProductName) return;
+    if (items.length === 0 || !items[0].name) return;
     
     setSubmitting(true);
     try {
@@ -106,23 +114,16 @@ const OrderForm: React.FC = () => {
       if (orderFormMode === 'sales') finalNotes = `Gender: ${formData.gender}, Age: ${formData.ageGroup}\n` + finalNotes;
       if (receiptUrl) finalNotes += `\nReceipt: ${receiptUrl}`;
 
-      const orderItems = orderFormMode === 'buy_now' 
-        ? [{ 
-            name: selectedProductName || 'Unknown Product', 
-            package_size: 'Standard', 
-            quantity: 1, 
-            unit_price: selectedProductPrice || 1 
-          }]
-        : items.map(item => {
-            const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
-            const qty = Number(item.qty);
-            return { 
-              name: item.name || 'Custom Item', 
-              package_size: item.packageSize || 'Standard', 
-              quantity: isNaN(qty) || qty < 1 ? 1 : qty, 
-              unit_price: product ? Math.max(Number(product.price), 1) : 1
-            };
-          });
+      const orderItems = items.map(item => {
+        const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
+        const qty = Number(item.qty);
+        return { 
+          name: item.name || 'Custom Item', 
+          package_size: item.packageSize || 'Standard', 
+          quantity: isNaN(qty) || qty < 1 ? 1 : qty, 
+          unit_price: product ? Math.max(Number(product.price), 1) : 1
+        };
+      });
 
       // delivery_date must be YYYY-MM-DD or omitted entirely — empty string fails Zod
       const rawDate = items[0]?.deliveryDate;
@@ -300,8 +301,7 @@ const OrderForm: React.FC = () => {
           </div>
 
           {/* Item Details */}
-          {orderFormMode !== 'buy_now' && (
-            <div className="mb-8">
+          <div className="mb-8">
               <h4 className="text-base font-mono font-bold text-obsidian dark:text-white mb-4 flex items-center gap-2">
                 Item Details
               </h4>
@@ -359,7 +359,6 @@ const OrderForm: React.FC = () => {
                 <span className="text-lg leading-none font-sans">+</span> Add Another Item
               </button>
             </div>
-          )}
 
           <div className="bg-parchment-mid dark:bg-[#1A301D] border border-border rounded-xl p-5 mb-6">
             <p className="text-obsidian dark:text-white text-sm leading-relaxed">
@@ -410,5 +409,6 @@ const OrderForm: React.FC = () => {
 };
 
 export default OrderForm;
+
 
 

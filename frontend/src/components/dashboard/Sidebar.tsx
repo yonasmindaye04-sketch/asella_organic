@@ -1,10 +1,14 @@
 /**
- * Sidebar.tsx — FIXED
+ * Sidebar.tsx — YouTube-style dark sidebar
  *
- * CHANGES:
- * 1. Removed Packaging Log link (feature removed — use Vendor Purchase instead)
- * 2. Added Notifications bell with live unread badge for admin/manager
- * 3. Fixed displayRole mapping (was checking wrong role values)
+ * Features:
+ * - Collapsible: icon-only rail (72px) ↔ expanded (260px) on desktop
+ * - Mobile: overlay drawer with backdrop
+ * - Always dark background regardless of app theme
+ * - Rounded pill active states
+ * - Decorative traffic light dots
+ * - Bottom user profile section
+ * - Preserves all role-based nav, badges, and logout
  */
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
@@ -13,7 +17,17 @@ import type { RootState } from '../../store';
 import { logout } from '../../store/slices/authSlice';
 import { api, auth as authApi } from '../../services/api';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+/* ─── Icon helper (Material Symbols) ─── */
+const Icon: React.FC<{ name: string; className?: string }> = ({ name, className = '' }) => (
+  <span className={`material-symbols-outlined sidebar-icon ${className}`}>{name}</span>
+);
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const dispatch   = useDispatch();
   const location   = useLocation();
   const navigate   = useNavigate();
@@ -23,11 +37,8 @@ const Sidebar: React.FC = () => {
   const [notifCount,   setNotifCount]       = useState(0);
 
   const role        = user?.role || 'guest';
-  const displayName = user?.full_name || user?.username || 'Staff';
-  const displayRole = role === 'admin' ? 'Super Admin'
-                    : role === 'manager' ? 'Manager'
-                    : role === 'employee' ? 'Employee'
-                    : role;
+  const displayName = user?.name || user?.full_name || user?.username || 'Staff';
+  const displayRole = role.charAt(0).toUpperCase() + role.slice(1);
 
   // Fetch pending order count
   useEffect(() => {
@@ -58,172 +69,175 @@ const Sidebar: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const link = (path: string) =>
-    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium text-sm ${
-      isActive(path)
-        ? 'bg-[#E2F0D9] text-[#002C17] shadow-sm'
-        : 'text-[#E2F0D9] hover:bg-[#E2F0D9]/10'
-    }`;
-
-  const icon = (path: string) =>
-    `material-symbols-outlined w-6 text-center text-[20px] ${
-      isActive(path) ? 'text-[#002C17]' : 'text-[#E2F0D9]'
-    }`;
-
-  const isStaffOrAdmin  = role === 'employee' || role === 'staff' || role === 'admin' || role === 'manager';
+  const isStaffOrAdmin   = role === 'employee' || role === 'staff' || role === 'admin' || role === 'manager';
   const isAdminOrManager = role === 'admin' || role === 'manager';
 
-  return (
-    <aside className="hidden w-72 bg-[#001803] flex-col justify-between md:flex z-20 flex-shrink-0 border-r border-[#E2F0D9]/20">
-      <div className="flex-1 flex flex-col min-h-0">
+  /* ─── Nav item renderer ─── */
+  const NavItem: React.FC<{
+    to: string;
+    icon: string;
+    label: string;
+    badge?: number;
+    badgeColor?: string;
+    pulse?: boolean;
+  }> = ({ to, icon, label, badge, badgeColor = 'bg-amber-500', pulse = false }) => {
+    const active = isActive(to);
+    return (
+      <li>
+        <Link
+          to={to}
+          onClick={() => onClose?.()}
+          className={`sidebar-nav-item ${active ? 'active' : ''}`}
+          title={!isOpen ? label : undefined}
+        >
+          <Icon name={icon} />
+          <span className="sidebar-nav-label">{label}</span>
+          {badge !== undefined && badge > 0 && (
+            <span className={`sidebar-badge ${badgeColor} ${pulse ? 'animate-pulse' : ''}`}>
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+        </Link>
+      </li>
+    );
+  };
 
-        {/* User profile */}
-        <div className="p-4 border-b border-[#E2F0D9]/20 shrink-0">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-12 h-12 rounded-full bg-[#355E3B] flex items-center justify-center text-white font-bold text-lg">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-base font-bold text-white truncate">{displayName}</p>
-              <p className="text-xs text-[#A0F399] truncate">{displayRole}</p>
-            </div>
-          </div>
+  return (
+    <>
+      {/* Mobile backdrop overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+
+      <aside
+        className={`sidebar-root ${isOpen ? 'sidebar-expanded' : 'sidebar-collapsed'}`}
+      >
+        {/* ── Hamburger Toggle (Desktop & Mobile Close) ── */}
+        <div className="sidebar-header-toggle">
+          <button
+            onClick={onClose}
+            className="sidebar-hamburger-btn"
+            aria-label="Toggle sidebar"
+          >
+            <Icon name="menu" />
+          </button>
         </div>
 
-        {/* Nav */}
-        <nav className="p-4 space-y-6 overflow-y-auto flex-1">
-
-          {/* Quick link */}
-          <ul className="space-y-1">
-            <li>
-              <Link to="/dashboard/new-order" className={link('/dashboard/new-order')}>
-                <span className={icon('/dashboard/new-order')}>shopping_cart</span>
-                New Sales Order
-              </Link>
-            </li>
+        {/* ── Navigation ── */}
+        <nav className="sidebar-nav">
+          {/* Quick links */}
+          <ul className="sidebar-nav-group">
+            <NavItem to="/dashboard" icon="dashboard" label="Dashboard" />
+            <NavItem to="/dashboard/new-order" icon="shopping_cart" label="New Sales Order" />
           </ul>
 
           {/* Partners */}
           {isStaffOrAdmin && (
-            <div>
-              <h3 className="text-[11px] font-bold text-[#A0F399] uppercase tracking-widest mb-3 px-4">Partners</h3>
-              <ul className="space-y-1.5">
-                <li>
-                  <Link to="/dashboard/bulk-orders" className={link('/dashboard/bulk-orders')}>
-                    <span className={icon('/dashboard/bulk-orders')}>inventory_2</span>
-                    Bulk Orders
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/vendor" className={link('/dashboard/vendor')}>
-                    <span className={icon('/dashboard/vendor')}>local_shipping</span>
-                    Vendor Purchase
-                  </Link>
-                </li>
+            <>
+              <div className="sidebar-divider" />
+              <div className="sidebar-section-label">Partners</div>
+              <ul className="sidebar-nav-group">
+                <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Orders" />
+                <NavItem to="/dashboard/vendor" icon="local_shipping" label="Vendor Purchase" />
               </ul>
-            </div>
+            </>
           )}
 
           {/* Internal */}
           {isStaffOrAdmin && (
-            <div>
-              <h3 className="text-[11px] font-bold text-[#A0F399] uppercase tracking-widest mb-3 px-4">Internal</h3>
-              <ul className="space-y-1.5">
-                {/* Packaging Log REMOVED — use Vendor Purchase instead */}
-                <li>
-                  <Link to="/dashboard/products" className={link('/dashboard/products')}>
-                    <span className={icon('/dashboard/products')}>category</span>
-                    Products & Inventory
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/stock-alert" className={link('/dashboard/stock-alert')}>
-                    <span className={icon('/dashboard/stock-alert')}>warning</span>
-                    Stock Alert
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/tracking" className={link('/dashboard/tracking')}>
-                    <span className={icon('/dashboard/tracking')}>route</span>
-                    Order Tracking
-                    {pendingCount > 0 && (
-                      <span className="ml-auto bg-amber-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full min-w-[22px] text-center animate-pulse">
-                        {pendingCount}
-                      </span>
-                    )}
-                  </Link>
-                </li>
+            <>
+              <div className="sidebar-divider" />
+              <div className="sidebar-section-label">Internal</div>
+              <ul className="sidebar-nav-group">
+                <NavItem to="/dashboard/products" icon="category" label="Products & Inventory" />
+                <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alert" />
+                <NavItem
+                  to="/dashboard/tracking"
+                  icon="route"
+                  label="Order Tracking"
+                  badge={pendingCount}
+                  badgeColor="bg-amber-500"
+                  pulse
+                />
               </ul>
-            </div>
+            </>
           )}
 
           {/* Management */}
           {isAdminOrManager && (
-            <div>
-              <h3 className="text-[11px] font-bold text-[#A0F399] uppercase tracking-widest mb-3 px-4">Management</h3>
-              <ul className="space-y-1.5">
-                {/* NEW: In-app notification center */}
-                <li>
-                  <Link to="/dashboard/notifications" className={link('/dashboard/notifications')}>
-                    <span className={icon('/dashboard/notifications')}>notifications</span>
-                    Notifications
-                    {notifCount > 0 && (
-                      <span className="ml-auto bg-red-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full min-w-[22px] text-center">
-                        {notifCount > 99 ? '99+' : notifCount}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/change-password" className={link('/dashboard/change-password')}>
-                    <span className={icon('/dashboard/change-password')}>security</span>
-                    Security Settings
-                  </Link>
-                </li>
+            <>
+              <div className="sidebar-divider" />
+              <div className="sidebar-section-label">Management</div>
+              <ul className="sidebar-nav-group">
+                <NavItem
+                  to="/dashboard/notifications"
+                  icon="notifications"
+                  label="Notifications"
+                  badge={notifCount}
+                  badgeColor="bg-red-500"
+                />
+                <NavItem to="/dashboard/expenses" icon="payments" label="Expenses" />
+                <NavItem to="/dashboard/change-password" icon="security" label="Security Settings" />
               </ul>
-            </div>
+            </>
           )}
 
           {/* Admin only */}
           {role === 'admin' && (
-            <div>
-              <h3 className="text-[11px] font-bold text-[#A0F399] uppercase tracking-widest mb-3 px-4">Admin</h3>
-              <ul className="space-y-1.5">
-                <li>
-                  <Link to="/dashboard/users" className={link('/dashboard/users')}>
-                    <span className={icon('/dashboard/users')}>groups</span>
-                    User Management
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/affiliates" className={link('/dashboard/affiliates')}>
-                    <span className={icon('/dashboard/affiliates')}>handshake</span>
-                    Affiliate Control
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/access-db" className={link('/dashboard/access-db')}>
-                    <span className={icon('/dashboard/access-db')}>database</span>
-                    Access Database
-                  </Link>
-                </li>
+            <>
+              <div className="sidebar-divider" />
+              <div className="sidebar-section-label">Admin</div>
+              <ul className="sidebar-nav-group">
+                <NavItem to="/dashboard/users" icon="groups" label="User Management" />
+                <NavItem to="/dashboard/affiliates" icon="handshake" label="Affiliate Control" />
+                <NavItem to="/dashboard/access-db" icon="database" label="Access Database" />
               </ul>
-            </div>
+            </>
           )}
         </nav>
-      </div>
 
-      {/* Logout */}
-      <div className="p-4 shrink-0 border-t border-[#E2F0D9]/10">
-        <button
-          onClick={async () => { await authApi.logout(); dispatch(logout()); navigate('/login'); }}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium text-sm w-full text-red-400 hover:bg-red-400/10"
-        >
-          <span className="material-symbols-outlined w-6 text-center text-[20px] text-red-400">logout</span>
-          Logout
-        </button>
-      </div>
-    </aside>
+        {/* ── Bottom section ── */}
+        <div className="sidebar-bottom">
+          {/* Settings row */}
+          <div className="sidebar-divider" />
+          <div className="sidebar-settings-row">
+            <Link
+              to="/dashboard/change-password"
+              onClick={() => onClose?.()}
+              className="sidebar-settings-btn"
+              title={!isOpen ? 'Settings' : undefined}
+            >
+              <Icon name="settings" />
+            </Link>
+          </div>
+
+          {/* User profile */}
+          <div className="sidebar-user-row">
+            <div className="sidebar-user-avatar">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <div className="sidebar-user-info">
+              <p className="sidebar-user-name">{displayName}</p>
+              <p className="sidebar-user-role">{displayRole}</p>
+            </div>
+            <button
+              onClick={async () => {
+                await authApi.logout();
+                dispatch(logout());
+                navigate('/login');
+              }}
+              className="sidebar-logout-btn"
+              title="Logout"
+            >
+              <Icon name="logout" />
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };
 
