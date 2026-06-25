@@ -32,8 +32,8 @@ export const ResetConfirmSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .max(128)
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Password must contain uppercase, lowercase, and a number"
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])/i,
+      "Password must contain uppercase, lowercase, a number, and a special character"
     ),
 });
 
@@ -44,8 +44,8 @@ export const CreateStaffSchema = z.object({
     .min(8)
     .max(128)
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Password must contain uppercase, lowercase, and a number"
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])/i,
+      "Password must contain uppercase, lowercase, a number, and a special character"
     ),
   full_name: z.string().trim().min(2).max(100),
   role: z.enum([

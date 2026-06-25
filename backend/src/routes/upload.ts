@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import { fileTypeFromBuffer } from "file-type";
 
 const router = Router();
 
@@ -12,38 +13,42 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOADS_DIR);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = crypto.randomBytes(8).toString("hex") + "-" + Date.now();
-    const ext = path.extname(file.originalname);
-    cb(null, `receipt-${uniqueSuffix}${ext}`);
-  },
-});
-
+// Use memory storage to inspect the file *before* saving it to disk
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"));
-    }
-  },
 });
 
-router.post("/receipt", upload.single("receipt"), (req: Request, res: Response) => {
+router.post("/receipt", upload.single("receipt"), async (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ success: false, error: "No file uploaded" });
     return;
   }
 
-  // Return the public URL for the uploaded file
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.status(200).json({ success: true, data: { url: fileUrl } });
+  try {
+    // 1. Inspect "magic bytes" to guarantee it is actually an image
+    const fileType = await fileTypeFromBuffer(req.file.buffer);
+    
+    if (!fileType || !fileType.mime.startsWith("image/")) {
+      res.status(400).json({ success: false, error: "Invalid or corrupt image file" });
+      return;
+    }
+
+    // 2. Generate a safe filename and manually force the verified extension
+    const uniqueSuffix = crypto.randomBytes(8).toString("hex") + "-" + Date.now();
+    const safeFilename = `receipt-${uniqueSuffix}.${fileType.ext}`;
+    const fullPath = path.join(UPLOADS_DIR, safeFilename);
+
+    // 3. Write buffer to disk safely
+    await fs.promises.writeFile(fullPath, req.file.buffer);
+
+    // Return the public URL
+    const fileUrl = `/uploads/${safeFilename}`;
+    res.status(200).json({ success: true, data: { url: fileUrl } });
+  } catch (error) {
+    console.error("[Upload] Error processing file:", error);
+    res.status(500).json({ success: false, error: "Internal server error processing upload" });
+  }
 });
 
 export default router;

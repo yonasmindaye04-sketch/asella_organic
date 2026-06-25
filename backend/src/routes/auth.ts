@@ -42,7 +42,7 @@ const ACCESS_COOKIE: CookieOptions = {
   httpOnly: true,
   secure:   IS_PROD,
   sameSite: "strict",
-  maxAge:   7 * 24 * 60 * 60 * 1_000,  // 7 days
+  maxAge:   1 * 60 * 60 * 1_000,  // 1 hour
   path:     "/",
 };
 
@@ -50,7 +50,7 @@ const REFRESH_COOKIE: CookieOptions = {
   httpOnly: true,
   secure:   IS_PROD,
   sameSite: "strict",
-  maxAge:   7 * 24 * 60 * 60 * 1_000,  // 7 days
+  maxAge:   24 * 60 * 60 * 1_000,  // 24 hours
   path:     "/api/auth",          // Scope refresh cookie to auth routes only
 };
 
@@ -108,7 +108,7 @@ router.post("/login", loginRateLimit, validate(LoginSchema),
 
     // Store hashed refresh token in DB
     const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000); // 24 hours
     const tokenId   = crypto.randomUUID();
 
     await pool.query(
@@ -182,7 +182,7 @@ router.post("/refresh", async (req: Request, res: Response): Promise<void> => {
   });
 
   const newHash      = crypto.createHash("sha256").update(newTokens.refreshToken).digest("hex");
-  const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000);
+  const newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000); // 24 hours
 
   await pool.query(
     `UPDATE refresh_tokens SET token_hash = ?, expires_at = ? WHERE id = ?`,
