@@ -142,8 +142,8 @@ const StockRequestsTable: React.FC = () => {
                             <button
                               disabled={isUpdating}
                               onClick={() => handleStatusChange(req, "ordered")}
-                              className="px-2.5 py-1 text-xs bg-blue-600/20 hover:bg-blue-600/40
-                                         text-blue-300 border border-blue-600/40 rounded-lg
+                              className="px-2.5 py-1 text-xs bg-blue-500 hover:bg-blue-600
+                                         text-white rounded-lg
                                          transition-colors disabled:opacity-50"
                             >
                               Mark Ordered
@@ -151,8 +151,8 @@ const StockRequestsTable: React.FC = () => {
                             <button
                               disabled={isUpdating}
                               onClick={() => handleStatusChange(req, "cancelled")}
-                              className="px-2.5 py-1 text-xs bg-red-600/10 hover:bg-red-600/20
-                                         text-red-400 border border-red-700/30 rounded-lg
+                              className="px-2.5 py-1 text-xs bg-red-500 hover:bg-red-600
+                                         text-white rounded-lg
                                          transition-colors disabled:opacity-50"
                             >
                               Cancel
@@ -163,8 +163,8 @@ const StockRequestsTable: React.FC = () => {
                           <button
                             disabled={isUpdating}
                             onClick={() => handleStatusChange(req, "received")}
-                            className="px-2.5 py-1 text-xs bg-emerald-600/20 hover:bg-emerald-600/40
-                                       text-emerald-300 border border-emerald-600/40 rounded-lg
+                            className="px-2.5 py-1 text-xs bg-emerald-500 hover:bg-emerald-600
+                                       text-white rounded-lg
                                        transition-colors disabled:opacity-50"
                           >
                             {isUpdating ? "…" : "✓ Mark Received"}
@@ -189,3 +189,4 @@ const StockRequestsTable: React.FC = () => {
 };
 
 export default StockRequestsTable;
+

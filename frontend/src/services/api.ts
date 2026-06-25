@@ -74,8 +74,10 @@ async function request<T>(
 
   const res = await fetch(`${BASE_URL}${path}`, options);
 
-  // Silent token refresh on 401
-  if (res.status === 401 && retry) {
+  // Silent token refresh on 401 (skip for login/refresh endpoints to avoid redirect loops)
+  const isAuthEndpoint = path.includes("/api/auth/login") || path.includes("/api/auth/refresh");
+  
+  if (res.status === 401 && retry && !isAuthEndpoint) {
     // Deduplicate concurrent refresh attempts
     if (!isRefreshing) {
       isRefreshing = true;

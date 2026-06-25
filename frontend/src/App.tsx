@@ -21,6 +21,7 @@ import AffiliateControlPage from './pages/AffiliateControlPage';
 import NewOrderPage         from './pages/NewOrderPage';
 import CustomerOrderTracking from './pages/CustomerOrderTracking';
 import AccessDatabasePage   from './pages/AccessDatabasePage';
+import ExpensesPage         from './pages/ExpensesPage';
 import ProtectedRoute       from './components/ui/ProtectedRoute';
 import { ToastProvider }    from './components/ui/ToastProvider';
 import { LanguageProvider } from './LanguageContext';
@@ -70,6 +71,7 @@ function App() {
             <Route path="/dashboard/bulk-orders"  element={<ProtectedRoute><BulkOrdersPage /></ProtectedRoute>} />
             <Route path="/dashboard/vendor"       element={<ProtectedRoute><VendorPurchasePage /></ProtectedRoute>} />
             <Route path="/dashboard/stock-alert"  element={<ProtectedRoute><StockAlertPage /></ProtectedRoute>} />
+            <Route path="/dashboard/expenses"     element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
             <Route path="/dashboard/analytics"    element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
             <Route path="/dashboard/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/dashboard/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />

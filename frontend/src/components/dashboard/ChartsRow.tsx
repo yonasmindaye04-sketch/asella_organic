@@ -1,45 +1,53 @@
-/**
- * src/components/dashboard/ChartsRow.tsx
- * Asella Organic — Revenue Overview + Sales Distribution
- *
- * Fixes:
- *   - Bar chart now shows REAL monthly revenue from DB (not hardcoded heights)
- *   - Field name fixed: `total` (DB column) not `total_amount`
- *   - Source distribution maps actual DB values: website/telegram/instagram/tiktok
- *   - Date range selector is functional (6M / 12M / This Year)
- *   - Donut chart uses real ETB proportions via conic-gradient
- */
+import React, { useRef, useEffect, useState } from "react";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend,
+  Filler,
+} from "chart.js";
+import { Line, Doughnut } from "react-chartjs-2";
+import { useToast } from "./DashboardToastProvider";
 
-import React, { useEffect, useState } from 'react';
-import { api } from '../../services/api';
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, LineElement, PointElement, Tooltip, Legend, Filler);
+ChartJS.defaults.color = "#5c6280";
+ChartJS.defaults.font.family = "'Inter', sans-serif";
+ChartJS.defaults.font.size = 11;
+ChartJS.defaults.plugins.legend.display = false;
 
-type MonthData = { label: string; value: number };
+const tooltipStyle = {
+  backgroundColor: "#1a1d28",
+  borderColor: "#272c40",
+  borderWidth: 1,
+  padding: 10,
+  cornerRadius: 8,
+};
 
 // Maps the actual `source` column values stored in MySQL
 const SOURCE_MAP: Record<string, { label: string; color: string }> = {
-  website:   { label: 'Online Sales',     color: '#2e7d32' },
-  telegram:  { label: 'Telegram',         color: '#1b6d24' },
-  instagram: { label: 'Instagram',        color: '#44a148' },
-  tiktok:    { label: 'TikTok',           color: '#81c784' },
-  franchise: { label: 'Franchise Bulk',   color: '#0d2e10' },
-  sales:     { label: 'Walk-in / Sales',  color: '#a5d6a7' },
+  website:   { label: 'Online Sales',     color: '#f0a030' },
+  telegram:  { label: 'Telegram',         color: '#38bdf8' },
+  instagram: { label: 'Instagram',        color: '#a78bfa' },
+  tiktok:    { label: 'TikTok',           color: '#34d399' },
+  franchise: { label: 'Franchise Bulk',   color: '#fb7185' },
+  sales:     { label: 'Walk-in / Sales',  color: '#81c784' },
 };
-const FALLBACK_COLOR = '#e2e3dd';
+const FALLBACK_COLOR = '#5c6280';
 
-const ChartsRow: React.FC = () => {
-  const [orders, setOrders] = useState<any[]>([]);
+// ─── Revenue Chart (Line Graph) ───
+export function RevenueChart({ orders }: { orders: any[] }) {
+  const chartRef = useRef<ChartJS<"line">>(null);
   const [rangeMonths, setRangeMonths] = useState<6 | 12>(6);
+  const { showToast } = useToast();
 
-  useEffect(() => {
-    api.get<any[]>('/api/orders?limit=2000')
-      .then(res => { if (res.success && res.data) setOrders(res.data); })
-      .catch(() => {});
-  }, []);
-
-  // ── Monthly revenue buckets ──────────────────────────────────────────────
-  const monthlyData: MonthData[] = (() => {
-    const now   = new Date();
-    const buckets: MonthData[] = [];
+  const { labels, dataThis } = React.useMemo(() => {
+    const now = new Date();
+    const buckets: { label: string; value: number }[] = [];
     for (let i = rangeMonths - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       buckets.push({
@@ -56,125 +64,240 @@ const ChartsRow: React.FC = () => {
         buckets[rangeMonths - 1 - monthsAgo].value += Number(o.total || 0);
       }
     });
-    return buckets;
-  })();
+    return {
+      labels: buckets.map(b => b.label),
+      dataThis: buckets.map(b => b.value)
+    };
+  }, [orders, rangeMonths]);
 
-  const maxRevenue = Math.max(...monthlyData.map(m => m.value), 1);
-
-  // ── Sales distribution by source ────────────────────────────────────────
-  const activeOrdersForSource = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
-  const totalRevenue = activeOrdersForSource.reduce((s, o) => s + Number(o.total || 0), 0);
-
-  const sourceMap: Record<string, number> = {};
-  activeOrdersForSource.forEach(o => {
-    const src = (o.source || 'unknown').toLowerCase();
-    sourceMap[src] = (sourceMap[src] || 0) + Number(o.total || 0);
-  });
-
-  const sourceEntries = Object.entries(sourceMap)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
-  // Donut via conic-gradient
-  const donutSegments = (() => {
-    if (totalRevenue === 0) return '';
-    let angle = 0;
-    const parts: string[] = [];
-    sourceEntries.forEach(([src, val]) => {
-      const pct = (val / totalRevenue) * 100;
-      const color = SOURCE_MAP[src]?.color ?? FALLBACK_COLOR;
-      parts.push(`${color} ${angle.toFixed(1)}% ${(angle + pct).toFixed(1)}%`);
-      angle += pct;
-    });
-    if (angle < 100) parts.push(`${FALLBACK_COLOR} ${angle.toFixed(1)}% 100%`);
-    return `conic-gradient(${parts.join(', ')})`;
-  })();
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const ctx = chart.ctx;
+    const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+    gradient.addColorStop(0, "rgba(240,160,48,0.35)");
+    gradient.addColorStop(1, "rgba(240,160,48,0.02)");
+    chart.data.datasets[0].backgroundColor = gradient;
+    chart.update("none");
+  }, [rangeMonths]);
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      {/* ── Revenue Bar Chart ──────────────────────────────────────── */}
-      <div className="surface-panel lg:col-span-2 flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-on-surface font-headline-md">
-            Revenue Overview (ETB)
-          </h3>
-          <select
-            value={rangeMonths}
-            onChange={(e) => setRangeMonths(Number(e.target.value) as 6 | 12)}
-            className="text-sm border border-outline rounded px-2 py-1 bg-surface"
-          >
-            <option value={6}>Last 6M</option>
-            <option value={12}>Last 12M</option>
-          </select>
+    <div className="card p-5 h-full animate-in" style={{ animationDelay: "0.15s" }}>
+      <div className="flex items-center justify-between mb-4 relative z-[2]">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--fg)]">Revenue Overview</h3>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">Revenue in ETB</p>
         </div>
-        <div className="flex-1 min-h-[250px] relative w-full rounded-lg flex items-end justify-between p-4 bg-surface-container-lowest border-t border-outline-variant">
-          {monthlyData.map((m) => {
-            const h = (m.value / maxRevenue) * 150;
-            return (
-              <div key={m.label} className="flex flex-col items-center gap-2 group cursor-pointer flex-1">
-                <div className="text-xs text-on-surface-variant font-data-mono mb-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  {m.value.toLocaleString()}
-                </div>
-                <div
-                  className="w-full max-w-[40px] bg-primary rounded-t-sm transition-all group-hover:bg-primary-600"
-                  style={{ height: `${h}px`, minHeight: '4px' }}
-                ></div>
-                <span className="text-xs font-bold text-on-surface-variant">{m.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Sales Distribution Donut ──────────────────────────────── */}
-      <div className="surface-panel flex flex-col">
-        <h3 className="text-lg font-semibold text-on-surface font-headline-md mb-6">
-          Sales Distribution
-        </h3>
-        <div className="flex-1 flex flex-col items-center justify-center relative">
-          {/* Conic gradient donut */}
-          <div
-            className="relative w-40 h-40 rounded-full flex items-center justify-center mb-6 transition-transform duration-500 hover:scale-105"
-            style={{
-              background: donutSegments,
-              boxShadow: 'inset 0 0 0 12px var(--color-surface)',
-            }}
-          >
-            <div className="text-center font-data-mono">
-              <span className="block text-xl font-bold text-on-surface">
-                {totalRevenue.toLocaleString()}
-              </span>
-              <span className="text-xs text-on-surface-variant">ETB</span>
-            </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 text-[11px] mr-3">
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[var(--accent)]" />Current</span>
           </div>
-
-          {/* Legend */}
-          <div className="w-full space-y-2 text-sm">
-            {sourceEntries.map(([src, val]) => {
-              const entry = SOURCE_MAP[src] || { label: src, color: FALLBACK_COLOR };
-              const pct = totalRevenue > 0 ? (val / totalRevenue) * 100 : 0;
-              return (
-                <div
-                  key={src}
-                  className="flex items-center justify-between hover:bg-surface-variant/50 p-1 rounded transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: entry.color }}
-                    ></span>
-                    <span className="text-on-surface-variant">{entry.label}</span>
-                  </div>
-                  <span className="font-medium text-on-surface">{pct.toFixed(1)}%</span>
-                </div>
-              );
-            })}
+          <div className="flex gap-0.5 bg-[var(--bg-deep)] rounded-lg p-0.5 border border-[var(--border)]">
+            <button className={`tab-btn ${rangeMonths === 6 ? "active" : ""}`} onClick={() => { setRangeMonths(6); showToast("Switched to 6M view", "info"); }}>6M</button>
+            <button className={`tab-btn ${rangeMonths === 12 ? "active" : ""}`} onClick={() => { setRangeMonths(12); showToast("Switched to 12M view", "info"); }}>12M</button>
           </div>
         </div>
       </div>
-    </section>
+      <div style={{ height: 260 }}>
+        <Line
+          key={rangeMonths}
+          ref={chartRef}
+          data={{
+            labels,
+            datasets: [
+              {
+                label: "Revenue",
+                data: dataThis,
+                fill: true,
+                backgroundColor: "rgba(240,160,48,0.15)",
+                borderColor: "#f0a030",
+                borderWidth: 2.5,
+                pointBackgroundColor: "#f0a030",
+                pointBorderColor: "#fff",
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.4,
+              },
+            ],
+          }}
+          options={{
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: { tooltip: { ...tooltipStyle, callbacks: { label: (ctx: any) => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()} ETB` } } },
+            scales: {
+              y: { beginAtZero: true, grid: { color: "rgba(30,34,51,0.5)" }, ticks: { callback: (v: any) => `${(Number(v) / 1000).toFixed(0)}k` }, border: { display: false } },
+              x: { grid: { display: false }, border: { display: false } },
+            },
+          }}
+        />
+      </div>
+    </div>
   );
-};
+}
 
-export default ChartsRow;
+// ─── Sales Distribution ───
+export function SalesDistribution({ orders }: { orders: any[] }) {
+  const { entries, total, labels, data, colors } = React.useMemo(() => {
+    const activeOrdersForSource = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
+    const totalRevenue = activeOrdersForSource.reduce((s, o) => s + Number(o.total || 0), 0);
+
+    const sourceMap: Record<string, number> = {};
+    activeOrdersForSource.forEach(o => {
+      const src = (o.source || 'unknown').toLowerCase();
+      sourceMap[src] = (sourceMap[src] || 0) + Number(o.total || 0);
+    });
+
+    const sourceEntries = Object.entries(sourceMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    return {
+        entries: sourceEntries,
+        total: totalRevenue,
+        labels: sourceEntries.map(e => SOURCE_MAP[e[0]]?.label || e[0]),
+        data: sourceEntries.map(e => e[1]),
+        colors: sourceEntries.map(e => SOURCE_MAP[e[0]]?.color || FALLBACK_COLOR)
+    };
+  }, [orders]);
+
+  const centerTextPlugin = {
+    id: "centerText",
+    afterDraw(chart: ChartJS) {
+      const { ctx, width, height } = chart;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#f0f2f8";
+      ctx.font = "bold 18px 'Inter', sans-serif";
+      
+      const topPct = total > 0 && data.length > 0 ? ((data[0] / total) * 100).toFixed(1) : "0";
+
+      ctx.fillText(`${topPct}%`, width / 2, height / 2 - 6);
+      ctx.fillStyle = "#5c6280";
+      ctx.font = "500 10px 'Inter', sans-serif";
+      
+      const topLabel = labels.length > 0 ? labels[0].toUpperCase() : "NONE";
+      ctx.fillText(topLabel.length > 10 ? topLabel.substring(0,8) + ".." : topLabel, width / 2, height / 2 + 12);
+      ctx.restore();
+    },
+  };
+
+  return (
+    <div className="card p-5 h-full animate-in" style={{ animationDelay: "0.2s" }}>
+      <div className="mb-4 relative z-[2]">
+        <h3 className="text-sm font-bold text-[var(--fg)]">Sales Distribution</h3>
+        <p className="text-[11px] text-[var(--muted)] mt-0.5">By sales channel</p>
+      </div>
+      <div className="flex justify-center" style={{ height: 200 }}>
+        {total > 0 ? (
+            <Doughnut
+            data={{
+                labels,
+                datasets: [{ data, backgroundColor: colors, borderColor: "#13161f", borderWidth: 3, hoverOffset: 8 }],
+            }}
+            plugins={[centerTextPlugin]}
+            options={{ responsive: true, maintainAspectRatio: false, cutout: "72%", plugins: { tooltip: { ...tooltipStyle, callbacks: { label: (ctx: any) => ` ${ctx.label}: ${ctx.parsed?.toLocaleString()} ETB` } } } }}
+            />
+        ) : (
+            <div className="flex items-center justify-center h-full text-[var(--muted)] text-sm">No data</div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-2 mt-4">
+        {entries.slice(0, 3).map(([src, val]) => {
+          const entry = SOURCE_MAP[src] || { label: src, color: FALLBACK_COLOR };
+          const pct = total > 0 ? ((val / total) * 100).toFixed(1) : "0";
+          return (
+          <div key={src} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: entry.color }} />
+            <span className="text-[11px] text-[var(--muted)] truncate">{entry.label}</span>
+            <span className="text-[11px] font-bold ml-auto text-[var(--fg)]">{pct}%</span>
+          </div>
+        )})}
+      </div>
+    </div>
+  );
+}
+
+// ─── Top Products ───
+export function TopProducts({ orders }: { orders: any[] }) {
+  const COLORS = ['#f0a030', '#38bdf8', '#a78bfa', '#34d399', '#fb7185', '#facc15', '#818cf8'];
+
+  const productData = React.useMemo(() => {
+    const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
+    const productMap: Record<string, { qty: number; revenue: number }> = {};
+
+    activeOrders.forEach(o => {
+      let items: any[] = [];
+      if (typeof o.items === 'string') {
+        try { items = JSON.parse(o.items); } catch { items = []; }
+      } else if (Array.isArray(o.items)) {
+        items = o.items;
+      }
+
+      items.forEach((item: any) => {
+        const name = item.name || item.item_name || 'Unknown';
+        const qty = Number(item.quantity || item.qty || 1);
+        const price = Number(item.unit_price || item.price || 0);
+        if (!productMap[name]) productMap[name] = { qty: 0, revenue: 0 };
+        productMap[name].qty += qty;
+        productMap[name].revenue += qty * price;
+      });
+    });
+
+    return Object.entries(productMap)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 6);
+  }, [orders]);
+
+  const maxQty = productData.length > 0 ? Math.max(...productData.map(p => p.qty)) : 1;
+
+  return (
+    <div className="card p-5 h-full animate-in" style={{ animationDelay: "0.25s" }}>
+      <div className="mb-4 relative z-[2]">
+        <h3 className="text-sm font-bold text-[var(--fg)]">Top Products</h3>
+        <p className="text-[11px] text-[var(--muted)] mt-0.5">Most ordered items</p>
+      </div>
+
+      {productData.length > 0 ? (
+        <div className="space-y-3 relative z-[2]">
+          {productData.map((product, i) => (
+            <div key={product.name} className="group">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[12px] font-medium text-[var(--fg)] truncate max-w-[60%]">{product.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-[var(--muted)] font-mono">{product.qty} sold</span>
+                  <span className="text-[10px] font-bold text-[var(--accent)] font-mono">{product.revenue.toLocaleString()} ETB</span>
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{
+                    width: `${Math.max((product.qty / maxQty) * 100, 4)}%`,
+                    background: COLORS[i % COLORS.length],
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center h-[200px] text-[var(--muted)] text-sm relative z-[2]">No product data</div>
+      )}
+
+      {/* Summary */}
+      <div className="mt-auto pt-4 border-t border-[var(--border)] grid grid-cols-2 gap-3 relative z-[2]">
+        <div className="text-center">
+          <p className="text-lg font-bold text-[var(--accent)]">{productData.length}</p>
+          <p className="text-[9px] text-[var(--muted)] uppercase tracking-wider font-semibold">Products</p>
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-bold text-[var(--fg)]">{productData.reduce((s, p) => s + p.qty, 0)}</p>
+          <p className="text-[9px] text-[var(--muted)] uppercase tracking-wider font-semibold">Total Sold</p>
+        </div>
+      </div>
+    </div>
+  );
+}

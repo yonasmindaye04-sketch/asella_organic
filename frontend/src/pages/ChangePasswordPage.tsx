@@ -237,3 +237,4 @@ const ChangePasswordPage: React.FC = () => {
 };
 
 export default ChangePasswordPage;
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const getEmbedUrl = (url: string) => {
@@ -8,15 +8,27 @@ const getEmbedUrl = (url: string) => {
   return url;
 };
 
-const Reviews: React.FC = () => {
-  const videos = [
-    { id: 1, url: "https://youtube.com/shorts/gmab7MMwTS0", title: "Customer Testimonial 1" },
-    { id: 2, url: "https://youtube.com/shorts/3mDx-b_aJUs", title: "Customer Testimonial 2" },
-    { id: 3, url: "https://youtube.com/shorts/guFlqRD0I_E", title: "Customer Testimonial 3" },
-    { id: 4, url: "https://youtube.com/shorts/zQhZzCupONw", title: "Customer Testimonial 4" },
-    
+const ALL_VIDEOS = [
+  { id: 1, url: "https://youtube.com/shorts/gmab7MMwTS0", title: "Customer Testimonial 1" },
+  { id: 2, url: "https://youtube.com/shorts/3mDx-b_aJUs", title: "Customer Testimonial 2" },
+  { id: 3, url: "https://youtube.com/shorts/guFlqRD0I_E", title: "Customer Testimonial 3" },
+  { id: 4, url: "https://youtube.com/shorts/zQhZzCupONw", title: "Customer Testimonial 4" },
+  { id: 5, url: "https://youtube.com/shorts/HIBIcWbHPV4", title: "Customer Testimonial 5" },
+  { id: 6, url: "https://youtube.com/shorts/pT8TXA9mGF8", title: "Customer Testimonial 6" },
+  { id: 7, url: "https://youtube.com/shorts/3D6cqJygUBQ", title: "Customer Testimonial 7" },
+  { id: 8, url: "https://youtube.com/shorts/OYRGBsWlblE", title: "Customer Testimonial 8" },
+  { id: 9, url: "https://youtube.com/shorts/-AGzwaJFPA0", title: "Customer Testimonial 9" },
+];
 
-  ];
+const Reviews: React.FC = () => {
+  const [videos] = useState(() => {
+    const shuffled = [...ALL_VIDEOS];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 4); // Pick 4 random videos
+  });
 
   return (
     <section className="py-16 lg:py-20 bg-parchment dark:bg-[#121212] border-t border-border">

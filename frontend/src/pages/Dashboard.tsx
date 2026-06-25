@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { api } from '../services/api';
+import type { RootState } from '../store';
 import DashboardLayout from '../layouts/DashboardLayout';
 import KPICards from '../components/dashboard/KPICards';
-import ChartsRow from '../components/dashboard/ChartsRow';
-import LogisticsTable from '../components/dashboard/LogisticsTable';
+import { RevenueChart, SalesDistribution, TopProducts } from '../components/dashboard/ChartsRow';
 import SalesByLocation from '../components/dashboard/SalesByLocation';
+import { Heatmap, Pipeline } from '../components/dashboard/HeatmapAndPipeline';
+import AffiliateLeaderboard from '../components/dashboard/AffiliateLeaderboard';
+import LowStockTable from '../components/dashboard/LowStockTable';
+import EmployeePerformance from '../components/dashboard/EmployeePerformance';
 
 const Dashboard: React.FC = () => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const displayName = user?.name ?? 'there';
   const [orders, setOrders] = useState<any[]>([]);
-  const [dateRange, setDateRange] = useState('all'); // 'all', '7d', '30d', 'thisMonth', 'lastMonth'
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [ordRes] = await Promise.all([
-          api.get<any[]>('/api/orders'),
+          api.get<any[]>('/api/orders?limit=1000'),
           api.get<any[]>('/api/products'),
         ]);
         if (ordRes.success && ordRes.data) setOrders(ordRes.data);
@@ -25,41 +31,47 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  const filteredOrders = orders.filter(o => {
-    if (dateRange === 'all') return true;
-    if (!o.created_at) return false;
-    const d = new Date(o.created_at);
-    const now = new Date();
-    
-    if (dateRange === '7d') return (now.getTime() - d.getTime()) <= 7 * 24 * 60 * 60 * 1000;
-    if (dateRange === '30d') return (now.getTime() - d.getTime()) <= 30 * 24 * 60 * 60 * 1000;
-    if (dateRange === 'thisMonth') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    if (dateRange === 'lastMonth') {
-      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
-    }
-    return true;
-  }).filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
+  const filteredOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
 
   return (
     <DashboardLayout>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-on-surface">Dashboard</h1>
-        <select value={dateRange} onChange={e => setDateRange(e.target.value)} className="bg-surface border border-outline-variant rounded-lg px-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary font-data-mono cursor-pointer shadow-sm">
-          <option value="all">All Time</option>
-          <option value="7d">Last 7 Days</option>
-          <option value="30d">Last 30 Days</option>
-          <option value="thisMonth">This Month</option>
-          <option value="lastMonth">Last Month</option>
-        </select>
-      </div>
-      
-      <KPICards />
-      <ChartsRow />
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-6 mt-6">
-        <LogisticsTable orders={filteredOrders} />
-        <SalesByLocation orders={filteredOrders} />
-      </section>
+      <main className="p-6 space-y-5 max-w-[1440px] mx-auto">
+        <KPICards />
+
+        {/* Row 1: Heatmap + Pipeline (2 cards) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+          <Heatmap orders={orders} />
+          <Pipeline orders={orders} />
+        </div>
+
+        {/* Row 2: Sales by Location + Top Products (2 cards) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+          <SalesByLocation orders={filteredOrders} />
+          <TopProducts orders={filteredOrders} />
+        </div>
+
+        {/* Row 3: Revenue Overview + Sales Distribution (2 cards) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
+          <div className="lg:col-span-2">
+            <RevenueChart orders={orders} />
+          </div>
+          <div className="lg:col-span-1">
+            <SalesDistribution orders={orders} />
+          </div>
+        </div>
+
+        {/* Row 4: Employee Performance + Affiliate Leaderboard (2 cards) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+          <EmployeePerformance />
+          <AffiliateLeaderboard />
+        </div>
+
+        {/* Row 5: Low Stock Table (1 wide card) */}
+        <div className="mb-6">
+          <LowStockTable />
+        </div>
+
+      </main>
     </DashboardLayout>
   );
 };

@@ -244,7 +244,7 @@ const BestSellers: React.FC = () => {
                     >
                       {product.name}
                     </h3>
-                    <p className="font-sans text-slate-600 dark:text-slate-300 text-xs leading-snug line-clamp-2 mb-3 flex-1">
+                    <p className="font-sans text-slate-600 dark:text-slate-300 text-xs leading-snug line-clamp-4 mb-3 flex-1">
                       {product.description || 'Premium organic supplement sourced from the Ethiopian highlands.'}
                     </p>
 
