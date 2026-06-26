@@ -329,7 +329,35 @@ router.patch("/commissions/:id/pay", authenticate, authorise("admin"), async (re
   );
   
   const [updated] = await pool.query(`SELECT * FROM referral_commissions WHERE id = ?`, [req.params.id]) as [any[], any];
-  res.json({ success: true, data: updated[0] });
+  const paidCommission = updated[0];
+
+  // Auto-record as expense so it deducts from revenue
+  if (paidCommission) {
+    // Get affiliate name for the description
+    const [affRows] = await pool.query(
+      `SELECT COALESCE(s.full_name, ap.full_name) AS affiliate_name, ap.referral_code
+       FROM affiliate_profiles ap
+       LEFT JOIN staff_users s ON ap.user_id = s.id
+       WHERE ap.id = ?`,
+      [paidCommission.affiliate_id]
+    ) as [any[], any];
+    const affName = affRows[0]?.affiliate_name || 'Unknown';
+    const refCode = affRows[0]?.referral_code || '';
+
+    await pool.query(
+      `INSERT INTO expenses (id, category, description, amount, notes, recorded_by)
+       VALUES (?, 'affiliate_payout', ?, ?, ?, ?)`,
+      [
+        crypto.randomUUID(),
+        `Affiliate commission payout to ${affName} (${refCode})`,
+        paidCommission.commission_amount,
+        `Commission ID: ${paidCommission.id}, Order: ${paidCommission.order_id || 'N/A'}`,
+        (req as any).user?.id ?? null
+      ]
+    );
+  }
+
+  res.json({ success: true, data: paidCommission });
 });
 
 router.get("/stats", authenticate, authorise("admin"), async (_req, res) => {

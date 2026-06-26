@@ -24,6 +24,7 @@ const OrderForm: React.FC = () => {
     city: 'Addis Ababa',
     location: '',
     order_type: 'delivery',
+    source: 'website',
     notes: '',
     franchiseType: 'Cosmetics Store',
     gender: 'other',
@@ -48,7 +49,7 @@ const OrderForm: React.FC = () => {
   }, [orderModalOpen, orderFormMode, selectedProductName]);
 
   const regionalFees: Record<string, number> = {
-    'Addis Ababa': 150,
+    'Addis Ababa': 200,
     'Adama': 200,
     'Bahir Dar': 300,
     'Hawassa': 250,
@@ -63,7 +64,7 @@ const OrderForm: React.FC = () => {
     }
   };
 
-  const deliveryFee = formData.order_type === 'delivery' ? regionalFees[formData.city] || 150 : 0;
+  const deliveryFee = formData.order_type === 'delivery' ? regionalFees[formData.city] || 200 : 0;
   
   const itemsTotal = items.reduce((sum, item) => {
     const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
@@ -133,12 +134,12 @@ const OrderForm: React.FC = () => {
       const fullPhoneNumber = `${countryCode} ${formData.phone.trim()}`;
 
       const orderData: Record<string, unknown> = {
-        source: 'website' as const,
+        source: formData.source,
         customer_name: formData.name,
         phone: fullPhoneNumber,
         city: formData.city,
         location: formData.location,
-        order_type: 'delivery' as const,
+        order_type: formData.order_type,
         referral_code: formData.referral_code || undefined,
         notes: finalNotes || undefined,
         items: orderItems
@@ -248,12 +249,20 @@ const OrderForm: React.FC = () => {
             )}
 
             <div className="col-span-1 md:col-span-1">
+              <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Source</label>
+              <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
+                <option value="website">Website / Online</option>
+                <option value="phone">Phone</option>
+                <option value="walk-in">Walk-in</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Order Type</label>
               <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
-                <option>Walk-in</option>
-                <option>Phone</option>
-                <option>Online</option>
-                <option>Delivery</option>
+                <option value="delivery">Delivery</option>
+                <option value="pickup">Pickup</option>
               </select>
             </div>
             
@@ -363,7 +372,7 @@ const OrderForm: React.FC = () => {
           <div className="bg-parchment-mid dark:bg-[#1A301D] border border-border rounded-xl p-5 mb-6">
             <p className="text-obsidian dark:text-white text-sm leading-relaxed">
               <strong>Delivery Fee Information:</strong><br />
-              Addis Ababa: 150–200 ETB &nbsp;|&nbsp; Outside Addis Ababa: 300 ETB &nbsp;|&nbsp; International: Based on region
+              Addis Ababa: 200 ETB &nbsp;|&nbsp; Outside Addis Ababa: 300 ETB &nbsp;|&nbsp; International: Based on region
             </p>
           </div>
           
