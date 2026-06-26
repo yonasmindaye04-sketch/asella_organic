@@ -120,6 +120,31 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
            WHERE id = ?`,
           [affiliate.id, referral_code.trim().toUpperCase(), customerId]
         );
+
+        const [configs] = await connection.query(
+          `SELECT * FROM referral_configs WHERE is_active = true ORDER BY created_at DESC LIMIT 1`
+        ) as [any[], any];
+        const config = configs[0];
+
+        if (config && total >= (config.min_order_amount || 0)) {
+          let commissionAmount = 0;
+          if (config.commission_type === 'percentage') {
+             commissionAmount = total * (config.commission_value / 100);
+             if (config.max_commission && commissionAmount > config.max_commission) {
+                commissionAmount = config.max_commission;
+             }
+          } else {
+             commissionAmount = config.commission_value;
+          }
+
+          if (commissionAmount > 0) {
+            await connection.query(
+              `INSERT INTO referral_commissions (id, affiliate_id, order_id, commission_amount, status)
+               VALUES (?, ?, ?, ?, 'pending')`,
+               [crypto.randomUUID(), affiliate.id, orderId, commissionAmount]
+            );
+          }
+        }
       }
     }
 

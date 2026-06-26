@@ -30,7 +30,7 @@ const BCRYPT_ROUNDS = 12;
 const UUID_RE       = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isValidUUID   = (s: string) => UUID_RE.test(s);
 
-const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor"] as const;
+const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver"] as const;
 type StaffRole    = typeof VALID_ROLES[number];
 const isValidRole = (r: unknown): r is StaffRole => VALID_ROLES.includes(r as StaffRole);
 

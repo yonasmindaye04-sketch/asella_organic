@@ -187,6 +187,7 @@ const UserManagementPage: React.FC = () => {
                   <option value="staff">Staff</option>
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
+                  <option value="driver">Driver</option>
                 </select>
               </div>
               {!editingUser && (

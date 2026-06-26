@@ -102,7 +102,7 @@ export const CreateOrderSchema = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^ASL-[A-Z0-9]{3,8}$/, "Invalid referral code format")
+    .regex(/^ASL[-_\s]?[A-Z0-9]{3,8}$/, "Invalid referral code format")
     .optional(),
   items: z
     .array(OrderItemSchema)
