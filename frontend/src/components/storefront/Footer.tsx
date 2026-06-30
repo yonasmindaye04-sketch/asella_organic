@@ -1,6 +1,8 @@
 import React from 'react';
+import { useLanguage } from '../../LanguageContext';
 
 const Footer: React.FC = () => {
+  const { t } = useLanguage();
   return (
     <footer className="bg-obsidian dark:bg-[#0A0A0A] text-white py-8 relative border-t border-highland-gold/10">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
@@ -25,7 +27,7 @@ const Footer: React.FC = () => {
 
           {/* Column 2: Payment */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Payment Options</h4>
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">{t('footer.paymentOptions')}</h4>
             <ul className="space-y-2 text-parchment font-mono text-base">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-highland-gold rounded-full"></span> Telebirr
@@ -41,18 +43,18 @@ const Footer: React.FC = () => {
 
           {/* Column 3: Links */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Important Links</h4>
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">{t('footer.importantLinks')}</h4>
             <ul className="space-y-2 text-parchment font-mono text-base">
-              <li><a href="#" className="hover:text-white transition-colors">Home</a></li>
-              <li><a href="#products" className="hover:text-white transition-colors">Catalog</a></li>
-              <li><a href="#story" className="hover:text-white transition-colors">Our Story</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">{t('footer.home')}</a></li>
+              <li><a href="#products" className="hover:text-white transition-colors">{t('footer.catalog')}</a></li>
+              <li><a href="#story" className="hover:text-white transition-colors">{t('footer.ourStory')}</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a></li>
             </ul>
           </div>
 
           {/* Column 4: Social Media */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Follow Us</h4>
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">{t('footer.followUs')}</h4>
             <ul className="space-y-2 text-parchment font-mono text-base">
               <li><a href="https://t.me/asella_organic" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-telegram text-base"></i> Telegram</a></li>
               <li><a href="https://www.facebook.com/share/1FkhkuGamB/" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors"><i className="fab fa-facebook-f text-base"></i> Facebook</a></li>
@@ -63,7 +65,7 @@ const Footer: React.FC = () => {
 
           {/* Column 5: Contact */}
           <div>
-            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Contact</h4>
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">{t('footer.contact')}</h4>
             <ul className="space-y-2 text-parchment font-mono text-base">
               <li className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-lg">mail</span>
@@ -83,10 +85,10 @@ const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-4 border-t border-highland-gold/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-parchment font-mono">
-          <p>© 2026 Asella Organic Enterprise. All rights reserved.</p>
+          <p>{t('footer.rights')}</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
+            <a href="#" className="hover:text-white transition-colors">{t('footer.termsOfService')}</a>
           </div>
         </div>
       </div>

@@ -10,6 +10,8 @@
 -- Drop old trigger if it exists from a previous run
 DROP TRIGGER IF EXISTS trg_order_delivered_commission;
 
+DELIMITER $$
+
 CREATE TRIGGER trg_order_delivered_commission
 AFTER UPDATE ON orders
 FOR EACH ROW
@@ -79,7 +81,9 @@ BEGIN
             END IF;
         END IF;
     END IF;
-END;
+END$$
+
+DELIMITER ;
 
 -- ── Referral Commissions table (if not yet created by 001) ────────
 CREATE TABLE IF NOT EXISTS referral_commissions (

@@ -16,6 +16,13 @@ const Storefront: React.FC = () => {
     if (ref) {
       localStorage.setItem('referral_code', ref);
     }
+
+    if (window.location.hash) {
+      setTimeout(() => {
+        const el = document.querySelector(window.location.hash);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   }, []);
 
   return (

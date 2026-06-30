@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+
 import {
   Chart as ChartJS,
   LinearScale,
@@ -6,7 +6,6 @@ import {
   Tooltip,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
-import { api } from "../../services/api";
 
 ChartJS.register(LinearScale, BarElement, Tooltip);
 ChartJS.defaults.color = "#5c6280";

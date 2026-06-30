@@ -1,6 +1,8 @@
 import React from 'react';
+import { useLanguage } from '../../LanguageContext';
 
 const StorySection: React.FC = () => {
+  const { t } = useLanguage();
   return (
     <section className="relative w-full py-16 lg:py-20 bg-parchment dark:bg-[#121212] overflow-hidden" id="story">
       {/* Subtle background blobs */}
@@ -16,15 +18,12 @@ const StorySection: React.FC = () => {
           
           
           <h2 className="font-display-lg font-black text-obsidian dark:text-white leading-[1.15]" style={{ fontSize: 'clamp(36px, 4.5vw, 56px)', letterSpacing: '-0.02em' }}>
-            Rooted in Heritage,<br/>
-            <span className="text-highland-gold">Driven by Purity.</span>
+            {t('story.title')}<br/>
+            <span className="text-highland-gold">{t('story.titleHighlight')}</span>
           </h2>
           
          <p className="max-w-4xl font-sans text-slate-1000 text-2xl leading-10">
-  Founded in the fertile valleys of Asella, our enterprise began with a simple
-  mission: to preserve the ancient agricultural wisdom of Ethiopia while
-  meeting international organic standards. We believe that true health comes
-  from the earth, untouched and honored.
+  {t('story.desc')}
 </p>
         </div>
         
@@ -46,8 +45,8 @@ const StorySection: React.FC = () => {
                 <span className="material-symbols-outlined">nature</span>
               </div>
               <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">100% Organic</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">Every product is certified to be free from synthetic additives.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature1Title')}</h3>
+                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature1Desc')}</p>
               </div>
             </div>
             
@@ -57,8 +56,8 @@ const StorySection: React.FC = () => {
                 <span className="material-symbols-outlined">handshake</span>
               </div>
               <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">Ethically Sourced</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">We support our community by providing fair wages and sustainable practices.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature2Title')}</h3>
+                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature2Desc')}</p>
               </div>
             </div>
             
@@ -68,8 +67,8 @@ const StorySection: React.FC = () => {
                 <span className="material-symbols-outlined">science</span>
               </div>
               <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">Quality Tested and approved by ECAE and AAFDA</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">Rigorous laboratory testing for purity and potency in every batch.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature3Title')}</h3>
+                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature3Desc')}</p>
               </div>
             </div>
             
@@ -79,8 +78,8 @@ const StorySection: React.FC = () => {
                 <span className="material-symbols-outlined">award_star</span>
               </div>
               <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">Heritage & Tradition</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">Combining generational agricultural knowledge with modern scientific refinement.</p>
+                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature4Title')}</h3>
+                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature4Desc')}</p>
               </div>
             </div>
             

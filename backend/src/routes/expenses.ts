@@ -20,7 +20,7 @@ const router = Router();
 // ─── Schemas ──────────────────────────────────────────────────────────────
 
 const CreateExpenseSchema = z.object({
-  category:    z.enum(["vendor_purchase", "operational", "salary", "other"]),
+  category:    z.enum(["vendor_purchase", "operational", "salary", "affiliate_payout", "other"]),
   description: z.string().trim().min(2).max(500),
   amount:      z.number().positive("Amount must be greater than 0"),
   notes:       z.string().trim().max(1000).optional(),

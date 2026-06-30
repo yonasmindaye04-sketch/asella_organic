@@ -28,6 +28,11 @@ const UserManagementPage: React.FC = () => {
     phone: ''
   });
 
+  const showToast = (message: string, type?: string) => {
+    if (type) console.log(type);
+    alert(message);
+  };
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -76,36 +81,48 @@ const UserManagementPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      let res;
       if (editingUser) {
-        res = await api.patch(`/api/staff/${editingUser.id}`, formData);
+        const { password, ...updateData } = formData;
+        const res = await api.patch(`/api/staff/${editingUser.id}`, updateData);
+        if (res.success) {
+          if (password) {
+            await api.put(`/api/staff/${editingUser.id}/password`, { password });
+          }
+          fetchUsers();
+          showToast('User updated successfully', 'success');
+          setIsModalOpen(false);
+        } else {
+          showToast(res.error || 'Failed to update user', 'error');
+        }
       } else {
-        res = await api.post('/api/staff', formData);
-      }
-      
-      if (res.success) {
-        setIsModalOpen(false);
-        fetchUsers();
-      } else {
-        alert(res.error || 'Failed to save user');
+        const res = await api.post('/api/staff', formData);
+        if (res.success) {
+          fetchUsers();
+          showToast('User created successfully', 'success');
+          setIsModalOpen(false);
+        } else {
+          showToast(res.error || 'Failed to create user', 'error');
+        }
       }
     } catch (err: any) {
-      alert(err.message || 'Network error');
+      showToast(err.message || 'Network error', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      try {
-        const res = await api.delete(`/api/staff/${id}`);
-        if (res.success) {
-          fetchUsers();
-        } else {
-          alert(res.error || 'Failed to delete user');
-        }
-      } catch (err: any) {
-        alert(err.message || 'Network error');
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    const token = window.prompt('Enter your 6-digit 2FA code to confirm deletion:');
+    if (!token) return;
+    try {
+      const res = await api.delete(`/api/staff/${id}`, { 'x-2fa-token': token });
+      if (res.success) {
+        fetchUsers();
+        showToast('User deleted successfully', 'success');
+      } else {
+        showToast(res.error || 'Failed to delete user', 'error');
       }
+    } catch (err: any) {
+      showToast(err.message || 'Network error', 'error');
     }
   };
 
@@ -190,12 +207,12 @@ const UserManagementPage: React.FC = () => {
                   <option value="driver">Driver</option>
                 </select>
               </div>
-              {!editingUser && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
-                  <input required={!editingUser} type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full border rounded-lg px-3 py-2" />
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {editingUser ? 'Reset Password (optional)' : 'Password'}
+                </label>
+                <input required={!editingUser} type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full border rounded-lg px-3 py-2" />
+              </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-gray-500">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-[#112415] text-white rounded-lg font-bold">Save</button>
