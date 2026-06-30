@@ -50,38 +50,49 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     // Admins can pass ?active=false to see archived products; public default = active only
     if (active !== undefined) {
-      conditions.push("active = ?");
+      conditions.push("p.active = ?");
       params.push(active === "true");
     } else {
-      conditions.push("active = true");
+      conditions.push("p.active = true");
     }
 
     if (search) {
-      conditions.push("name LIKE ?");
+      conditions.push("p.name LIKE ?");
       params.push(`%${search}%`);
     }
     if (tag) {
-      conditions.push("tag = ?");
+      conditions.push("p.tag = ?");
       params.push(tag);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
+    let orderByClause = "ORDER BY featured DESC, name ASC";
+    let joinClause = "";
+    const selectFields = `p.id, p.name, p.package_size, p.price, p.description, p.image_url,
+                          p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active`;
+    
+    if (req.query.sort === "sales") {
+      joinClause = `LEFT JOIN order_items oi ON p.id = oi.product_id`;
+      orderByClause = `GROUP BY p.id ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.name ASC`;
+    }
+
     const [countRows] = await pool.query(
-      `SELECT COUNT(*) AS total FROM products ${where}`, params
+      `SELECT COUNT(DISTINCT p.id) AS total FROM products p ${where}`, params
     ) as [any[], any];
     const total = parseInt(countRows[0]?.total ?? "0", 10);
 
     const [rows] = await pool.query(
-      `SELECT id, name, package_size, price, description, image_url,
-              featured, tag, inventory_quantity, low_stock_threshold, active
-       FROM products ${where}
-       ORDER BY featured DESC, name ASC
+      `SELECT ${selectFields}
+       FROM products p
+       ${joinClause}
+       ${where}
+       ${orderByClause}
        LIMIT ? OFFSET ?`,
       [...params, limitNum, offset]
     ) as [any[], any];
 
-    log.info("Products listed", { pageNum, limitNum, total, search, tag });
+    log.info("Products listed", { pageNum, limitNum, total, search, tag, sort: req.query.sort });
 
     res.json({
       success: true,

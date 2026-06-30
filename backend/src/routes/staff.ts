@@ -245,6 +245,40 @@ router.patch(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/staff/:id/password  — admin password reset
+// ─────────────────────────────────────────────────────────────────────────────
+router.put(
+  "/:id/password",
+  authenticate,
+  authorise("admin"),
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    try {
+      const staffId = req.params.id;
+      const { password } = req.body;
+      if (!password || password.length < 8) {
+        res.status(400).json({ success: false, error: "Password must be at least 8 characters." });
+        return;
+      }
+      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      const [result] = await pool.query(
+        `UPDATE staff_users SET password_hash = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
+        [passwordHash, staffId]
+      ) as [any, any];
+      if (result.affectedRows === 0) {
+        res.status(404).json({ success: false, error: "Staff member not found." });
+        return;
+      }
+      log.info("Staff password reset", { staffId });
+      res.json({ success: true, data: { message: "Password updated." } });
+    } catch (err) {
+      log.error("Failed to reset password", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/staff/:id  — soft-delete (admin + 2FA)
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete(

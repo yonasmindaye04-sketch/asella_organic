@@ -28,6 +28,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; bg: string; text: string 
   vendor_purchase: { label: 'Vendor Purchase', bg: 'bg-emerald-500/15', text: 'text-emerald-400' },
   operational: { label: 'Operational', bg: 'bg-blue-500/15', text: 'text-blue-400' },
   salary: { label: 'Salary', bg: 'bg-purple-500/15', text: 'text-purple-400' },
+  affiliate_payout: { label: 'Affiliate Payout', bg: 'bg-amber-500/15', text: 'text-amber-400' },
   other: { label: 'Other', bg: 'bg-gray-500/15', text: 'text-gray-400' },
 };
 
@@ -208,6 +209,7 @@ const ExpensesPage: React.FC = () => {
                 <option value="vendor_purchase">Vendor Purchase</option>
                 <option value="operational">Operational</option>
                 <option value="salary">Salary</option>
+                <option value="affiliate_payout">Affiliate Payout</option>
                 <option value="other">Other</option>
               </select>
             </div>
@@ -323,6 +325,7 @@ const ExpensesPage: React.FC = () => {
                   >
                     <option value="operational">Operational</option>
                     <option value="salary">Salary</option>
+                    <option value="affiliate_payout">Affiliate Payout</option>
                     <option value="other">Other</option>
                   </select>
                 </div>

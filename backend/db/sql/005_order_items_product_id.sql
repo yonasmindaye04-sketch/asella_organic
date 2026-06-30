@@ -41,6 +41,8 @@ CREATE INDEX idx_order_items_product_id ON order_items(product_id);
 -- ── Re-create inventory deduction trigger ──
 DROP TRIGGER IF EXISTS trg_deduct_inventory_on_delivered;
 
+DELIMITER $$
+
 CREATE TRIGGER trg_deduct_inventory_on_delivered
 AFTER UPDATE ON orders
 FOR EACH ROW
@@ -94,7 +96,9 @@ BEGIN
             CLOSE item_cursor;
         END;
     END IF;
-END;
+END$$
+
+DELIMITER ;
 
 INSERT IGNORE INTO migrations_log (filename) VALUES ('005_order_items_product_id.sql');
 SELECT '005_order_items_product_id.sql applied successfully.' AS result;

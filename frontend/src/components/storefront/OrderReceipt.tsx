@@ -99,7 +99,6 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                 color: '#000',
                 background: '#fff',
                 padding: '8px 8px',
-                border: '1px solid #000',
                 borderRadius: 4,
               }}
             >
@@ -240,7 +239,7 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                   {data.orderId}
                 </p>
                 <p style={{ fontSize: 8, color: '#000', fontWeight: 700, marginTop: 2, lineHeight: 1.2 }}>
-                  Visit asella-organic.com/track<br />
+                  Visit asellaorganic.com/track<br />
                   and enter this ID to track your order
                 </p>
               </div>
@@ -252,7 +251,7 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
 
               <div style={{ textAlign: 'center', fontSize: 10, marginTop: 6 }}>
                 <p style={{ fontWeight: 800 }}>Thank you for your order!</p>
-                <p style={{ fontSize: 9, color: '#000', fontWeight: 800, marginTop: 2 }}>asella-organic.com</p>
+                <p style={{ fontSize: 9, color: '#000', fontWeight: 800, marginTop: 2 }}>asellaorganic.com</p>
               </div>
             </div>
           </div>

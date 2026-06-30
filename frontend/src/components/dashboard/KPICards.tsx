@@ -25,11 +25,18 @@ function AnimatedNumber({ target, prefix = "", suffix = "" }: { target: number; 
   useEffect(() => {
     if (hasAnimated.current) return;
     hasAnimated.current = true;
+
+    // Bypass animation in test environments for stability and speed
+    if (import.meta.env?.MODE === 'test') {
+      setDisplay(target);
+      return;
+    }
+
     const duration = 1400;
     const start = performance.now();
     function tick(now: number) {
       const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
+      const progress = Math.max(0, Math.min(elapsed / duration, 1));
       const eased = 1 - Math.pow(1 - progress, 3);
       setDisplay(Math.round(eased * target));
       if (progress < 1) requestAnimationFrame(tick);
@@ -91,14 +98,25 @@ export default function KPICards() {
         let exp = 0;
         let ordCount = 0;
 
+        const getOrderTotal = (o: any) => {
+          let items = [];
+          if (typeof o.items === 'string') {
+            try { items = JSON.parse(o.items); } catch { items = []; }
+          } else if (Array.isArray(o.items)) {
+            items = o.items;
+          }
+          const itemsTotal = items.reduce((sum: number, item: any) => sum + (Number(item.quantity || item.qty || 1) * Number(item.unit_price || item.price || 0)), 0);
+          return Number(o.total) || itemsTotal;
+        };
+
         if (ordRes.success && ordRes.data) {
           const validOrders = ordRes.data.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
           ordCount = validOrders.length;
-          rev = validOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+          rev = validOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
         }
 
         if (expRes.success && expRes.data) {
-          exp = Number(expRes.data.totals.total_expenses || 0);
+          exp = Number(expRes.data.total_expenses || 0);
         }
 
         setData({ 

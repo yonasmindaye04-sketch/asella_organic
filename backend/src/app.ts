@@ -33,6 +33,7 @@ import notificationRoutes  from "./routes/notification.js";
 import appointmentRoutes   from "./routes/appointments.js";
 import adminRoutes          from "./routes/admin.js";
 import expenseRoutes        from "./routes/expenses.js";
+import videoRoutes          from "./routes/videos.js";
 
 const app = express();
 
@@ -211,6 +212,7 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/appointments", appointmentRoutes],
   ["/admin",        adminRoutes],
   ["/expenses",     expenseRoutes],
+  ["/videos",       videoRoutes],
 ];
 
 for (const [path, router] of routeMounts) {

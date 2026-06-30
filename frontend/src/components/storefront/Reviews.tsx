@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../../LanguageContext';
 
 const getEmbedUrl = (url: string) => {
   if (url.includes('youtube.com/shorts/')) {
@@ -18,9 +19,13 @@ const ALL_VIDEOS = [
   { id: 7, url: "https://youtube.com/shorts/3D6cqJygUBQ", title: "Customer Testimonial 7" },
   { id: 8, url: "https://youtube.com/shorts/OYRGBsWlblE", title: "Customer Testimonial 8" },
   { id: 9, url: "https://youtube.com/shorts/-AGzwaJFPA0", title: "Customer Testimonial 9" },
+  { id: 10, url: "https://youtube.com/shorts/-GYdXWQHchM", title: "Customer Testimonial 10" },
+  
+  
 ];
 
 const Reviews: React.FC = () => {
+  const { t } = useLanguage();
   const [videos] = useState(() => {
     const shuffled = [...ALL_VIDEOS];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -37,10 +42,10 @@ const Reviews: React.FC = () => {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-3">
-            Real Experiences
+            {t('reviews.subtitle')}
           </p>
           <h2 className="font-display-lg font-black text-obsidian dark:text-white text-4xl md:text-5xl leading-tight tracking-tight">
-            Voices of Our <span className="text-highland-gold">Community</span>
+            {t('reviews.title')}<span className="text-highland-gold">{t('reviews.titleHighlight')}</span>
           </h2>
         </div>
 
@@ -62,7 +67,7 @@ const Reviews: React.FC = () => {
         {/* More Button */}
         <div className="mt-10 text-center">
           <Link to="/community-videos" className="inline-flex items-center gap-2 bg-obsidian hover:bg-obsidian-mid text-parchment px-8 py-4 rounded-full font-mono text-base font-bold uppercase tracking-widest transition-all duration-300 shadow-md">
-            More Videos
+            {t('reviews.moreVideos')}
             <span className="material-symbols-outlined text-[16px] text-highland-gold">arrow_forward</span>
           </Link>
         </div>

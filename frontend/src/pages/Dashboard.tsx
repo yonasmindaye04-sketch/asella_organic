@@ -11,19 +11,38 @@ import AffiliateLeaderboard from '../components/dashboard/AffiliateLeaderboard';
 import LowStockTable from '../components/dashboard/LowStockTable';
 import EmployeePerformance from '../components/dashboard/EmployeePerformance';
 
+const getOrderTotal = (o: any) => {
+  let items = [];
+  if (typeof o.items === 'string') {
+    try { items = JSON.parse(o.items); } catch { items = []; }
+  } else if (Array.isArray(o.items)) {
+    items = o.items;
+  }
+  const itemsTotal = items.reduce((sum: number, item: any) => sum + (Number(item.quantity || item.qty || 1) * Number(item.unit_price || item.price || 0)), 0);
+  return Number(o.total) || itemsTotal;
+};
+
 const Dashboard: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
-  const displayName = user?.name ?? 'there';
+
+  const isManager = user?.role === 'manager';
   const [orders, setOrders] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordRes] = await Promise.all([
+        const [ordRes, expRes] = await Promise.all([
           api.get<any[]>('/api/orders?limit=1000'),
-          api.get<any[]>('/api/products'),
+          api.get<any>('/api/expenses?limit=10000'), // needed for profit plot
         ]);
-        if (ordRes.success && ordRes.data) setOrders(ordRes.data);
+        if (ordRes.success && ordRes.data) {
+          const withTotals = ordRes.data.map(o => ({ ...o, total: getOrderTotal(o) }));
+          setOrders(withTotals);
+        }
+        if (expRes.success && expRes.data) {
+          setExpenses(expRes.data);
+        }
       } catch (err) {
         console.error(err);
       }
@@ -36,7 +55,7 @@ const Dashboard: React.FC = () => {
   return (
     <DashboardLayout>
       <main className="p-6 space-y-5 max-w-[1440px] mx-auto">
-        <KPICards />
+        {!isManager && <KPICards />}
 
         {/* Row 1: Heatmap + Pipeline (2 cards) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
@@ -47,18 +66,20 @@ const Dashboard: React.FC = () => {
         {/* Row 2: Sales by Location + Top Products (2 cards) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
           <SalesByLocation orders={filteredOrders} />
-          <TopProducts orders={filteredOrders} />
+          <TopProducts orders={filteredOrders} isManager={isManager} />
         </div>
 
-        {/* Row 3: Revenue Overview + Sales Distribution (2 cards) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
-          <div className="lg:col-span-2">
-            <RevenueChart orders={orders} />
+        {/* Row 3: Revenue Overview + Sales Distribution (Hidden for managers) */}
+        {!isManager && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
+            <div className="lg:col-span-2">
+              <RevenueChart orders={orders} expenses={expenses} />
+            </div>
+            <div className="lg:col-span-1">
+              <SalesDistribution orders={orders} />
+            </div>
           </div>
-          <div className="lg:col-span-1">
-            <SalesDistribution orders={orders} />
-          </div>
-        </div>
+        )}
 
         {/* Row 4: Employee Performance + Affiliate Leaderboard (2 cards) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">

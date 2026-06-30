@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../../services/api';
 import { useDispatch } from 'react-redux';
 import { openOrderModal } from '../../store/slices/uiSlice';
+import { useLanguage } from '../../LanguageContext';
 
 interface Product {
   id: string;
@@ -15,54 +16,109 @@ interface Product {
 }
 
 // Map product names to their specific images
+// Rules: check DB image_url first (done at call site), then fall back to local file by name keyword.
+// File names are taken EXACTLY from /public/image/products/ folder listing.
 const getProductImage = (name: string): string => {
   const n = name.toLowerCase();
-  if (n.includes('himalaya ashwagandha') || n.includes('ashewagenda (himalya)')) return '/image/products/Himalaya Ashwagandha 60   ( 250 mg ).png';
-  if (n.includes('ashwagandha powder') || n.includes('ashewagenda powder')) return '/image/products/Ashwegdna Powder 250g.png';
-  if (n.includes('blackseed oil')) return '/image/products/Blackseed Oil ( 30ml ).JPG';
-  if (n.includes('chebe')) return '/image/products/Chebe powder  ( 100g ).png';
-  if (n.includes('chia')) return '/image/products/Chiaseed 250g and 1kg.png';
-  if (n.includes('cloves') || n.includes('cinnamon')) return '/image/products/Cloves 100g.png';
-  if (n.includes('turmeric') || n.includes('erid') || n.includes('erde')) return '/image/products/Erid Turmeric ( 220g ).png';
-  if (n.includes('frankincense oil')) return '/image/products/Frankincense Oil  30ml and 60 ml.jpeg';
-  if (n.includes('frankincense')) return '/image/products/Frankincense ( 100g ).jpeg';
-  if (n.includes('hibiscus') || n.includes('kerkede')) return '/image/products/Hibiscus ( 100g ).png';
-  if (n.includes('shilajit tablet')) return '/image/products/Himalaya Shilajit 60 Tablet   ( 500 mg ).png';
-  if (n.includes('kerbe powder')) return '/image/products/Kerbe Powder ( 100g ).png';
-  if (n.includes('kerbe raw') || n.includes('kerebe raw') || n.includes('kerbe (myrrh)')) return '/image/products/Kerebe Oil (Myrrh Oil )  30ml and 60 ml.png';
-  if (n.includes('myrrh oil') || n.includes('kerbe oil') || n.includes('kerebe oil')) return '/image/products/Kerebe Oil (Myrrh Oil )  30ml and 60 ml.png';
-  if (n.includes('moringa')) return '/image/products/Moringa 200g,500g and 1kg.png';
-  if (n.includes('shilajit gummies')) return '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png';
-  if (n.includes('shilajit gel') || n.includes('shilajit')) return '/image/products/Neuherb Shilajit gel 20g.png';
-  if (n.includes('nila')) return '/image/products/Nila Powder 100g.jpeg';
-  if (n.includes('pumpkin')) return '/image/products/Pumpkin Seed  100g.jpeg';
-  if (n.includes('qasil') || n.includes('kesil')) return '/image/products/Qasil Powder ( 200g ).png';
-  
-  return '/image/products/Moringa 200g,500g and 1kg.png';
+
+  // ── Ashwagandha ──────────────────────────────────────────────────
+  // File: Himalaya ashwagandha tablet 120 ( 250 mg ).png
+  // Matches: "Ashewagenda (Himalya) Tablet", "himalaya ashwagandha tablet"
+  if (n.includes('ashewagenda') || n.includes('ashwagandha tablet') || n.includes('himalya') || n.includes('himalaya ashwagandha'))
+    return '/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png';
+
+  // File: Ashwegdna Powder 250g.png
+  // Matches: "Ashwagandha Powder", "Ashewagenda Powder"
+  if (n.includes('ashwagandha powder') || n.includes('ashewagenda powder'))
+    return '/image/products/Ashwegdna Powder 250g.png';
+
+  // ── Blackseed ────────────────────────────────────────────────────
+  // File: Blackseed Oil ( 30ml ).JPG
+  if (n.includes('blackseed') || n.includes('black seed'))
+    return '/image/products/Blackseed Oil ( 30ml ).JPG';
+
+  // ── Chebe ────────────────────────────────────────────────────────
+  // File: Chebe powder  ( 100g ).png
+  if (n.includes('chebe'))
+    return '/image/products/Chebe powder  ( 100g ).png';
+
+  // ── Chia ─────────────────────────────────────────────────────────
+  // File: Chiaseed 250g and 1kg.png
+  if (n.includes('chia'))
+    return '/image/products/Chiaseed 250g and 1kg.png';
+
+  // ── Cloves ───────────────────────────────────────────────────────
+  // File: Cloves 100g.png
+  if (n.includes('clove'))
+    return '/image/products/Cloves 100g.png';
+
+  // ── Turmeric ─────────────────────────────────────────────────────
+  // File: Erid Turmeric ( 220g ).png
+  if (n.includes('turmeric') || n.includes('erid') || n.includes('erde'))
+    return '/image/products/Erid Turmeric ( 220g ).png';
+
+  // ── Frankincense ─────────────────────────────────────────────────
+  // File: Frankincense Oil  30ml and 60 ml.jpeg
+  if (n.includes('frankincense oil'))
+    return '/image/products/Frankincense Oil  30ml and 60 ml.jpeg';
+  // File: Frankincense ( 100g ).jpeg
+  // Matches: "Frankincense Raw", "Asella Frankincense Raw", "Frankincense"
+  if (n.includes('frankincense'))
+    return '/image/products/Frankincense ( 100g ).jpeg';
+
+  // ── Hibiscus ─────────────────────────────────────────────────────
+  // File: Hibiscus ( 100g ).png
+  if (n.includes('hibiscus') || n.includes('kerkede'))
+    return '/image/products/Hibiscus ( 100g ).png';
+
+  // ── Shilajit ─────────────────────────────────────────────────────
+  // File: Himalaya Shilajit 60 Tablet   ( 500 mg ).png
+  if (n.includes('shilajit tablet') || n.includes('shilajit 60'))
+    return '/image/products/Himalaya Shilajit 60 Tablet   ( 500 mg ).png';
+  // File: Neuherb Shilajit Gummies  (30 Gummies ).png
+  if (n.includes('shilajit gum'))
+    return '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png';
+  // File: Neuherb Shilajit gel 20g.png
+  if (n.includes('shilajit'))
+    return '/image/products/Neuherb Shilajit gel 20g.png';
+
+  // ── Kerbe / Myrrh ────────────────────────────────────────────────
+  // File: Kerbe Powder ( 100g ).png
+  if (n.includes('kerbe powder'))
+    return '/image/products/Kerbe Powder ( 100g ).png';
+  // File: Kerebe Oil (Myrrh Oil )  30ml and 60 ml.png
+  if (n.includes('myrrh') || n.includes('kerbe oil') || n.includes('kerebe oil') || n.includes('kerbe (myrrh)'))
+    return '/image/products/Kerebe Oil (Myrrh Oil )  30ml and 60 ml.png';
+  // "Kerbe raw" / "Kerebe raw" — no image file exists yet, show placeholder
+  if (n.includes('kerbe') || n.includes('kerebe'))
+    return '';
+
+  // ── Moringa ──────────────────────────────────────────────────────
+  // File: Moringa 200g,500g and 1kg.png
+  if (n.includes('moringa'))
+    return '/image/products/Moringa 200g,500g and 1kg.png';
+
+  // ── Nila ─────────────────────────────────────────────────────────
+  // File: Nila Powder 100g.jpeg
+  if (n.includes('nila'))
+    return '/image/products/Nila Powder 100g.jpeg';
+
+  // ── Pumpkin ──────────────────────────────────────────────────────
+  // File: Pumpkin Seed  100g.jpeg
+  if (n.includes('pumpkin'))
+    return '/image/products/Pumpkin Seed  100g.jpeg';
+
+  // ── Qasil ────────────────────────────────────────────────────────
+  // File: Qasil Powder ( 200g ).png
+  if (n.includes('qasil') || n.includes('kesil'))
+    return '/image/products/Qasil Powder ( 200g ).png';
+
+  // ── Coffee / No image ────────────────────────────────────────────
+  // No coffee image exists in /public/image/products/ — return empty
+  // so the Unsplash placeholder is shown instead of a wrong product image.
+  return '';
 };
 
-/**
- * Fisher-Yates shuffle — returns a NEW shuffled array each call.
- * Uses a seed derived from the current date so the order stays consistent
- * within a single page load but changes on every reload/new day-cycle.
- */
-function shuffleWithSeed<T>(arr: T[]): T[] {
-  // Seed: milliseconds rounded to the nearest reload (Date.now keeps changing,
-  // but we want a different order every *page load*, not every render tick).
-  // We capture the seed once at module evaluation time so it's stable per tab.
-  const copy = [...arr];
-  let seed = pageSeed;
-  for (let i = copy.length - 1; i > 0; i--) {
-    // simple LCG
-    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
-    const j = Math.abs(seed) % (i + 1);
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-// Captured once per page-load so re-renders don't re-shuffle
-const pageSeed = Date.now();
 
 // How many cards to show in the "first section" grid (3 rows × N cols)
 const CARDS_PER_PAGE = 18; // enough to fill 3 rows nicely
@@ -72,11 +128,12 @@ const BestSellers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const dispatch = useDispatch();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await api.get<Product[]>('/api/products?limit=200');
+        const response = await api.get<Product[]>('/api/products?limit=200&sort=sales');
         if (response.success && response.data && response.data.length > 0) {
           // Remove duplicates by name
           const uniqueProducts: Product[] = [];
@@ -102,12 +159,10 @@ const BestSellers: React.FC = () => {
     fetchProducts();
   }, []);
 
-  // Shuffle once per page-load (pageSeed is constant for the lifetime of the tab)
   const displayedProducts = useMemo(() => {
     if (products.length === 0) return [];
-    const shuffled = shuffleWithSeed(products);
-    // Show the first CARDS_PER_PAGE items — a different set every reload
-    return shuffled.slice(0, Math.min(CARDS_PER_PAGE, shuffled.length));
+    // Just slice the first CARDS_PER_PAGE since they are already sorted by sales descending
+    return products.slice(0, Math.min(CARDS_PER_PAGE, products.length));
   }, [products]);
 
   return (
@@ -121,13 +176,12 @@ const BestSellers: React.FC = () => {
               className="font-display-lg font-black text-obsidian dark:text-white"
               style={{ fontSize: 'clamp(24px, 4vw, 44px)', lineHeight: 1.15, letterSpacing: '-0.02em' }}
             >
-              Featured Organic<br />
-              <span className="text-highland-gold">Supplements</span>
+              {t('bestSellers.title')}<br />
+              <span className="text-highland-gold">{t('bestSellers.titleHighlight')}</span>
             </h2>
           </div>
           <p className="font-sans text-highland-gold max-w-md text-base font-medium leading-relaxed">
-            Sourced from Ethiopian highlands. Every product is third-party tested
-            and certified organic.
+            {t('bestSellers.subtitle')}
           </p>
         </div>
 
@@ -159,10 +213,10 @@ const BestSellers: React.FC = () => {
               eco
             </span>
             <p className="font-display-lg font-semibold text-obsidian dark:text-white text-lg mb-2">
-              Coming Soon
+              {t('bestSellers.comingSoon')}
             </p>
             <p className="font-sans text-slate-700 dark:text-slate-300 text-base">
-              Our product catalog is being updated. Check back shortly.
+              {t('bestSellers.comingSoonDesc')}
             </p>
           </div>
         ) : (
@@ -175,7 +229,7 @@ const BestSellers: React.FC = () => {
             }}
           >
             {displayedProducts.map((product) => {
-              const productImageUrl = getProductImage(product.name);
+              const productImageUrl = product.image_url || getProductImage(product.name);
               return (
                 <div
                   key={product.id}
@@ -189,7 +243,7 @@ const BestSellers: React.FC = () => {
                       <div className="absolute top-2 left-2 z-10 px-2 py-0.5 bg-highland-gold
                                       text-obsidian font-mono text-[10px] font-bold uppercase
                                       tracking-widest rounded-full shadow-sm">
-                        Featured
+                        {t('bestSellers.badgeFeatured')}
                       </div>
                     )}
 
@@ -204,7 +258,7 @@ const BestSellers: React.FC = () => {
 
                     {/* Product image with zoom on hover */}
                     <img
-                      src={productImageUrl}
+                      src={productImageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&q=80'}
                       alt={product.name}
                       className="w-full h-full object-contain p-4 transition-transform duration-700
                                  group-hover:scale-110"
@@ -228,9 +282,9 @@ const BestSellers: React.FC = () => {
                                  transition-all duration-500 pointer-events-none"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-white/90 font-bold">Price From</span>
+                        <span className="font-mono text-[10px] text-white/90 font-bold">{t('bestSellers.priceFrom')}</span>
                         <span className="font-display-lg font-bold text-highland-gold text-sm drop-shadow-md">
-                          {product.price ? Number(product.price).toLocaleString() : '—'} ETB
+                          {product.price ? Number(product.price).toLocaleString() : '—'} {t('common.currency')}
                         </span>
                       </div>
                     </div>
@@ -245,7 +299,7 @@ const BestSellers: React.FC = () => {
                       {product.name}
                     </h3>
                     <p className="font-sans text-slate-600 dark:text-slate-300 text-xs leading-snug line-clamp-4 mb-3 flex-1">
-                      {product.description || 'Premium organic supplement sourced from the Ethiopian highlands.'}
+                      {product.description || t('bestSellers.defaultDesc')}
                     </p>
 
                     {/* Order button */}
@@ -265,7 +319,7 @@ const BestSellers: React.FC = () => {
                                  hover:bg-highland-gold-light text-obsidian font-mono font-bold text-[11px]
                                  rounded-lg uppercase tracking-widest transition-colors shadow-md"
                     >
-                      Buy Now
+                      {t('bestSellers.buyNow')}
                       <span className="material-symbols-outlined text-[13px]">shopping_cart</span>
                     </button>
                   </div>
@@ -283,7 +337,7 @@ const BestSellers: React.FC = () => {
                        font-display-lg font-semibold rounded-full hover:bg-obsidian-mid
                        transition-colors duration-300 text-sm shadow-xl"
           >
-            Order Any Product
+            {t('bestSellers.orderAny')}
             <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
           </button>
         </div>

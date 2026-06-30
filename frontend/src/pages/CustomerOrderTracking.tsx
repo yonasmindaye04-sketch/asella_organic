@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from '../components/storefront/Header';
 import Footer from '../components/storefront/Footer';
+import { useLanguage } from '../LanguageContext';
 
 interface TrackItem {
   item_name: string;
@@ -43,7 +44,7 @@ const STEPS = [
   { key: 'delivered', label: 'Delivered', icon: 'package_2' },
 ];
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS_EN: Record<string, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   packed: 'Packed',
@@ -72,6 +73,7 @@ const CustomerOrderTracking: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
+  const { t } = useLanguage();
   
   // Use a ref to prevent double-fetching in strict mode or on remounts
   const hasFetched = useRef(false);
@@ -130,40 +132,40 @@ const CustomerOrderTracking: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbfaf7] text-[#083b11] flex flex-col">
+    <div className="min-h-screen bg-parchment dark:bg-[#121212] flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-[840px] px-6 py-6 sm:px-8 md:py-8">
+      <main className="flex-1 mx-auto w-full max-w-[900px] px-6 py-12 sm:px-8 md:py-16">
 
-        <section className="pt-12 text-center md:pt-10">
-          <div className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full bg-[#083b11] px-6 py-3 font-mono text-sm uppercase tracking-[0.18em] text-[#c5a059] shadow-sm">
-            <span className="material-symbols-outlined text-[18px]">eco</span>
+        <section className="text-center">
+          <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full bg-white/60 dark:bg-obsidian px-5 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-highland-gold shadow-sm backdrop-blur-sm border border-border">
+            <span className="material-symbols-outlined text-[16px]">local_shipping</span>
             Order Tracking
           </div>
-          <h1 className="font-sans text-[44px] font-black leading-none tracking-[-0.04em] text-[#083b11] sm:text-[58px] md:text-[64px]">
-            Track Your Order
+          <h1 className="font-bebas text-5xl md:text-7xl text-obsidian dark:text-white tracking-wide mb-4">
+            {t('tracking.title')}
           </h1>
-          <p className="mt-7 text-[22px] font-medium leading-8 text-[#4d875a]">
-            Enter your Order ID to see real-time status updates.
+          <p className="text-slate-700 dark:text-slate-300 max-w-2xl mx-auto text-[18px] leading-relaxed">
+            {t('tracking.desc')}
           </p>
 
           <form
             onSubmit={handleSearch}
-            className="mx-auto mt-16 flex min-h-[82px] max-w-[840px] items-center gap-3 rounded-[20px] border border-[#cfe1d1] bg-white/80 p-2.5 shadow-[0_2px_8px_rgba(13,46,16,0.12)]"
+            className="mx-auto mt-12 flex min-h-[76px] max-w-[700px] items-center gap-2 rounded-full border border-border bg-white dark:bg-obsidian p-2 shadow-lg hover:shadow-xl transition-shadow duration-300"
           >
             <input
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="Enter Order ID (e.g. ORD-001234)"
-              className="min-w-0 flex-1 bg-transparent px-5 font-mono text-[20px] font-medium text-[#083b11] outline-none placeholder:text-[#9ca3b6]"
+              placeholder={t('tracking.placeholder')}
+              className="min-w-0 flex-1 bg-transparent px-6 font-mono text-[18px] font-medium text-obsidian dark:text-white border-none outline-none focus:ring-0 focus:outline-none placeholder:text-gray-400"
               aria-label="Order ID"
             />
             <button
               type="submit"
               disabled={searching || !query.trim()}
-              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-[16px] bg-[#083b11] px-7 text-base font-black text-white transition hover:bg-[#14551e] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-full bg-obsidian text-parchment px-8 text-[15px] font-bold uppercase tracking-widest transition-all hover:bg-obsidian-light disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[22px]">search</span>
-              {searching ? 'Tracking...' : 'Track'}
+              <span className="material-symbols-outlined text-[20px]">search</span>
+              {searching ? t('tracking.searching') : t('tracking.trackBtn')}
             </button>
           </form>
         </section>
@@ -171,7 +173,7 @@ const CustomerOrderTracking: React.FC = () => {
         <section className="mx-auto mt-8 max-w-[720px] pb-14">
           {notFound && (
             <div className="rounded-[20px] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-              No order was found for that ID. Check the order number and try again.
+              {t('tracking.notFound')}
             </div>
           )}
           {error && (
@@ -181,53 +183,53 @@ const CustomerOrderTracking: React.FC = () => {
           )}
           {order && (
             <article className="animate-fade-up space-y-6">
-              <section className="rounded-[20px] border border-[#cfe1d1] bg-white/80 p-5 shadow-sm">
-                <div className="grid grid-cols-2 gap-x-10 gap-y-4 md:grid-cols-[1fr_1fr_auto]">
+              <section className="rounded-3xl border border-border bg-white dark:bg-[#1a1a1a] p-8 shadow-md">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-[1fr_1fr_auto]">
                   <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Order ID</p>
-                    <p className="mt-1 font-mono text-[18px] font-black text-[#083b11]">{order.id}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">{t('tracking.orderIdLabel')}</p>
+                    <p className="font-mono text-[18px] font-bold text-obsidian dark:text-highland-gold">{order.id}</p>
                   </div>
                   <div className="hidden md:block" />
                   <div className="text-right">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Placed</p>
-                    <p className="mt-1 font-mono text-xs text-[#083b11]">{new Date(order.created_at).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">{t('tracking.placedOnLabel')}</p>
+                    <p className="font-mono text-[14px] text-obsidian dark:text-white">{new Date(order.created_at).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                   </div>
                   <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Customer</p>
-                    <p className="mt-1 text-sm font-semibold text-[#083b11]">{order.customer_name}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">{t('tracking.customerLabel')}</p>
+                    <p className="text-[15px] font-bold text-obsidian dark:text-white">{order.customer_name}</p>
                   </div>
                   <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Total</p>
-                    <p className="mt-1 text-sm font-semibold text-[#083b11]">{Number(order.total).toLocaleString()} ETB</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">{t('tracking.totalAmountLabel')}</p>
+                    <p className="text-[15px] font-bold text-highland-gold">{Number(order.total).toLocaleString()} {t('common.currency')}</p>
                   </div>
                   <div className="md:text-right">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Status</p>
-                    <p className="mt-1 text-sm font-semibold text-[#083b11]">{STATUS_LABELS[currentStatus] ?? order.status}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">{t('tracking.statusLabel')}</p>
+                    <p className="inline-block px-3 py-1 rounded-full bg-[#f0f5f0] dark:bg-obsidian-light text-obsidian dark:text-white text-[13px] font-bold uppercase tracking-wider">{STATUS_LABELS_EN[currentStatus] ?? order.status}</p>
                   </div>
                   <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Location</p>
-                    <p className="mt-1 text-sm font-semibold text-[#083b11]">{order.location || order.city || '-'}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">{t('tracking.locationLabel')}</p>
+                    <p className="text-[14px] font-semibold text-slate-700 dark:text-slate-300">{order.location || order.city || '-'}</p>
                   </div>
                   <div>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Type</p>
-                    <p className="mt-1 text-sm font-semibold text-[#083b11]">{order.order_type || 'Online'}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">{t('tracking.typeLabel')}</p>
+                    <p className="text-[14px] font-semibold text-slate-700 dark:text-slate-300">{order.order_type || t('tracking.typeOnline')}</p>
                   </div>
                 </div>
               </section>
 
               {currentStatus === 'cancelled' ? (
-                <section className="rounded-[20px] border border-red-200 bg-red-50 p-5 text-red-900">
-                  <p className="font-bold">This order has been cancelled.</p>
-                  {order.notes && <p className="mt-2 text-sm leading-6">{order.notes}</p>}
+                <section className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-900 shadow-sm">
+                  <p className="font-bold text-lg">{t('tracking.cancelledMsg')}</p>
+                  {order.notes && <p className="mt-2 text-[15px] leading-relaxed opacity-90">{order.notes}</p>}
                 </section>
               ) : (
-                <section className="rounded-[20px] border border-[#cfe1d1] bg-white/80 p-5 shadow-sm">
-                  <p className="mb-7 font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Order Progress</p>
-                  <div className="relative px-4 pb-2">
-                    <div className="absolute left-9 right-9 top-[15px] h-px bg-[#cfe1d1]" />
+                <section className="rounded-3xl border border-border bg-white dark:bg-[#1a1a1a] p-8 shadow-md">
+                  <p className="mb-8 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500">{t('tracking.progressTitle')}</p>
+                  <div className="relative px-2 sm:px-4 pb-2">
+                    <div className="absolute left-10 right-10 top-[20px] h-1 bg-gray-200 dark:bg-gray-700 rounded-full" />
                     <div
-                      className="absolute left-9 top-[15px] h-px bg-[#c5a059] transition-all duration-700"
-                      style={{ width: `calc((100% - 4.5rem) * ${progress / 100})` }}
+                      className="absolute left-10 top-[20px] h-1 bg-highland-gold transition-all duration-700 rounded-full"
+                      style={{ width: `calc((100% - 5rem) * ${progress / 100})` }}
                     />
                     <div className="relative grid grid-cols-5 gap-2">
                       {STEPS.map((step, index) => {
@@ -235,16 +237,16 @@ const CustomerOrderTracking: React.FC = () => {
                         const active = index === currentStepIndex;
                         return (
                           <div key={step.key} className="flex flex-col items-center text-center">
-                            <div className={`flex h-[30px] w-[30px] items-center justify-center rounded-full border transition ${
+                            <div className={`flex h10 w-10 sm:h-[42px] sm:w-[42px] items-center justify-center rounded-full border-[3px] bg-white transition-all duration-300 z-10 ${
                               active
-                                ? 'bg-[#d9b867] text-[#083b11] border-[#c5a059] shadow-[0_0_0_5px_rgba(197,160,89,0.22)]'
+                                ? 'border-highland-gold text-highland-gold shadow-[0_0_15px_rgba(200,150,10,0.3)] scale-110'
                                 : past
-                                  ? 'border-[#083b11] bg-[#083b11] text-white'
-                                  : 'border-[#cfe1d1] bg-white text-[#6e9a73]'
+                                  ? 'border-obsidian bg-obsidian text-white'
+                                  : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:bg-[#1a1a1a]'
                             }`}>
-                              <span className="material-symbols-outlined text-[14px]">{step.icon}</span>
+                              <span className="material-symbols-outlined text-[18px] sm:text-[20px]">{step.icon}</span>
                             </div>
-                            <span className="mt-2 max-w-[70px] font-mono text-[10px] font-semibold leading-[1.15] text-[#083b11]">
+                            <span className={`mt-4 max-w-[80px] font-mono text-[10px] uppercase tracking-widest font-bold leading-snug transition-colors duration-300 ${active ? 'text-highland-gold' : past ? 'text-obsidian dark:text-white' : 'text-gray-400'}`}>
                               {step.label}
                             </span>
                           </div>
@@ -256,52 +258,54 @@ const CustomerOrderTracking: React.FC = () => {
               )}
 
               {order.items.length > 0 && (
-                <section className="rounded-[20px] border border-[#cfe1d1] bg-white/80 p-5 shadow-sm">
-                  <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Items</p>
-                  <div className="overflow-hidden rounded-2xl border border-[#e8f0e6] bg-white">
+                <section className="rounded-3xl border border-border bg-white dark:bg-[#1a1a1a] p-8 shadow-md">
+                  <p className="mb-5 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500">{t('tracking.itemsTitle')}</p>
+                  <div className="overflow-hidden rounded-2xl border border-border bg-transparent">
                     {order.items.length === 0 ? (
-                      <p className="p-4 text-sm text-[#547255]">No item details available.</p>
+                      <p className="p-6 text-[15px] text-slate-500">{t('tracking.noItemsMsg')}</p>
                     ) : (
-                      order.items.map((item, index) => (
-                        <div key={`${item.item_name}-${index}`} className="flex items-center justify-between gap-4 border-b border-[#e8f0e6] p-4 last:border-b-0">
-                          <div>
-                            <p className="font-bold text-[#0D2E10]">{item.item_name}</p>
-                            <p className="text-sm text-[#547255]">{item.package_size} x {item.quantity}</p>
+                      <div className="divide-y divide-border">
+                        {order.items.map((item, index) => (
+                          <div key={`${item.item_name}-${index}`} className="flex items-center justify-between gap-4 p-5 hover:bg-slate-50 dark:hover:bg-[#222] transition-colors">
+                            <div>
+                              <p className="font-bold text-[16px] text-obsidian dark:text-white">{item.item_name}</p>
+                              <p className="text-[14px] text-slate-500 mt-0.5">{item.package_size} &times; {item.quantity}</p>
+                            </div>
+                            <p className="font-mono text-[15px] font-bold text-highland-gold">
+                              {Number(item.unit_price * item.quantity).toLocaleString()} {t('common.currency')}
+                            </p>
                           </div>
-                          <p className="font-mono text-sm font-bold text-[#0D2E10]">
-                            {Number(item.unit_price * item.quantity).toLocaleString()} ETB
-                          </p>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     )}
                   </div>
                 </section>
               )}
 
-              <section className="rounded-[20px] border border-[#cfe1d1] bg-white/80 p-5 shadow-sm">
-                <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.18em] text-[#4d875a]">Change History</p>
-                <div className="space-y-3">
+              <section className="rounded-3xl border border-border bg-white dark:bg-[#1a1a1a] p-8 shadow-md">
+                <p className="mb-6 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500">{t('tracking.timelineTitle')}</p>
+                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
                   {order.history.length === 0 && (
-                    <div className="flex gap-3">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c5a059]" />
-                      <div>
-                        <p className="text-sm font-semibold text-[#083b11]">Order placed</p>
-                        <p className="text-xs text-[#4d875a]">Your order has been received.</p>
-                        <p className="mt-1 font-mono text-[11px] text-[#4d875a]">Customer - {formatDate(order.created_at)}</p>
+                    <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full border-4 border-white dark:border-[#1a1a1a] bg-highland-gold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2" />
+                      <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] p-4 rounded-xl border border-border bg-slate-50 dark:bg-obsidian-light shadow-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[14px] font-bold text-obsidian dark:text-white">{t('tracking.orderPlacedTitle')}</p>
+                          <span className="font-mono text-[10px] text-slate-500">{formatDate(order.created_at)}</span>
+                        </div>
+                        <p className="text-[13px] text-slate-600 dark:text-slate-400">{t('tracking.orderPlacedDesc')}</p>
                       </div>
                     </div>
                   )}
                   {order.history.map((entry, index) => (
-                    <div key={`${entry.timestamp}-${index}`} className="flex gap-3">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c5a059]" />
-                      <div>
-                        <p className="text-sm font-semibold text-[#083b11]">
-                          Status changed from {entry.old_status ?? 'Created'} to {entry.new_status}
-                        </p>
-                        {(entry.note || entry.notes) && <p className="text-xs text-[#4d875a]">{entry.note || entry.notes}</p>}
-                        <p className="mt-1 font-mono text-[11px] text-[#4d875a]">
-                          {(entry.changed_by ?? 'Asella team')} - {formatDate(entry.timestamp)}
-                        </p>
+                    <div key={`${entry.timestamp}-${index}`} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full border-4 border-white dark:border-[#1a1a1a] bg-highland-gold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2" />
+                      <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] p-4 rounded-xl border border-border bg-slate-50 dark:bg-[#222] shadow-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[14px] font-bold text-obsidian dark:text-white">{entry.new_status}</p>
+                          <span className="font-mono text-[10px] text-slate-500 whitespace-nowrap ml-3">{formatDate(entry.timestamp)}</span>
+                        </div>
+                        {(entry.note || entry.notes) && <p className="text-[13px] text-slate-600 dark:text-slate-400 mt-1">{entry.note || entry.notes}</p>}
                       </div>
                     </div>
                   ))}

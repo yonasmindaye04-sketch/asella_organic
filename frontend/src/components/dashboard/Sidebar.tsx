@@ -179,7 +179,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badge={notifCount}
                   badgeColor="bg-red-500"
                 />
-                <NavItem to="/dashboard/expenses" icon="payments" label="Expenses" />
+                {role === 'admin' && (
+                  <NavItem to="/dashboard/expenses" icon="payments" label="Expenses" />
+                )}
                 <NavItem to="/dashboard/change-password" icon="security" label="Security Settings" />
               </ul>
             </>
@@ -193,7 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               <ul className="sidebar-nav-group">
                 <NavItem to="/dashboard/users" icon="groups" label="User Management" />
                 <NavItem to="/dashboard/affiliates" icon="handshake" label="Affiliate Control" />
-                <NavItem to="/dashboard/access-db" icon="database" label="Access Database" />
+                <NavItem to="/dashboard/videos" icon="smart_display" label="Community Videos" />
               </ul>
             </>
           )}
@@ -201,19 +203,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* ── Bottom section ── */}
         <div className="sidebar-bottom">
-          {/* Settings row */}
           <div className="sidebar-divider" />
-          <div className="sidebar-settings-row">
-            <Link
-              to="/dashboard/change-password"
-              onClick={() => onClose?.()}
-              className="sidebar-settings-btn"
-              title={!isOpen ? 'Settings' : undefined}
-            >
-              <Icon name="settings" />
-            </Link>
-          </div>
-
+          
           {/* User profile */}
           <div className="sidebar-user-row">
             <div className="sidebar-user-avatar">

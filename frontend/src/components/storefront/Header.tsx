@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { RootState } from '../../store';
 import { useLanguage, type Language } from '../../LanguageContext';
 
@@ -9,6 +9,54 @@ const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const { language, setLanguage, t } = useLanguage();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => {
+    e.preventDefault();
+    if (location.pathname !== '/') {
+      navigate(`/${hash}`);
+    } else {
+      const el = document.querySelector(hash);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        window.history.pushState(null, '', hash);
+      }
+    }
+    setMobileMenuOpen(false);
+  };
+
+  const renderLanguageToggle = () => (
+    <div className="relative" id="lang-wrapper">
+      <button 
+        onClick={() => setLangOpen(!langOpen)}
+        className="w-10 h-10 rounded-full border border-border bg-white dark:bg-obsidian flex items-center justify-center text-obsidian/60 dark:text-white/70 hover:border-highland-gold hover:text-highland-gold transition-all shadow-sm"
+        aria-label="Select language"
+      >
+        <span className="material-symbols-outlined text-[20px]">language</span>
+      </button>
+      
+      {langOpen && (
+        <div id="lang-dropdown" className="absolute right-0 top-12 w-36 bg-white dark:bg-obsidian rounded-2xl shadow-xl border border-border overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+          {languageOptions.map((opt) => (
+            <button
+              key={opt.code}
+              onClick={() => handleLanguageChange(opt.code)}
+              className={`w-full px-4 py-2.5 text-left text-base font-bold transition-colors flex items-center gap-2 ${
+                language === opt.code
+                  ? 'bg-parchment-mid text-obsidian dark:text-white'
+                  : 'text-obsidian dark:text-white hover:bg-parchment-mid hover:text-obsidian dark:text-white'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${language === opt.code ? 'bg-highland-gold' : 'bg-slate-300'}`}></span>
+              <span>{opt.flag}</span>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   const languageOptions: { code: Language; label: string; flag: string }[] = [
     { code: 'en', label: 'EN', flag: '🇺🇸' },
@@ -35,19 +83,19 @@ const Header: React.FC = () => {
 
         {/* Center Links */}
         <div className="hidden md:flex items-center gap-10 lg:gap-12 flex-1 justify-center">
-          <a href="#hero" className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
             {t('nav.home')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
-          <a href="#products" className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <a href="#products" onClick={(e) => handleNavClick(e, '#products')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
             {t('nav.products')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
-          <a href="#story" className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <a href="#story" onClick={(e) => handleNavClick(e, '#story')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
             {t('nav.about')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
-          <a href="#contact" className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
             {t('nav.contact')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
@@ -61,36 +109,7 @@ const Header: React.FC = () => {
         <div className="hidden md:flex items-center gap-4 shrink-0 flex-1 justify-end">
           
           {/* Language Toggle */}
-          <div className="relative" id="lang-wrapper">
-            <button 
-              onClick={() => setLangOpen(!langOpen)}
-              className="w-10 h-10 rounded-full border border-border bg-white dark:bg-obsidian flex items-center justify-center text-obsidian/60 dark:text-white/70 hover:border-highland-gold hover:text-highland-gold transition-all shadow-sm"
-              aria-label="Select language"
-            >
-              <span className="material-symbols-outlined text-[20px]">language</span>
-            </button>
-            
-            {/* Dropdown */}
-            {langOpen && (
-              <div id="lang-dropdown" className="absolute right-0 top-12 w-36 bg-white dark:bg-obsidian rounded-2xl shadow-xl border border-border overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                {languageOptions.map((opt) => (
-                  <button
-                    key={opt.code}
-                    onClick={() => handleLanguageChange(opt.code)}
-                    className={`w-full px-4 py-2.5 text-left text-base font-bold transition-colors flex items-center gap-2 ${
-                      language === opt.code
-                        ? 'bg-parchment-mid text-obsidian dark:text-white'
-                        : 'text-obsidian dark:text-white hover:bg-parchment-mid hover:text-obsidian dark:text-white'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${language === opt.code ? 'bg-highland-gold' : 'bg-slate-300'}`}></span>
-                    <span>{opt.flag}</span>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {renderLanguageToggle()}
 
           {/* User Session or Login */}
           {isAuthenticated && user ? (
@@ -108,6 +127,7 @@ const Header: React.FC = () => {
 
         {/* Mobile Toggle */}
         <div className="md:hidden flex items-center gap-3">
+          {renderLanguageToggle()}
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="w-10 h-10 rounded-full border border-border bg-white dark:bg-obsidian flex items-center justify-center text-obsidian dark:text-white shadow-sm"
@@ -120,10 +140,10 @@ const Header: React.FC = () => {
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-[72px] left-0 w-full bg-white dark:bg-obsidian border-b border-border shadow-lg animate-in slide-in-from-top-2 duration-200 py-4 px-6 flex flex-col gap-4">
-          <a href="#hero" onClick={() => setMobileMenuOpen(false)} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.home')}</a>
-          <a href="#products" onClick={() => setMobileMenuOpen(false)} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.products')}</a>
-          <a href="#story" onClick={() => setMobileMenuOpen(false)} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.about')}</a>
-          <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.contact')}</a>
+          <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.home')}</a>
+          <a href="#products" onClick={(e) => handleNavClick(e, '#products')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.products')}</a>
+          <a href="#story" onClick={(e) => handleNavClick(e, '#story')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.about')}</a>
+          <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.contact')}</a>
           <Link to="/track" onClick={() => setMobileMenuOpen(false)} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.trackOrder')}</Link>
           
           <div className="pt-2">

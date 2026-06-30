@@ -44,6 +44,8 @@ ON DUPLICATE KEY UPDATE current_quantity = VALUES(current_quantity);
 -- ── 3. Inventory deduction trigger on order delivered ────────────
 DROP TRIGGER IF EXISTS trg_deduct_inventory_on_delivered;
 
+DELIMITER $$
+
 CREATE TRIGGER trg_deduct_inventory_on_delivered
 AFTER UPDATE ON orders
 FOR EACH ROW
@@ -97,7 +99,9 @@ BEGIN
             CLOSE item_cursor;
         END;
     END IF;
-END;
+END$$
+
+DELIMITER ;
 
 -- ── 4. Low-stock view ─────────────────────────────────────────────
 CREATE OR REPLACE VIEW vw_low_stock AS

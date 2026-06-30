@@ -40,35 +40,56 @@ const SOURCE_MAP: Record<string, { label: string; color: string }> = {
 const FALLBACK_COLOR = '#5c6280';
 
 // ─── Revenue Chart (Line Graph) ───
-export function RevenueChart({ orders }: { orders: any[] }) {
+export function RevenueChart({ orders, expenses = [] }: { orders: any[]; expenses?: any[] }) {
   const chartRef = useRef<ChartJS<"line">>(null);
   const [rangeMonths, setRangeMonths] = useState<6 | 12>(6);
   const { showToast } = useToast();
 
-  const { labels, dataThis } = React.useMemo(() => {
+  const { labels, dataThis, dataProfit } = React.useMemo(() => {
     const now = new Date();
-    const buckets: { label: string; value: number }[] = [];
+    const buckets: { label: string; revenue: number; expense: number; profit: number }[] = [];
     for (let i = rangeMonths - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       buckets.push({
         label: d.toLocaleString('en-GB', { month: 'short' }),
-        value: 0,
+        revenue: 0,
+        expense: 0,
+        profit: 0,
       });
     }
     const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
+    
+    // Sum Revenue
     activeOrders.forEach(o => {
       const created = new Date(o.created_at);
       const monthsAgo = (now.getFullYear() - created.getFullYear()) * 12
                        + (now.getMonth() - created.getMonth());
       if (monthsAgo >= 0 && monthsAgo < rangeMonths) {
-        buckets[rangeMonths - 1 - monthsAgo].value += Number(o.total || 0);
+        buckets[rangeMonths - 1 - monthsAgo].revenue += Number(o.total || 0);
       }
     });
+
+    // Sum Expenses
+    expenses.forEach(e => {
+      const created = new Date(e.created_at);
+      const monthsAgo = (now.getFullYear() - created.getFullYear()) * 12
+                       + (now.getMonth() - created.getMonth());
+      if (monthsAgo >= 0 && monthsAgo < rangeMonths) {
+        buckets[rangeMonths - 1 - monthsAgo].expense += Number(e.amount || 0);
+      }
+    });
+
+    // Calculate Profit
+    buckets.forEach(b => {
+      b.profit = b.revenue - b.expense;
+    });
+
     return {
       labels: buckets.map(b => b.label),
-      dataThis: buckets.map(b => b.value)
+      dataThis: buckets.map(b => b.revenue),
+      dataProfit: buckets.map(b => b.profit)
     };
-  }, [orders, rangeMonths]);
+  }, [orders, expenses, rangeMonths]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -77,7 +98,7 @@ export function RevenueChart({ orders }: { orders: any[] }) {
     const gradient = ctx.createLinearGradient(0, 0, 0, 260);
     gradient.addColorStop(0, "rgba(240,160,48,0.35)");
     gradient.addColorStop(1, "rgba(240,160,48,0.02)");
-    chart.data.datasets[0].backgroundColor = gradient;
+    chart.data.datasets[1].backgroundColor = gradient;
     chart.update("none");
   }, [rangeMonths]);
 
@@ -85,12 +106,13 @@ export function RevenueChart({ orders }: { orders: any[] }) {
     <div className="card p-5 h-full animate-in" style={{ animationDelay: "0.15s" }}>
       <div className="flex items-center justify-between mb-4 relative z-[2]">
         <div>
-          <h3 className="text-sm font-bold text-[var(--fg)]">Revenue Overview</h3>
-          <p className="text-[11px] text-[var(--muted)] mt-0.5">Revenue in ETB</p>
+          <h3 className="text-sm font-bold text-[var(--fg)]">Revenue & Profit Overview</h3>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">Revenue and Profit in ETB</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 text-[11px] mr-3">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[var(--accent)]" />Current</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#f0a030]" />Revenue</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#34d399]" />Profit</span>
           </div>
           <div className="flex gap-0.5 bg-[var(--bg-deep)] rounded-lg p-0.5 border border-[var(--border)]">
             <button className={`tab-btn ${rangeMonths === 6 ? "active" : ""}`} onClick={() => { setRangeMonths(6); showToast("Switched to 6M view", "info"); }}>6M</button>
@@ -105,6 +127,20 @@ export function RevenueChart({ orders }: { orders: any[] }) {
           data={{
             labels,
             datasets: [
+              {
+                label: "Profit",
+                data: dataProfit,
+                fill: false,
+                backgroundColor: "rgba(52,211,153,0.15)",
+                borderColor: "#34d399",
+                borderWidth: 2.5,
+                pointBackgroundColor: "#34d399",
+                pointBorderColor: "#fff",
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.4,
+              },
               {
                 label: "Revenue",
                 data: dataThis,
@@ -220,7 +256,7 @@ export function SalesDistribution({ orders }: { orders: any[] }) {
 }
 
 // ─── Top Products ───
-export function TopProducts({ orders }: { orders: any[] }) {
+export function TopProducts({ orders, isManager = false }: { orders: any[]; isManager?: boolean }) {
   const COLORS = ['#f0a030', '#38bdf8', '#a78bfa', '#34d399', '#fb7185', '#facc15', '#818cf8'];
 
   const productData = React.useMemo(() => {
@@ -268,7 +304,7 @@ export function TopProducts({ orders }: { orders: any[] }) {
                 <span className="text-[12px] font-medium text-[var(--fg)] truncate max-w-[60%]">{product.name}</span>
                 <div className="flex items-center gap-3">
                   <span className="text-[10px] text-[var(--muted)] font-mono">{product.qty} sold</span>
-                  <span className="text-[10px] font-bold text-[var(--accent)] font-mono">{product.revenue.toLocaleString()} ETB</span>
+                  {!isManager && <span className="text-[10px] font-bold text-[var(--accent)] font-mono">{product.revenue.toLocaleString()} ETB</span>}
                 </div>
               </div>
               <div className="h-2 rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">

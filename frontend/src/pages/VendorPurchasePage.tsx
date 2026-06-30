@@ -60,10 +60,10 @@ const MATERIAL_TYPES = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  pending:   { label: 'Pending',   bg: 'bg-amber-500/15', text: 'text-amber-400' },
-  approved:  { label: 'Approved',  bg: 'bg-blue-500/15',  text: 'text-blue-400' },
-  received:  { label: 'Received',  bg: 'bg-emerald-500/15', text: 'text-emerald-400' },
-  cancelled: { label: 'Cancelled', bg: 'bg-red-500/15',   text: 'text-red-400' },
+  pending:   { label: 'Pending',   bg: 'bg-amber-500', text: 'text-white' },
+  approved:  { label: 'Approved',  bg: 'bg-blue-500',  text: 'text-white' },
+  received:  { label: 'Received',  bg: 'bg-emerald-500', text: 'text-white' },
+  cancelled: { label: 'Cancelled', bg: 'bg-red-500',   text: 'text-white' },
 };
 
 // ─── Component ───────────────────────────────────────────────────
@@ -417,10 +417,10 @@ const VendorPurchasePage: React.FC = () => {
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Pending', count: orders.filter(o => o.status === 'pending').length, color: 'text-amber-400', bg: 'bg-amber-600 text-white', icon: 'fa-solid fa-clock' },
-                { label: 'Approved', count: orders.filter(o => o.status === 'approved').length, color: 'text-blue-400', bg: 'bg-blue-600 text-white', icon: 'fa-solid fa-check' },
-                { label: 'Received', count: orders.filter(o => o.status === 'received').length, color: 'text-emerald-400', bg: 'bg-emerald-600 text-white', icon: 'fa-solid fa-box-open' },
-                { label: 'Cancelled', count: orders.filter(o => o.status === 'cancelled').length, color: 'text-red-400', bg: 'bg-red-600 text-white', icon: 'fa-solid fa-ban' },
+                { label: 'Pending', count: orders.filter(o => o.status === 'pending').length, color: 'text-white', bg: 'bg-amber-500 shadow-sm shadow-amber-500/20', icon: 'fa-solid fa-clock' },
+                { label: 'Approved', count: orders.filter(o => o.status === 'approved').length, color: 'text-white', bg: 'bg-blue-500 shadow-sm shadow-blue-500/20', icon: 'fa-solid fa-check' },
+                { label: 'Received', count: orders.filter(o => o.status === 'received').length, color: 'text-white', bg: 'bg-emerald-500 shadow-sm shadow-emerald-500/20', icon: 'fa-solid fa-box-open' },
+                { label: 'Cancelled', count: orders.filter(o => o.status === 'cancelled').length, color: 'text-white', bg: 'bg-red-500 shadow-sm shadow-red-500/20', icon: 'fa-solid fa-ban' },
               ].map((s, i) => (
                 <div key={s.label} className="card p-4 animate-in" style={{ animationDelay: `${0.05 * i}s` }}>
                   <div className="flex items-center gap-2 mb-2">
@@ -499,7 +499,8 @@ const VendorPurchasePage: React.FC = () => {
                             <td className="px-5 py-3.5 font-mono font-bold text-[var(--fg)]">{formatCurrency(order.price)}</td>
                             <td className="px-5 py-3.5">
                               {order.product_name ? (
-                                <span className="text-[11px] px-2 py-1 rounded-md bg-emerald-600 text-white font-medium">
+                                <span className="text-[12px] font-bold text-[var(--emerald)] flex items-center gap-1.5 whitespace-nowrap">
+                                  <i className="fa-solid fa-link text-[10px] opacity-60" />
                                   {order.product_name}
                                 </span>
                               ) : (
