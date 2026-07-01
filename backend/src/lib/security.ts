@@ -30,7 +30,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === "string") {
-      out[key] = sanitizeInput(value);
+      out[key] = (key.endsWith("_url") || key === "url") ? value.trim() : sanitizeInput(value);
     } else if (Array.isArray(value)) {
       out[key] = value.map(item =>
         typeof item === "string"

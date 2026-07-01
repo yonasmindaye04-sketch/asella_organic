@@ -31,11 +31,10 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
       <head>
         <title>Receipt - ${data.orderId}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap');
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'JetBrains Mono', 'Courier New', monospace; background: #fff; display:flex; justify-content:center; padding: 10px; }
-          .receipt { max-width: 340px; width: 100%; }
-          @media print { body { padding: 0; } }
+          body { font-family: 'Courier New', Courier, monospace; background: #fff; padding: 4px 6px; width: 100%; }
+          .receipt { width: 100%; max-width: 360px; margin: 0 auto; }
+          @media print { body { padding: 2px 4px; } @page { margin: 3mm; } }
         </style>
       </head>
       <body>${content.innerHTML}</body>
@@ -52,209 +51,184 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
   const now = new Date(data.date);
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const itemCount = data.items.reduce((sum, item) => sum + item.quantity, 0);
-
-  const dashes = '- '.repeat(24);
-
   return (
     <div
       className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
       onClick={handleOverlay}
     >
-      <div className="bg-white dark:bg-[#121212] rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[94vh]">
-        
-        {/* Action buttons at the top */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-border bg-gray-50/80 dark:bg-[#1A1A1A]">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-white flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-green-700">receipt_long</span>
-            Order Receipt
-          </h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0D2E10] text-white rounded-lg text-xs font-bold hover:bg-[#1a4a1f] transition-colors"
-            >
-              <span className="material-symbols-outlined text-[16px]">print</span>
-              Print
-            </button>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px]">close</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Receipt body — scrollable */}
-        <div className="overflow-y-auto flex-1 p-5">
-          <div ref={receiptRef}>
-            <div
-              className="receipt mx-auto"
-              style={{
-                maxWidth: 300,
-                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                fontSize: 11,
-                lineHeight: 1.3,
-                color: '#000',
-                background: '#fff',
-                padding: '8px 8px',
-                borderRadius: 4,
-              }}
-            >
-              {/* Header */}
-              <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                <p style={{ fontSize: 13, fontWeight: 800 }}>
-                  Asella Organic Enterprise
-                </p>
-                <p style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>
-                  TIN: 0093291109
-                </p>
-                <p style={{ fontSize: 10, color: '#000', marginTop: 2, lineHeight: 1.2, fontWeight: 600 }}>
-                  Addis Ababa, Piazza Giorgis, Ethel<br />Appartment
-                </p>
-                <p style={{ fontSize: 10, color: '#000', marginTop: 2, fontWeight: 600 }}>
-                  Tel: +251 909 122 623 / +251 942 223 999
-                </p>
-                <p style={{ fontSize: 10, fontWeight: 800, marginTop: 4 }}>
-                  DATE: {dateStr} {timeStr}
-                </p>
-              </div>
-
-              {/* Divider */}
-              <p style={{ textAlign: 'center', fontSize: 11, fontWeight: 800, margin: '6px 0' }}>
-                == CASH INVOICE ==
-              </p>
-
-              {/* Order info */}
-              <div style={{ margin: '6px 0', fontSize: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span style={{ fontWeight: 600 }}>Order ID</span>
-                  <span style={{ fontWeight: 800 }}>{data.orderId}</span>
+      <div className="flex flex-col items-center">
+        <div className="bg-white rounded shadow-2xl w-full max-w-[420px] max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200 mb-4 flex flex-col">
+          
+          {/* Receipt body */}
+          <div className="overflow-y-auto flex-1 py-4 pb-6 bg-white w-full px-1.5">
+            <div ref={receiptRef} className="w-full">
+              <div
+                className="receipt w-full"
+                style={{
+                  width: '100%',
+                  fontFamily: "'Courier New', Courier, monospace",
+                  fontSize: 12,
+                  lineHeight: 1.4,
+                  color: '#000',
+                  background: '#fff',
+                  fontWeight: 600,
+                }}
+              >
+                {/* Header */}
+                <div style={{ textAlign: 'center', marginBottom: 4 }}>
+                  <p style={{ fontSize: 18, fontWeight: 800 }}>Asella Organic Enterprise</p>
+                  <p style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>
+                    Addis Ababa, Piazza Giorgis, Ethel Appartment<br />
+                    Tel: +251 909 122 623 / +251 942 223 999<br />
+                    TIN: 0093291109
+                  </p>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span style={{ fontWeight: 600 }}>Customer</span>
-                  <span style={{ fontWeight: 800 }}>{data.customerName}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span style={{ fontWeight: 600 }}>Phone</span>
-                  <span style={{ fontWeight: 800 }}>{data.phone}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span style={{ fontWeight: 600 }}>Location</span>
-                  <span style={{ fontWeight: 800 }}>{data.location || data.city}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span style={{ fontWeight: 600 }}>Order Type</span>
-                  <span style={{ fontWeight: 800 }}>{data.orderType}</span>
-                </div>
-              </div>
 
-              {/* Items header dashes */}
-              <p style={{ fontSize: 9, color: '#000', letterSpacing: -0.5, overflow: 'hidden', margin: '4px 0 2px', fontWeight: 800 }}>
-                {dashes}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 800, borderBottom: '1px dashed #000', paddingBottom: 2, marginBottom: 2 }}>
-                <span style={{ flex: 2 }}>DESCRIPTION</span>
-                <span style={{ width: 30, textAlign: 'center' }}>QTY</span>
-                <span style={{ width: 54, textAlign: 'right' }}>PRICE</span>
-                <span style={{ width: 62, textAlign: 'right' }}>AMOUNT</span>
-              </div>
+                {/* First Bold Line */}
+                <div style={{ borderTop: '2px solid #000', margin: '4px 0' }}></div>
 
-              {/* Items */}
-              {data.items.map((item, i) => {
-                const amount = item.quantity * item.unit_price;
-                return (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '2px 0', alignItems: 'flex-start' }}>
-                    <span style={{ flex: 2, wordBreak: 'break-word', paddingRight: 4, fontWeight: 700 }}>
-                      {item.name} ({item.package_size})
-                    </span>
-                    <span style={{ width: 30, textAlign: 'center', fontWeight: 700 }}>{item.quantity}</span>
-                    <span style={{ width: 54, textAlign: 'right', fontWeight: 700 }}>{item.unit_price.toLocaleString()}</span>
-                    <span style={{ width: 62, textAlign: 'right', fontWeight: 800 }}>{amount.toLocaleString()}</span>
+                {/* Order info */}
+                <div style={{ margin: '2px 0', fontSize: 11 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ fontWeight: 800 }}>Date</span>
+                    <span style={{ fontWeight: 500 }}>{dateStr} {timeStr}</span>
                   </div>
-                );
-              })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ fontWeight: 800 }}>Order ID</span>
+                    <span style={{ fontWeight: 500 }}>{data.orderId}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ fontWeight: 800 }}>Customer</span>
+                    <span style={{ fontWeight: 500 }}>{data.customerName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ fontWeight: 800 }}>Phone</span>
+                    <span style={{ fontWeight: 500 }}>{data.phone}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ fontWeight: 800 }}>Location</span>
+                    <span style={{ fontWeight: 500 }}>{data.location || data.city}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ fontWeight: 800 }}>Order Type</span>
+                    <span style={{ fontWeight: 500 }}>{data.orderType}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ fontWeight: 800 }}>Cashier</span>
+                    <span style={{ fontWeight: 500 }}>manager</span>
+                  </div>
+                </div>
 
-              {/* Totals */}
-              <p style={{ fontSize: 9, color: '#000', letterSpacing: -0.5, overflow: 'hidden', margin: '4px 0', fontWeight: 800 }}>
-                {dashes}
-              </p>
+                {/* Thin Dashed Line */}
+                <div style={{ borderTop: '1px dashed #000', margin: '4px 0' }}></div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '1px 0', fontWeight: 700 }}>
-                <span>TXBL1</span>
-                <span>{Number(data.total).toLocaleString()}</span>
-              </div>
+                {/* Items header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 800, paddingBottom: 2 }}>
+                  <span style={{ flex: 2 }}>ITEM</span>
+                  <span style={{ width: 40, textAlign: 'center' }}>PKG</span>
+                  <span style={{ width: 30, textAlign: 'center' }}>QTY</span>
+                  <span style={{ width: 70, textAlign: 'right' }}>PRICE</span>
+                </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 800, padding: '2px 0', margin: '2px 0' }}>
-                <span>TOTAL</span>
-                <span>{Number(data.total).toLocaleString()}</span>
-              </div>
+                {/* Thin Dashed Line */}
+                <div style={{ borderTop: '1px dashed #000', margin: '2px 0 4px' }}></div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '1px 0', fontWeight: 700 }}>
-                <span>CASH</span>
-                <span>{Number(data.total).toLocaleString()}</span>
-              </div>
+                {/* Items */}
+                {data.items.map((item, i) => {
+                  const amount = item.quantity * item.unit_price;
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0', alignItems: 'flex-start' }}>
+                      <span style={{ flex: 2, wordBreak: 'break-word', paddingRight: 4, fontWeight: 500 }}>
+                        {item.name}
+                      </span>
+                      <span style={{ width: 40, textAlign: 'center', fontWeight: 500 }}>{item.package_size}</span>
+                      <span style={{ width: 30, textAlign: 'center', fontWeight: 500 }}>{item.quantity}</span>
+                      <span style={{ width: 70, textAlign: 'right', fontWeight: 500 }}>{amount.toLocaleString()} ETB</span>
+                    </div>
+                  );
+                })}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '1px 0', fontWeight: 700 }}>
-                <span>ITEM#</span>
-                <span>{itemCount}</span>
-              </div>
+                {/* Bold Line Above Total */}
+                <div style={{ borderTop: '2px solid #000', margin: '4px 0 2px' }}></div>
 
-              {/* QR Code */}
-              <div style={{ textAlign: 'center', margin: '8px 0 4px' }}>
-                <img
-                  src="/image/receipt/Payment Qr Code_.png"
-                  alt="Payment QR Code"
-                  style={{ width: 140, height: 140, margin: '0 auto', display: 'block', imageRendering: 'pixelated' }}
-                />
-              </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, padding: '2px 0' }}>
+                  <span>TOTAL</span>
+                  <span>{Number(data.total).toLocaleString()} ETB</span>
+                </div>
 
-              <p style={{ textAlign: 'center', fontSize: 9, color: '#000', fontWeight: 800, margin: '2px 0 6px' }}>
-                Scan to view receipt online
-              </p>
+                {/* Thin Dashed Line */}
+                <div style={{ borderTop: '1px dashed #000', margin: '2px 0 6px' }}></div>
 
-              {/* EthQR Logo */}
-              <div style={{ textAlign: 'center', margin: '2px 0 6px' }}>
-                <img
-                  src="/image/receipt/image_2026-05-31_21-04-10.png"
-                  alt="Ethiopian Interoperable Payment QR Code"
-                  style={{ width: 110, height: 'auto', margin: '0 auto', display: 'block' }}
-                />
-              </div>
+                {/* QR Code */}
+                <div style={{ textAlign: 'center', margin: '4px 0 2px' }}>
+                  <img
+                    src="/image/receipt/Payment Qr Code_.png"
+                    alt="Receipt QR Code"
+                    style={{ width: 220, height: 220, margin: '0 auto', display: 'block', imageRendering: 'pixelated' }}
+                  />
+                </div>
 
-              {/* Order Tracking Box */}
-              <div style={{
-                border: '1px dashed #000',
-                borderRadius: 4,
-                padding: '6px 8px',
-                textAlign: 'center',
-                margin: '6px 0',
-                background: '#fff',
-              }}>
-                <p style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', color: '#000', marginBottom: 2 }}>
-                  Track Your Order
+                {/* EthQR Section */}
+                <p style={{ textAlign: 'center', fontSize: 11, color: '#000', fontWeight: 800, margin: '6px 0 2px' }}>
+                  Scan to pay
                 </p>
-                <p style={{ fontSize: 13, fontWeight: 800, color: '#000', margin: '2px 0' }}>
-                  {data.orderId}
-                </p>
-                <p style={{ fontSize: 8, color: '#000', fontWeight: 700, marginTop: 2, lineHeight: 1.2 }}>
-                  Visit asellaorganic.com/track<br />
-                  and enter this ID to track your order
-                </p>
-              </div>
+                <div style={{ textAlign: 'center', margin: '2px 0 6px' }}>
+                  <img
+                    src="/image/receipt/image_2026-05-31_21-04-10.png"
+                    alt="EthQR"
+                    style={{ width: 140, height: 'auto', margin: '0 auto', display: 'block' }}
+                  />
+                </div>
 
-              {/* Footer */}
-              <div style={{ border: '1px solid #000', borderRadius: 4, padding: '4px 6px', textAlign: 'center', fontSize: 9, fontStyle: 'italic', margin: '6px 0', fontWeight: 800 }}>
-                This receipt is valid only for Asella Organic orders.
-              </div>
+                {/* Order Tracking Box */}
+                <div style={{
+                  border: '1px dashed #000',
+                  borderRadius: 4,
+                  padding: '4px 6px',
+                  textAlign: 'center',
+                  margin: '6px 0',
+                  background: '#fff',
+                }}>
+                  <p style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#000', marginBottom: 2 }}>
+                    Track Your Order
+                  </p>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: '#000', margin: '2px 0' }}>
+                    {data.orderId}
+                  </p>
+                  <p style={{ fontSize: 10, color: '#000', fontWeight: 500, marginTop: 2, lineHeight: 1.2 }}>
+                    Visit asellaorganic.com/track<br />
+                    and enter this ID to track your order
+                  </p>
+                </div>
 
-              <div style={{ textAlign: 'center', fontSize: 10, marginTop: 6 }}>
-                <p style={{ fontWeight: 800 }}>Thank you for your order!</p>
-                <p style={{ fontSize: 9, color: '#000', fontWeight: 800, marginTop: 2 }}>asellaorganic.com</p>
+                {/* Footer Box */}
+                <div style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: 10, fontStyle: 'italic', margin: '6px 0', fontWeight: 500 }}>
+                  This receipt is valid only for Asella Organic orders.
+                </div>
+
+                <div style={{ textAlign: 'center', fontSize: 11, marginTop: 8 }}>
+                  <p style={{ fontWeight: 500 }}>Thank you for your order!</p>
+                  <p style={{ color: '#000', fontWeight: 500, marginTop: 2 }}>asella-organic.com</p>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Action Buttons Below Receipt */}
+        <div className="flex items-center gap-3 mt-2">
+          <button
+            onClick={handlePrint}
+            className="px-6 py-2.5 bg-[#0D4026] text-white rounded-lg text-sm font-semibold hover:bg-[#092a18] transition-colors"
+          >
+            Print (80mm)
+          </button>
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-[#e2e6eb] text-[#333] rounded-lg text-sm font-semibold hover:bg-[#d0d4d9] transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

@@ -51,24 +51,13 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // ── API calls: network-first with API cache fallback ──────────────
+  // ── API calls: network-only ──────────────
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(request)
-        .then((res) => {
-          // Cache successful GETs for offline read
-          if (res.ok && request.method === 'GET') {
-            const clone = res.clone();
-            caches.open(API_CACHE).then((cache) =>
-              cache.put(request, clone).catch(() => {})
-            );
-          }
-          return res;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || new Response(
-          JSON.stringify({ success: false, error: 'Offline' }),
-          { status: 503, headers: { 'Content-Type': 'application/json' } }
-        )))
+      fetch(request).catch(() => new Response(
+        JSON.stringify({ success: false, error: 'Offline' }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      ))
     );
     return;
   }

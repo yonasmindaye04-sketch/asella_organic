@@ -1,8 +1,11 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from '../components/storefront/Header';
 import Footer from '../components/storefront/Footer';
 import { useLanguage } from '../LanguageContext';
+
+const API_BASE = (import.meta as { env: Record<string, string> }).env['VITE_API_URL'] ?? '';
+
 
 interface TrackItem {
   item_name: string;
@@ -74,27 +77,14 @@ const CustomerOrderTracking: React.FC = () => {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
   const { t } = useLanguage();
-  
+
   // Use a ref to prevent double-fetching in strict mode or on remounts
   const hasFetched = useRef(false);
 
-  useEffect(() => {
-    if (orderId && !hasFetched.current) {
-      hasFetched.current = true;
-      handleSearch(undefined, orderId);
-    }
-  }, [orderId]);
-
-  const currentStatus = normalizeStatus(order?.status ?? 'pending');
-  const currentStepIndex = useMemo(() => {
-    if (currentStatus === 'cancelled') return -1;
-    const idx = STEPS.findIndex(step => step.key === currentStatus);
-    return idx >= 0 ? idx : 0;
-  }, [currentStatus]);
-
-  const progress = currentStepIndex <= 0 ? 0 : (currentStepIndex / (STEPS.length - 1)) * 100;
-
-  const handleSearch = async (event?: React.FormEvent, directId?: string) => {
+  // Declared with useCallback BEFORE the useEffect that references it,
+  // so it's never accessed prior to declaration and has a stable
+  // identity for the effect's dependency array.
+  const handleSearch = useCallback(async (event?: React.FormEvent, directId?: string) => {
     event?.preventDefault();
     const searchId = (directId || query).trim();
     if (!searchId) return;
@@ -105,7 +95,7 @@ const CustomerOrderTracking: React.FC = () => {
     setOrder(null);
 
     try {
-      const res = await fetch(`/api/orders/track/${encodeURIComponent(searchId)}`);
+      const res = await fetch(`${API_BASE}/api/orders/track/${encodeURIComponent(searchId)}`);
       const contentType = res.headers.get('content-type');
       let json: any = null;
       if (contentType && contentType.includes('application/json')) {
@@ -129,7 +119,23 @@ const CustomerOrderTracking: React.FC = () => {
     } finally {
       setSearching(false);
     }
-  };
+  }, [query]);
+
+  useEffect(() => {
+    if (orderId && !hasFetched.current) {
+      hasFetched.current = true;
+      handleSearch(undefined, orderId);
+    }
+  }, [orderId, handleSearch]);
+
+  const currentStatus = normalizeStatus(order?.status ?? 'pending');
+  const currentStepIndex = useMemo(() => {
+    if (currentStatus === 'cancelled') return -1;
+    const idx = STEPS.findIndex(step => step.key === currentStatus);
+    return idx >= 0 ? idx : 0;
+  }, [currentStatus]);
+
+  const progress = currentStepIndex <= 0 ? 0 : (currentStepIndex / (STEPS.length - 1)) * 100;
 
   return (
     <div className="min-h-screen bg-parchment dark:bg-[#121212] flex flex-col">

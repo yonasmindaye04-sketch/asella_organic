@@ -92,7 +92,7 @@ const DailyHighlights: React.FC = () => {
                 className="shrink-0 flex flex-col items-center justify-center w-36 md:w-44 cursor-pointer bg-white dark:bg-obsidian p-4 rounded-2xl border border-border shadow-sm hover:shadow-md transition-all duration-300 hover:border-highland-gold hover:-translate-y-1"
               >
                 <div className="w-24 h-24 md:w-28 md:h-28 mb-3 rounded-xl overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm border border-gray-100">
-                   <img src={cat.image} alt={t(`categories.${cat.key}`)} className="w-full h-full object-contain" />
+                   <img src={cat.image} alt={t(`categories.${cat.key}`)} className="w-full h-full object-contain" loading="lazy" />
                 </div>
                 <span className="font-bold text-sm md:text-base text-obsidian dark:text-white tracking-wider uppercase whitespace-normal text-center leading-tight">
                   {t(`categories.${cat.key}`)}

@@ -32,7 +32,7 @@ const StorySection: React.FC = () => {
           
           {/* Background Image (very subtle) */}
           <div className="absolute right-0 top-0 w-4/5 h-full rounded-[40px] overflow-hidden shadow-xl z-0 hidden lg:block border border-border">
-            <img alt="Ethiopian highlands" className="w-full h-full object-cover opacity-10" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3SNcIAbVkrboWtNudzWbLM2_73GNsTn4cLd1SWJJJqyhPwlMqe5tui1tCGn7UiBpLqj66amNVx46sAIuI9FQySnWJV9iHHzAcj_huIPncjDxiFAFTmXAZq9OsROGGkbuRn-a2qMmKSYW5g-VVi7hNUZWf7btjfNXNeegSG80sWUD_-5Gw5Rm4y6c0q6wIIR0ZCRGU5kQ61ALsNAd8vvgIkrbgohoNDsCBDJ5jitk4VrKw_o_3EysIuRyqxcfn3g8AnmrfrH-0oRc" />
+            <img alt="Ethiopian highlands" className="w-full h-full object-cover opacity-10" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3SNcIAbVkrboWtNudzWbLM2_73GNsTn4cLd1SWJJJqyhPwlMqe5tui1tCGn7UiBpLqj66amNVx46sAIuI9FQySnWJV9iHHzAcj_huIPncjDxiFAFTmXAZq9OsROGGkbuRn-a2qMmKSYW5g-VVi7hNUZWf7btjfNXNeegSG80sWUD_-5Gw5Rm4y6c0q6wIIR0ZCRGU5kQ61ALsNAd8vvgIkrbgohoNDsCBDJ5jitk4VrKw_o_3EysIuRyqxcfn3g8AnmrfrH-0oRc" loading="lazy" />
             <div className="absolute inset-0 bg-gradient-to-l from-[#FAF9F6]/10 via-[#FAF9F6]/50 to-[#FAF9F6]"></div>
           </div>
           

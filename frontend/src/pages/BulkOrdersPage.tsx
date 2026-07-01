@@ -15,7 +15,8 @@ const BulkOrdersPage: React.FC = () => {
     phone: '',
     city: 'Addis Ababa',
     location: '',
-    order_type: 'Walk-in',
+    channel: 'Walk-in',      // how the order came in -> maps to `source`
+    orderType: 'pickup',     // fulfillment method -> sent as `order_type`
     notes: '',
     franchiseType: 'Cosmetics Store'
   });
@@ -83,13 +84,19 @@ const BulkOrdersPage: React.FC = () => {
 
       const fullPhoneNumber = `${countryCode} ${formData.phone.trim()}`;
 
+      const CHANNEL_TO_SOURCE: Record<string, string> = {
+        'Walk-in': 'walk-in',
+        'Phone':   'phone',
+        'Online':  'website',
+      };
+
       const orderData = {
-        source: 'Franchise_DB',
+        source: CHANNEL_TO_SOURCE[formData.channel] ?? 'other',
         customer_name: formData.name,
         phone: fullPhoneNumber,
         city: formData.city,
         location: formData.location,
-        order_type: formData.order_type,
+        order_type: formData.orderType,
         notes: finalNotes,
         items: orderItems
       };
@@ -98,7 +105,7 @@ const BulkOrdersPage: React.FC = () => {
       
       if (res.success && res.data) {
         setMessage({ type: 'success', text: `Bulk Order submitted successfully! Order ID: ${res.data.id}` });
-        setFormData({ name: '', phone: '', city: 'Addis Ababa', location: '', order_type: 'Walk-in', notes: '', franchiseType: 'Cosmetics Store' });
+        setFormData({ name: '', phone: '', city: 'Addis Ababa', location: '', channel: 'Walk-in', orderType: 'pickup', notes: '', franchiseType: 'Cosmetics Store' });
         setItems([{ name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
         setReceiptFile(null);
       } else {
@@ -192,10 +199,18 @@ const BulkOrdersPage: React.FC = () => {
 
               <div className="col-span-1 md:col-span-1">
                 <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Order Channel</label>
-                <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+                <select value={formData.channel} onChange={e => setFormData({...formData, channel: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
                   <option>Walk-in</option>
                   <option>Phone</option>
                   <option>Online</option>
+                </select>
+              </div>
+
+              <div className="col-span-1 md:col-span-1">
+                <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Fulfillment *</label>
+                <select required value={formData.orderType} onChange={e => setFormData({...formData, orderType: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+                  <option value="pickup">Pickup</option>
+                  <option value="delivery">Delivery</option>
                 </select>
               </div>
 
@@ -286,7 +301,7 @@ const BulkOrdersPage: React.FC = () => {
 
               <div>
                 <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Attachment (Contract / ID / Receipt)</label>
-                <input type="file" accept="image/*,.pdf" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian dark:text-white hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-[#d4ecd4] dark:border-border p-4 rounded-xl cursor-pointer" />
+                <input type="file" accept="image/*,.pdf" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-[#d4ecd4] dark:border-border p-4 rounded-xl cursor-pointer" />
               </div>
             </div>
 

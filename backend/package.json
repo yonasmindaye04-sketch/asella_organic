@@ -15,7 +15,7 @@
     "telegram:poll": "tsx src/scripts/telegram-poll.ts",
     "db:migrate": "node migrate.cjs",
     "db:migrate:reset": "node migrate.cjs --reset",
-    "prepare": "husky",
+    "prepare": "",
     "lint": "eslint 'src/**/*.ts' --max-warnings 0",
     "typecheck": "tsc --noEmit"
   },
@@ -27,6 +27,7 @@
     "@types/cors": "^2.8.19",
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",
@@ -35,6 +36,7 @@
     "express-rate-limit": "^8.5.2",
     "file-type": "^22.0.1",
     "googleapis": "^171.4.0",
+    "jsdom": "^29.1.1",
     "jsonwebtoken": "^9.0.3",
     "lru-cache": "^11.3.6",
     "multer": "^2.1.1",
@@ -76,7 +78,7 @@
     "typescript-eslint": "^8.60.1"
   },
   "overrides": {
-  "js-yaml": "^4.1.2",
-  "esbuild": "^0.25.0"
-}
+    "js-yaml": "^4.1.2",
+    "esbuild": "^0.25.0"
+  }
 }

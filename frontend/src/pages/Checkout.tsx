@@ -20,6 +20,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { useToast } from '../components/ui/ToastProvider';
+import { resolveProductImage } from '../utils/image';
 import Header from '../components/storefront/Header';
 import Footer from '../components/storefront/Footer';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
@@ -247,9 +248,9 @@ const Checkout: React.FC = () => {
                       key={item.product_id}
                       className="py-4 flex gap-4 items-center"
                     >
-                      {item.image_url ? (
+                      {resolveProductImage(item.image_url, item.name) ? (
                         <OptimizedImage
-                          src={item.image_url}
+                          src={resolveProductImage(item.image_url, item.name)}
                           alt={item.name}
                           aspectRatio={1}
                           className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden"

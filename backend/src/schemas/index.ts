@@ -140,8 +140,9 @@ export const CreateProductSchema = z.object({
   package_size: z.string().trim().min(1).max(50),
   price:        z.number().positive(),
   description:  z.string().trim().max(1000).optional(),
-  image_url:    z.string().url().optional(),
-  featured:     z.boolean().default(false),
+  image_url:    z.string().trim().max(2048).optional().nullable(),
+  featured:     z.coerce.boolean().default(false),
+  active:       z.coerce.boolean().default(true),
   tag:          z.string().trim().max(50).optional(),
   inventory_quantity: z
     .number()
@@ -161,8 +162,9 @@ export const UpdateProductSchema = z
     package_size:        z.string().trim().min(1).max(50).optional(),
     price:               z.number().positive().optional(),
     description:         z.string().trim().max(1000).optional(),
-    image_url:           z.string().url().optional(),
-    featured:            z.boolean().optional(),
+    image_url:           z.string().trim().max(2048).optional().nullable(),
+    featured:            z.coerce.boolean().optional(),
+    active:              z.coerce.boolean().optional(),
     tag:                 z.string().trim().max(50).optional(),
     inventory_quantity:  z.number().int().nonnegative().optional(),
     low_stock_threshold: z.number().int().nonnegative().optional(),

@@ -9,6 +9,7 @@
  * Both tabs read/write the same `products` table via the backend.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { resolveProductImage } from '../utils/image';
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 
@@ -184,7 +185,8 @@ function ProductFormModal({ initial, onClose, onSaved }: ProductFormModalProps) 
       description:         draft.description?.trim() || undefined,
       image_url:           draft.image_url?.trim()   || undefined, // empty string stripped
       low_stock_threshold: Number(draft.low_stock_threshold) || 10,
-      featured:            draft.featured,
+      featured:            !!draft.featured,
+      active:              !!draft.active,
     };
     if (!isEdit) payload['inventory_quantity'] = Number(draft.inventory_quantity) || 0;
 
@@ -403,11 +405,13 @@ const ADJ_TYPES: { key: AdjType; label: string; icon: string }[] = [
 
 interface AdjModalProps {
   item:    StockItem;
+  allItems: StockItem[];
   onClose: () => void;
   onSaved: () => void;
 }
 
-function AdjustmentModal({ item, onClose, onSaved }: AdjModalProps) {
+function AdjustmentModal({ item, allItems, onClose, onSaved }: AdjModalProps) {
+  const [selectedItem, setSelectedItem] = useState<StockItem>(item);
   const [adjType,    setAdjType]  = useState<AdjType>('adjustment');
   const [direction,  setDir]      = useState<'in' | 'out'>('in');
   const [qty,        setQty]      = useState('');
@@ -418,7 +422,8 @@ function AdjustmentModal({ item, onClose, onSaved }: AdjModalProps) {
 
   const qtyNum      = parseInt(qty, 10) || 0;
   const changeAmt   = direction === 'out' ? -qtyNum : qtyNum;
-  const preview     = item.current_quantity + changeAmt;
+  const preview     = selectedItem.current_quantity + changeAmt;
+  const relatedItems = allItems.filter(i => i.name === selectedItem.name);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -428,7 +433,7 @@ function AdjustmentModal({ item, onClose, onSaved }: AdjModalProps) {
     try {
       // Use api.post (proper Content-Type header) — NOT Redux apiFetch
       const payload = {
-        product_id:    String(item.id),   // Ensure it's a string
+        product_id:    String(selectedItem.id),   // Ensure it's a string
         movement_type: adjType,
         change_amount: changeAmt,   // negative = remove, positive = add
         reason:        reason.trim(),
@@ -459,14 +464,37 @@ function AdjustmentModal({ item, onClose, onSaved }: AdjModalProps) {
         {/* Product chip */}
         <div className="bg-white/10 rounded-xl px-4 py-3 mb-5 flex items-center justify-between">
           <div>
-            <p className="font-semibold text-white text-sm">{item.name}</p>
-            <p className="text-gray-400 text-xs mt-0.5">{item.package_size}</p>
+            <p className="font-semibold text-white text-sm">{selectedItem.name}</p>
+            <p className="text-gray-400 text-xs mt-0.5">{selectedItem.package_size}</p>
           </div>
           <div className="text-right">
-            <p className="text-[#4ade80] font-mono font-bold text-lg">{item.current_quantity}</p>
+            <p className="text-[#4ade80] font-mono font-bold text-lg">{selectedItem.current_quantity}</p>
             <p className="text-gray-400 text-xs">current stock</p>
           </div>
         </div>
+
+        {/* Package Size Selector */}
+        {relatedItems.length > 1 && (
+          <div className="mb-5">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Package Size</p>
+            <div className="flex flex-wrap gap-2">
+              {relatedItems.map(i => (
+                <button
+                  key={i.id}
+                  type="button"
+                  onClick={() => setSelectedItem(i)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition border ${
+                    selectedItem.id === i.id
+                      ? 'bg-[#4ade80] text-[#0d1a10] border-[#4ade80]'
+                      : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  {i.package_size}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSave} className="space-y-4">
           {/* Adjustment type */}
@@ -775,8 +803,8 @@ function ProductsTab({ onReloadStock }: ProductsTabProps) {
               className={`border rounded-2xl overflow-hidden bg-white hover:shadow-lg transition group ${!p.active ? 'opacity-55' : ''}`}>
               {/* Image */}
               <div className="h-36 bg-gray-100 relative overflow-hidden">
-                {p.image_url ? (
-                  <img src={p.image_url} alt={p.name}
+                {resolveProductImage(p.image_url, p.name) ? (
+                  <img src={resolveProductImage(p.image_url, p.name)} alt={p.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                     onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 ) : (
@@ -906,19 +934,21 @@ function StockTab({ reloadKey }: StockTabProps) {
     <div>
       {/* KPI Cards */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Total Products', value: summary.total_products, icon: 'category', color: 'text-white bg-[#1a3821] shadow-lg' },
-            { label: 'Total Units',    value: Number(summary.total_units ?? 0).toLocaleString(), icon: 'inventory_2', color: 'text-white bg-blue-600 shadow-lg' },
-            { label: 'Stock Value',    value: `${Number(summary.total_stock_value ?? 0).toLocaleString()} ETB`, icon: 'payments', color: 'text-white bg-purple-600 shadow-lg' },
-            { label: 'Out of Stock',   value: summary.out_of_stock_count, icon: 'report', color: 'text-white bg-red-600 shadow-lg' },
-          ].map(k => (
-            <div key={k.label} className={`rounded-2xl p-5 ${k.color}`}>
+            { label: 'Total Products', value: summary.total_products, icon: 'inventory_2', iconBg: 'bg-blue-500' },
+            { label: 'Total Units', value: summary.total_units, icon: 'tag', iconBg: 'bg-emerald-500' },
+            { label: 'Stock Value', value: `${summary.total_stock_value} ETB`, icon: 'payments', iconBg: 'bg-amber-500' },
+            { label: 'Out of Stock', value: summary.out_of_stock_count, icon: 'warning', iconBg: 'bg-red-500' },
+          ].map((k, i) => (
+            <div key={i} className="card p-4 bg-white rounded-2xl shadow-sm border border-gray-100 transition-all hover:-translate-y-1 hover:shadow-md">
               <div className="flex items-center gap-2 mb-2">
-                <span className="material-symbols-outlined text-[20px]">{k.icon}</span>
-                <span className="text-xs font-semibold uppercase tracking-wide opacity-80">{k.label}</span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${k.iconBg}`}>
+                  <span className="material-symbols-outlined text-white text-[16px]">{k.icon}</span>
+                </div>
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{k.label}</span>
               </div>
-              <p className="text-3xl font-extrabold font-mono drop-shadow-sm">{k.value}</p>
+              <p className="text-2xl font-extrabold text-[#112415]">{k.value}</p>
             </div>
           ))}
         </div>
@@ -965,8 +995,8 @@ function StockTab({ reloadKey }: StockTabProps) {
                 ))}
               </div>
 
-              {/* Table */}
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              {/* Desktop Table View */}
+              <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -1030,6 +1060,52 @@ function StockTab({ reloadKey }: StockTabProps) {
                 </table>
                 {visible.length === 0 && (
                   <div className="text-center py-10 text-gray-400 text-sm">No products match your filter.</div>
+                )}
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {visible.map(item => {
+                  const s = STATUS_STYLES[item.stock_status];
+                  return (
+                    <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 self-start ${s.dot}`} />
+                          <div>
+                            <p className="font-semibold text-[#112415] text-base">{item.name}</p>
+                            <p className="text-xs text-gray-500 mb-1">{item.package_size} · {item.tag ?? '—'}</p>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${s.badge}`}>
+                              {STATUS_LABELS[item.stock_status]}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Stock</p>
+                          <p className={`font-mono font-bold text-xl leading-none ${
+                            item.stock_status === 'out_of_stock' ? 'text-red-600' :
+                            item.stock_status === 'critical'     ? 'text-orange-600' :
+                            item.stock_status === 'low'          ? 'text-amber-600' :
+                            'text-[#112415]'
+                          }`}>{item.current_quantity}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-gray-50 pt-3">
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Last Movement</p>
+                          <p className="text-xs font-medium text-gray-600">{fmtDate(item.last_movement_at) || 'None'}</p>
+                        </div>
+                        <button onClick={() => setAdjTarget(item)}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#e8f5e9] text-[#112415] text-sm font-bold hover:bg-[#4ade80] active:scale-95 transition-all">
+                          <span className="material-symbols-outlined text-[16px]">tune</span>
+                          Adjust
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {visible.length === 0 && (
+                  <div className="text-center py-8 bg-white rounded-2xl border border-gray-100 text-gray-400 text-sm shadow-sm">No products match your filter.</div>
                 )}
               </div>
             </div>
@@ -1159,6 +1235,7 @@ function StockTab({ reloadKey }: StockTabProps) {
       {adjTarget && (
         <AdjustmentModal
           item={adjTarget}
+          allItems={items}
           onClose={() => setAdjTarget(null)}
           onSaved={() => { setAdjTarget(null); void loadAll(); }}
         />
@@ -1205,21 +1282,29 @@ export default function ProductsPage() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 bg-[#112415] p-1 rounded-2xl w-fit mb-7 shadow-lg">
-          {([
-            { key: 'products', label: 'Products',  icon: 'category' },
-            { key: 'stock',    label: 'Stock',      icon: 'inventory' },
-          ] as const).map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
-                tab === t.key
-                  ? 'bg-[#4ade80] text-[#112415] shadow-sm'
-                  : 'text-[#4ade80]/70 hover:text-[#4ade80]'
-              }`}>
-              <span className="material-symbols-outlined text-[18px]">{t.icon}</span>
-              {t.label}
-            </button>
-          ))}
+        <div className="flex gap-1 mb-6 p-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] w-fit animate-in" style={{ animationDelay: '0.05s' }}>
+          <button
+            onClick={() => setTab('products')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              tab === 'products'
+                ? 'bg-[var(--emerald)] text-white shadow-sm'
+                : 'text-[var(--muted)] hover:text-[var(--fg)]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px] align-middle">category</span>
+            Products
+          </button>
+          <button
+            onClick={() => setTab('stock')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              tab === 'stock'
+                ? 'bg-[var(--emerald)] text-white shadow-sm'
+                : 'text-[var(--muted)] hover:text-[var(--fg)]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px] align-middle">inventory</span>
+            Stock
+          </button>
         </div>
 
         {/* Tab content */}

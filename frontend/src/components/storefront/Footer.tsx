@@ -45,10 +45,10 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">{t('footer.importantLinks')}</h4>
             <ul className="space-y-2 text-parchment font-mono text-base">
-              <li><a href="#" className="hover:text-white transition-colors">{t('footer.home')}</a></li>
+              <li><a href="/" className="hover:text-white transition-colors">{t('footer.home')}</a></li>
               <li><a href="#products" className="hover:text-white transition-colors">{t('footer.catalog')}</a></li>
               <li><a href="#story" className="hover:text-white transition-colors">{t('footer.ourStory')}</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a></li>
+              <li><a href="/" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a></li>
             </ul>
           </div>
 
@@ -87,8 +87,8 @@ const Footer: React.FC = () => {
         <div className="pt-4 border-t border-highland-gold/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-parchment font-mono">
           <p>{t('footer.rights')}</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
-            <a href="#" className="hover:text-white transition-colors">{t('footer.termsOfService')}</a>
+            <a href="/" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
+            <a href="/" className="hover:text-white transition-colors">{t('footer.termsOfService')}</a>
           </div>
         </div>
       </div>
