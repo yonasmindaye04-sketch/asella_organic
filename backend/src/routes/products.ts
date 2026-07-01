@@ -24,6 +24,7 @@ import {
 } from "../schemas/index.js";
 import { sendLowStockAlert } from "../lib/telegram.js";
 import { createLogger }      from "../lib/logger.js";
+import { apiCache }          from "../middleware/apiCache.js";
 
 const router = Router();
 
@@ -31,7 +32,7 @@ const router = Router();
 // GET /api/products  — paginated list (public)
 // Query params: ?page=1 ?limit=20 ?search=moringa ?tag=bestseller ?active=true
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/", async (req: Request, res: Response): Promise<void> => {
+router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     const {
@@ -190,12 +191,13 @@ router.post(
         `INSERT INTO products
            (id, name, package_size, price, description, image_url,
             featured, tag, inventory_quantity, low_stock_threshold, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newId, d.name, d.package_size, d.price,
           d.description ?? null, d.image_url ?? null,
           d.featured ?? false, d.tag ?? null,
           d.inventory_quantity ?? 0, d.low_stock_threshold ?? 10,
+          d.active ?? true
         ]
       );
 
@@ -232,7 +234,7 @@ router.patch(
       const fields  = req.body as Record<string, unknown>;
       const allowed = [
         "name", "package_size", "price", "description",
-        "image_url", "featured", "tag",
+        "image_url", "featured", "tag", "active",
         "inventory_quantity", "low_stock_threshold",
       ];
 
@@ -254,7 +256,7 @@ router.patch(
       values.push(req.params.id);
       const [result] = await pool.query(
         `UPDATE products SET ${updates.join(", ")}, updated_at = NOW()
-         WHERE id = ? AND active = true`,
+         WHERE id = ?`,
         values
       ) as [any, any];
 

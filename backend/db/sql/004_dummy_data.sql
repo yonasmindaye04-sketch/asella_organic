@@ -19,9 +19,9 @@ VALUES
     ('a0000006-0000-0000-0000-000000000006', 'beza.staff', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Beza', 'employee', 'beza@asellaorganic.com', NULL, TRUE, NULL, FALSE),
     ('a0000007-0001-1111-1111-111111111117', 'medanit.staff', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Mednit', 'employee', 'medanit@asellaorganic.com', NULL, TRUE, NULL, FALSE),
     ('a0000008-0000-0000-0000-000000000008', 'mesay.manager', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Messay', 'admin', 'mesay@asellaorganic.com', NULL, TRUE, NULL, FALSE),
-    ('a0000009-0000-0000-0000-000000000009', 'nahom.manager', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Nahom eshetu', 'manager', 'nahom@asellaorganic.com', NULL, TRUE, NULL, TRUE),
+    ('a0000009-0000-0000-0000-000000000009', 'nahom.manager', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Nahom eshetu', 'manager', 'nahom@asellaorganic.com', NULL, TRUE, NULL, FALSE),
     ('a0000010-0000-0000-0000-000000000010', 'etalem.staff', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Etalem Benga', 'employee', 'etalem@asellaorganic.com', NULL, TRUE, NULL, FALSE),
-    ('a0000011-0000-0000-0000-000000000011', 'yonas.admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Yonas mindaye', 'admin', 'yonas@asellaorganic.com', NULL, TRUE, NULL, TRUE);
+    ('a0000011-0000-0000-0000-000000000011', 'yonas.admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGniuyema5PysIqD6Jlz6OvtmO2', 'Yonas mindaye', 'admin', 'yonas@asellaorganic.com', NULL, TRUE, NULL, FALSE);
 -- -----------------------------------------------------------------
 -- 2. REFERRAL CONFIGS
 -- -----------------------------------------------------------------

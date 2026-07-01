@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { openOrderModal } from '../../store/slices/uiSlice';
 import { useLanguage } from '../../LanguageContext';
@@ -6,13 +6,21 @@ import { useLanguage } from '../../LanguageContext';
 const Hero: React.FC = () => {
   const dispatch = useDispatch();
   const { t } = useLanguage();
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const glowRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+    }
+
+    rafRef.current = requestAnimationFrame(() => {
+      glowRef.current?.style.setProperty('--glow-x', `${x}px`);
+      glowRef.current?.style.setProperty('--glow-y', `${y}px`);
     });
   };
 
@@ -24,9 +32,10 @@ const Hero: React.FC = () => {
     >
       {/* Interactive Gold Glow that follows the mouse */}
       <div 
+        ref={glowRef}
         className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
         style={{
-          background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(197,160,89,0.12), transparent 40%)`
+          background: 'radial-gradient(600px circle at var(--glow-x, 50%) var(--glow-y, 45%), rgba(197,160,89,0.12), transparent 40%)'
         }}
       />
 
@@ -46,17 +55,17 @@ const Hero: React.FC = () => {
         {/* Buttons */}
         <div className="flex flex-col md:flex-row justify-center items-center gap-4 lg:gap-6 mb-14 lg:mb-20 w-full max-w-4xl mx-auto px-4 md:px-0">
           
-          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-base md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-bounce">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-bounce">
             <span className="material-symbols-outlined text-base lg:text-xl">shopping_cart</span>
             {t('hero.btn.order')}
           </button>
 
-          <a href="#story" className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-base md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <a href="#story" className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined text-base lg:text-xl">info</span>
             {t('hero.btn.about')}
           </a>
 
-          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} className="w-full max-w-[280px] md:max-w-none md:w-auto flex-1 px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-base md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined text-base lg:text-xl">inventory_2</span>
             {t('hero.btn.bulk')}
           </button>
@@ -125,6 +134,3 @@ const Hero: React.FC = () => {
 };
 
 export default Hero;
-
-
-

@@ -66,7 +66,7 @@ export default function NotificationsPage() {
       const cat = activeCategory === 'all' ? '' : `&category=${activeCategory}`;
       const [notifRes, summRes] = await Promise.all([
         api.get<Notification[]>(`/api/notifications?since=${sinceDate}${cat}&limit=100`),
-        api.get<Summary>('/api/notifications/summary'),
+        api.get<Summary>(`/api/notifications/summary?since=${sinceDate}`),
       ]);
       if (notifRes.success && notifRes.data) setNotifications(notifRes.data);
       if (summRes.success && summRes.data)   setSummary(summRes.data);
@@ -117,22 +117,31 @@ export default function NotificationsPage() {
         {summary && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {[
-              { key: 'low_stock',     label: 'Low Stock Alerts', icon: 'warning',        value: summary.low_stock,     color: 'bg-red-600 shadow-lg',     ring: 'ring-red-400' },
-              { key: 'stock_request', label: 'Stock Requests',   icon: 'assignment',     value: summary.stock_request, color: 'bg-amber-500 shadow-lg',   ring: 'ring-amber-300' },
-              { key: 'new_order',     label: 'Pending Orders',   icon: 'shopping_cart',  value: summary.new_order,     color: 'bg-blue-600 shadow-lg',    ring: 'ring-blue-400' },
-              { key: 'vendor',        label: 'Vendor Movements', icon: 'local_shipping', value: summary.vendor,        color: 'bg-[#1a3821] shadow-lg',   ring: 'ring-green-500' },
-            ].map(item => (
+              { key: 'low_stock',     label: 'Low Stock Alerts', icon: 'warning',        value: summary.low_stock,     iconBg: 'bg-red-500 shadow-sm shadow-red-500/20',     iconColor: 'text-white', borderActive: 'border-red-500 ring-1 ring-red-500' },
+              { key: 'stock_request', label: 'Stock Requests',   icon: 'assignment',     value: summary.stock_request, iconBg: 'bg-amber-500 shadow-sm shadow-amber-500/20', iconColor: 'text-white', borderActive: 'border-amber-500 ring-1 ring-amber-500' },
+              { key: 'new_order',     label: 'Pending Orders',   icon: 'shopping_cart',  value: summary.new_order,     iconBg: 'bg-blue-500 shadow-sm shadow-blue-500/20',   iconColor: 'text-white', borderActive: 'border-blue-500 ring-1 ring-blue-500' },
+              { key: 'vendor',        label: 'Vendor Movements', icon: 'local_shipping', value: summary.vendor,        iconBg: 'bg-emerald-600 shadow-sm shadow-emerald-500/20', iconColor: 'text-white', borderActive: 'border-emerald-600 ring-1 ring-emerald-600' },
+            ].map((item, i) => (
               <button
                 key={item.key}
                 onClick={() => setCategory(item.key as Category)}
-                className={`rounded-2xl p-5 text-left transition text-white ${item.color} ${activeCategory === item.key ? `ring-2 ${item.ring}` : ''} hover:opacity-90 hover:scale-[1.02] duration-200`}
+                className={`card p-4 text-left transition animate-in hover:scale-[1.02] duration-200 flex flex-col justify-center border ${activeCategory === item.key ? item.borderActive : 'border-[var(--border)]'}`}
+                style={{ animationDelay: `${0.05 * i}s` }}
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined text-[20px] opacity-90">{item.icon}</span>
-                  <span className="text-xs font-semibold uppercase tracking-wide opacity-80">{item.label}</span>
+                <div className="flex items-center gap-2 mb-2 relative z-[2]">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 hover:scale-110 ${item.iconBg}`}>
+                    <span className={`material-symbols-outlined text-[16px] ${item.iconColor}`}>{item.icon}</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wide">
+                    {item.label}
+                  </span>
                 </div>
-                <p className="text-3xl font-extrabold font-mono drop-shadow-sm">{item.value}</p>
-                <p className="text-[11px] opacity-60 mt-1 font-medium">Last 24h</p>
+                <div className="flex items-baseline justify-between w-full">
+                  <p className="text-2xl font-extrabold text-[var(--fg)] relative z-[2]">{item.value}</p>
+                  <p className="text-[10px] text-[var(--muted)] font-medium">
+                    {since === '1' ? 'Last 24h' : `Last ${since} days`}
+                  </p>
+                </div>
               </button>
             ))}
           </div>

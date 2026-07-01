@@ -23,8 +23,15 @@ router.get(
   authorise("admin", "manager"),
   async (req: Request, res: Response): Promise<void> => {
     const { category, since, limit } = req.query as Record<string, string | undefined>;
-    const LIMIT = Math.min(100, parseInt(limit ?? "50", 10));
-    const SINCE = since ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const LIMIT = Math.min(100, parseInt(limit ?? "50", 10)) || 50;
+    
+    let SINCE = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (since) {
+      const parsedDate = new Date(since);
+      if (!isNaN(parsedDate.getTime())) {
+        SINCE = parsedDate.toISOString().slice(0, 10);
+      }
+    }
 
     try {
       const notifications: any[] = [];
@@ -35,7 +42,7 @@ router.get(
           `SELECT
              im.id,
              'low_stock' AS category,
-             CONCAT('⚠️ Low Stock: ', p.name, ' (', p.package_size, ')') AS title,
+             CONCAT('Low Stock: ', p.name, ' (', p.package_size, ')') AS title,
              CONCAT('Only ', im.quantity_after, ' units remaining (threshold: ', p.low_stock_threshold, ')') AS body,
              im.created_at,
              JSON_OBJECT(
@@ -64,7 +71,7 @@ router.get(
           `SELECT
              sr.id,
              'stock_request' AS category,
-             CONCAT('📋 Stock Request: ', sr.item) AS title,
+             CONCAT('Stock Request: ', sr.item) AS title,
              CONCAT(
                COALESCE(sr.requested_by, 'Staff'), ' needs ', sr.qty_needed,
                ' units', IF(sr.delivery_date IS NOT NULL, CONCAT(' by ', sr.delivery_date), ''),
@@ -96,7 +103,7 @@ router.get(
           `SELECT
              o.id,
              'new_order' AS category,
-             CONCAT('🛒 New Order from ', o.customer_name) AS title,
+             CONCAT('New Order from ', o.customer_name) AS title,
              CONCAT(
                'Source: ', o.source, ' | City: ', COALESCE(o.city, 'N/A'),
                ' | Total: ', COALESCE(o.total, 0), ' ETB | Status: ', o.status
@@ -127,7 +134,7 @@ router.get(
           `SELECT
              vo.id,
              'vendor' AS category,
-             CONCAT('🚚 Vendor Purchase: ', vo.vendor_name) AS title,
+             CONCAT('Vendor Purchase: ', vo.vendor_name) AS title,
              CONCAT(
                'Item: ', vo.item, ' | Amount: ', vo.amount,
                ' | Status: ', vo.status
@@ -166,7 +173,7 @@ router.get(
       res.json({ success: true, data: result, total: result.length });
     } catch (err: any) {
       console.error("[GET /notifications]", err);
-      res.status(500).json({ success: false, error: "Internal server error" });
+      res.status(500).json({ success: false, error: err?.message, stack: err?.stack });
     }
   }
 );
@@ -177,8 +184,15 @@ router.get(
   "/summary",
   authenticate,
   authorise("admin", "manager"),
-  async (_req: Request, res: Response): Promise<void> => {
-    const SINCE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // last 24h
+  async (req: Request, res: Response): Promise<void> => {
+    const { since } = req.query as Record<string, string | undefined>;
+    let SINCE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // default last 24h
+    if (since) {
+      const parsedDate = new Date(since);
+      if (!isNaN(parsedDate.getTime())) {
+        SINCE = parsedDate.toISOString().slice(0, 10);
+      }
+    }
 
     try {
       const [[lowStock]]  = await pool.query(

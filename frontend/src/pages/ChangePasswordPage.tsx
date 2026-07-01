@@ -15,12 +15,24 @@ const ChangePasswordPage: React.FC = () => {
   const [twoFaMessage, setTwoFaMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [twoFaLoading, setTwoFaLoading] = useState(false);
 
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState('');
+  const [adminPasswordReset, setAdminPasswordReset] = useState({ new: '', confirm: '' });
+  const [adminMessage, setAdminMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+
   useEffect(() => {
-    // Check 2FA status on mount
+    // Check 2FA status and admin status on mount
     const fetchStatus = async () => {
       const res = await auth.me();
       if (res.success && res.data) {
         setTwoFaEnabled(res.data.two_factor_enabled);
+        if (res.data.role === 'admin' || res.data.role === 'manager' || res.data.role === 'owner') {
+          setIsAdmin(true);
+          const staffRes = await api.get<any[]>('/api/staff');
+          if (staffRes.success) setUsers(staffRes.data || []);
+        }
       }
     };
     fetchStatus();
@@ -112,6 +124,33 @@ const ChangePasswordPage: React.FC = () => {
       setTwoFaMessage({ type: 'error', text: err.message || 'Network error.' });
     } finally {
       setTwoFaLoading(false);
+    }
+  };
+
+  const handleAdminResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) {
+      setAdminMessage({ type: 'error', text: 'Please select an employee.' });
+      return;
+    }
+    if (adminPasswordReset.new !== adminPasswordReset.confirm) {
+      setAdminMessage({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+    try {
+      setAdminLoading(true);
+      const res = await api.put(`/api/staff/${selectedUser}/password`, { password: adminPasswordReset.new });
+      if (res.success) {
+        setAdminMessage({ type: 'success', text: 'Employee password reset successfully.' });
+        setAdminPasswordReset({ new: '', confirm: '' });
+        setSelectedUser('');
+      } else {
+        setAdminMessage({ type: 'error', text: res.error || 'Failed to reset password.' });
+      }
+    } catch (err: any) {
+      setAdminMessage({ type: 'error', text: err.message || 'Network error.' });
+    } finally {
+      setAdminLoading(false);
     }
   };
 
@@ -230,6 +269,48 @@ const ChangePasswordPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Reset Employee Password Section (Admin Only) */}
+        {isAdmin && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-8 py-5 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
+              <span className="material-symbols-outlined text-gray-500">manage_accounts</span>
+              <h2 className="text-lg font-bold text-[#112415]">Reset Employee Password</h2>
+            </div>
+
+            {adminMessage && (
+              <div className={`mx-8 mt-6 p-4 rounded-lg text-sm font-bold ${adminMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {adminMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleAdminResetSubmit} className="p-8">
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Select Employee</label>
+                  <select required value={selectedUser} onChange={e => setSelectedUser(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition bg-white">
+                    <option value="">-- Choose an employee --</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.full_name} ({u.username})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">New Password</label>
+                  <input required type="password" value={adminPasswordReset.new} onChange={e => setAdminPasswordReset({...adminPasswordReset, new: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Confirm New Password</label>
+                  <input required type="password" value={adminPasswordReset.confirm} onChange={e => setAdminPasswordReset({...adminPasswordReset, confirm: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
+                </div>
+              </div>
+
+              <button type="submit" disabled={adminLoading} className="w-full mt-8 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition flex items-center justify-center gap-2 disabled:opacity-50">
+                {adminLoading ? 'Resetting...' : 'Reset Employee Password'}
+              </button>
+            </form>
+          </div>
+        )}
 
       </div>
     </DashboardLayout>

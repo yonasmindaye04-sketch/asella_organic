@@ -10,11 +10,12 @@ import { Router, Request, Response } from "express";
 import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { createLogger } from "../lib/logger.js";
+import { apiCache }     from "../middleware/apiCache.js";
 
 const router = Router();
 
 /** GET /videos — public */
-router.get("/", async (req: Request, res: Response): Promise<void> => {
+router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     const [rows] = await pool.query(

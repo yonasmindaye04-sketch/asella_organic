@@ -3,6 +3,8 @@ import { api } from '../../services/api';
 import { useDispatch } from 'react-redux';
 import { openOrderModal } from '../../store/slices/uiSlice';
 import { useLanguage } from '../../LanguageContext';
+import { OptimizedImage } from '../ui/OptimizedImage';
+import { resolveProductImage } from '../../utils/image';
 
 interface Product {
   id: string;
@@ -15,113 +17,7 @@ interface Product {
   image_url?: string;
 }
 
-// Map product names to their specific images
-// Rules: check DB image_url first (done at call site), then fall back to local file by name keyword.
-// File names are taken EXACTLY from /public/image/products/ folder listing.
-const getProductImage = (name: string): string => {
-  const n = name.toLowerCase();
 
-  // ── Ashwagandha ──────────────────────────────────────────────────
-  // File: Himalaya ashwagandha tablet 120 ( 250 mg ).png
-  // Matches: "Ashewagenda (Himalya) Tablet", "himalaya ashwagandha tablet"
-  if (n.includes('ashewagenda') || n.includes('ashwagandha tablet') || n.includes('himalya') || n.includes('himalaya ashwagandha'))
-    return '/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png';
-
-  // File: Ashwegdna Powder 250g.png
-  // Matches: "Ashwagandha Powder", "Ashewagenda Powder"
-  if (n.includes('ashwagandha powder') || n.includes('ashewagenda powder'))
-    return '/image/products/Ashwegdna Powder 250g.png';
-
-  // ── Blackseed ────────────────────────────────────────────────────
-  // File: Blackseed Oil ( 30ml ).JPG
-  if (n.includes('blackseed') || n.includes('black seed'))
-    return '/image/products/Blackseed Oil ( 30ml ).JPG';
-
-  // ── Chebe ────────────────────────────────────────────────────────
-  // File: Chebe powder  ( 100g ).png
-  if (n.includes('chebe'))
-    return '/image/products/Chebe powder  ( 100g ).png';
-
-  // ── Chia ─────────────────────────────────────────────────────────
-  // File: Chiaseed 250g and 1kg.png
-  if (n.includes('chia'))
-    return '/image/products/Chiaseed 250g and 1kg.png';
-
-  // ── Cloves ───────────────────────────────────────────────────────
-  // File: Cloves 100g.png
-  if (n.includes('clove'))
-    return '/image/products/Cloves 100g.png';
-
-  // ── Turmeric ─────────────────────────────────────────────────────
-  // File: Erid Turmeric ( 220g ).png
-  if (n.includes('turmeric') || n.includes('erid') || n.includes('erde'))
-    return '/image/products/Erid Turmeric ( 220g ).png';
-
-  // ── Frankincense ─────────────────────────────────────────────────
-  // File: Frankincense Oil  30ml and 60 ml.jpeg
-  if (n.includes('frankincense oil'))
-    return '/image/products/Frankincense Oil  30ml and 60 ml.jpeg';
-  // File: Frankincense ( 100g ).jpeg
-  // Matches: "Frankincense Raw", "Asella Frankincense Raw", "Frankincense"
-  if (n.includes('frankincense'))
-    return '/image/products/Frankincense ( 100g ).jpeg';
-
-  // ── Hibiscus ─────────────────────────────────────────────────────
-  // File: Hibiscus ( 100g ).png
-  if (n.includes('hibiscus') || n.includes('kerkede'))
-    return '/image/products/Hibiscus ( 100g ).png';
-
-  // ── Shilajit ─────────────────────────────────────────────────────
-  // File: Himalaya Shilajit 60 Tablet   ( 500 mg ).png
-  if (n.includes('shilajit tablet') || n.includes('shilajit 60'))
-    return '/image/products/Himalaya Shilajit 60 Tablet   ( 500 mg ).png';
-  // File: Neuherb Shilajit Gummies  (30 Gummies ).png
-  if (n.includes('shilajit gum'))
-    return '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png';
-  // File: Neuherb Shilajit gel 20g.png
-  if (n.includes('shilajit'))
-    return '/image/products/Neuherb Shilajit gel 20g.png';
-
-  // ── Kerbe / Myrrh ────────────────────────────────────────────────
-  // File: Kerbe Powder ( 100g ).png
-  if (n.includes('kerbe powder'))
-    return '/image/products/Kerbe Powder ( 100g ).png';
-  // File: Kerebe Oil (Myrrh Oil )  30ml and 60 ml.png
-  if (n.includes('myrrh') || n.includes('kerbe oil') || n.includes('kerebe oil') || n.includes('kerbe (myrrh)'))
-    return '/image/products/Kerebe Oil (Myrrh Oil )  30ml and 60 ml.png';
-  // "Kerbe raw" / "Kerebe raw" — no image file exists yet, show placeholder
-  if (n.includes('kerbe') || n.includes('kerebe'))
-    return '';
-
-  // ── Moringa ──────────────────────────────────────────────────────
-  // File: Moringa 200g,500g and 1kg.png
-  if (n.includes('moringa'))
-    return '/image/products/Moringa 200g,500g and 1kg.png';
-
-  // ── Nila ─────────────────────────────────────────────────────────
-  // File: Nila Powder 100g.jpeg
-  if (n.includes('nila'))
-    return '/image/products/Nila Powder 100g.jpeg';
-
-  // ── Pumpkin ──────────────────────────────────────────────────────
-  // File: Pumpkin Seed  100g.jpeg
-  if (n.includes('pumpkin'))
-    return '/image/products/Pumpkin Seed  100g.jpeg';
-
-  // ── Qasil ────────────────────────────────────────────────────────
-  // File: Qasil Powder ( 200g ).png
-  if (n.includes('qasil') || n.includes('kesil'))
-    return '/image/products/Qasil Powder ( 200g ).png';
-
-  // ── Coffee / No image ────────────────────────────────────────────
-  // No coffee image exists in /public/image/products/ — return empty
-  // so the Unsplash placeholder is shown instead of a wrong product image.
-  return '';
-};
-
-
-// How many cards to show in the "first section" grid (3 rows × N cols)
-const CARDS_PER_PAGE = 18; // enough to fill 3 rows nicely
 
 const BestSellers: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -135,7 +31,6 @@ const BestSellers: React.FC = () => {
       try {
         const response = await api.get<Product[]>('/api/products?limit=200&sort=sales');
         if (response.success && response.data && response.data.length > 0) {
-          // Remove duplicates by name
           const uniqueProducts: Product[] = [];
           const seenNames = new Set<string>();
           for (const p of response.data) {
@@ -144,6 +39,11 @@ const BestSellers: React.FC = () => {
               uniqueProducts.push(p);
               seenNames.add(normalizedName);
             }
+          }
+          // Randomize the products before displaying
+          for (let i = uniqueProducts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [uniqueProducts[i], uniqueProducts[j]] = [uniqueProducts[j], uniqueProducts[i]];
           }
           setProducts(uniqueProducts);
         } else {
@@ -161,8 +61,8 @@ const BestSellers: React.FC = () => {
 
   const displayedProducts = useMemo(() => {
     if (products.length === 0) return [];
-    // Just slice the first CARDS_PER_PAGE since they are already sorted by sales descending
-    return products.slice(0, Math.min(CARDS_PER_PAGE, products.length));
+    // Show all products
+    return products;
   }, [products]);
 
   return (
@@ -186,22 +86,24 @@ const BestSellers: React.FC = () => {
         </div>
 
         {/* Grid */}
+        {/* Grid */}
         {loading ? (
-          /* Loading Skeletons — 3 rows */
+          /* Loading Skeletons */
           <div
-            className="grid gap-4"
+            className="grid gap-4 overflow-x-auto pb-6 scrollbar-hide"
             style={{
-              gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-              gridAutoRows: 'auto',
+              gridTemplateRows: 'repeat(3, minmax(0, 1fr))',
+              gridAutoFlow: 'column',
+              gridAutoColumns: 'minmax(230px, 1fr)',
             }}
           >
-            {[...Array(18)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-obsidian rounded-2xl border border-border overflow-hidden">
-                <div className="aspect-square bg-parchment-mid animate-pulse" />
-                <div className="p-3 space-y-2">
-                  <div className="h-4 bg-[#d4ecd4]/60 rounded-lg animate-pulse w-3/4" />
-                  <div className="h-3 bg-[#d4ecd4]/40 rounded-lg animate-pulse" />
-                  <div className="h-8 bg-[#d4ecd4]/30 rounded-xl animate-pulse mt-3" />
+            {[...Array(15)].map((_, i) => (
+              <div key={i} className="rounded-2xl overflow-hidden bg-white dark:bg-obsidian border border-border shadow-sm flex flex-col min-h-[300px]">
+                <div className="aspect-[4/5] bg-slate-100 dark:bg-white/10 animate-pulse border-b border-border" />
+                <div className="p-3 space-y-2 flex-1 flex flex-col">
+                  <div className="h-4 bg-slate-200 dark:bg-white/10 rounded-lg animate-pulse w-3/4 mb-1" />
+                  <div className="h-3 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse mb-auto" />
+                  <div className="h-8 bg-slate-200 dark:bg-white/10 rounded-lg animate-pulse w-full mt-2" />
                 </div>
               </div>
             ))}
@@ -220,16 +122,17 @@ const BestSellers: React.FC = () => {
             </p>
           </div>
         ) : (
-          /* Product Cards — responsive 3-row grid, fills full width */
+          /* Product Cards — responsive horizontally scrollable 3-row grid */
           <div
-            className="grid gap-4"
+            className="grid gap-4 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory"
             style={{
-              // Columns: as many as fit, min 200px, max 1fr — fills all horizontal space
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gridTemplateRows: 'repeat(3, minmax(0, 1fr))',
+              gridAutoFlow: 'column',
+              gridAutoColumns: 'minmax(240px, 1fr)',
             }}
           >
             {displayedProducts.map((product) => {
-              const productImageUrl = product.image_url || getProductImage(product.name);
+              const productImageUrl = resolveProductImage(product.image_url, product.name);
               return (
                 <div
                   key={product.id}
@@ -237,17 +140,8 @@ const BestSellers: React.FC = () => {
                              shadow-sm hover:shadow-lg transition-all duration-400 cursor-pointer flex flex-col"
                 >
                   {/* Image container */}
-                  <div className="relative aspect-[4/3] bg-white shrink-0 border-b border-border">
-                    {/* Featured badge */}
-                    {product.featured && (
-                      <div className="absolute top-2 left-2 z-10 px-2 py-0.5 bg-highland-gold
-                                      text-obsidian font-mono text-[10px] font-bold uppercase
-                                      tracking-widest rounded-full shadow-sm">
-                        {t('bestSellers.badgeFeatured')}
-                      </div>
-                    )}
-
-                    {/* Category badge */}
+                  <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+                    {/* Tag badge */}
                     {product.tag && (
                       <div className="absolute top-2 right-2 z-10 px-2 py-0.5 bg-white dark:bg-obsidian
                                       backdrop-blur-sm text-obsidian dark:text-white font-mono text-[10px]
@@ -257,15 +151,13 @@ const BestSellers: React.FC = () => {
                     )}
 
                     {/* Product image with zoom on hover */}
-                    <img
+                    <OptimizedImage
                       src={productImageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&q=80'}
                       alt={product.name}
-                      className="w-full h-full object-contain p-4 transition-transform duration-700
-                                 group-hover:scale-110"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&q=80';
-                      }}
+                      aspectRatio={4 / 5}
+                      sizes="(min-width: 1280px) 220px, (min-width: 768px) 25vw, 50vw"
+                      className="w-full h-full"
+                      imgClassName="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-[1.08]"
                     />
 
                     {/* Gradient overlay — appears on hover */}

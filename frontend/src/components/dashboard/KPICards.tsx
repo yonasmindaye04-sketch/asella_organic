@@ -51,32 +51,27 @@ function AnimatedNumber({ target, prefix = "", suffix = "" }: { target: number; 
 function KPICard({ kpi, index }: { kpi: KPIConfig; index: number }) {
   return (
     <div
-      className="card p-4 group animate-in h-full flex flex-col justify-between"
+      className="card p-4 animate-in h-full flex flex-col justify-center"
       style={{ animationDelay: `${0.06 * index}s` }}
-      onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        e.currentTarget.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
-        e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
-      }}
     >
-      <div>
-        <div className="flex items-start justify-between mb-3 relative z-[2]">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] transition-transform duration-300 group-hover:scale-110" style={{ background: kpi.colorDim, color: kpi.color }}>
-            <i className={kpi.icon} />
-          </div>
+      <div className="flex items-center gap-2 mb-2 relative z-[2]">
+        <div 
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 hover:scale-110" 
+          style={{ background: kpi.colorDim, color: kpi.color }}
+        >
+          <i className={`${kpi.icon} text-[12px]`} />
         </div>
-        <p className="text-[10.5px] text-[var(--muted)] font-semibold uppercase tracking-[0.06em] relative z-[2]">{kpi.label}</p>
-        <p className="text-[22px] font-extrabold tracking-tight mt-1 relative z-[2]">
-          {kpi.value === -1 ? (
-            <span className="font-bold tabular-nums">...</span>
-          ) : (
-            <AnimatedNumber target={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} />
-          )}
-        </p>
+        <span className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wide">
+          {kpi.label}
+        </span>
       </div>
-      <div className="mt-4 pt-3 border-t border-[var(--border)] relative z-[2]">
-          <span className="text-[11px] text-[var(--muted)] font-medium">{kpi.subtitle}</span>
-      </div>
+      <p className="text-2xl font-extrabold text-[var(--fg)] relative z-[2]">
+        {kpi.value === -1 ? (
+          <span className="font-bold tabular-nums">...</span>
+        ) : (
+          <AnimatedNumber target={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} />
+        )}
+      </p>
     </div>
   );
 }
