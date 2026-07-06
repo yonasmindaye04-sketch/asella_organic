@@ -33,8 +33,15 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Courier New', Courier, monospace; background: #fff; padding: 4px 6px; width: 100%; }
-          .receipt { width: 100%; max-width: 360px; margin: 0 auto; }
-          @media print { body { padding: 2px 4px; } @page { margin: 3mm; } }
+          .receipt { width: 100%; max-width: 100%; margin: 0 auto; }
+          .no-break { page-break-inside: avoid; break-inside: avoid; }
+          @media print {
+            body { padding: 2px 4px; }
+            @page { margin: 3mm; size: 80mm auto; }
+            .receipt { page-break-inside: avoid; break-inside: avoid; max-width: 100%; }
+            .no-break { page-break-inside: avoid; break-inside: avoid; }
+            img { max-width: 100% !important; height: auto !important; }
+          }
         </style>
       </head>
       <body>${content.innerHTML}</body>
@@ -58,29 +65,32 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
     >
       <div className="flex flex-col items-center">
         <div className="bg-white rounded shadow-2xl w-full max-w-[420px] max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200 mb-4 flex flex-col">
-          
+
           {/* Receipt body */}
           <div className="overflow-y-auto flex-1 py-4 pb-6 bg-white w-full px-1.5">
             <div ref={receiptRef} className="w-full">
               <div
-                className="receipt w-full"
-                style={{
-                  width: '100%',
-                  fontFamily: "'Courier New', Courier, monospace",
-                  fontSize: 12,
-                  lineHeight: 1.4,
-                  color: '#000',
-                  background: '#fff',
-                  fontWeight: 600,
-                }}
+                  className="receipt w-full no-break"
+                  style={{
+                    width: '100%',
+                    fontFamily: "'Courier New', Courier, monospace",
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                    color: '#000',
+                    background: '#fff',
+                    fontWeight: 600,
+                    pageBreakInside: 'avoid',
+                    breakInside: 'avoid',
+                  }}
               >
                 {/* Header */}
-                <div style={{ textAlign: 'center', marginBottom: 4 }}>
-                  <p style={{ fontSize: 18, fontWeight: 800 }}>Asella Organic Enterprise</p>
+                <div className="no-break" style={{ textAlign: 'center', marginBottom: 4, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <p style={{ fontSize: 16, fontWeight: 800 }}>Asella Organic Enterprise</p>
                   <p style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>
                     Addis Ababa, Piazza Giorgis, Ethel Appartment<br />
-                    Tel: +251 909 122 623 / +251 942 223 999<br />
-                    TIN: 0093291109
+                    <span style={{ whiteSpace: 'nowrap' }}>Tel: +251 909 122 623 or +251 942 223 999</span><br />
+                   
+                    <b style={{ whiteSpace: 'nowrap' }}>TIN: 0093291109</b>
                   </p>
                 </div>
 
@@ -89,31 +99,31 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
 
                 {/* Order info */}
                 <div style={{ margin: '2px 0', fontSize: 11 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Date</span>
-                    <span style={{ fontWeight: 500 }}>{dateStr} {timeStr}</span>
+                    <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{dateStr} {timeStr}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Order ID</span>
-                    <span style={{ fontWeight: 500 }}>{data.orderId}</span>
+                    <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{data.orderId}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Customer</span>
                     <span style={{ fontWeight: 500 }}>{data.customerName}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Phone</span>
-                    <span style={{ fontWeight: 500 }}>{data.phone}</span>
+                    <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{data.phone}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Location</span>
                     <span style={{ fontWeight: 500 }}>{data.location || data.city}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Order Type</span>
                     <span style={{ fontWeight: 500 }}>{data.orderType}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Cashier</span>
                     <span style={{ fontWeight: 500 }}>manager</span>
                   </div>
@@ -123,7 +133,7 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                 <div style={{ borderTop: '1px dashed #000', margin: '4px 0' }}></div>
 
                 {/* Items header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 800, paddingBottom: 2 }}>
+                <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 800, paddingBottom: 2, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <span style={{ flex: 2 }}>ITEM</span>
                   <span style={{ width: 40, textAlign: 'center' }}>PKG</span>
                   <span style={{ width: 30, textAlign: 'center' }}>QTY</span>
@@ -137,13 +147,17 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                 {data.items.map((item, i) => {
                   const amount = item.quantity * item.unit_price;
                   return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0', alignItems: 'flex-start' }}>
+                    <div
+                      key={i}
+                      className="no-break"
+                      style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0', alignItems: 'flex-start', pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                    >
                       <span style={{ flex: 2, wordBreak: 'break-word', paddingRight: 4, fontWeight: 500 }}>
                         {item.name}
                       </span>
                       <span style={{ width: 40, textAlign: 'center', fontWeight: 500 }}>{item.package_size}</span>
                       <span style={{ width: 30, textAlign: 'center', fontWeight: 500 }}>{item.quantity}</span>
-                      <span style={{ width: 70, textAlign: 'right', fontWeight: 500 }}>{amount.toLocaleString()} ETB</span>
+                      <span style={{ width: 70, textAlign: 'right', fontWeight: 500, whiteSpace: 'nowrap' }}>{amount.toLocaleString()} ETB</span>
                     </div>
                   );
                 })}
@@ -151,43 +165,62 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                 {/* Bold Line Above Total */}
                 <div style={{ borderTop: '2px solid #000', margin: '4px 0 2px' }}></div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, padding: '2px 0' }}>
+                <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, padding: '2px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <span>TOTAL</span>
-                  <span>{Number(data.total).toLocaleString()} ETB</span>
+                  <span style={{ whiteSpace: 'nowrap' }}>{Number(data.total).toLocaleString()} ETB</span>
                 </div>
 
                 {/* Thin Dashed Line */}
                 <div style={{ borderTop: '1px dashed #000', margin: '2px 0 6px' }}></div>
 
+                {/* Scan to pay — placed above the QR code */}
+                <p style={{ textAlign: 'center', fontSize: 11, color: '#000', fontWeight: 800, margin: '6px 0 2px' }}>
+                  Scan to pay
+                </p>
+
                 {/* QR Code */}
-                <div style={{ textAlign: 'center', margin: '4px 0 2px' }}>
+                <div className="no-break" style={{ textAlign: 'center', margin: '4px 0 2px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <img
                     src="/image/receipt/Payment Qr Code_.png"
                     alt="Receipt QR Code"
-                    style={{ width: 220, height: 220, margin: '0 auto', display: 'block', imageRendering: 'pixelated' }}
+                    loading="lazy" decoding="async"
+                    style={{
+                      margin: '0 auto',
+                      display: 'block',
+                      width: 190,
+                      height: 170,
+                      maxWidth: '60%',
+                      imageRendering: 'pixelated',
+                    }}
                   />
                 </div>
 
                 {/* EthQR Section */}
-                <p style={{ textAlign: 'center', fontSize: 11, color: '#000', fontWeight: 800, margin: '6px 0 2px' }}>
-                  Scan to pay
-                </p>
-                <div style={{ textAlign: 'center', margin: '2px 0 6px' }}>
+                <div className="no-break" style={{ textAlign: 'center', margin: '2px 0 6px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <img
                     src="/image/receipt/image_2026-05-31_21-04-10.png"
                     alt="EthQR"
-                    style={{ width: 140, height: 'auto', margin: '0 auto', display: 'block' }}
+                    loading="lazy" decoding="async"
+                    style={{
+                      margin: '0 auto',
+                      display: 'block',
+                      width: '55%',
+                      maxWidth: 180,
+                      height: 'auto',
+                    }}
                   />
                 </div>
 
                 {/* Order Tracking Box */}
-                <div style={{
+                <div className="no-break" style={{
                   border: '1px dashed #000',
                   borderRadius: 4,
                   padding: '4px 6px',
                   textAlign: 'center',
                   margin: '6px 0',
                   background: '#fff',
+                  pageBreakInside: 'avoid',
+                  breakInside: 'avoid',
                 }}>
                   <p style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#000', marginBottom: 2 }}>
                     Track Your Order
@@ -202,13 +235,13 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                 </div>
 
                 {/* Footer Box */}
-                <div style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: 10, fontStyle: 'italic', margin: '6px 0', fontWeight: 500 }}>
+                <div className="no-break" style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', fontSize: 10, fontStyle: 'italic', margin: '6px 0', fontWeight: 500, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   This receipt is valid only for Asella Organic orders.
                 </div>
 
-                <div style={{ textAlign: 'center', fontSize: 11, marginTop: 8 }}>
+                <div className="no-break" style={{ textAlign: 'center', fontSize: 11, marginTop: 8, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <p style={{ fontWeight: 500 }}>Thank you for your order!</p>
-                  <p style={{ color: '#000', fontWeight: 500, marginTop: 2 }}>asella-organic.com</p>
+                  <p style={{ color: '#000', fontWeight: 500, marginTop: 2 }}>asellaorganic.com</p>
                 </div>
               </div>
             </div>
@@ -236,6 +269,3 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
 };
 
 export default OrderReceipt;
-
-
-

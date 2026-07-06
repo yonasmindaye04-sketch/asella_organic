@@ -1,0 +1,14 @@
+# ═══════════════════════════════════════════════════════════════════
+# robots.txt — Asella Organic
+# ═══════════════════════════════════════════════════════════════════
+
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /api/
+Disallow: /checkout
+Disallow: /track
+
+# Sitemap
+Sitemap: https://asellaorganic.com/sitemap.xml

@@ -68,6 +68,7 @@ export default function ProductCard({ product, offset, onClick }: ProductCardPro
         <img
           src={product.image}
           alt={product.name}
+          width="400" height="480"
           loading="lazy"
           decoding="async"
           className="absolute inset-0 w-full h-full object-cover"

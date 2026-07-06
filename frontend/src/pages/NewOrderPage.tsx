@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { api } from '../services/api';
 import { COUNTRY_CODES as _CC } from '../constants/countries';
+import DashboardLayout from '../layouts/DashboardLayout';
 
 interface OrderItem {
   product_id:   string;
@@ -40,7 +41,7 @@ const EMPTY_ITEM: OrderItem = {
 
 const SOURCES = ['website', 'phone', 'walk-in','other'];
 const AGE_GROUPS = ['under-18', '18-24', '25-34', '35-44', '45-54', '55+'];
-const CITIES = ['Addis Ababa', 'Adama', 'Dire Dawa', 'Bahir Dar', 'Hawassa', 'Mekele', 'Abroad', 'Other Regions'];
+const CITIES = ['Addis Ababa', 'Other Regions', 'Abroad'];
 
 export default function NewOrderPage() {
   const navigate = useNavigate();
@@ -85,23 +86,35 @@ export default function NewOrderPage() {
 
   const regionalFees: Record<string, number> = {
     'Addis Ababa': 150,
-    'Adama': 200,
-    'Bahir Dar': 300,
-    'Hawassa': 250,
     'Other Regions': 400,
     'Abroad': 0
   };
 
-  const deliveryFee = form.order_type === 'delivery' ? regionalFees[form.city] || 200 : 0;
+  const hasItems = form.items.some(i => i.product_id !== '');
+  const deliveryFee = (form.order_type === 'delivery' && hasItems) ? regionalFees[form.city] || 200 : 0;
 
   const total = form.items.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
-  ) + deliveryFee;
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Out-of-stock check
+    const outOfStockItems = form.items.filter(item => {
+      if (!item.product_id) return false;
+      const variant = products.find(p => p.id === item.product_id);
+      return variant && Number(variant.inventory_quantity) <= 0;
+    });
+    if (outOfStockItems.length > 0) {
+      setError(
+        `Out of stock: ${outOfStockItems.map(i => `${i.name} (${i.package_size})`).join(', ')}. ` +
+        `Please remove these items or choose a different product.`
+      );
+      return;
+    }
 
     const zeroPriceItems = form.items.filter(i => i.unit_price === 0);
     if (zeroPriceItems.length > 0) {
@@ -115,7 +128,7 @@ export default function NewOrderPage() {
     setSubmitting(true);
     try {
       let receiptUrl = '';
-      
+
       if (receiptFile) {
         const fileData = new FormData();
         fileData.append('receipt', receiptFile);
@@ -171,9 +184,10 @@ export default function NewOrderPage() {
   }
 
   return (
+    <DashboardLayout>
     <div className="p-4 md:p-8 font-sans w-full max-w-5xl mx-auto">
       <div className="bg-[#FAF9F6] dark:bg-[#121212] border border-[#d4ecd4] dark:border-border rounded-3xl w-full shadow-lg overflow-hidden animate-in fade-in duration-300 flex flex-col">
-        
+
         {/* Header */}
         <div className="px-8 pt-8 pb-4 bg-[#FAF9F6] dark:bg-[#121212]">
           <h3 className="font-sans font-black text-3xl text-obsidian dark:text-white mb-1 tracking-tight">New Sales Order</h3>
@@ -186,9 +200,9 @@ export default function NewOrderPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-8 pb-8 flex-1">
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            
+
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Customer Name *</label>
               <input required type="text" value={form.customer_name} onChange={e => setForm({...form, customer_name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="Full name" />
@@ -197,9 +211,9 @@ export default function NewOrderPage() {
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Phone Number *</label>
               <div className="flex w-full">
-                <select 
-                  value={countryCode} 
-                  onChange={e => setCountryCode(e.target.value)} 
+                <select
+                  value={countryCode}
+                  onChange={e => setCountryCode(e.target.value)}
                   className="flex-shrink-0 px-3 py-3 bg-parchment-mid dark:bg-[#1A301D] border border-[#d4ecd4] dark:border-border border-r-0 rounded-l-xl text-obsidian dark:text-white text-sm font-bold font-mono outline-none cursor-pointer max-w-[150px] transition-all focus:border-highland-gold"
                 >
                   {_CC.map((country) => (
@@ -271,7 +285,7 @@ export default function NewOrderPage() {
             <h4 className="text-sm font-mono font-bold text-obsidian dark:text-white mb-4 flex items-center gap-2">
               Order Items
             </h4>
-            
+
             {productsLoading ? (
               <p className="text-sm text-slate-500 mb-4">Loading products...</p>
             ) : (
@@ -279,16 +293,20 @@ export default function NewOrderPage() {
                 {form.items.map((item, index) => {
                   const selectedProductVariants = products.filter(p => p.name === item.name);
                   const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
+                  const selectedVariant = item.product_id ? products.find(p => p.id === item.product_id) : null;
+                  const isOutOfStock = selectedVariant && Number(selectedVariant.inventory_quantity) <= 0;
+                  const stockQty = selectedVariant ? Number(selectedVariant.inventory_quantity) : null;
 
                   return (
-                    <div key={index} className="grid grid-cols-12 gap-3 items-end relative border-b border-[#d4ecd4]/50 pb-4 last:border-b-0 last:pb-0">
-                      
+                    <div key={index} className="border-b border-[#d4ecd4]/50 pb-4 last:border-b-0 last:pb-0">
+                      <div className="grid grid-cols-12 gap-3 items-end relative">
+
                       <div className="col-span-12 md:col-span-3">
                         <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Item *</label>
                         <select required value={item.name} onChange={e => {
                           const newName = e.target.value;
                           updateItem(index, 'name', newName);
-                          updateItem(index, 'package_size', ''); // Reset size
+                          updateItem(index, 'package_size', '');
                           updateItem(index, 'product_id', '');
                           updateItem(index, 'unit_price', 0);
                         }} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none transition-all">
@@ -299,7 +317,7 @@ export default function NewOrderPage() {
                         </select>
                       </div>
 
-                      <div className="col-span-12 md:col-span-2">
+                      <div className="col-span-12 md:col-span-3">
                         <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Size *</label>
                         <select required value={item.package_size} onChange={e => {
                           const size = e.target.value;
@@ -309,7 +327,9 @@ export default function NewOrderPage() {
                             updateItem(index, 'product_id', variant.id);
                             updateItem(index, 'unit_price', Number(variant.price));
                           }
-                        }} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none transition-all">
+                        }} className={`w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border focus:ring-1 focus:ring-highland-gold text-sm outline-none transition-all ${
+                          isOutOfStock ? 'border-red-400 focus:border-red-400' : 'border-[#d4ecd4] dark:border-border focus:border-highland-gold'
+                        }`}>
                           <option value="">— Size —</option>
                           {availableSizes.map(size => (
                             <option key={size} value={size}>{size}</option>
@@ -317,26 +337,42 @@ export default function NewOrderPage() {
                         </select>
                       </div>
 
-                      <div className="col-span-6 md:col-span-2">
+                      <div className="col-span-6 md:col-span-3">
                         <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Qty *</label>
                         <input required type="number" min="1" value={item.quantity} onChange={e => updateItem(index, 'quantity', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none font-mono transition-all" />
+
+
                       </div>
 
-                      <div className="col-span-6 md:col-span-3">
-                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Price (ETB) *</label>
-                        <input required type="number" min="0" step="0.01" value={item.unit_price === 0 ? '' : item.unit_price} onChange={e => updateItem(index, 'unit_price', Number(e.target.value))} placeholder="Auto" className={`w-full px-3 py-2.5 rounded-lg bg-white border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none font-mono transition-all ${item.product_id && item.unit_price === 0 ? 'border-amber-400 bg-amber-50' : 'border-[#d4ecd4]'}`} />
-                      </div>
-
-                      <div className="col-span-12 md:col-span-2 flex items-center justify-between md:justify-end gap-2 h-[42px]">
-                        <div className="md:hidden">
-                           <span className="text-xs text-slate-500 font-mono">Subtotal: {(item.unit_price * item.quantity).toLocaleString()}</span>
-                        </div>
+                      <div className="col-span-12 md:col-span-3 flex items-center justify-end gap-2 h-[42px]">
                         {form.items.length > 1 && (
                           <button type="button" onClick={() => removeItem(index)} className="w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors border border-red-200 shadow-sm" title="Remove Item">
                             ✕
                           </button>
                         )}
                       </div>
+
+                      </div>
+
+                      {/* Out of stock warning banner */}
+                      {isOutOfStock && (
+                        <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                          <span className="text-red-500 text-base"></span>
+                          <span className="text-xs font-bold text-red-600">
+                            Out of Stock — <span className="font-semibold">{item.name} ({item.package_size})</span> currently has no available stock. Please remove this item or choose a different product.
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Low stock warning */}
+                      {!isOutOfStock && stockQty !== null && stockQty > 0 && stockQty <= (selectedVariant?.low_stock_threshold ?? 5) && (
+                        <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                          <span className="text-amber-500 text-base"></span>
+                          <span className="text-xs font-bold text-amber-700">
+                            Low Stock — Only <span className="font-semibold">{stockQty}</span> unit{stockQty !== 1 ? 's' : ''} remaining for {item.name} ({item.package_size}).
+                          </span>
+                        </div>
+                      )}
 
                     </div>
                   );
@@ -358,7 +394,7 @@ export default function NewOrderPage() {
 
             <div>
               <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Attachment (Receipt / ID)</label>
-              <input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian dark:text-white hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-[#d4ecd4] dark:border-border p-4 rounded-xl cursor-pointer" />
+              <input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian dark:file:text-white hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-[#d4ecd4] dark:border-border p-4 rounded-xl cursor-pointer" />
             </div>
           </div>
 
@@ -384,8 +420,13 @@ export default function NewOrderPage() {
               </>
             )}
           </button>
-          
+
           <div className="text-right">
+            {deliveryFee > 0 && (
+              <div className="text-white/70 text-xs font-mono mb-1">
+                Delivery Fee: <span className="text-highland-gold/80">{deliveryFee.toLocaleString()} ETB</span>
+              </div>
+            )}
             <div className="text-white text-lg md:text-xl font-mono font-bold leading-none">
               Total: <span className="text-highland-gold">{total.toLocaleString()} ETB</span>
             </div>
@@ -394,5 +435,6 @@ export default function NewOrderPage() {
 
       </div>
     </div>
+    </DashboardLayout>
   );
 }

@@ -36,9 +36,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const [pendingCount, setPendingCount]     = useState(0);
   const [notifCount,   setNotifCount]       = useState(0);
 
-  const role        = user?.role || 'guest';
+  const role        = (user?.role || 'guest').toLowerCase();
   const displayName = user?.name || user?.full_name || user?.username || 'Staff';
-  const displayRole = role.charAt(0).toUpperCase() + role.slice(1);
+  const displayRole = role === 'delivery' ? 'Driver' : role.charAt(0).toUpperCase() + role.slice(1);
 
   // Fetch pending order count
   useEffect(() => {
@@ -147,13 +147,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
           )}
 
           {/* Internal */}
-          {isStaffOrAdmin && (
+          {(isStaffOrAdmin || role === 'driver' || role === 'delivery') && (
             <>
               <div className="sidebar-divider" />
               <div className="sidebar-section-label">Internal</div>
               <ul className="sidebar-nav-group">
-                <NavItem to="/dashboard/products" icon="category" label="Products & Inventory" />
-                <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alert" />
+                {isStaffOrAdmin && (
+                  <>
+                    <NavItem to="/dashboard/products" icon="category" label="Products & Inventory" />
+                    <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alert" />
+                  </>
+                )}
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"

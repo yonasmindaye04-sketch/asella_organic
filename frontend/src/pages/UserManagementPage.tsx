@@ -24,7 +24,7 @@ const UserManagementPage: React.FC = () => {
     password: '',
     full_name: '',
     email: '',
-    role: 'staff',
+    role: 'employee',
     phone: ''
   });
 
@@ -71,7 +71,7 @@ const UserManagementPage: React.FC = () => {
         password: '',
         full_name: '',
         email: '',
-        role: 'staff',
+        role: 'employee',
         phone: ''
       });
     }
@@ -164,7 +164,7 @@ const UserManagementPage: React.FC = () => {
                     <td className="px-6 py-4 text-sm text-gray-600">{u.username}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
                     <td className="px-6 py-4"><span className="px-3 py-1 bg-[#e8f5e9] text-[#112415] text-[10px] font-bold uppercase tracking-wider rounded-full">
-                      {u.role}</span></td>
+                      {u.role === 'delivery' ? 'driver' : u.role}</span></td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => handleOpenModal(u)} className="text-gray-400 hover:text-[#4ade80] transition px-2">
                         <span className="material-symbols-outlined text-lg">edit</span>
@@ -201,10 +201,10 @@ const UserManagementPage: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Role</label>
                 <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full border rounded-lg px-3 py-2">
-                  <option value="staff">Staff</option>
+                  <option value="employee">Staff / Employee</option>
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
-                  <option value="driver">Driver</option>
+                  <option value="delivery">Driver</option>
                 </select>
               </div>
               <div>

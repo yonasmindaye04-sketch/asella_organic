@@ -5,7 +5,7 @@ const Footer: React.FC = () => {
   const { t } = useLanguage();
   return (
     <footer className="bg-obsidian dark:bg-[#0A0A0A] text-white py-8 relative border-t border-highland-gold/10">
-      <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Top Row: Brand (Left) | Social Icons (Right) */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-5 border-b border-highland-gold/10">
@@ -19,10 +19,24 @@ const Footer: React.FC = () => {
 
         {/* Main Grid: Columns */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-6 text-base font-sans">
-          
-          {/* Column 1: About */}
-          <div className="col-span-2 md:col-span-1">
-            
+
+          {/* Column 1: Developer */}
+          <div>
+            <h4 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">Developer</h4>
+            <ul className="space-y-2 text-parchment font-mono text-base">
+              <li className="flex items-center gap-2">
+                <i className="fab fa-telegram text-highland-gold text-base"></i>
+                <a href="https://t.me/yona64" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">@yona64</a>
+              </li>
+              <li className="flex items-center gap-2">
+                <i className="fab fa-whatsapp text-highland-gold text-base"></i>
+                <a href="https://wa.me/2510910011818" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">0910011818</a>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-highland-gold text-lg">mail</span>
+                <a href="mailto:yonasmindaye04@gmail.com" className="hover:text-white transition-colors break-all">yonasmindaye04@gmail.com</a>
+              </li>
+            </ul>
           </div>
 
           {/* Column 2: Payment */}
