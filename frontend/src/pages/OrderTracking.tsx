@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 import ReceiptPrinter from '../components/tracking/ReceiptPrinter';
 import { api } from '../services/api';
+import DashboardLayout from '../layouts/DashboardLayout';
 
 interface OrderItem {
   id?: string;
@@ -89,7 +92,7 @@ const SOURCE_BADGES: Record<string, string> = {
 
 const normalizeStatus = (status?: string) => LEGACY_STATUS_MAP[status || ''] || status || 'Pending';
 const isFranchiseOrder = (order: Order) =>
-  order.source === 'Franchise_DB' || (order.order_type || '').toLowerCase() === 'franchise';
+  order.source === 'Franchise_DB' || (order.order_type || '').toLowerCase() === 'franchise' || (order.notes || '').includes('Franchise Type:');
 const getSourceKey = (order: Order) => isFranchiseOrder(order) ? '_franchise' : (order.source || 'other');
 const getSourceLabel = (order: Order) => SOURCE_LABELS[getSourceKey(order)] || order.source || 'Other';
 const getSourceBadge = (order: Order) => SOURCE_BADGES[getSourceKey(order)] || SOURCE_BADGES.other;
@@ -97,6 +100,8 @@ const isSocialSource = (order: Order) => ['telegram', 'instagram', 'facebook'].i
 
 const OrderTracking: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isAdmin = user?.role === 'admin';
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -107,6 +112,7 @@ const OrderTracking: React.FC = () => {
   const [sourceFilter, setSourceFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [orderTypeFilter, setOrderTypeFilter] = useState('');
 
   // Selection & Bulk
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -126,6 +132,10 @@ const OrderTracking: React.FC = () => {
   const [updateNote, setUpdateNote] = useState('');
   const [updating, setUpdating] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTwoFaCode, setDeleteTwoFaCode] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   
   // Modify Items
   const [editingItems, setEditingItems] = useState<boolean>(false);
@@ -196,8 +206,9 @@ const OrderTracking: React.FC = () => {
       const matchSource = !sourceFilter || getSourceKey(o) === sourceFilter;
       const matchFrom = !dateFrom || new Date(o.created_at) >= new Date(dateFrom);
       const matchTo = !dateTo || new Date(o.created_at) <= new Date(dateTo + 'T23:59:59');
+      const matchType = !orderTypeFilter || (orderTypeFilter === 'bulk' ? isFranchiseOrder(o) : !isFranchiseOrder(o));
       
-      return matchSearch && matchStatus && matchSource && matchFrom && matchTo;
+      return matchSearch && matchStatus && matchSource && matchFrom && matchTo && matchType;
     });
 
     result.sort((a: Order, b: Order) => {
@@ -227,7 +238,7 @@ const OrderTracking: React.FC = () => {
     });
 
     return result;
-  }, [orders, searchTerm, statusFilter, sourceFilter, dateFrom, dateTo, sortCol, sortDir]);
+  }, [orders, searchTerm, statusFilter, sourceFilter, dateFrom, dateTo, sortCol, sortDir, orderTypeFilter]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -370,6 +381,28 @@ const OrderTracking: React.FC = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedOrder || !deleteTwoFaCode) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await api.delete(`/api/orders/${selectedOrder.id}`, { "x-2fa-token": deleteTwoFaCode });
+      if (res.success) {
+        setShowDeleteModal(false);
+        setDeleteTwoFaCode('');
+        setSelectedOrder(null);
+        fetchOrders();
+      } else {
+        setDeleteError(res.error || 'Deletion failed. Check your 2FA code.');
+      }
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setDeleteError(error.message || 'An error occurred');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const initializeEditMode = async (order: Order) => {
     setEditingItems(true);
     setEditedItems(order.items || []);
@@ -491,6 +524,7 @@ const OrderTracking: React.FC = () => {
   };
 
   return (
+    <DashboardLayout>
     <div className="flex flex-col h-full bg-[#f7faf7] font-sans overflow-hidden">
       
       {/* Dark Green Header */}
@@ -562,12 +596,17 @@ const OrderTracking: React.FC = () => {
           <option value="Sales_DB">Sales</option>
           <option value="Order_DB">Online/Guest</option>
         </select>
+        <select className="px-2 py-2 bg-[#f7faf7] border-[1.5px] border-[#ddeedd] rounded-lg text-xs font-semibold text-[#141c15] min-w-[125px] shrink-0 focus:outline-none focus:border-[#2e7d32]" value={orderTypeFilter} onChange={(e) => setOrderTypeFilter(e.target.value)}>
+          <option value="">All Orders</option>
+          <option value="single">Single Orders</option>
+          <option value="bulk">Bulk/Franchise</option>
+        </select>
         <input type="date" title="From date" className="px-2 py-1.5 bg-[#f7faf7] border-[1.5px] border-[#ddeedd] rounded-lg text-xs text-[#141c15] shrink-0 focus:outline-none focus:border-[#2e7d32]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         <input type="date" title="To date" className="px-2 py-1.5 bg-[#f7faf7] border-[1.5px] border-[#ddeedd] rounded-lg text-xs text-[#141c15] shrink-0 focus:outline-none focus:border-[#2e7d32]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         
         <div className="w-[1px] h-[26px] bg-[#ddeedd] shrink-0 mx-1"></div>
         
-        <button onClick={() => { setSearchTerm(''); setStatusFilter(''); setSourceFilter(''); setDateFrom(''); setDateTo(''); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-[1.5px] border-[#ddeedd] bg-white text-xs font-bold text-[#607d66] shrink-0 hover:border-red-500 hover:text-red-500 transition">
+        <button onClick={() => { setSearchTerm(''); setStatusFilter(''); setSourceFilter(''); setDateFrom(''); setDateTo(''); setOrderTypeFilter(''); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-[1.5px] border-[#ddeedd] bg-white text-xs font-bold text-[#607d66] shrink-0 hover:border-red-500 hover:text-red-500 transition">
           <span className="material-symbols-outlined text-[14px]">close</span> Clear
         </button>
 
@@ -905,6 +944,23 @@ const OrderTracking: React.FC = () => {
                             className="w-16 px-1.5 py-1 border-[1px] border-[#ddeedd] rounded text-[11px] focus:outline-none focus:border-[#2e7d32]"
                           />
 
+                          {isAdmin && (
+                            <input 
+                              type="number" 
+                              min="0" 
+                              step="0.01"
+                              value={item.unit_price} 
+                              onChange={e => {
+                                const updated = [...editedItems];
+                                updated[idx] = { ...updated[idx], unit_price: parseFloat(e.target.value) || 0 };
+                                setEditedItems(updated);
+                              }}
+                              className="w-20 px-1.5 py-1 border-[1px] border-[#ddeedd] rounded text-[11px] focus:outline-none focus:border-[#2e7d32]"
+                              placeholder="Price"
+                              title="Unit Price"
+                            />
+                          )}
+
                           <button 
                             onClick={() => removeItem(idx)}
                             className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition"
@@ -945,10 +1001,15 @@ const OrderTracking: React.FC = () => {
                   </div>
                 )}
 
-                <div className="text-center mt-2">
+                <div className="flex flex-col items-center gap-2 mt-2">
                   <button onClick={() => setReceiptOrder(selectedOrder)} className="bg-[#065f46] text-white border-none py-2.5 px-[22px] rounded-lg cursor-pointer text-[14px] font-bold inline-flex items-center gap-2 hover:bg-[#044e3a] transition shadow-md">
                     <span className="material-symbols-outlined text-[18px]">print</span> Print Receipt (80mm)
                   </button>
+                  {isAdmin && (
+                    <button onClick={() => { setShowDeleteModal(true); setDeleteTwoFaCode(''); setDeleteError(''); }} className="bg-red-600 text-white border-none py-2 px-5 rounded-lg cursor-pointer text-[13px] font-bold inline-flex items-center gap-1.5 hover:bg-red-700 transition shadow-md">
+                      <span className="material-symbols-outlined text-[17px]">delete</span> Delete Order
+                    </button>
+                  )}
                 </div>
                 
               </div>
@@ -998,7 +1059,58 @@ const OrderTracking: React.FC = () => {
 
       {/* Receipt Modal */}
       {receiptOrder && <ReceiptPrinter order={receiptOrder} onClose={() => setReceiptOrder(null)} />}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white dark:bg-[#121212] border border-red-200 rounded-2xl w-full max-w-md shadow-2xl p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <span className="material-symbols-outlined text-red-600 text-xl">warning</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-obsidian dark:text-white">Delete Order</h3>
+                <p className="text-sm text-slate-500">Order #{selectedOrder?.id?.slice(0, 8)}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              This will soft-delete the order. Enter your <strong>6-digit authenticator code</strong> to confirm.
+            </p>
+
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="000000"
+              value={deleteTwoFaCode}
+              onChange={e => setDeleteTwoFaCode(e.target.value.replace(/\D/g, ''))}
+              className="w-full px-4 py-3 text-center text-2xl font-mono font-bold tracking-[0.5em] rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-300 transition-all mb-4"
+            />
+
+            {deleteError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-3 rounded-xl border border-[#d4ecd4] dark:border-border text-sm font-bold text-obsidian dark:text-white hover:bg-parchment-mid dark:hover:bg-[#1A301D] transition-all">
+                Cancel
+              </button>
+              <button onClick={handleDelete} disabled={deleting || deleteTwoFaCode.length < 6} className="flex-1 py-3 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                {deleting ? (
+                  <>Deleting...</>
+                ) : (
+                  <>Delete Order</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    </DashboardLayout>
   );
 };
 

@@ -1,0 +1,35 @@
+# Asella Organic
+> Premium organic health products from the Ethiopian highlands. Cold-processed moringa, black seed oil, turmeric, honey, and traditional wellness remedies.
+
+## Products
+- Moringa Powder (200g, 500g, 1kg)
+- Black Seed Oil (30ml)
+- Turmeric Powder (220g)
+- Frankincense Oil (30ml, 60ml)
+- Raw Frankincense
+- Shilajit (60 tablets, gummies, gel)
+- Ashwagandha (60/120 tablets, powder)
+- Chia Seeds (250g, 1kg)
+- Hibiscus (100g)
+- Qasil/Kesil Powder (200g)
+- Chebe Powder (100g)
+- Myrrh Oil & Powder
+- Nila Powder (100g)
+- Pumpkin Seeds (100g)
+- Cloves, Coffee
+
+## Key Links
+- Homepage: https://asellaorganic.com
+- Product catalog: https://asellaorganic.com/#products
+- Order: via Telegram bot or phone
+- Community: https://asellaorganic.com/community-videos
+
+## API
+- Base URL: https://api.asellaorganic.com/api
+- Products: GET /products
+- Orders: POST /orders
+
+## Contact
+- Phone: +251-XXX-XXXXXXX
+- Telegram: @asellaorganic_bot
+- Email: asellamoringa@gmail.com

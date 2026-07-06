@@ -6,7 +6,7 @@ import { useToast } from '../ui/ToastProvider';
 import { useProducts } from '../../hooks/useProducts';
 import OrderReceipt from './OrderReceipt';
 import type { ReceiptData } from './OrderReceipt';
-import { api } from '../../services/api';
+import { api, type Order } from '../../services/api';
 import { useLanguage } from '../../LanguageContext';
 
 import { COUNTRY_CODES as _CC } from '../../constants/countries';
@@ -52,10 +52,8 @@ const OrderForm: React.FC = () => {
 
   const regionalFees: Record<string, number> = {
     'Addis Ababa': 200,
-    'Adama': 200,
-    'Bahir Dar': 300,
-    'Hawassa': 250,
-    'Other': 400,
+    'Other Regions': 400,
+    'Abroad': 0,
   };
 
   if (!orderModalOpen) return null;
@@ -66,7 +64,8 @@ const OrderForm: React.FC = () => {
     }
   };
 
-  const deliveryFee = formData.order_type === 'delivery' ? regionalFees[formData.city] || 200 : 0;
+  const hasItems = items.some(i => i.name !== '');
+  const deliveryFee = (formData.order_type === 'delivery' && hasItems) ? regionalFees[formData.city] || 200 : 0;
   
   const itemsTotal = items.reduce((sum, item) => {
     const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
@@ -75,7 +74,7 @@ const OrderForm: React.FC = () => {
     return sum + (price * qty);
   }, 0);
 
-  const total = itemsTotal + deliveryFee;
+  const total = itemsTotal;
 
   const addItemRow = () => {
     setItems([...items, { name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
@@ -155,17 +154,40 @@ const OrderForm: React.FC = () => {
       
       if (res.success && res.data) {
         toast(t('orderForm.successMessage'), 'success');
-        setReceiptData({
-          orderId: res.data.id,
-          customerName: formData.name,
-          phone: fullPhoneNumber,
-          city: formData.city,
-          location: formData.location,
-          orderType: formData.order_type,
-          total: res.data.total,
-          items: orderItems,
-          date: new Date().toISOString(),
-        });
+        // Fetch full order to get correct receipt data (same as OrderTracking)
+        const fullOrder = await api.get<Order>(`/api/orders/${res.data.id}`);
+        if (fullOrder.success && fullOrder.data) {
+          const order = fullOrder.data;
+          setReceiptData({
+            orderId: order.id,
+            customerName: order.customer_name,
+            phone: order.phone,
+            city: order.city || '',
+            location: order.location || '',
+            orderType: order.source,
+            total: Number(order.total || order.total_amount || 0),
+            items: (order.items || []).map(item => ({
+              name: item.item_name,
+              package_size: item.package_size || '',
+              quantity: item.quantity,
+              unit_price: Number(item.unit_price)
+            })),
+            date: order.created_at,
+          });
+        } else {
+          // Fallback to local data
+          setReceiptData({
+            orderId: res.data.id,
+            customerName: formData.name,
+            phone: fullPhoneNumber,
+            city: formData.city,
+            location: formData.location,
+            orderType: formData.order_type,
+            total: res.data.total,
+            items: orderItems,
+            date: new Date().toISOString(),
+          });
+        }
       } else {
         const details = res.details ? '\n' + JSON.stringify(res.details) : '';
         toast((res.error || t('orderForm.errorMessage')) + details, 'error');
@@ -397,6 +419,11 @@ const OrderForm: React.FC = () => {
           </button>
           
           <div className="text-right">
+            {deliveryFee > 0 && (
+              <div className="text-white/70 text-xs font-mono mb-1">
+                Delivery Fee: <span className="text-highland-gold/80">{deliveryFee.toLocaleString()} {t('common.currency')}</span>
+              </div>
+            )}
             <div className="text-white text-lg md:text-xl font-mono font-bold leading-none">
               {t('orderForm.total')} <span className="text-highland-gold">{total.toLocaleString()} {t('common.currency')}</span>
             </div>

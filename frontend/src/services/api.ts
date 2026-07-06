@@ -204,10 +204,19 @@ export interface Order {
   source:         string;
   customer_name:  string;
   phone:          string;
-  city:           string | null;
+  city:           string;
   status:         string;
   payment_status: string;
   total:          number;
+  total_amount?:  number;
+  location?:      string;
+  items?:         Array<{
+    id?: string;
+    item_name: string;
+    package_size: string;
+    quantity: number;
+    unit_price: number;
+  }>;
   created_at:     string;
 }
 
@@ -228,7 +237,7 @@ export const orders = {
   updatePayment: (id: string, body: unknown)          => api.patch(`/api/orders/${id}/payment`, body),
   updateItems:   (id: string, items: Array<{ name: string; package_size: string; quantity: number; unit_price: number }>) =>
     api.patch(`/api/orders/${id}/items`, { items }),
-  delete:        (id: string)                         => api.delete(`/api/orders/${id}`),
+  delete:        (id: string, twoFaToken: string)     => api.delete(`/api/orders/${id}`, { "x-2fa-token": twoFaToken }),
 };
 
 // ─── Staff helpers ────────────────────────────────────────────────────────────

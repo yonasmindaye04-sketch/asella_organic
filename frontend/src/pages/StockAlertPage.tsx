@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useProducts } from '../hooks/useProducts';
 import { api } from '../services/api';
+import DashboardLayout from '../layouts/DashboardLayout';
 
 interface Form {
   product_id:      string;
@@ -78,6 +79,7 @@ export default function StockAlertPage() {
   const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
 
   return (
+    <DashboardLayout>
     <div className="p-4 md:p-8 font-sans w-full max-w-5xl mx-auto">
       <div className="bg-[#FAF9F6] border border-[#d4ecd4] rounded-3xl w-full shadow-lg overflow-hidden animate-in fade-in duration-300 flex flex-col">
         
@@ -239,5 +241,6 @@ export default function StockAlertPage() {
         </form>
       </div>
     </div>
+    </DashboardLayout>
   );
 }

@@ -3,6 +3,8 @@
  */
 
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useProducts } from '../hooks/useProducts';
@@ -10,6 +12,8 @@ import { COUNTRY_CODES as _CC } from '../constants/countries';
 
 const BulkOrdersPage: React.FC = () => {
   const { products, loading: productsLoading } = useProducts();
+  const user = useSelector((state: RootState) => state.auth.user);
+  const isAdmin = user?.role === 'admin';
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -22,12 +26,12 @@ const BulkOrdersPage: React.FC = () => {
   });
   
   const [countryCode, setCountryCode] = useState('+251');
-  const [items, setItems] = useState([{ name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
+  const [items, setItems] = useState([{ name: '', packageSize: '', qty: 1, unitPrice: 0, deliveryDate: '' }]);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
-  const addItemRow = () => setItems([...items, { name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
+  const addItemRow = () => setItems([...items, { name: '', packageSize: '', qty: 1, unitPrice: 0, deliveryDate: '' }]);
   
   const updateItem = (index: number, field: string, value: string | number) => {
     setItems(prevItems => {
@@ -78,7 +82,7 @@ const BulkOrdersPage: React.FC = () => {
         name: item.name,
         package_size: item.packageSize,
         quantity: item.qty, 
-        unit_price: 0, // Bulk orders might not use retail prices
+        unit_price: item.unitPrice || 0,
         delivery_date: item.deliveryDate 
       }));
 
@@ -106,7 +110,7 @@ const BulkOrdersPage: React.FC = () => {
       if (res.success && res.data) {
         setMessage({ type: 'success', text: `Bulk Order submitted successfully! Order ID: ${res.data.id}` });
         setFormData({ name: '', phone: '', city: 'Addis Ababa', location: '', channel: 'Walk-in', orderType: 'pickup', notes: '', franchiseType: 'Cosmetics Store' });
-        setItems([{ name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
+        setItems([{ name: '', packageSize: '', qty: 1, unitPrice: 0, deliveryDate: '' }]);
         setReceiptFile(null);
       } else {
         setMessage({ type: 'error', text: res.error || 'Failed to submit order' });
@@ -231,13 +235,13 @@ const BulkOrdersPage: React.FC = () => {
                     const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
 
                     return (
-                      <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end relative border-b border-[#d4ecd4]/50 pb-4 last:border-b-0 last:pb-0">
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end relative border-b border-[#d4ecd4]/50 pb-4 last:border-b-0 last:pb-0">
                         
                         <div>
                           <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Item *</label>
                           <select required value={item.name} onChange={e => {
                             updateItem(index, 'name', e.target.value);
-                            updateItem(index, 'packageSize', ''); // Reset size when item changes
+                            updateItem(index, 'packageSize', '');
                           }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none">
                             <option value="">Select item...</option>
                             {Array.from(new Set(products.map(p => p.name))).map(name => (
@@ -248,7 +252,14 @@ const BulkOrdersPage: React.FC = () => {
 
                         <div>
                           <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Package Size *</label>
-                          <select required value={item.packageSize} onChange={e => updateItem(index, 'packageSize', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none">
+                          <select required value={item.packageSize} onChange={e => {
+                            const size = e.target.value;
+                            const variant = products.find(p => p.name === item.name && p.package_size === size);
+                            updateItem(index, 'packageSize', size);
+                            if (variant) {
+                              updateItem(index, 'unitPrice', Number(variant.price));
+                            }
+                          }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none">
                             <option value="">Select...</option>
                             {availableSizes.length > 0 ? (
                               availableSizes.map(size => (
@@ -267,6 +278,13 @@ const BulkOrdersPage: React.FC = () => {
                             updateItem(index, 'qty', isNaN(v) ? 1 : v);
                           }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold text-sm outline-none font-mono" />
                         </div>
+
+                        {isAdmin && (
+                        <div>
+                          <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Price (ETB)</label>
+                          <input type="number" min="0" step="0.01" value={item.unitPrice || ''} onChange={e => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)} placeholder="Auto" className="w-full px-3 py-2 rounded-lg bg-amber-50 dark:bg-obsidian border border-amber-300 dark:border-border focus:border-highland-gold text-sm outline-none font-mono" />
+                        </div>
+                        )}
 
                         <div>
                           <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Target Date</label>

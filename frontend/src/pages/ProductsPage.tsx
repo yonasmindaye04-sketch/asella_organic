@@ -805,7 +805,9 @@ function ProductsTab({ onReloadStock }: ProductsTabProps) {
               <div className="h-36 bg-gray-100 relative overflow-hidden">
                 {resolveProductImage(p.image_url, p.name) ? (
                   <img src={resolveProductImage(p.image_url, p.name)} alt={p.name}
+                    width="144" height="144"
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    loading="lazy" decoding="async"
                     onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">

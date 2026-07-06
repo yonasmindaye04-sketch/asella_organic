@@ -116,8 +116,8 @@ export async function initSentry(): Promise<SentryLike | null> {
 export function getSentry(): SentryLike {
   if (sentryInstance) return sentryInstance;
   return {
-    captureException: (err) => console.error("[uncaught]", err),
-    captureMessage:   (msg) => console.warn("[message]", msg),
+    captureException: () => {}, /* no-op — avoids recursion with wrapped console.error */
+    captureMessage:   () => {},
     setUser:         () => {},
     setTag:           () => {},
     setExtra:         () => {},

@@ -26,6 +26,7 @@ const Dashboard: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
 
   const isManager = user?.role === 'manager';
+  const isStaff = user?.role === 'staff' || user?.role === 'employee' || user?.role === 'driver' || user?.role === 'delivery';
   const [orders, setOrders] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
 
@@ -64,13 +65,13 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Row 2: Sales by Location + Top Products (2 cards) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+        <div className={`grid grid-cols-1 ${!isStaff ? 'lg:grid-cols-2' : ''} gap-3 mb-6`}>
           <SalesByLocation orders={filteredOrders} />
-          <TopProducts orders={filteredOrders} isManager={isManager} />
+          {!isStaff && <TopProducts orders={filteredOrders} isManager={isManager} />}
         </div>
 
-        {/* Row 3: Revenue Overview + Sales Distribution (Hidden for managers) */}
-        {!isManager && (
+        {/* Row 3: Revenue Overview + Sales Distribution (Hidden for managers and staff) */}
+        {(!isManager && !isStaff) && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
             <div className="lg:col-span-2">
               <RevenueChart orders={orders} expenses={expenses} />

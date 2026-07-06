@@ -5,7 +5,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { api } from '../../services/api';
+import type { RootState } from '../../store';
 
 interface KPIConfig {
   label: string;
@@ -77,7 +79,10 @@ function KPICard({ kpi, index }: { kpi: KPIConfig; index: number }) {
 }
 
 export default function KPICards() {
-  const [data, setData] = useState({ revenue: 0, expenses: 0, netProfit: 0, orders: 0 });
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isStaff = user?.role === 'staff' || user?.role === 'employee' || user?.role === 'delivery' || user?.role === 'driver';
+
+  const [data, setData] = useState({ revenue: 0, expenses: 0, netProfit: 0, orders: 0, pendingOrders: 0, completedOrders: 0, processingOrders: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -92,6 +97,9 @@ export default function KPICards() {
         let rev = 0;
         let exp = 0;
         let ordCount = 0;
+        let pending = 0;
+        let completed = 0;
+        let processing = 0;
 
         const getOrderTotal = (o: any) => {
           let items = [];
@@ -107,6 +115,9 @@ export default function KPICards() {
         if (ordRes.success && ordRes.data) {
           const validOrders = ordRes.data.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
           ordCount = validOrders.length;
+          pending = validOrders.filter(o => o.status === 'Pending').length;
+          completed = validOrders.filter(o => o.status === 'Completed' || o.status === 'Delivered').length;
+          processing = validOrders.filter(o => o.status === 'Processing' || o.status === 'In Transit' || o.status === 'Packed').length;
           rev = validOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
         }
 
@@ -118,7 +129,10 @@ export default function KPICards() {
           revenue: rev, 
           expenses: exp, 
           netProfit: rev - exp, 
-          orders: ordCount 
+          orders: ordCount,
+          pendingOrders: pending,
+          completedOrders: completed,
+          processingOrders: processing
         });
       } catch {
         // gracefully fail
@@ -129,12 +143,21 @@ export default function KPICards() {
     fetchKPIs();
   }, []);
 
-  const kpis: KPIConfig[] = [
+  const adminKpis: KPIConfig[] = [
     { label: "Total Revenue", value: loading ? -1 : data.revenue, suffix: " ETB", subtitle: "Lifetime sales", icon: "fa-solid fa-money-bill-wave", color: "var(--emerald)", colorDim: "var(--emerald-dim)" },
     { label: "Total Expenses", value: loading ? -1 : data.expenses, suffix: " ETB", subtitle: "All recorded expenses", icon: "fa-solid fa-money-bill-transfer", color: "var(--rose)", colorDim: "var(--rose-dim)" },
     { label: "Net Profit", value: loading ? -1 : data.netProfit, suffix: " ETB", subtitle: "Revenue minus expenses", icon: "fa-solid fa-piggy-bank", color: "var(--accent)", colorDim: "var(--accent-dim)" },
     { label: "Total Orders", value: loading ? -1 : data.orders, subtitle: "Excluding cancelled", icon: "fa-solid fa-cart-shopping", color: "var(--sky)", colorDim: "var(--sky-dim)" },
   ];
+
+  const staffKpis: KPIConfig[] = [
+    { label: "Total Orders", value: loading ? -1 : data.orders, subtitle: "Excluding cancelled", icon: "fa-solid fa-cart-shopping", color: "var(--sky)", colorDim: "var(--sky-dim)" },
+    { label: "Pending Orders", value: loading ? -1 : data.pendingOrders, subtitle: "Awaiting action", icon: "fa-solid fa-clock", color: "var(--amber)", colorDim: "var(--amber-dim)" },
+    { label: "In Progress", value: loading ? -1 : data.processingOrders, subtitle: "Packed or in transit", icon: "fa-solid fa-truck-fast", color: "var(--accent)", colorDim: "var(--accent-dim)" },
+    { label: "Completed Orders", value: loading ? -1 : data.completedOrders, subtitle: "Successfully delivered", icon: "fa-solid fa-check-circle", color: "var(--emerald)", colorDim: "var(--emerald-dim)" },
+  ];
+
+  const kpis = isStaff ? staffKpis : adminKpis;
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

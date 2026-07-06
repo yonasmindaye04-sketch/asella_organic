@@ -38,6 +38,7 @@ interface VendorOrder {
 interface FormData {
   vendor_name: string;
   phone: string;
+  telegram_username: string;
   material_type: string;
   description: string;
   quantity: string;
@@ -49,7 +50,7 @@ interface FormData {
 }
 
 const EMPTY: FormData = {
-  vendor_name: '', phone: '', material_type: 'Raw Material',
+  vendor_name: '', phone: '', telegram_username: '', material_type: 'Raw Material',
   description: '', quantity: '', unit_price: '',
   totalAmount: 0, payment_status: 'Unpaid', notes: '', product_id: '',
 };
@@ -151,6 +152,9 @@ const VendorPurchasePage: React.FC = () => {
     const res = await api.post<any>('/api/vendor-orders', {
       vendor_name: form.vendor_name,
       phone: form.phone || undefined,
+      telegram_username: form.telegram_username
+        ? form.telegram_username.replace(/^@/, '').trim()
+        : undefined,
       material_type: form.material_type,
       description: form.description,
       quantity: qty,
@@ -287,6 +291,18 @@ const VendorPurchasePage: React.FC = () => {
                     onChange={e => handleChange('phone', e.target.value)}
                     className="w-full px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] focus:border-[var(--emerald)] outline-none transition placeholder-[var(--muted)]"
                     placeholder="Optional"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[var(--muted)] mb-1.5 uppercase tracking-wide">
+                    Telegram Username
+                  </label>
+                  <input
+                    type="text" value={form.telegram_username}
+                    onChange={e => handleChange('telegram_username', e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] focus:border-[var(--emerald)] outline-none transition placeholder-[var(--muted)]"
+                    placeholder="@username (for auto-PO notifications)"
                   />
                 </div>
 
