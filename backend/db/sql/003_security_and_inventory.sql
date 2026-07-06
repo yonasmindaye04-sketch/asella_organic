@@ -42,66 +42,10 @@ WHERE  active = TRUE
 ON DUPLICATE KEY UPDATE current_quantity = VALUES(current_quantity);
 
 -- ── 3. Inventory deduction trigger on order delivered ────────────
-DROP TRIGGER IF EXISTS trg_deduct_inventory_on_delivered;
-
-DELIMITER $$
-
-CREATE TRIGGER trg_deduct_inventory_on_delivered
-AFTER UPDATE ON orders
-FOR EACH ROW
-BEGIN
-    IF NEW.status = 'Delivered' AND OLD.status != 'Delivered' THEN
-        BEGIN
-            DECLARE done          INT DEFAULT FALSE;
-            DECLARE v_product_id  CHAR(36);
-            DECLARE v_quantity    INT;
-            DECLARE v_current_qty INT;
-            DECLARE v_new_qty     INT;
-
-            DECLARE item_cursor CURSOR FOR
-                SELECT p.id, oi.quantity, p.inventory_quantity
-                FROM   order_items oi
-                JOIN   products p
-                  ON   LOWER(oi.item_name) = LOWER(p.name)
-                 AND   oi.package_size     = p.package_size
-                WHERE  oi.order_id = NEW.id
-                  AND  p.active    = TRUE;
-
-            DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-
-            OPEN item_cursor;
-            read_loop: LOOP
-                FETCH item_cursor INTO v_product_id, v_quantity, v_current_qty;
-                IF done THEN LEAVE read_loop; END IF;
-
-                SET v_new_qty = GREATEST(0, v_current_qty - v_quantity);
-
-                UPDATE products
-                SET    inventory_quantity = v_new_qty,
-                       updated_at         = NOW()
-                WHERE  id = v_product_id;
-
-                INSERT INTO stock_snapshots (product_id, current_quantity)
-                VALUES (v_product_id, v_new_qty)
-                ON DUPLICATE KEY UPDATE
-                    current_quantity = v_new_qty,
-                    last_updated     = NOW();
-
-                INSERT INTO inventory_movements
-                    (id, product_id, movement_type, change_amount, reason,
-                     performed_by, quantity_after, reference_id, reference_type)
-                VALUES
-                    (UUID(), v_product_id, 'sale', -v_quantity,
-                     CONCAT('Order ', NEW.id, ' delivered'),
-                     NULL, v_new_qty, NEW.id, 'order');
-
-            END LOOP;
-            CLOSE item_cursor;
-        END;
-    END IF;
-END$$
-
-DELIMITER ;
+-- DISABLED — application code (deductOrderStock in orders.ts) handles
+-- stock deduction atomically. Keeping both caused double-deduction.
+-- See migration 011_drop_inventory_trigger.sql.
+-- DROP TRIGGER IF EXISTS trg_deduct_inventory_on_delivered;
 
 -- ── 4. Low-stock view ─────────────────────────────────────────────
 CREATE OR REPLACE VIEW vw_low_stock AS

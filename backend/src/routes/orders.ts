@@ -25,6 +25,7 @@ import {
 import {
   sendOrderToAdmin,
   sendToDeliveryGroup,
+  sendSimpleMessage,
   sendTelegramToCustomer,
 } from "../lib/telegram.js";
 import { mirrorToSheets }             from "../lib/sheets.js";
@@ -150,9 +151,41 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 
     await connection.commit();
 
-    void sendOrderToAdmin({ id: orderId, ...fields, total, items });
-    if (fields.city?.toLowerCase().includes("addis")) {
-      void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
+    // ── Stock alert for out-of-stock / low-stock items ─────────────
+    void (async () => {
+      try {
+        const alertItems: string[] = [];
+        for (const item of items) {
+          const [rows] = await pool.query(
+            `SELECT name, package_size, inventory_quantity, low_stock_threshold
+             FROM products WHERE name = ? AND package_size = ? AND active = TRUE LIMIT 1`,
+            [item.name, item.package_size]
+          ) as [any[], any];
+          if (!rows.length) continue;
+          const p = rows[0];
+          if (p.inventory_quantity === 0) {
+            alertItems.push(`*OUT OF STOCK*: ${p.name} [${p.package_size}] (ordered ×${item.quantity})`);
+          } else if (p.inventory_quantity <= p.low_stock_threshold) {
+            alertItems.push(`*Low Stock*: ${p.name} [${p.package_size}] — ${p.inventory_quantity} left (ordered ×${item.quantity})`);
+          }
+        }
+        if (alertItems.length && process.env.TELEGRAM_ADMIN_CHAT_ID) {
+          await sendSimpleMessage(
+            process.env.TELEGRAM_ADMIN_CHAT_ID,
+            `*Stock Alert — New Order ${orderId}*\nCustomer: ${fields.customer_name}\n\n${alertItems.join("\n")}`
+          );
+        }
+      } catch (_) { /* non-blocking */ }
+    })();
+
+    const isFranchise = (fields.notes as string | undefined)?.includes("Franchise Type:");
+    if (isFranchise) {
+      void sendOrderToAdmin({ id: orderId, ...fields, total, items, message_type: "franchise" });
+    } else {
+      void sendOrderToAdmin({ id: orderId, ...fields, total, items });
+      if (fields.city?.toLowerCase().includes("addis")) {
+        void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
+      }
     }
     void mirrorToSheets({ id: orderId, ...fields, total, items });
     void sendTelegramToCustomer({

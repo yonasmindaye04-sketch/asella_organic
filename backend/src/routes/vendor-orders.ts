@@ -20,6 +20,7 @@ import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { recordMovement } from "../lib/inventory.js";
+import { sendVendorPO } from "../lib/telegram.js";
 
 const router = Router();
 
@@ -29,6 +30,7 @@ const CreateVendorOrderSchema = z
   .object({
     vendor_name: z.string().trim().min(2).max(150),
     vendor_chat_id: z.string().trim().optional(),
+    telegram_username: z.string().trim().optional(),
     product_id: z.string().trim().optional(),
     item: z.string().trim().min(1).max(200).optional(),
     amount: z.string().trim().min(1).optional(),
@@ -142,6 +144,20 @@ router.post(
     const amount = body.amount ?? String(body.quantity);
     const price = body.price ?? Number((body.quantity ?? 1) * body.unit_price!);
 
+    // Resolve Telegram @username to a numeric chat_id
+    let vendorChatId: string | null = body.vendor_chat_id ?? null;
+    if (body.telegram_username) {
+      try {
+        const [tuRows] = await pool.query(
+          `SELECT chat_id FROM telegram_users WHERE username = ?`,
+          [body.telegram_username]
+        ) as [any[], any];
+        if (tuRows[0]?.chat_id) {
+          vendorChatId = String(tuRows[0].chat_id);
+        }
+      } catch { /* ignore — proceed without Telegram */ }
+    }
+
     try {
       await pool.query(
         `INSERT INTO vendor_orders
@@ -153,7 +169,7 @@ router.post(
           body.product_id ?? null,
           orderId,
           body.vendor_name,
-          body.vendor_chat_id ?? null,
+          vendorChatId,
           item,
           amount,
           price,
@@ -170,6 +186,22 @@ router.post(
       ) as [any[], any];
 
       res.status(201).json({ success: true, data: rows[0] });
+
+      // Send PO to vendor via Telegram (non-blocking, after response)
+      if (vendorChatId) {
+        void sendVendorPO(
+          vendorChatId,
+          body.vendor_name,
+          orderId,
+          [{
+            name: item,
+            amount: amount,
+            price: price.toString(),
+            deliveryDate: body.delivery_date || "Not specified",
+          }],
+          req.user!.id
+        );
+      }
     } catch (err) {
       console.error("[POST /vendor-orders]", err);
       res.status(500).json({ success: false, error: "Internal server error" });
