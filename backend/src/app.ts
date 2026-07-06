@@ -14,7 +14,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 
-import { securityHeaders }  from "./middleware/securityHeaders.js";
+import helmet from "helmet";
 import { generalRateLimit } from "./middleware/rateLimit.js";
 import { requestId }        from "./middleware/requestId.js";
 import { idempotencyMiddleware } from "./middleware/idempotency.js";
@@ -37,8 +37,38 @@ import videoRoutes          from "./routes/videos.js";
 
 const app = express();
 
-// ── 1. Security headers — must be first ───────────────────────────────────────
-app.use(securityHeaders);
+// ── 1. Security headers (helmet) — must be first ──────────────────────────────
+app.use(helmet({
+  strictTransportSecurity: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://api.asellaorganic.com"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  permissionsPolicy: {
+    features: {
+      geolocation: [],
+      camera: [],
+      microphone: [],
+      payment: [],
+      usb: [],
+    },
+  },
+}));
 
 // ── 2. Static files ───────────────────────────────────────────────────────────
 app.use(express.static(path.join(process.cwd(), "public")));

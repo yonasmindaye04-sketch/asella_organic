@@ -7,6 +7,7 @@
  * them to the local backend webhook endpoint.
  */
 
+import "dotenv/config";
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;

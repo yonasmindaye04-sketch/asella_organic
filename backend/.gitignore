@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 .env*.txt
+.env.test.example
+.env.example
+
 
 # Keys & Credentials
 *.key
@@ -21,7 +24,8 @@ yarn.lock
 dist/
 build/
 *.tsbuildinfo
-
+dist.zip
+*.zip
 # IDE & Editor
 .vscode/
 .idea/
@@ -50,6 +54,7 @@ Thumbs.db
 # Testing
 .nyc_output/
 coverage/
+dashboard test/
 
 # Private / Local
 local.ts
