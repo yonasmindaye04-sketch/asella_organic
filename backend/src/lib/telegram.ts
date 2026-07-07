@@ -57,6 +57,15 @@ export async function editMessageText(
   });
 }
 
+// ─── Inline keyboard button type ───────────────────────────────────────────
+// Telegram inline keyboard buttons come in two shapes: a callback button
+// (fires a callback_query back to your bot) or a url button (opens a link
+// in-app/browser). A button can be one or the other, never both, so this
+// is modeled as a discriminated union rather than one flat interface.
+export type TelegramButton =
+  | { text: string; callback_data: string }
+  | { text: string; url: string };
+
 // ─── Message formatters ───────────────────────────────────────────────────
 
 export function formatGroupDeliveryMessage(order: Record<string, any>): string {
@@ -81,14 +90,14 @@ export function formatGroupDeliveryMessage(order: Record<string, any>): string {
         .replace(",", "");
 
   return [
-    `📦 *New Delivery Order*`,
+    ` *New Delivery Order*`,
     `━━━━━━━━━━━━━━━━━━`,
-    `🆔 *Order:* ${order.id ?? "N/A"}`,
-    `🏙 *City:* ${order.city ?? "Addis Ababa"}`,
-    `📍 *Location:* ${order.location ?? "N/A"}`,
-    `🛒 *Items:*`,
+    ` *Order:* ${order.id ?? "N/A"}`,
+    ` *City:* ${order.city ?? "Addis Ababa"}`,
+    ` *Location:* ${order.location ?? "N/A"}`,
+    ` *Items:*`,
     itemsSummary,
-    `\n🕐 ${dateStr}`,
+    `\n ${dateStr}`,
     `━━━━━━━━━━━━━━━━━━`,
     `_First to accept gets assigned. Full details sent privately._`,
   ].join("\n");
@@ -108,20 +117,20 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
     : "No items listed";
 
   return [
-    `🚗 *DELIVERY ORDER — You're Assigned*`,
+    ` *DELIVERY ORDER — You're Assigned*`,
     `━━━━━━━━━━━━━━━━━━`,
-    `🆔 *Order ID:* \`${order.id ?? "N/A"}\``,
-    `👤 *Customer:* ${order.customer_name ?? "N/A"}`,
-    `📞 *Phone:* ${order.phone ?? "N/A"}`,
-    `📍 *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
-    `📋 *Order Type:* ${order.order_type ?? "N/A"}`,
+    ` *Order ID:* \`${order.id ?? "N/A"}\``,
+    ` *Customer:* ${order.customer_name ?? "N/A"}`,
+    ` *Phone:* ${order.phone ?? "N/A"}`,
+    ` *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
+    ` *Order Type:* ${order.order_type ?? "N/A"}`,
     `━━━━━━━━━━━━━━━━━━`,
-    `🛒 *Items:*`,
+    ` *Items:*`,
     itemsSummary,
     `━━━━━━━━━━━━━━━━━━`,
-    `💰 *Total:* ETB ${order.total ?? 0}`,
-    `💳 *Payment:* ${order.payment_method ?? "N/A"}`,
-    `📝 *Notes:* ${order.notes ?? "None"}`,
+    ` *Total:* ETB ${order.total ?? 0}`,
+    ` *Payment:* ${order.payment_method ?? "N/A"}`,
+    ` *Notes:* ${order.notes ?? "None"}`,
     `━━━━━━━━━━━━━━━━━━`,
     `_Please deliver promptly and confirm on arrival._`,
   ].join("\n");
@@ -132,7 +141,7 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
 export async function sendWithButtons(
   chatId: string | number,
   text: string,
-  buttons: Array<Array<{ text: string; callback_data: string }>>
+  buttons: Array<Array<TelegramButton>>
 ): Promise<any> {
   return tg("sendMessage", {
     chat_id:      chatId,
@@ -145,12 +154,12 @@ export async function sendWithButtons(
 export async function sendOrderToAdmin(order: Record<string, unknown>): Promise<void> {
   const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
   if (!chatId) return;
-  
+
   // Only send important messages to admin: stock requests, urgent issues
   // Don't send regular orders - those go to delivery group instead
   // This filter helps reduce admin notification spam
   const messageType = (order.message_type as string) || "order";
-  
+
   // Skip regular orders - let delivery group handle them
   if (messageType === "order" || messageType === "regular") {
     return;
@@ -172,7 +181,7 @@ export async function sendToDeliveryGroup(
 
   const text    = formatGroupDeliveryMessage(order);
   const orderId = String(order.id ?? "UNKNOWN");
-  const buttons = [
+  const buttons: Array<Array<TelegramButton>> = [
     [
       { text: "✅ Accept", callback_data: `delivery_accept_${orderId}` },
       { text: "❌ Reject", callback_data: `delivery_reject_${orderId}` },
@@ -212,12 +221,12 @@ export async function sendTelegramToCustomer({
       [normalizedPhone]
     ) as [any[], any];
     const customer = rows[0];
-    
+
     if (!customer?.telegram_chat_id) {
       console.warn(`[telegram] No linked account for ${phone}`);
       return;
     }
-    
+
     await tg("sendMessage", {
       chat_id:    customer.telegram_chat_id,
       text:       message,
@@ -238,10 +247,10 @@ export async function sendLowStockAlert({
   await tg("sendMessage", {
     chat_id: chatId,
     text:
-      `⚠️ *Low Stock Alert*\n━━━━━━━━━━━━━━━━━━\n` +
-      `📦 *${name}* (${size})\n` +
+      ` *Low Stock Alert*\n━━━━━━━━━━━━━━━━━━\n` +
+      ` *${name}* (${size})\n` +
       `Current: \`${current}\` — Threshold: \`${threshold}\`\n` +
-      `📅 ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n` +
+      ` ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n` +
       `Please restock immediately.`,
     parse_mode: "Markdown",
   });
@@ -258,7 +267,7 @@ export async function sendStockRequestAlert({
   await tg("sendMessage", {
     chat_id: chatId,
     text:
-      `📝 *Stock Request*\n━━━━━━━━━━━━━━━━━━\n` +
+      ` *Stock Request*\n━━━━━━━━━━━━━━━━━━\n` +
       ` *${item}* (${packageSize})\n` +
       `Remaining: *${current}* → Need: *${needed}*\n` +
       `Needed by: ${deliveryDate}\n` +
@@ -307,14 +316,14 @@ export async function sendVendorPO(
     ` ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n\n` +
     `Please confirm by tapping a button below.`;
 
-  const buttons = [
+  const buttons: Array<Array<TelegramButton>> = [
     [
       { text: "✅ Accept Order",    callback_data: `po_accept_${orderId}` },
       { text: "❌ Decline Order",   callback_data: `po_decline_${orderId}` },
     ],
     [
-      { text: "🔄 Request Changes", callback_data: `po_changes_${orderId}` },
-      { text: "👁 View Details",    callback_data: `po_view_${orderId}` },
+      { text: " Request Changes", callback_data: `po_changes_${orderId}` },
+      { text: " View Details",    callback_data: `po_view_${orderId}` },
     ],
   ];
 
@@ -325,7 +334,7 @@ export async function sendVendorPO(
     if (adminChat) {
       await tg("sendMessage", {
         chat_id:    adminChat,
-        text:       `⚠️ *Vendor Not Registered*\n${vendorName} needs to /start the bot.\nPO ${orderId} queued for retry.`,
+        text:       ` *Vendor Not Registered*\n${vendorName} needs to /start the bot.\nPO ${orderId} queued for retry.`,
         parse_mode: "Markdown",
       });
     }
@@ -351,7 +360,7 @@ export async function sendMorningBriefing(): Promise<void> {
 
     await sendWithButtons(
       adminChat,
-      `☀️ *Morning Briefing — Asella Organic*\n━━━━━━━━━━━━━━━━━━\n` +
+      ` *Morning Briefing — Asella Organic*\n━━━━━━━━━━━━━━━━━━\n` +
       ` Yesterday (${yesterday}):\n` +
       `   Orders: *${s?.orders ?? 0}* | Revenue: *ETB ${Number(s?.revenue ?? 0).toLocaleString()}*\n` +
       `━━━━━━━━━━━━━━━━━━\n` +
@@ -372,3 +381,4 @@ export function enforceStringValue(input: string | string[] | undefined): string
   if (!input) return "";
   return Array.isArray(input) ? (input[0] ?? "") : input;
 }
+

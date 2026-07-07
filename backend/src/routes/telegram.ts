@@ -925,7 +925,7 @@ async function handleMessage(message: any): Promise<void> {
         const fallbackName = [from?.first_name, from?.last_name].filter(Boolean).join(" ") || "Telegram Customer";
         await linkCustomerChat(phone, chatId, fallbackName);
         userState.delete(chatId);
-        await sendSimpleMessage(chatId, "✅ Your Telegram account is linked! You'll receive updates for orders with that phone number.");
+        await sendSimpleMessage(chatId, " Your Telegram account is linked! You'll receive updates for orders with that phone number.");
         return;
       }
 
@@ -1040,9 +1040,14 @@ router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const messageDate: number | undefined =
-      update?.message?.date ??
-      update?.callback_query?.message?.date;
+    // Only apply staleness protection to plain messages (e.g. a backlog of
+    // /start or text messages replayed after an outage). Never apply it to
+    // callback_query taps: Telegram only ever generates those in real time,
+    // the instant a button is pressed — the only "date" available on them
+    // is the *original* message's post time, which has nothing to do with
+    // when the tap happened. An old order sitting in the group must stay
+    // tappable indefinitely.
+    const messageDate: number | undefined = update?.message?.date;
 
     if (messageDate) {
       const ageSeconds = Math.floor(Date.now() / 1000) - messageDate;
