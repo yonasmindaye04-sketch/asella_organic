@@ -49,7 +49,7 @@ export async function editMessageText(
   messageId: number,
   text: string,
   replyMarkup?: Record<string, unknown>
-): Promise<void> {
+): Promise<any> {
   const body: Record<string, unknown> = {
     chat_id:    chatId,
     message_id: messageId,
@@ -57,7 +57,11 @@ export async function editMessageText(
     parse_mode: "Markdown",
   };
   if (replyMarkup) body.reply_markup = replyMarkup;
-  await tg("editMessageText", body);
+  const result = await tg("editMessageText", body);
+  if (result && !result.ok) {
+    console.error(`[telegram] editMessageText failed: ${result.description}`, { chat_id: chatId, message_id: messageId });
+  }
+  return result;
 }
 
 // ─── Message formatters ───────────────────────────────────────────────────
