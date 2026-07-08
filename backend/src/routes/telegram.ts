@@ -708,8 +708,10 @@ async function handleCallback(query: any): Promise<void> {
     // ── Delivery acceptance (existing) ─────────────────────────────
     if (data.startsWith("delivery_accept_")) {
       const orderId = data.replace("delivery_accept_", "");
-      const driverUsername = from?.username || `delivery_${chatId}`;
+      const driverChatId = from?.id;
+      const driverUsername = from?.username || `delivery_${driverChatId}`;
       const messageId = message?.message_id;
+      const groupChatId = process.env.TELEGRAM_DELIVERY_GROUP_ID;
 
       // Atomic update: only update if it's currently unassigned and not In Transit/Delivered
       const [updateResult] = await pool.query(
@@ -720,66 +722,76 @@ async function handleCallback(query: any): Promise<void> {
       ) as [any, any];
 
       if (updateResult.affectedRows === 0) {
-        // The order was either already taken, doesn't exist, or has invalid status
-        await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver or cannot be accepted.", true);
-        
-        // Optionally fetch the current state to update the message if another driver took it
-        const [orders] = await pool.query(`SELECT assigned_to, status FROM orders WHERE id = ?`, [orderId]) as [any[], any];
-        const order = orders[0];
-        if (order && order.assigned_to && messageId && process.env.TELEGRAM_DELIVERY_GROUP_ID) {
-           await editMessageText(
-              process.env.TELEGRAM_DELIVERY_GROUP_ID,
-              messageId,
-              `${message.text}\n\nAccepted by another driver: @${order.assigned_to}`,
+        await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver.", true);
+        // Try to remove buttons for late clickers
+        if (messageId && groupChatId) {
+          const [rows] = await pool.query(`SELECT assigned_to FROM orders WHERE id = ?`, [orderId]) as [any[], any];
+          const takenBy = rows[0]?.assigned_to;
+          if (takenBy) {
+            await editMessageText(
+              groupChatId, messageId,
+              `${message.text}\n\n✅ Accepted by another driver: @${takenBy}`,
               { inline_keyboard: [] }
-           ).catch(console.error); // Ignore errors if we can't update it
+            ).catch(console.error);
+          }
         }
         return;
       }
 
-      // If we got here, THIS driver successfully claimed the order atomically.
-      // Now we can safely fetch the order details and items.
-      const [orders] = await pool.query(
-        `SELECT * FROM orders WHERE id = ?`,
-        [orderId]
-      ) as [any[], any];
-      const order = orders[0];
-
-      await pool.query(
-        `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
-         VALUES (?, ?, ?, 'In Transit', ?, 'Accepted by delivery from Telegram', NOW())`,
-        [crypto.randomUUID(), orderId, 'Pending', driverUsername]
-      );
-
-      await pool.query(
-        `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
-         VALUES (?, ?, ?, NOW())
-         ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
-        [orderId, driverUsername, messageId]
-      );
-
-      const [items] = await pool.query(
-        `SELECT * FROM order_items WHERE order_id = ?`,
-        [orderId]
-      ) as [any[], any];
-
-      await sendDetailsToAssignedDriver(chatId, { ...order, items });
-
-      if (message?.message_id && process.env.TELEGRAM_DELIVERY_GROUP_ID) {
-        await editMessageText(
-          process.env.TELEGRAM_DELIVERY_GROUP_ID,
-          message.message_id,
-          `${message.text}\n\nAccepted by: ${from?.first_name || "Driver"} (@${from?.username || "unknown"})`,
+      // ── CRITICAL: Update group message FIRST (remove buttons) ────
+      // This must happen before anything else so the buttons disappear
+      // even if subsequent steps fail.
+      if (messageId && groupChatId) {
+        const editResult = await editMessageText(
+          groupChatId,
+          messageId,
+          `${message.text}\n\n✅ Accepted by: ${from?.first_name || "Driver"} (@${driverUsername})`,
           { inline_keyboard: [] }
         );
+        if (editResult && !editResult.ok) {
+          console.error("[delivery_accept] editMessageText failed:", editResult.description);
+        }
       }
 
-      await answerCallbackQuery(callbackQueryId, "Accepted! Details sent to you.", false);
+      // Answer callback immediately so driver gets feedback
+      await answerCallbackQuery(callbackQueryId, "Accepted! Sending you the details...", false);
 
-      void sendTelegramToCustomer({
-        phone: order.phone,
-        message: `Hi ${order.customer_name}, your order *${orderId}* is now *In Transit*.`,
-      });
+      // ── Non-critical steps (wrapped in try-catch) ────────────────
+      // If these fail, the order is still claimed and buttons are removed.
+      try {
+        const [orders] = await pool.query(
+          `SELECT * FROM orders WHERE id = ?`, [orderId]
+        ) as [any[], any];
+        const order = orders[0];
+
+        await pool.query(
+          `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
+           VALUES (?, ?, ?, 'In Transit', ?, 'Accepted by delivery from Telegram', NOW())`,
+          [crypto.randomUUID(), orderId, 'Pending', driverUsername]
+        );
+
+        await pool.query(
+          `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
+           VALUES (?, ?, ?, NOW())
+           ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
+          [orderId, driverUsername, messageId]
+        );
+
+        const [items] = await pool.query(
+          `SELECT * FROM order_items WHERE order_id = ?`, [orderId]
+        ) as [any[], any];
+
+        // Send private details to the DRIVER (using from.id, not the group chatId)
+        await sendDetailsToAssignedDriver(driverChatId, { ...order, items });
+
+        // Notify customer
+        void sendTelegramToCustomer({
+          phone: order.phone,
+          message: `Hi ${order.customer_name}, your order *${orderId}* is now *In Transit*.`,
+        });
+      } catch (err) {
+        console.error("[delivery_accept] Post-claim steps failed:", err);
+      }
 
       return;
     }
