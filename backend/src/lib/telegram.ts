@@ -47,14 +47,17 @@ export async function answerCallbackQuery(
 export async function editMessageText(
   chatId: string | number,
   messageId: number,
-  text: string
+  text: string,
+  replyMarkup?: Record<string, unknown>
 ): Promise<void> {
-  await tg("editMessageText", {
+  const body: Record<string, unknown> = {
     chat_id:    chatId,
     message_id: messageId,
     text,
     parse_mode: "Markdown",
-  });
+  };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  await tg("editMessageText", body);
 }
 
 // ─── Message formatters ───────────────────────────────────────────────────
@@ -81,14 +84,14 @@ export function formatGroupDeliveryMessage(order: Record<string, any>): string {
         .replace(",", "");
 
   return [
-    `📦 *New Delivery Order*`,
+    ` *New Delivery Order*`,
     `━━━━━━━━━━━━━━━━━━`,
-    `🆔 *Order:* ${order.id ?? "N/A"}`,
-    `🏙 *City:* ${order.city ?? "Addis Ababa"}`,
-    `📍 *Location:* ${order.location ?? "N/A"}`,
-    `🛒 *Items:*`,
+    ` *Order:* ${order.id ?? "N/A"}`,
+    ` *City:* ${order.city ?? "Addis Ababa"}`,
+    ` *Location:* ${order.location ?? "N/A"}`,
+    ` *Items:*`,
     itemsSummary,
-    `\n🕐 ${dateStr}`,
+    `\n ${dateStr}`,
     `━━━━━━━━━━━━━━━━━━`,
     `_First to accept gets assigned. Full details sent privately._`,
   ].join("\n");
@@ -108,20 +111,20 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
     : "No items listed";
 
   return [
-    `🚗 *DELIVERY ORDER — You're Assigned*`,
+    ` *DELIVERY ORDER — You're Assigned*`,
     `━━━━━━━━━━━━━━━━━━`,
-    `🆔 *Order ID:* \`${order.id ?? "N/A"}\``,
-    `👤 *Customer:* ${order.customer_name ?? "N/A"}`,
-    `📞 *Phone:* ${order.phone ?? "N/A"}`,
-    `📍 *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
-    `📋 *Order Type:* ${order.order_type ?? "N/A"}`,
+    ` *Order ID:* \`${order.id ?? "N/A"}\``,
+    ` *Customer:* ${order.customer_name ?? "N/A"}`,
+    ` *Phone:* ${order.phone ?? "N/A"}`,
+    ` *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
+    ` *Order Type:* ${order.order_type ?? "N/A"}`,
     `━━━━━━━━━━━━━━━━━━`,
-    `🛒 *Items:*`,
+    ` *Items:*`,
     itemsSummary,
     `━━━━━━━━━━━━━━━━━━`,
-    `💰 *Total:* ETB ${order.total ?? 0}`,
-    `💳 *Payment:* ${order.payment_method ?? "N/A"}`,
-    `📝 *Notes:* ${order.notes ?? "None"}`,
+    ` *Total:* ETB ${order.total ?? 0}`,
+    ` *Payment:* ${order.payment_method ?? "N/A"}`,
+    ` *Notes:* ${order.notes ?? "None"}`,
     `━━━━━━━━━━━━━━━━━━`,
     `_Please deliver promptly and confirm on arrival._`,
   ].join("\n");
@@ -132,7 +135,7 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
 export async function sendWithButtons(
   chatId: string | number,
   text: string,
-  buttons: Array<Array<{ text: string; callback_data: string }>>
+  buttons: Array<Array<{ text: string; callback_data?: string; url?: string }>>
 ): Promise<any> {
   return tg("sendMessage", {
     chat_id:      chatId,
@@ -238,10 +241,10 @@ export async function sendLowStockAlert({
   await tg("sendMessage", {
     chat_id: chatId,
     text:
-      `⚠️ *Low Stock Alert*\n━━━━━━━━━━━━━━━━━━\n` +
-      `📦 *${name}* (${size})\n` +
+      ` *Low Stock Alert*\n━━━━━━━━━━━━━━━━━━\n` +
+      ` *${name}* (${size})\n` +
       `Current: \`${current}\` — Threshold: \`${threshold}\`\n` +
-      `📅 ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n` +
+      ` ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n` +
       `Please restock immediately.`,
     parse_mode: "Markdown",
   });
@@ -258,7 +261,7 @@ export async function sendStockRequestAlert({
   await tg("sendMessage", {
     chat_id: chatId,
     text:
-      `📝 *Stock Request*\n━━━━━━━━━━━━━━━━━━\n` +
+      ` *Stock Request*\n━━━━━━━━━━━━━━━━━━\n` +
       ` *${item}* (${packageSize})\n` +
       `Remaining: *${current}* → Need: *${needed}*\n` +
       `Needed by: ${deliveryDate}\n` +
@@ -313,8 +316,8 @@ export async function sendVendorPO(
       { text: "❌ Decline Order",   callback_data: `po_decline_${orderId}` },
     ],
     [
-      { text: "🔄 Request Changes", callback_data: `po_changes_${orderId}` },
-      { text: "👁 View Details",    callback_data: `po_view_${orderId}` },
+      { text: " Request Changes", callback_data: `po_changes_${orderId}` },
+      { text: " View Details",    callback_data: `po_view_${orderId}` },
     ],
   ];
 
@@ -325,7 +328,7 @@ export async function sendVendorPO(
     if (adminChat) {
       await tg("sendMessage", {
         chat_id:    adminChat,
-        text:       `⚠️ *Vendor Not Registered*\n${vendorName} needs to /start the bot.\nPO ${orderId} queued for retry.`,
+        text:       ` *Vendor Not Registered*\n${vendorName} needs to /start the bot.\nPO ${orderId} queued for retry.`,
         parse_mode: "Markdown",
       });
     }
@@ -351,7 +354,7 @@ export async function sendMorningBriefing(): Promise<void> {
 
     await sendWithButtons(
       adminChat,
-      `☀️ *Morning Briefing — Asella Organic*\n━━━━━━━━━━━━━━━━━━\n` +
+      ` *Morning Briefing — Asella Organic*\n━━━━━━━━━━━━━━━━━━\n` +
       ` Yesterday (${yesterday}):\n` +
       `   Orders: *${s?.orders ?? 0}* | Revenue: *ETB ${Number(s?.revenue ?? 0).toLocaleString()}*\n` +
       `━━━━━━━━━━━━━━━━━━\n` +
