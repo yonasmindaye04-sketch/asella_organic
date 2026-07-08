@@ -708,33 +708,54 @@ async function handleCallback(query: any): Promise<void> {
     // ── Delivery acceptance (existing) ─────────────────────────────
     if (data.startsWith("delivery_accept_")) {
       const orderId = data.replace("delivery_accept_", "");
+      const driverUsername = from?.username || `delivery_${chatId}`;
+      const messageId = message?.message_id;
+
+      // Atomic update: only update if it's currently unassigned and not In Transit/Delivered
+      const [updateResult] = await pool.query(
+        `UPDATE orders 
+         SET status = 'In Transit', assigned_to = ?, delivery_message_id = ? 
+         WHERE id = ? AND assigned_to IS NULL AND status NOT IN ('In Transit', 'Delivered')`,
+        [driverUsername, messageId, orderId]
+      ) as [any, any];
+
+      if (updateResult.affectedRows === 0) {
+        // The order was either already taken, doesn't exist, or has invalid status
+        await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver or cannot be accepted.", true);
+        
+        // Optionally fetch the current state to update the message if another driver took it
+        const [orders] = await pool.query(`SELECT assigned_to, status FROM orders WHERE id = ?`, [orderId]) as [any[], any];
+        const order = orders[0];
+        if (order && order.assigned_to && messageId && process.env.TELEGRAM_DELIVERY_GROUP_ID) {
+           await editMessageText(
+              process.env.TELEGRAM_DELIVERY_GROUP_ID,
+              messageId,
+              `${message.text}\n\nAccepted by another driver: @${order.assigned_to}`,
+              { inline_keyboard: [] }
+           ).catch(console.error); // Ignore errors if we can't update it
+        }
+        return;
+      }
+
+      // If we got here, THIS driver successfully claimed the order atomically.
+      // Now we can safely fetch the order details and items.
       const [orders] = await pool.query(
         `SELECT * FROM orders WHERE id = ?`,
         [orderId]
       ) as [any[], any];
-
-      if (!orders[0]) {
-        await answerCallbackQuery(callbackQueryId, "Order not found", true);
-        return;
-      }
-
       const order = orders[0];
-      await pool.query(
-        `UPDATE orders SET status = 'In Transit', assigned_to = ?, delivery_message_id = ? WHERE id = ?`,
-        [from?.username || `delivery_${chatId}`, message?.message_id, orderId]
-      );
 
       await pool.query(
         `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
          VALUES (?, ?, ?, 'In Transit', ?, 'Accepted by delivery from Telegram', NOW())`,
-        [crypto.randomUUID(), orderId, order.status, from?.username || `delivery_${chatId}`]
+        [crypto.randomUUID(), orderId, 'Pending', driverUsername]
       );
 
       await pool.query(
         `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
          VALUES (?, ?, ?, NOW())
          ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
-        [orderId, from?.username || `delivery_${chatId}`, message?.message_id]
+        [orderId, driverUsername, messageId]
       );
 
       const [items] = await pool.query(
@@ -748,7 +769,8 @@ async function handleCallback(query: any): Promise<void> {
         await editMessageText(
           process.env.TELEGRAM_DELIVERY_GROUP_ID,
           message.message_id,
-          `${message.text}\n\nAccepted by: ${from?.first_name || "Driver"} (@${from?.username || "unknown"})`
+          `${message.text}\n\nAccepted by: ${from?.first_name || "Driver"} (@${from?.username || "unknown"})`,
+          { inline_keyboard: [] }
         );
       }
 
