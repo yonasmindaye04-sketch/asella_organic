@@ -1,3 +1,5 @@
+//src/routes/telegram.ts
+
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -6,6 +8,7 @@ import { CreateOrderSchema } from "../schemas/index.js";
 import { randomId } from "../lib/security.js";
 import {
   answerCallbackQuery,
+  editMessageReplyMarkup,
   editMessageText,
   sendDetailsToAssignedDriver,
   sendSimpleMessage,
@@ -705,98 +708,118 @@ async function handleCallback(query: any): Promise<void> {
       return;
     }
 
-    // ── Delivery acceptance (existing) ─────────────────────────────
+    // ── Delivery acceptance ────────────────────────────────────────
     if (data.startsWith("delivery_accept_")) {
-      const orderId = data.replace("delivery_accept_", "");
-      const driverChatId = from?.id;
-      const driverUsername = from?.username || `delivery_${driverChatId}`;
-      const messageId = message?.message_id;
-      const groupChatId = process.env.TELEGRAM_DELIVERY_GROUP_ID;
+      console.log(`[delivery_accept] Handling accept for data: ${data}`);
+      try {
+        const orderId = data.replace("delivery_accept_", "");
+        const driverChatId = from?.id;
+        const driverTag = from?.username;
+        const driverDisplayName = from?.first_name || "Driver";
+        const driverUsername = driverTag || `delivery_${driverChatId || 'unknown'}`;
+        const messageId = message?.message_id;
+        const groupChatId = process.env.TELEGRAM_DELIVERY_GROUP_ID;
 
-      // Atomic update: only update if it's currently unassigned and not In Transit/Delivered
-      const [updateResult] = await pool.query(
-        `UPDATE orders 
-         SET status = 'In Transit', assigned_to = ?, delivery_message_id = ? 
-         WHERE id = ? AND assigned_to IS NULL AND status NOT IN ('In Transit', 'Delivered')`,
-        [driverUsername, messageId, orderId]
-      ) as [any, any];
+        console.log(`[delivery_accept] orderId: ${orderId}, driverUsername: ${driverUsername}, messageId: ${messageId}`);
 
-      if (updateResult.affectedRows === 0) {
-        await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver.", true);
-        // Try to remove buttons for late clickers
-        if (messageId && groupChatId) {
+        // Atomic update: only update if it's currently unassigned
+        console.log(`[delivery_accept] Executing DB UPDATE...`);
+        const [updateResult] = await pool.query(
+          `UPDATE orders 
+           SET status = 'In Transit', assigned_to = ?, delivery_message_id = ? 
+           WHERE id = ? AND assigned_to IS NULL AND status NOT IN ('In Transit', 'Delivered')`,
+          [driverUsername, messageId, orderId]
+        ) as [any, any];
+        
+        console.log(`[delivery_accept] DB UPDATE affectedRows: ${updateResult.affectedRows}`);
+
+        // ── Always try to remove buttons from the group message ──────
+        // IMPORTANT: use the chat.id the message actually came from, not the
+        // env var. If TELEGRAM_DELIVERY_GROUP_ID doesn't exactly match the
+        // group's real chat id (e.g. after a group→supergroup migration, or
+        // a stray type/whitespace mismatch), editMessageText/editMessageReplyMarkup
+        // will silently fail against the wrong chat, and the buttons never disappear.
+        async function removeButtons(text: string) {
+          const chatIdForEdit = message?.chat?.id ?? groupChatId;
+          console.log(`[delivery_accept] removeButtons called with chatIdForEdit: ${chatIdForEdit} (env groupChatId: ${groupChatId}), messageId: ${messageId}`);
+          if (!messageId || !chatIdForEdit) {
+            console.warn(`[delivery_accept] Skipping removeButtons because messageId or chatId is missing!`);
+            return;
+          }
+          try {
+            console.log(`[delivery_accept] Calling editMessageText...`);
+            const r = await editMessageText(chatIdForEdit, messageId, text, { inline_keyboard: [] });
+            if (!r || !r.ok) {
+              console.warn(`[delivery_accept] editMessageText returned not ok, falling back to editMessageReplyMarkup...`);
+              await editMessageReplyMarkup(chatIdForEdit, messageId, { inline_keyboard: [] });
+            }
+          } catch (err) {
+            console.error(`[delivery_accept] Error in removeButtons:`, err);
+            await editMessageReplyMarkup(chatIdForEdit, messageId, { inline_keyboard: [] }).catch(() => {});
+          }
+        }
+
+        if (updateResult.affectedRows === 0) {
+          console.log(`[delivery_accept] Order already taken or doesn't exist.`);
           const [rows] = await pool.query(`SELECT assigned_to FROM orders WHERE id = ?`, [orderId]) as [any[], any];
           const takenBy = rows[0]?.assigned_to;
           if (takenBy) {
-            await editMessageText(
-              groupChatId, messageId,
-              `${message.text}\n\n✅ Accepted by another driver: @${takenBy}`,
-              { inline_keyboard: [] }
-            ).catch(console.error);
+            await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: @${takenBy}`);
           }
+          console.log(`[delivery_accept] Calling answerCallbackQuery (Already taken)`);
+          await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver.", true);
+          return;
         }
-        return;
-      }
 
-      // ── CRITICAL: Update group message FIRST (remove buttons) ────
-      // This must happen before anything else so the buttons disappear
-      // even if subsequent steps fail.
-      if (messageId && groupChatId) {
-        const editResult = await editMessageText(
-          groupChatId,
-          messageId,
-          `${message.text}\n\n✅ Accepted by: ${from?.first_name || "Driver"} (@${driverUsername})`,
-          { inline_keyboard: [] }
-        );
-        if (editResult && !editResult.ok) {
-          console.error("[delivery_accept] editMessageText failed:", editResult.description);
+        // Claim succeeded — update message in group and answer callback
+        console.log(`[delivery_accept] Claim successful! Updating message...`);
+        await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: ${driverDisplayName} (@${driverUsername})`);
+        
+        console.log(`[delivery_accept] Calling answerCallbackQuery (Success)`);
+        await answerCallbackQuery(callbackQueryId, "Accepted! Sending you the details...", false);
+
+        // ── Non-critical post-claim steps ────────────────────────────
+        try {
+          console.log(`[delivery_accept] Running post-claim steps...`);
+          const [orders] = await pool.query(`SELECT * FROM orders WHERE id = ?`, [orderId]) as [any[], any];
+          const order = orders[0];
+
+          await pool.query(
+            `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
+             VALUES (?, ?, ?, 'In Transit', ?, 'Accepted by delivery from Telegram', NOW())`,
+            [crypto.randomUUID(), orderId, 'Pending', driverUsername]
+          );
+
+          await pool.query(
+            `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
+             VALUES (?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
+            [orderId, driverUsername, messageId]
+          );
+
+          const [items] = await pool.query(`SELECT * FROM order_items WHERE order_id = ?`, [orderId]) as [any[], any];
+          console.log(`[delivery_accept] Sending details to driver ${driverChatId}`);
+          await sendDetailsToAssignedDriver(driverChatId, { ...order, items });
+
+          console.log(`[delivery_accept] Notifying customer...`);
+          void sendTelegramToCustomer({
+            phone: order.phone,
+            message: `Hi ${order.customer_name}, your order *${orderId}* is now *In Transit*.`,
+          });
+          console.log(`[delivery_accept] Fully completed successfully!`);
+        } catch (err) {
+          console.error("[delivery_accept] Post-claim steps failed:", err);
         }
-      }
-
-      // Answer callback immediately so driver gets feedback
-      await answerCallbackQuery(callbackQueryId, "Accepted! Sending you the details...", false);
-
-      // ── Non-critical steps (wrapped in try-catch) ────────────────
-      // If these fail, the order is still claimed and buttons are removed.
-      try {
-        const [orders] = await pool.query(
-          `SELECT * FROM orders WHERE id = ?`, [orderId]
-        ) as [any[], any];
-        const order = orders[0];
-
-        await pool.query(
-          `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
-           VALUES (?, ?, ?, 'In Transit', ?, 'Accepted by delivery from Telegram', NOW())`,
-          [crypto.randomUUID(), orderId, 'Pending', driverUsername]
-        );
-
-        await pool.query(
-          `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
-           VALUES (?, ?, ?, NOW())
-           ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
-          [orderId, driverUsername, messageId]
-        );
-
-        const [items] = await pool.query(
-          `SELECT * FROM order_items WHERE order_id = ?`, [orderId]
-        ) as [any[], any];
-
-        // Send private details to the DRIVER (using from.id, not the group chatId)
-        await sendDetailsToAssignedDriver(driverChatId, { ...order, items });
-
-        // Notify customer
-        void sendTelegramToCustomer({
-          phone: order.phone,
-          message: `Hi ${order.customer_name}, your order *${orderId}* is now *In Transit*.`,
-        });
       } catch (err) {
-        console.error("[delivery_accept] Post-claim steps failed:", err);
+        console.error(`[delivery_accept] CRITICAL ERROR IN HANDLER:`, err);
+        // Try to answer so it stops spinning!
+        await answerCallbackQuery(callbackQueryId, "An error occurred.", true).catch(console.error);
       }
-
       return;
     }
 
     if (data.startsWith("delivery_reject_")) {
+      console.log(`[delivery_reject] Handling reject for data: ${data}`);
       await answerCallbackQuery(callbackQueryId, "Order rejected. Thank you.", false);
       return;
     }
@@ -1074,23 +1097,7 @@ router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const messageDate: number | undefined =
-      update?.message?.date ??
-      update?.callback_query?.message?.date;
-
-    if (messageDate) {
-      const ageSeconds = Math.floor(Date.now() / 1000) - messageDate;
-      const maxAgeSeconds = 5 * 60;
-      if (ageSeconds > maxAgeSeconds) {
-        console.warn(`[telegram webhook] Stale update_id ${updateId} (${ageSeconds}s old) - recording and skipping`);
-        await pool.query(
-          `INSERT IGNORE INTO webhook_events (update_id) VALUES (?)`,
-          [updateId]
-        );
-        res.sendStatus(200);
-        return;
-      }
-    }
+    // Time limitation check removed  all updates will be processed regardless of age.
 
     await pool.query(
       `INSERT IGNORE INTO webhook_events (update_id) VALUES (?)`,
