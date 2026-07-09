@@ -44,6 +44,23 @@ export async function answerCallbackQuery(
   await tg("answerCallbackQuery", body);
 }
 
+export async function editMessageReplyMarkup(
+  chatId: string | number,
+  messageId: number,
+  replyMarkup?: Record<string, unknown>
+): Promise<any> {
+  const body: Record<string, unknown> = {
+    chat_id:    chatId,
+    message_id: messageId,
+  };
+  if (replyMarkup !== undefined) body.reply_markup = replyMarkup;
+  const result = await tg("editMessageReplyMarkup", body);
+  if (result && !result.ok) {
+    console.error(`[telegram] editMessageReplyMarkup failed: ${result.description}`, { chat_id: chatId, message_id: messageId });
+  }
+  return result;
+}
+
 export async function editMessageText(
   chatId: string | number,
   messageId: number,
