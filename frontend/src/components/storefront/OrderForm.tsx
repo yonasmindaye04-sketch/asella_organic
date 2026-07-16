@@ -369,12 +369,12 @@ const OrderForm: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.qty')}</label>
-                        <input required type="number" min="1" value={item.qty} onChange={e => { const v = parseInt(e.target.value); updateItem(index, 'qty', isNaN(v) ? 1 : v); }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none font-mono" />
+                        <label htmlFor={`qty-${index}`} className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.qty')}</label>
+                        <input id={`qty-${index}`} required type="number" min="1" value={item.qty} onChange={e => { const v = parseInt(e.target.value); updateItem(index, 'qty', isNaN(v) ? 1 : v); }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none font-mono" />
                       </div>
                       <div>
-                        <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.deliveryDate')}</label>
-                        <input required type="date" value={item.deliveryDate} onChange={e => updateItem(index, 'deliveryDate', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none font-mono" />
+                        <label htmlFor={`delivery-date-${index}`} className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.deliveryDate')}</label>
+                        <input id={`delivery-date-${index}`} required type="date" value={item.deliveryDate} onChange={e => updateItem(index, 'deliveryDate', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none font-mono" />
                       </div>
                       <div>
                         {items.length > 1 && (

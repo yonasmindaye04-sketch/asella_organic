@@ -1,7 +1,7 @@
-# Asella Organic — Project Documentation
+# Asella Organic � Project Documentation
 
-**Version:** 1.0.0  
-**Last Updated:** 2026-06-10  
+**Version:** 1.1.0  
+**Last Updated:** 2026-07-15  
 **License:** ISC (Private)
 
 ---
@@ -31,53 +31,62 @@
 Asella Organic is a full-stack e-commerce and inventory management system built for a
 premium organic health products company based in Ethiopia. The platform handles:
 
-- **Public storefront** — product catalog, checkout, community videos
-- **Customer order tracking** — real-time order status by order ID
-- **Admin dashboard** — order management, inventory, stock alerts, analytics
-- **Staff management** — user roles, 2FA, permissions
-- **Affiliate/referral system** — referral tracking, commissions
-- **Vendor purchase tracking** — vendor orders, bulk purchasing
-- **Telegram integration** — order notifications, delivery group alerts
-- **Google Sheets sync** — order mirroring for reporting
-- **PWA support** — offline catalog, install-to-home-screen
+- **Public storefront** � product catalog, checkout, community videos
+- **Customer order tracking** � real-time order status by order ID
+- **Admin dashboard** � order management, inventory, stock alerts, analytics
+- **Staff management** � user roles, 2FA, permissions
+- **Affiliate/referral system** � referral tracking, commissions
+- **Vendor purchase tracking** � vendor orders, bulk purchasing
+- **Expenses tracking** � business expense management
+- **Video management** � community video upload and management (admin)
+- **Telegram integration** � order notifications, delivery group alerts
+- **Google Sheets sync** � order mirroring for reporting
+- **Cloudinary integration** � cloud-based image/file storage
+- **PWA support** � offline catalog, install-to-home-screen
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        CLIENT LAYER                          │
-│  ┌──────────────────┐  ┌─────────────┐  ┌────────────────┐  │
-│  │  React SPA       │  │  Telegram   │  │  Postman/API   │  │
-│  │  (Vite + TW)     │  │  Bot Users  │  │  Clients       │  │
-│  └────────┬─────────┘  └──────┬──────┘  └───────┬────────┘  │
-└───────────┼────────────────────┼─────────────────┼───────────┘
-            │ HTTPS              │ Webhook         │ Bearer/Cookie
-            ▼                    ▼                 ▼
-┌──────────────────────────────────────────────────────────────┐
-│                        API LAYER                             │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │  Express.js (Node.js + TypeScript)                    │    │
-│  │  ┌─────────┐ ┌──────────┐ ┌───────────┐ ┌────────┐  │    │
-│  │  │ Security│ │Rate Limit│ │ Auth/RBAC │ │Validate│  │    │
-│  │  │ Headers │ │ (LRU)   │ │ (JWT+2FA) │ │ (Zod)  │  │    │
-│  │  └─────────┘ └──────────┘ └───────────┘ └────────┘  │    │
-│  │  ┌─────────────────────────────────────────────────┐ │    │
-│  │  │ Routes: auth, orders, products, stock, staff,   │ │    │
-│  │  │         referrals, telegram, upload, vendor,    │ │    │
-│  │  │         notifications, appointments, admin      │ │    │
-│  │  └─────────────────────────────────────────────────┘ │    │
-│  └──────────────────────────────────────────────────────┘    │
-│  API Versioning: /api/v1/* (preferred) + /api/* (compat)     │
-└──────────────────────────────┬───────────────────────────────┘
-                               │
-            ┌──────────────────┼──────────────────┐
-            ▼                  ▼                  ▼
-┌────────────────┐  ┌────────────────┐  ┌────────────────┐
-│   MySQL 8.0    │  │  Telegram API  │  │  Google Sheets │
-│   (mysql2)     │  │  (Bot API)     │  │  (googleapis)  │
-└────────────────┘  └────────────────┘  └────────────────┘
++--------------------------------------------------------------+
+�                        CLIENT LAYER                          �
+�  +------------------+  +-------------+  +----------------+  �
+�  �  React SPA       �  �  Telegram   �  �  Postman/API   �  �
+�  �  (Vite + TW)     �  �  Bot Users  �  �  Clients       �  �
+�  +------------------+  +-------------+  +----------------+  �
++-----------+--------------------+-----------------+-----------+
+            � HTTPS              � Webhook         � Bearer/Cookie
+            ?                    ?                 ?
++--------------------------------------------------------------+
+�                        API LAYER                             �
+�  +------------------------------------------------------+    �
+�  �  Express.js (Node.js + TypeScript)                    �    �
+�  �  +---------+ +----------+ +-----------+ +--------+  �    �
+�  �  � Helmet  � �Rate Limit� � Auth/RBAC � �Validate�  �    �
+�  �  � (CSP)   � � (LRU)   � � (JWT+2FA) � � (Zod)  �  �    �
+�  �  +---------+ +----------+ +-----------+ +--------+  �    �
+�  �  +-------------------------------------------------+ �    �
+�  �  � Routes: auth, orders, products, stock, staff,   � �    �
+�  �  �         referrals, telegram, upload, vendor,    � �    �
+�  �  �         notifications, appointments, admin,     � �    �
+�  �  �         expenses, videos                        � �    �
+�  �  +-------------------------------------------------+ �    �
+�  +------------------------------------------------------+    �
+�  API Versioning: /api/v1/* (preferred) + /api/* (compat)     �
++--------------------------------------------------------------+
+                               �
+            +------------------+------------------+
+            ?                  ?                  ?
++----------------+  +----------------+  +----------------+
+�   MySQL 8.0    �  �  Telegram API  �  �  Google Sheets �
+�   (mysql2)     �  �  (Bot API)     �  �  (googleapis)  �
++----------------+  +----------------+  +----------------+
+            ?
++----------------+
+�   Cloudinary   �
+�  (Image CDN)   �
++----------------+
 ```
 
 ---
@@ -96,11 +105,19 @@ premium organic health products company based in Ethiopia. The platform handles:
 | jsonwebtoken | 9.x | JWT authentication |
 | bcryptjs | 3.x | Password hashing |
 | otplib | 13.x | TOTP 2FA |
-| winston | 3.x | Logging (imported but custom logger used) |
-| nodemailer | 8.x | Email (Gmail SMTP) |
+| qrcode | 1.x | QR code generation for 2FA setup |
+| helmet | 8.x | HTTP security headers (CSP, HSTS, etc.) |
+| winston | 3.x | Structured JSON logging |
+| nodemailer | 9.x | Email (Gmail SMTP) |
 | multer | 2.x | File uploads |
+| cloudinary | 2.x | Cloud image/file storage |
+| redis | 6.x | Caching layer |
+| validator | 13.x | Input validation helpers |
+| lru-cache | 11.x | In-memory LRU cache for rate limiting |
+| express-rate-limit | 8.x | Rate limiting middleware |
 | tsup | 8.x | Build/bundle tool |
-| PM2 | — | Process manager (production) |
+| tsx | 4.x | TypeScript execution for dev |
+| PM2 | � | Process manager (production) |
 
 ### Frontend
 | Technology | Version | Purpose |
@@ -112,6 +129,8 @@ premium organic health products company based in Ethiopia. The platform handles:
 | Redux Toolkit | 2.x | State management |
 | React Router | 7.x | Client-side routing |
 | Axios | 1.x | HTTP client (legacy) |
+| Chart.js | 4.x | Data visualization charts |
+| react-chartjs-2 | 5.x | React wrapper for Chart.js |
 | Vitest | 4.x | Unit testing |
 
 ### Testing
@@ -138,139 +157,152 @@ premium organic health products company based in Ethiopia. The platform handles:
 
 ```
 asella_organic/
-├── backend/                    # Express.js API server
-│   ├── src/
-│   │   ├── app.ts              # Express app configuration
-│   │   ├── server.ts           # HTTP server entry point
-│   │   ├── config/
-│   │   │   ├── db.ts           # MySQL pool configuration
-│   │   │   └── env.ts          # Zod environment validation
-│   │   ├── controllers/        # (empty — logic is in routes)
-│   │   ├── middleware/
-│   │   │   ├── auth.ts         # JWT authentication + RBAC
-│   │   │   ├── 2fa.ts          # Two-factor authentication
-│   │   │   ├── rateLimit.ts    # Rate limiting (LRU-based)
-│   │   │   ├── securityHeaders.ts  # HTTP security headers
-│   │   │   ├── requestId.ts    # Request ID correlation
-│   │   │   ├── idempotency.ts  # Idempotency-Key middleware
-│   │   │   └── validate.ts     # Zod + XSS validation
-│   │   ├── routes/             # 13 route modules
-│   │   │   ├── auth.ts         # Login, logout, refresh, 2FA
-│   │   │   ├── orders.ts       # CRUD + status updates
-│   │   │   ├── products.ts     # Catalog + inventory
-│   │   │   ├── stock.ts        # Stock requests/alerts
-│   │   │   ├── staff.ts        # User management
-│   │   │   ├── referrals.ts    # Affiliate system
-│   │   │   ├── telegram.ts     # Bot webhooks
-│   │   │   ├── upload.ts       # File uploads
-│   │   │   ├── vendor-orders.ts # Vendor purchasing
-│   │   │   ├── notification.ts # In-app notifications
-│   │   │   ├── appointments.ts # Customer appointments
-│   │   │   ├── admin.ts        # Admin operations
-│   │   │   └── orders.patch.ts # Order item patching
-│   │   ├── schemas/
-│   │   │   └── index.ts        # All Zod validation schemas
-│   │   ├── lib/
-│   │   │   ├── logger.ts       # Structured JSON logger
-│   │   │   ├── security.ts     # XSS, HMAC, sanitization
-│   │   │   ├── telegram.ts     # Telegram Bot API client
-│   │   │   ├── sheets.ts       # Google Sheets integration
-│   │   │   ├── inventory.ts    # Inventory business logic
-│   │   │   └── utils.ts        # Utility functions
-│   │   ├── types/
-│   │   │   └── index.ts        # Shared TypeScript types
-│   │   └── scripts/
-│   │       └── telegram-poll.ts # Telegram polling script
-│   ├── db/
-│   │   └── sql/                # 8 ordered migration files
-│   │       ├── 001_complete_schema.sql
-│   │       ├── 002_affiliate_commission_trigger.sql
-│   │       ├── 003_security_and_inventory.sql
-│   │       ├── 004_dummy_data.sql
-│   │       ├── 005_order_items_product_id.sql
-│   │       ├── 006_clean_products.sql
-│   │       ├── 007_idempotency_keys.sql
-│   │       └── 008_soft_delete_audit.sql
-│   ├── tests/
-│   │   ├── unit/               # 15 unit test files
-│   │   ├── integration/        # 8 integration test files
-│   │   └── setup/              # Test fixtures & setup
-│   ├── migrate.cjs             # Database migration runner
-│   ├── create-admin.js         # First-time admin seeder
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── jest.config.js
-│   └── eslint.config.js
-│
-├── frontend/                   # React SPA
-│   ├── src/
-│   │   ├── main.tsx            # App entry point
-│   │   ├── App.tsx             # Root component + routing
-│   │   ├── App.css             # Global styles
-│   │   ├── index.css           # CSS reset + variables
-│   │   ├── LanguageContext.tsx  # i18n context
-│   │   ├── pages/              # 19 page components
-│   │   │   ├── Storefront.tsx
-│   │   │   ├── Checkout.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── OrderTracking.tsx
-│   │   │   ├── ProductsPage.tsx
-│   │   │   ├── NewOrderPage.tsx
-│   │   │   ├── BulkOrdersPage.tsx
-│   │   │   ├── VendorPurchasePage.tsx
-│   │   │   ├── StockAlertPage.tsx
-│   │   │   ├── AnalyticsPage.tsx
-│   │   │   ├── Notificationspage.tsx
-│   │   │   ├── ChangePasswordPage.tsx
-│   │   │   ├── UserManagementPage.tsx
-│   │   │   ├── AffiliateControlPage.tsx
-│   │   │   ├── CustomerOrderTracking.tsx
-│   │   │   ├── AccessDatabasePage.tsx
-│   │   │   ├── CommunityVideos.tsx
-│   │   │   └── Sidebar.tsx
-│   │   ├── components/
-│   │   │   ├── dashboard/      # Dashboard-specific components
-│   │   │   ├── storefront/     # Storefront components
-│   │   │   ├── tracking/       # Order tracking components
-│   │   │   └── ui/             # Shared UI (ProtectedRoute, Toast)
-│   │   ├── services/
-│   │   │   └── api.ts          # Central API client (fetch-based)
-│   │   ├── store/
-│   │   │   ├── index.ts        # Redux store config
-│   │   │   └── slices/
-│   │   │       ├── authSlice.ts
-│   │   │       ├── uiSlice.ts
-│   │   │       └── stockSlice.ts
-│   │   ├── hooks/              # Custom React hooks
-│   │   ├── layouts/            # Layout components
-│   │   ├── lib/                # Utility libraries (Sentry, SW)
-│   │   └── utils/              # Utility functions
-│   ├── public/
-│   │   ├── manifest.webmanifest # PWA manifest
-│   │   ├── sw.js               # Service worker
-│   │   ├── offline.html        # Offline fallback page
-│   │   └── image/              # Static images
-│   ├── tests/                  # Frontend tests
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── tsconfig.json
-│
-├── tests/                      # E2E Playwright tests
-│   ├── setup/
-│   │   └── auth.setup.ts       # Auth state setup
-│   ├── dashboard/              # 10 dashboard spec files
-│   ├── auth.spec.ts            # Auth flow tests
-│   └── storefront.spec.ts      # Public page tests
-│
-├── .github/workflows/
-│   └── ci.yml                  # CI/CD pipeline
-│
-├── ecosystem.config.cjs        # PM2 production config
-├── playwright.config.ts        # Playwright config
-├── package.json                # Root monorepo config
-└── .gitignore
++-- backend/                    # Express.js API server
+�   +-- src/
+�   �   +-- app.ts              # Express app configuration
+�   �   +-- server.ts           # HTTP server entry point
+�   �   +-- config/
+�   �   �   +-- db.ts           # MySQL pool configuration
+�   �   �   +-- env.ts          # Zod environment validation
+�   �   +-- controllers/        # (empty � logic is in routes)
+�   �   +-- middleware/
+�   �   �   +-- auth.ts         # JWT authentication + RBAC
+�   �   �   +-- 2fa.ts          # Two-factor authentication
+�   �   �   +-- rateLimit.ts    # Rate limiting (LRU-based)
+�   �   �   +-- apiCache.ts     # API response caching middleware
+�   �   �   +-- requestId.ts    # Request ID correlation
+�   �   �   +-- idempotency.ts  # Idempotency-Key middleware
+�   �   �   +-- validate.ts     # Zod + XSS validation
+�   �   +-- routes/             # 15 route modules
+�   �   �   +-- auth.ts         # Login, logout, refresh, 2FA
+�   �   �   +-- orders.ts       # CRUD + status updates
+�   �   �   +-- products.ts     # Catalog + inventory
+�   �   �   +-- stock.ts        # Stock requests/alerts
+�   �   �   +-- staff.ts        # User management
+�   �   �   +-- referrals.ts    # Affiliate system
+�   �   �   +-- telegram.ts     # Bot webhooks
+�   �   �   +-- upload.ts       # File uploads
+�   �   �   +-- vendor-orders.ts # Vendor purchasing
+�   �   �   +-- notification.ts # In-app notifications
+�   �   �   +-- appointments.ts # Customer appointments
+�   �   �   +-- admin.ts        # Admin operations
+�   �   �   +-- expenses.ts     # Business expense tracking
+�   �   �   +-- videos.ts       # Community video management
+�   �   �   +-- orders.patch.ts # Order item patching
+�   �   +-- schemas/
+�   �   �   +-- index.ts        # All Zod validation schemas
+�   �   +-- lib/
+�   �   �   +-- logger.ts       # Structured JSON logger
+�   �   �   +-- security.ts     # XSS, HMAC, sanitization
+�   �   �   +-- telegram.ts     # Telegram Bot API client
+�   �   �   +-- sheets.ts       # Google Sheets integration
+�   �   �   +-- cloudinary.ts   # Cloudinary image/file client
+�   �   �   +-- inventory.ts    # Inventory business logic
+�   �   �   +-- utils.ts        # Utility functions
+�   �   +-- types/
+�   �   �   +-- index.ts        # Shared TypeScript types
+�   �   +-- scripts/
+�   �       +-- telegram-poll.ts # Telegram polling script (dev)
+�   +-- db/
+�   �   +-- sql/                # 15 ordered migration files
+�   �       +-- 001_complete_schema.sql
+�   �       +-- 002_affiliate_commission_trigger.sql
+�   �       +-- 003_security_and_inventory.sql
+�   �       +-- 004_dummy_data.sql
+�   �       +-- 005_order_items_product_id.sql
+�   �       +-- 006_clean_products.sql
+�   �       +-- 007_idempotency_keys.sql
+�   �       +-- 008_soft_delete_audit.sql
+�   �       +-- 009_vendor_expenses.sql
+�   �       +-- 010_stock_request_status.sql
+�   �       +-- 011_community_videos.sql
+�   �       +-- 011_drop_inventory_trigger.sql
+�   �       +-- 011_order_status_history.sql
+�   �       +-- 012_prod_sync.sql
+�   �       +-- 013_staff_telegram_username.sql
+�   +-- tests/
+�   �   +-- unit/               # 15 unit test files
+�   �   +-- integration/        # 8 integration test files
+�   �   +-- setup/              # Test fixtures & setup
+�   +-- migrate.cjs             # Database migration runner
+�   +-- create-admin.js         # First-time admin seeder
+�   +-- package.json
+�   +-- tsconfig.json
+�   +-- jest.config.js
+�   +-- eslint.config.js
+�
++-- frontend/                   # React SPA
+�   +-- src/
+�   �   +-- main.tsx            # App entry point
+�   �   +-- App.tsx             # Root component + routing
+�   �   +-- App.css             # Global styles
+�   �   +-- index.css           # CSS reset + variables
+�   �   +-- LanguageContext.tsx  # i18n context
+�   �   +-- pages/              # 21 page components
+�   �   �   +-- Storefront.tsx
+�   �   �   +-- Checkout.tsx
+�   �   �   +-- Login.tsx
+�   �   �   +-- Dashboard.tsx
+�   �   �   +-- OrderTracking.tsx
+�   �   �   +-- ProductsPage.tsx
+�   �   �   +-- NewOrderPage.tsx
+�   �   �   +-- BulkOrdersPage.tsx
+�   �   �   +-- VendorPurchasePage.tsx
+�   �   �   +-- StockAlertPage.tsx
+�   �   �   +-- AnalyticsPage.tsx
+�   �   �   +-- Notificationspage.tsx
+�   �   �   +-- ChangePasswordPage.tsx
+�   �   �   +-- UserManagementPage.tsx
+�   �   �   +-- AffiliateControlPage.tsx
+�   �   �   +-- CustomerOrderTracking.tsx
+�   �   �   +-- AccessDatabasePage.tsx
+�   �   �   +-- CommunityVideos.tsx
+�   �   �   +-- ExpensesPage.tsx
+�   �   �   +-- VideoManagementPage.tsx
+�   �   �   +-- Sidebar.tsx
+�   �   +-- components/
+�   �   �   +-- dashboard/      # Dashboard-specific components
+�   �   �   +-- storefront/     # Storefront components
+�   �   �   +-- tracking/       # Order tracking components
+�   �   �   +-- ui/             # Shared UI (ProtectedRoute, Toast, LoadingSpinner)
+�   �   +-- services/
+�   �   �   +-- api.ts          # Central API client (fetch-based)
+�   �   +-- store/
+�   �   �   +-- index.ts        # Redux store config
+�   �   �   +-- slices/
+�   �   �       +-- authSlice.ts
+�   �   �       +-- uiSlice.ts
+�   �   �       +-- stockSlice.ts
+�   �   +-- hooks/              # Custom React hooks
+�   �   +-- layouts/            # Layout components
+�   �   +-- lib/                # Utility libraries (Sentry, SW)
+�   �   +-- utils/              # Utility functions
+�   +-- public/
+�   �   +-- manifest.webmanifest # PWA manifest
+�   �   +-- sw.js               # Service worker
+�   �   +-- offline.html        # Offline fallback page
+�   �   +-- image/              # Static images
+�   +-- tests/                  # Frontend tests
+�   +-- package.json
+�   +-- vite.config.ts
+�   +-- vitest.config.ts
+�   +-- tailwind.config.js
+�   +-- tsconfig.json
+�
++-- tests/                      # E2E Playwright tests
+�   +-- setup/
+�   �   +-- auth.setup.ts       # Auth state setup
+�   +-- dashboard/              # 10 dashboard spec files
+�   +-- auth.spec.ts            # Auth flow tests
+�   +-- storefront.spec.ts      # Public page tests
+�
++-- .github/workflows/
+�   +-- ci.yml                  # CI/CD pipeline
+�
++-- ecosystem.config.cjs        # PM2 production config
++-- playwright.config.ts        # Playwright config
++-- package.json                # Root monorepo config
++-- .gitignore
 ```
 
 ---
@@ -279,19 +311,20 @@ asella_organic/
 
 ### Middleware Stack (in order)
 
-1. **Security Headers** — CSP, HSTS, X-Frame-Options, etc.
-2. **Static Files** — Serves `public/` directory
-3. **CORS** — Configurable origins, credentials support
-4. **Cookie Parser** — HttpOnly cookie support
-5. **Request ID** — UUID correlation for logging
-6. **Access Logger** — Structured JSON request logging
-7. **Raw Body Parser** — For webhook/payment callbacks
-8. **JSON Parser** — 1MB limit, strict mode
-9. **General Rate Limiter** — 600 req/min per user/IP
-10. **Idempotency Middleware** — POST replay protection
-11. **Routes** — 12 route modules at `/api/v1/*` and `/api/*`
-12. **404 Handler** — JSON not-found response
-13. **Global Error Handler** — Catches unhandled errors
+1. **Helmet (Security Headers)** � CSP, HSTS, X-Frame-Options, Permissions-Policy, etc.
+2. **Static Files** � Serves `public/` directory
+3. **CORS** � Configurable origins, credentials support
+4. **CSRF Origin Check** � Strict origin validation for mutating requests
+5. **Cookie Parser** � HttpOnly cookie support
+6. **Request ID** � UUID correlation for logging
+7. **Access Logger** � Structured JSON request logging
+8. **Raw Body Parser** � For webhook/payment callbacks
+9. **JSON Parser** � 1MB limit, strict mode
+10. **General Rate Limiter** � 600 req/min per user/IP
+11. **Idempotency Middleware** � POST replay protection
+12. **Routes** � 14 route modules at `/api/v1/*` and `/api/*`
+13. **404 Handler** � JSON not-found response
+14. **Global Error Handler** � Catches unhandled errors
 
 ### Rate Limiting
 
@@ -308,7 +341,7 @@ asella_organic/
 ### Public Pages (no auth)
 | Route | Component | Description |
 |-------|-----------|-------------|
-| `/` | `Storefront` | Product catalog |
+| `/` | `Storefront` | Product catalog (lazy-loaded sections: DailyHighlights, StorySection, Hero, Bestsellers, AllProducts, Reviews, Footer) |
 | `/checkout` | `Checkout` | Order placement |
 | `/login` | `Login` | Staff login |
 | `/track` | `CustomerOrderTracking` | Order tracking by ID |
@@ -324,18 +357,19 @@ asella_organic/
 | `/dashboard/bulk-orders` | `BulkOrdersPage` | Bulk order management |
 | `/dashboard/vendor` | `VendorPurchasePage` | Vendor orders |
 | `/dashboard/stock-alert` | `StockAlertPage` | Low stock alerts |
-| `/dashboard/analytics` | `AnalyticsPage` | Business analytics |
+| `/dashboard/expenses` | `ExpensesPage` | Business expense tracking |
+| `/dashboard/analytics` | `AnalyticsPage` | Business analytics (Chart.js) |
 | `/dashboard/notifications` | `NotificationsPage` | In-app notifications |
 | `/dashboard/change-password` | `ChangePasswordPage` | Password change |
 | `/dashboard/users` | `UserManagementPage` | Staff management |
 | `/dashboard/affiliates` | `AffiliateControlPage` | Referral/affiliate control |
 | `/dashboard/products` | `ProductsPage` | Product catalog management |
-| `/dashboard/access-db` | `AccessDatabasePage` | Direct database access |
+| `/dashboard/videos` | `VideoManagementPage` | Community video management |
 
 ### State Management (Redux Toolkit)
-- **authSlice** — Authentication state (token, user, isAuthenticated)
-- **uiSlice** — Theme, sidebar, UI preferences
-- **stockSlice** — Stock data and alerts
+- **authSlice** � Authentication state (token, user, isAuthenticated)
+- **uiSlice** � Theme, sidebar, UI preferences
+- **stockSlice** � Stock data and alerts
 
 ---
 
@@ -355,21 +389,25 @@ asella_organic/
 - Handles DELIMITER directives and BEGIN...END blocks
 - DDL detection to skip transactions for triggers/procedures
 - Run: `cd backend && npm run db:migrate`
+- Reset: `cd backend && npm run db:migrate:reset`
 
 ### Key Tables (from migrations)
-- `staff` — User accounts with roles
-- `products` — Product catalog with inventory
-- `orders` + `order_items` — Customer orders
-- `payments` — Payment tracking
-- `stock_requests` — Inventory restock requests
-- `vendor_orders` — Vendor purchase orders
-- `referrals` + `commissions` — Affiliate system
-- `notifications` — In-app notification system
-- `appointments` — Customer appointment booking
-- `session_blocklist` — Revoked JWT sessions
-- `idempotency_keys` — POST request deduplication
-- `inventory_log` — Stock change audit trail
-- `audit_log` — Soft-delete and action audit
+- `staff` � User accounts with roles, Telegram username/chat ID for bot RBAC
+- `products` � Product catalog with inventory
+- `orders` + `order_items` � Customer orders
+- `order_status_history` � Audit trail of order status changes
+- `payments` � Payment tracking
+- `stock_requests` � Inventory restock requests
+- `vendor_orders` � Vendor purchase orders
+- `vendor_expenses` � Business expense records
+- `referrals` + `commissions` � Affiliate system
+- `notifications` � In-app notification system
+- `appointments` � Customer appointment booking
+- `community_videos` � Video metadata for community section
+- `session_blocklist` � Revoked JWT sessions
+- `idempotency_keys` � POST request deduplication
+- `inventory_log` � Stock change audit trail
+- `audit_log` � Soft-delete and action audit
 
 ---
 
@@ -396,7 +434,7 @@ asella_organic/
 
 ### Two-Factor Authentication (2FA)
 - TOTP-based (Google Authenticator compatible)
-- QR code setup via `POST /api/staff/2fa/setup`
+- QR code setup via `POST /api/staff/2fa/setup` (QR generated with `qrcode` library)
 - Verification via `POST /api/staff/2fa/verify`
 - Required for sensitive operations (e.g., staff deletion)
 
@@ -405,20 +443,27 @@ asella_organic/
 ## Integrations
 
 ### Telegram Bot
-- **Order notifications** — New order alerts to admin chat
-- **Delivery group** — Order updates to delivery team
-- **Vendor notifications** — Purchase order alerts
-- **Webhook support** — Incoming message processing
-- **Polling mode** — Alternative to webhooks for development
+- **Order notifications** � New order alerts to admin chat
+- **Delivery group** � Order updates to delivery team
+- **Vendor notifications** � Purchase order alerts
+- **Webhook support** � Incoming message processing
+- **Staff RBAC** � Identity verification, role-specific menus (Employee: track/place; Manager: +view orders; Admin: +dashboard link)
+- **Morning briefing** � Daily stats sent once per day with dedup guard (DB-backed, survives PM2 restart)
+- **Polling mode** � Alternative to webhooks for development (`npm run telegram:poll`)
 
 ### Google Sheets
-- **Order mirroring** — Real-time order sync to spreadsheet
-- **Service account auth** — Credential-based, no user interaction
-- **Optional integration** — Graceful degradation if not configured
+- **Order mirroring** � Real-time order sync to spreadsheet
+- **Service account auth** � Credential-based, no user interaction
+- **Optional integration** � Graceful degradation if not configured
+
+### Cloudinary
+- **Image/file storage** � Cloud-based media storage for product images and uploads
+- **API-based upload** � Files uploaded via `multer` then pushed to Cloudinary
+- **Optional integration** � Falls back to local storage if not configured
 
 ### Email (SMTP)
-- **Gmail SMTP** — Password reset emails
-- **App passwords** — Secure authentication
+- **Gmail SMTP** � Password reset emails
+- **App passwords** � Secure authentication
 - **Provider:** Nodemailer
 
 ---
@@ -441,30 +486,31 @@ cd backend && npm run test:coverage
 ```
 
 **Unit Tests (15 files):**
-- `auth.test.ts` — Authentication logic
-- `middleware.test.ts` — Middleware stack
-- `orders.test.ts` — Order CRUD
-- `products.test.ts` — Product management
-- `inventory.test.ts` — Inventory operations
-- `security.test.ts` — Security utilities
-- `rate-limit.test.ts` — Rate limiting
-- `telegram-lib.test.ts` — Telegram integration
-- `vendor-orders.test.ts` — Vendor operations
-- `notifications.test.ts` — Notification system
-- `appointments.test.ts` — Appointment booking
-- `upload.test.ts` — File upload handling
-- `2fa.test.ts` — Two-factor authentication
-- `utils.test.ts` — Utility functions
+- `auth.test.ts` � Authentication logic
+- `middleware.test.ts` � Middleware stack
+- `orders.test.ts` � Order CRUD
+- `products.test.ts` � Product management
+- `inventory.test.ts` � Inventory operations
+- `security.test.ts` � Security utilities
+- `rate-limit.test.ts` � Rate limiting
+- `telegram-lib.test.ts` � Telegram integration
+- `vendor-orders.test.ts` � Vendor operations
+- `notifications.test.ts` � Notification system
+- `notification.test.ts` � Notification delivery (unit)
+- `appointments.test.ts` � Appointment booking
+- `upload.test.ts` � File upload handling
+- `2fa.test.ts` � Two-factor authentication
+- `utils.test.ts` � Utility functions
 
 **Integration Tests (8 files):**
-- `security.test.ts` — Full security flow
-- `staff.test.ts` — Staff CRUD + auth
-- `stock.test.ts` — Inventory flow
-- `referrals.test.ts` — Affiliate system
-- `order-inventory-flow.test.ts` — Order → inventory
-- `orders-patch.test.ts` — Order updates
-- `notification.test.ts` — Notification delivery
-- `telegram.test.ts` — Telegram webhook flow
+- `security.test.ts` � Full security flow
+- `staff.test.ts` � Staff CRUD + auth
+- `stock.test.ts` � Inventory flow
+- `referrals.test.ts` � Affiliate system
+- `order-inventory-flow.test.ts` � Order ? inventory
+- `orders-patch.test.ts` � Order updates
+- `notification.test.ts` � Notification delivery
+- `telegram.test.ts` � Telegram webhook flow
 
 ### Frontend Tests
 ```bash
@@ -535,13 +581,19 @@ cd backend && npm run db:migrate
 cd backend && node create-admin.js
 
 # 6. Start development servers
-# Terminal 1 — Backend:
+# Terminal 1 � Backend:
 cd backend && npm run dev
 
-# Terminal 2 — Frontend:
+# Terminal 2 � Frontend:
 cd frontend && npm run dev
 
 # 7. Open http://localhost:5173 in your browser
+```
+
+### Telegram Local Development
+```bash
+# Start the Telegram polling script (forwards Telegram updates to local webhook)
+cd backend && npm run telegram:poll
 ```
 
 ### Build for Production
@@ -613,12 +665,15 @@ See `backend/.env.example` for the complete template with descriptions.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REFRESH_TOKEN_SECRET` | Separate refresh token secret | — |
-| `SMTP_USER` | Gmail address for emails | — |
-| `SMTP_PASS` | Gmail app password | — |
-| `GOOGLE_SPREADSHEET_ID` | Google Sheets ID | — |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account credentials | — |
-| `SENTRY_DSN` | Sentry error tracking | — |
+| `REFRESH_TOKEN_SECRET` | Separate refresh token secret | � |
+| `SMTP_USER` | Gmail address for emails | � |
+| `SMTP_PASS` | Gmail app password | � |
+| `GOOGLE_SPREADSHEET_ID` | Google Sheets ID | � |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account credentials | � |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | � |
+| `CLOUDINARY_API_KEY` | Cloudinary API key | � |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret | � |
+| `SENTRY_DSN` | Sentry error tracking | � |
 | `UPLOAD_DIR` | File upload directory | `./uploads` |
 | `MAX_FILE_SIZE_MB` | Max upload size | `5` |
 | `RETENTION_YEARS` | Data retention period | `2` |
@@ -629,10 +684,11 @@ See `backend/.env.example` for the complete template with descriptions.
 
 | Feature | Implementation | File |
 |---------|---------------|------|
-| **HTTPS Enforcement** | HSTS with 1-year max-age, preload | `securityHeaders.ts` |
-| **Content Security Policy** | Strict CSP with self-only sources | `securityHeaders.ts` |
+| **HTTPS Enforcement** | HSTS with 1-year max-age, preload | `helmet` in `app.ts` |
+| **Content Security Policy** | Strict CSP with self-only sources | `helmet` in `app.ts` |
+| **Permissions Policy** | Restricts geolocation, camera, mic, payment | `helmet` in `app.ts` |
 | **XSS Protection** | DOMPurify sanitization on all inputs | `security.ts`, `validate.ts` |
-| **CSRF Protection** | SameSite cookies, CORS origin check | `app.ts` |
+| **CSRF Protection** | SameSite cookies + strict origin check middleware | `app.ts` |
 | **SQL Injection** | Parameterized queries (mysql2) | All routes |
 | **Rate Limiting** | Per-user/IP with LRU cache | `rateLimit.ts` |
 | **Password Hashing** | bcrypt with auto-generated salt | `auth.ts` route |
@@ -640,9 +696,9 @@ See `backend/.env.example` for the complete template with descriptions.
 | **2FA** | TOTP (RFC 6238) via otplib | `middleware/2fa.ts` |
 | **Request Correlation** | UUID-based request tracing | `requestId.ts` |
 | **Idempotency** | Hash-based replay protection | `idempotency.ts` |
-| **Clickjacking** | X-Frame-Options: DENY | `securityHeaders.ts` |
-| **MIME Sniffing** | X-Content-Type-Options: nosniff | `securityHeaders.ts` |
-| **Server Fingerprint** | X-Powered-By removed | `securityHeaders.ts` |
+| **Clickjacking** | X-Frame-Options: DENY (frameAncestors) | `helmet` in `app.ts` |
+| **MIME Sniffing** | X-Content-Type-Options: nosniff | `helmet` in `app.ts` |
+| **Server Fingerprint** | X-Powered-By removed | `helmet` in `app.ts` |
 | **Timing Attacks** | `crypto.timingSafeEqual` for tokens | `security.ts` |
 | **Input Validation** | Zod schemas on all endpoints | `schemas/index.ts` |
 | **Cookie Security** | HttpOnly, Secure, SameSite | `auth.ts` route |
@@ -654,62 +710,64 @@ See `backend/.env.example` for the complete template with descriptions.
 ### Authentication
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/api/v1/auth/login` | ❌ | Log in with credentials |
-| POST | `/api/v1/auth/logout` | ✅ | Log out (revoke session) |
+| POST | `/api/v1/auth/login` | ? | Log in with credentials |
+| POST | `/api/v1/auth/logout` | ? | Log out (revoke session) |
 | POST | `/api/v1/auth/refresh` | Cookie | Refresh access token |
-| GET | `/api/v1/auth/me` | ✅ | Get current user profile |
+| GET | `/api/v1/auth/me` | ? | Get current user profile |
 
 ### Orders
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/v1/orders` | ✅ | List orders (paginated, filterable) |
-| GET | `/api/v1/orders/:id` | ✅ | Get order by ID |
-| POST | `/api/v1/orders` | ✅ | Create new order |
-| PATCH | `/api/v1/orders/:id/status` | ✅ | Update order status |
-| PATCH | `/api/v1/orders/:id/payment` | ✅ | Update payment info |
-| PATCH | `/api/v1/orders/:id/items` | ✅ | Update order items |
-| DELETE | `/api/v1/orders/:id` | ✅ | Delete order |
+| GET | `/api/v1/orders` | ? | List orders (paginated, filterable) |
+| GET | `/api/v1/orders/:id` | ? | Get order by ID |
+| POST | `/api/v1/orders` | ? | Create new order |
+| PATCH | `/api/v1/orders/:id/status` | ? | Update order status |
+| PATCH | `/api/v1/orders/:id/payment` | ? | Update payment info |
+| PATCH | `/api/v1/orders/:id/items` | ? | Update order items |
+| DELETE | `/api/v1/orders/:id` | ? | Delete order |
 
 ### Products
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/v1/products` | ❌ | List products (public catalog) |
-| GET | `/api/v1/products/:id` | ❌ | Get product details |
-| POST | `/api/v1/products` | ✅ | Create product |
-| PATCH | `/api/v1/products/:id` | ✅ | Update product |
-| DELETE | `/api/v1/products/:id` | ✅ | Delete product |
-| PATCH | `/api/v1/products/:id/inventory` | ✅ | Adjust inventory |
-| GET | `/api/v1/products/low-stock` | ✅ | Low stock alerts |
+| GET | `/api/v1/products` | ? | List products (public catalog) |
+| GET | `/api/v1/products/:id` | ? | Get product details |
+| POST | `/api/v1/products` | ? | Create product |
+| PATCH | `/api/v1/products/:id` | ? | Update product |
+| DELETE | `/api/v1/products/:id` | ? | Delete product |
+| PATCH | `/api/v1/products/:id/inventory` | ? | Adjust inventory |
+| GET | `/api/v1/products/low-stock` | ? | Low stock alerts |
 
 ### Staff
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/v1/staff` | ✅ | List staff members |
-| GET | `/api/v1/staff/:id` | ✅ | Get staff profile |
-| POST | `/api/v1/staff` | ✅ Admin | Create staff account |
-| PATCH | `/api/v1/staff/:id` | ✅ Admin | Update staff |
-| DELETE | `/api/v1/staff/:id` | ✅ Admin + 2FA | Delete staff |
-| POST | `/api/v1/staff/2fa/setup` | ✅ | Setup 2FA |
-| POST | `/api/v1/staff/2fa/verify` | ✅ | Verify 2FA token |
-| DELETE | `/api/v1/staff/2fa/disable` | ✅ | Disable 2FA |
+| GET | `/api/v1/staff` | ? | List staff members |
+| GET | `/api/v1/staff/:id` | ? | Get staff profile |
+| POST | `/api/v1/staff` | ? Admin | Create staff account |
+| PATCH | `/api/v1/staff/:id` | ? Admin | Update staff |
+| DELETE | `/api/v1/staff/:id` | ? Admin + 2FA | Delete staff |
+| POST | `/api/v1/staff/2fa/setup` | ? | Setup 2FA (returns QR code) |
+| POST | `/api/v1/staff/2fa/verify` | ? | Verify 2FA token |
+| DELETE | `/api/v1/staff/2fa/disable` | ? | Disable 2FA |
 
 ### Stock
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/v1/stock` | ✅ | List stock requests |
-| POST | `/api/v1/stock` | ✅ | Create stock request |
-| PATCH | `/api/v1/stock/:id` | ✅ | Update request status |
+| GET | `/api/v1/stock` | ? | List stock requests |
+| POST | `/api/v1/stock` | ? | Create stock request |
+| PATCH | `/api/v1/stock/:id` | ? | Update request status |
 
 ### Other Endpoints
 | Module | Base Path | Description |
 |--------|-----------|-------------|
 | Referrals | `/api/v1/referrals` | Affiliate code CRUD, commission tracking |
 | Telegram | `/api/v1/telegram` | Bot webhooks, message sending |
-| Upload | `/api/v1/upload` | File upload handling |
+| Upload | `/api/v1/upload` | File upload handling (Cloudinary-backed) |
 | Vendor Orders | `/api/v1/vendor-orders` | Vendor purchase management |
 | Notifications | `/api/v1/notifications` | In-app notification CRUD |
 | Appointments | `/api/v1/appointments` | Customer appointment booking |
 | Admin | `/api/v1/admin` | Administrative operations |
+| Expenses | `/api/v1/expenses` | Business expense tracking |
+| Videos | `/api/v1/videos` | Community video management |
 | Health | `/api/v1/health` | System health check (DB + Telegram) |
 
 ---
@@ -719,27 +777,27 @@ See `backend/.env.example` for the complete template with descriptions.
 The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on pushes and PRs to `main` and `develop`:
 
 ### Backend Job
-1. ✅ Checkout code
-2. ✅ Setup Node.js 24
-3. ✅ Install dependencies (`npm ci`)
-4. ✅ TypeScript type check (`npm run typecheck`)
-5. ✅ ESLint linting (`npm run lint`)
-6. ✅ Start MySQL service container
-7. ✅ Run database migrations
-8. ✅ Unit tests with coverage
-9. ⚠️ Integration tests (continue-on-error)
-10. ✅ Upload coverage to Codecov
-11. ✅ Security audit (`npm audit --audit-level=high`)
+1. ? Checkout code
+2. ? Setup Node.js 24
+3. ? Install dependencies (`npm ci`)
+4. ? TypeScript type check (`npm run typecheck`)
+5. ? ESLint linting (`npm run lint`)
+6. ? Start MySQL service container
+7. ? Run database migrations
+8. ? Unit tests with coverage
+9. ?? Integration tests (continue-on-error)
+10. ? Upload coverage to Codecov
+11. ? Security audit (`npm audit --audit-level=high`)
 
 ### Frontend Job
-1. ✅ Checkout code
-2. ✅ Setup Node.js 24
-3. ✅ Install dependencies
-4. ✅ TypeScript type check
-5. ✅ ESLint linting
-6. ✅ Production build
-7. ✅ Unit tests
-8. ✅ Security audit
+1. ? Checkout code
+2. ? Setup Node.js 24
+3. ? Install dependencies
+4. ? TypeScript type check
+5. ? ESLint linting
+6. ? Production build
+7. ? Unit tests
+8. ? Security audit
 
 ### Deploy Gate
 - Runs only on `main` branch pushes

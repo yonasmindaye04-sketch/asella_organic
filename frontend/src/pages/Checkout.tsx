@@ -142,7 +142,7 @@ const Checkout: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          source:        'website',
+          source:        'website/online',
           order_type:    'delivery',
           customer_name: form.customer_name.trim(),
           phone:         form.phone.trim(),

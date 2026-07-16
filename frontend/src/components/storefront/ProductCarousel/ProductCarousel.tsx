@@ -52,7 +52,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
           {t('carousel.subtitle')}
         </p>
 
-        <h2 className="font-bebas text-5xl md:text-6xl text-obsidian dark:text-white mb-6 tracking-wide">
+        <h2 className="font-heading font-black text-5xl md:text-6xl text-obsidian dark:text-white mb-6 tracking-tight">
           {t('carousel.title')}
         </h2>
 

@@ -18,9 +18,13 @@ async function tg(method: string, body: Record<string, unknown>): Promise<any> {
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(body),
     });
-    return await res.json();
+    const data = await res.json();
+    if (!data.ok) {
+      console.error(`[telegram] ${method} error:`, data.description);
+    }
+    return data;
   } catch (err) {
-    console.error(`[telegram] ${method} failed:`, err);
+    console.error(`[telegram] ${method} network failed:`, err);
     return null;
   }
 }
@@ -44,17 +48,41 @@ export async function answerCallbackQuery(
   await tg("answerCallbackQuery", body);
 }
 
+export async function editMessageReplyMarkup(
+  chatId: string | number,
+  messageId: number,
+  replyMarkup?: Record<string, unknown>
+): Promise<any> {
+  const body: Record<string, unknown> = {
+    chat_id:    chatId,
+    message_id: messageId,
+  };
+  if (replyMarkup !== undefined) body.reply_markup = replyMarkup;
+  const result = await tg("editMessageReplyMarkup", body);
+  if (result && !result.ok) {
+    console.error(`[telegram] editMessageReplyMarkup failed: ${result.description}`, { chat_id: chatId, message_id: messageId });
+  }
+  return result;
+}
+
 export async function editMessageText(
   chatId: string | number,
   messageId: number,
-  text: string
-): Promise<void> {
-  await tg("editMessageText", {
+  text: string,
+  replyMarkup?: Record<string, unknown>
+): Promise<any> {
+  const body: Record<string, unknown> = {
     chat_id:    chatId,
     message_id: messageId,
     text,
     parse_mode: "Markdown",
-  });
+  };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  const result = await tg("editMessageText", body);
+  if (result && !result.ok) {
+    console.error(`[telegram] editMessageText failed: ${result.description}`, { chat_id: chatId, message_id: messageId });
+  }
+  return result;
 }
 
 // ─── Inline keyboard button type ───────────────────────────────────────────
@@ -141,7 +169,7 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
 export async function sendWithButtons(
   chatId: string | number,
   text: string,
-  buttons: Array<Array<TelegramButton>>
+  buttons: Array<Array<{ text: string; callback_data?: string; url?: string }>>
 ): Promise<any> {
   return tg("sendMessage", {
     chat_id:      chatId,
@@ -345,6 +373,18 @@ export async function sendMorningBriefing(): Promise<void> {
   const adminChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
   if (!adminChat) return;
   try {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayKey = -Math.abs(parseInt(today.replace(/-/g, ''), 10));
+
+    const [existing] = await pool.query(
+      `SELECT 1 FROM webhook_events WHERE update_id = ?`,
+      [todayKey]
+    ) as [any[], any];
+    if (existing.length > 0) {
+      console.log(`[sendMorningBriefing] Already sent for ${today} — skipping`);
+      return;
+    }
+
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const [statsRes, pendingRes] = await Promise.all([
       pool.query(
@@ -371,6 +411,11 @@ export async function sendMorningBriefing(): Promise<void> {
           { text: " Stats",          callback_data: "analytics_summary" },
         ],
       ]
+    );
+
+    await pool.query(
+      `INSERT IGNORE INTO webhook_events (update_id) VALUES (?)`,
+      [todayKey]
     );
   } catch (err) {
     console.error("[sendMorningBriefing]", err);

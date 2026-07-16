@@ -119,7 +119,7 @@ const ContactSection: React.FC = () => {
             <div className="absolute top-0 right-0 w-32 h-32 bg-highland-gold/5 rounded-full blur-2xl pointer-events-none"></div>
             
             <h3 className="text-2xl md:text-3xl font-display-lg font-bold mb-6 flex items-center gap-3 relative z-10">
-              <span className="material-symbols-outlined text-highland-gold text-[28px] md:text-[32px] animate-pulse">calendar_month</span>
+              <span className="material-symbols-outlined text-highland-gold text-[28px] md:text-[32px]">calendar_month</span>
               {t('contact.formTitle')}
             </h3>
 

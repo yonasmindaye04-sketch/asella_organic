@@ -70,7 +70,7 @@ router.get(
       const total = parseInt(countRows[0]?.total ?? "0", 10);
 
       const [rows] = await pool.query(
-        `SELECT id, username, full_name, role, email, phone, active,
+        `SELECT id, username, full_name, role, email, phone, telegram_username, active,
                 two_factor_enabled, created_at, updated_at
          FROM staff_users ${where}
          ORDER BY created_at DESC
@@ -107,7 +107,7 @@ router.get(
         return;
       }
       const [rows] = await pool.query(
-        `SELECT id, username, full_name, role, email, phone, active,
+        `SELECT id, username, full_name, role, email, phone, telegram_username, active,
                 two_factor_enabled, created_at, updated_at
          FROM staff_users
           WHERE id = ? AND deleted_at IS NULL`,
@@ -136,9 +136,9 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const { username, password, full_name, role, email, phone } = req.body as {
+      const { username, password, full_name, role, email, phone, telegram_username } = req.body as {
         username?: string; password?: string; full_name?: string;
-        role?: string; email?: string; phone?: string;
+        role?: string; email?: string; phone?: string; telegram_username?: string;
       };
 
       if (!username || !password || !full_name || !role) {
@@ -167,9 +167,9 @@ router.post(
       const newId        = crypto.randomUUID();
 
       await pool.query(
-        `INSERT INTO staff_users (id, username, password_hash, full_name, role, email, phone)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [newId, username.toLowerCase(), passwordHash, full_name, role, email ?? null, phone ?? null]
+        `INSERT INTO staff_users (id, username, password_hash, full_name, role, email, phone, telegram_username)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, username.toLowerCase(), passwordHash, full_name, role, email ?? null, phone ?? null, telegram_username ?? null]
       );
 
       await pool.query(
@@ -203,8 +203,8 @@ router.patch(
         return;
       }
 
-      const { full_name, role, email, phone, active } = req.body as {
-        full_name?: string; role?: string; email?: string; phone?: string; active?: boolean;
+      const { full_name, role, email, phone, telegram_username, active } = req.body as {
+        full_name?: string; role?: string; email?: string; phone?: string; telegram_username?: string; active?: boolean;
       };
 
       if (role && !isValidRole(role)) {
@@ -215,7 +215,7 @@ router.patch(
       const updates: string[] = [];
       const values:  unknown[] = [];
 
-      for (const [field, val] of Object.entries({ full_name, role, email, phone, active })) {
+      for (const [field, val] of Object.entries({ full_name, role, email, phone, telegram_username, active })) {
         if (val !== undefined) { updates.push(`${field} = ?`); values.push(val); }
       }
       if (updates.length === 0) {

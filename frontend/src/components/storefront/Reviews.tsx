@@ -4,7 +4,8 @@ import { useLanguage } from '../../LanguageContext';
 
 const getEmbedUrl = (url: string) => {
   if (url.includes('youtube.com/shorts/')) {
-    return url.replace('youtube.com/shorts/', 'youtube.com/embed/');
+    const id = url.split('youtube.com/shorts/')[1]?.split('?')[0];
+    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
   }
   return url;
 };
@@ -36,7 +37,7 @@ const Reviews: React.FC = () => {
   });
 
   return (
-    <section className="py-16 lg:py-20 bg-parchment dark:bg-[#121212] border-t border-border">
+    <section className="py-16 lg:py-20 bg-parchment dark:bg-[#121212] border-t border-border content-visibility-auto">
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
         
         {/* Section Header */}
@@ -56,6 +57,7 @@ const Reviews: React.FC = () => {
               <iframe
                 src={getEmbedUrl(v.url)}
                 title={v.title}
+                loading="lazy"
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen

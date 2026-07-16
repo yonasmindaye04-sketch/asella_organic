@@ -40,9 +40,17 @@ export default function EmployeePerformance() {
           // Initialize totals for each real staff member
           const staffTotals = new Array(activeStaff.length).fill(0);
           
-          // Distribute real orders among the real staff
+          // Distribute real orders among the real staff deterministically based on order ID
           activeOrders.forEach(o => {
-            const empIdx = Math.floor(Math.random() * activeStaff.length);
+            // Hash the order ID string into a simple number to deterministically pick a staff member
+            const orderIdStr = String(o.id || o.order_id || '');
+            let hash = 0;
+            for (let i = 0; i < orderIdStr.length; i++) {
+              hash = ((hash << 5) - hash) + orderIdStr.charCodeAt(i);
+              hash |= 0; // Convert to 32bit integer
+            }
+            
+            const empIdx = Math.abs(hash) % activeStaff.length;
             staffTotals[empIdx] += Number(o.total || o.total_amount || 0);
           });
           

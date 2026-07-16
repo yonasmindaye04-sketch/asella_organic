@@ -39,7 +39,7 @@ const EMPTY_ITEM: OrderItem = {
   unit_price:   0,
 };
 
-const SOURCES = ['website', 'phone', 'walk-in','other'];
+const SOURCES = ['phone', 'walk-in', 'other'];
 const AGE_GROUPS = ['under-18', '18-24', '25-34', '35-44', '45-54', '55+'];
 const CITIES = ['Addis Ababa', 'Other Regions', 'Abroad'];
 

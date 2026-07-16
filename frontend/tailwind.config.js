@@ -98,7 +98,8 @@ export default {
         neonPulse: 'neonPulse 2s ease-in-out infinite',
         'pulse-gold': 'pulse-gold 2s cubic-bezier(0.4,0,0.6,1) infinite',
         'fade-up': 'fade-up 0.6s ease-out forwards',
-        breathe: 'breathe 3s ease-in-out infinite'
+        breathe: 'breathe 3s ease-in-out infinite',
+        'gentle-bounce': 'gentle-bounce 2s ease-in-out infinite'
       },
       borderRadius: {
         "DEFAULT": "0.25rem",
@@ -117,18 +118,16 @@ export default {
         "admin-sidebar": "280px"
       },
       fontFamily: {
-        "sans": ["Poppins", "sans-serif"],
+        "sans": ["DM Sans", "sans-serif"],
         "display-lg": ["Outfit"],
         "data-mono": ["DM Mono"],
         "display-lg-mobile": ["Outfit"],
-        "body-lg": ["Poppins", "sans-serif"],
-        "body-md": ["Poppins", "sans-serif"],
+        "body-lg": ["DM Sans", "sans-serif"],
+        "body-md": ["DM Sans", "sans-serif"],
         "headline-md": ["Outfit"],
         "label-caps": ["Outfit"],
         "headline-lg": ["Outfit"],
-        "body-sm": ["Poppins", "sans-serif"],
-        "bebas": ["Bebas Neue", "sans-serif"],
-        "comfortaa": ["Comfortaa", "sans-serif"],
+        "body-sm": ["DM Sans", "sans-serif"],
         "heading": ["Outfit", "sans-serif"],
         "body": ["DM Sans", "sans-serif"],
         "mono": ["DM Mono", "monospace"]

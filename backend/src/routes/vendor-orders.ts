@@ -280,10 +280,10 @@ router.patch(
                 type:          "purchase_received",
                 changeAmount:  parsedQty,
                 performedBy:   req.user!.id,
-                referenceId:   id,
+                referenceId:   id as string,
                 referenceType: "vendor_order",
                 reason:        `PO received from ${vo.vendor_name} (ref: ${vo.order_id})`,
-                notes:         notes ?? null,
+                notes:         (notes ?? null) as string | null,
               },
               conn
             );
