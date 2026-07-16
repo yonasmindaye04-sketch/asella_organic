@@ -59,6 +59,7 @@ app.use(helmet({
       upgradeInsecureRequests: [],
     },
   },
+  // @ts-expect-error — permissionsPolicy works at runtime but @types/helmet doesn't include it
   permissionsPolicy: {
     features: {
       geolocation: [],

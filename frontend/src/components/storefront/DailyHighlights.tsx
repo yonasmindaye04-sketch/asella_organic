@@ -71,7 +71,7 @@ const DailyHighlights: React.FC = () => {
   }));
 
   return (
-    <section className="bg-parchment dark:bg-[#121212] overflow-hidden">
+    <section className="bg-parchment dark:bg-[#121212] overflow-hidden content-visibility-auto">
       
       {/* 3D Product Carousel (Replacing old 2-wide cards) */}
       {translatedProducts.length > 0 && <ProductCarousel products={translatedProducts} />}
@@ -82,7 +82,7 @@ const DailyHighlights: React.FC = () => {
           
           {/* Section Header */}
           <div className="text-center mb-10">
-            <h3 className="font-bebas text-4xl md:text-5xl text-obsidian dark:text-white tracking-wide">{t('dailyHighlights.shopByCategory')}</h3>
+            <h2 className="font-heading font-black text-4xl md:text-5xl text-obsidian dark:text-white tracking-tight">{t('dailyHighlights.shopByCategory')}</h2>
           </div>
           <div className="flex overflow-x-auto items-center gap-6 md:gap-8 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {categoryCards.map((cat, idx) => (

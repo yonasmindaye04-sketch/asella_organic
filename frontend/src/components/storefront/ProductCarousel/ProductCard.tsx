@@ -56,7 +56,7 @@ export default function ProductCard({ product, offset, onClick }: ProductCardPro
     <div
       className="absolute left-1/2 top-1/2 w-[400px] h-[480px] rounded-[24px] overflow-hidden cursor-pointer
                  transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
-      style={{ ...style, willChange: 'transform, opacity' }}
+      style={style}
       onClick={onClick}
       role="button"
       tabIndex={offset === 0 ? 0 : -1}
@@ -72,7 +72,6 @@ export default function ProductCard({ product, offset, onClick }: ProductCardPro
           loading="lazy"
           decoding="async"
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ willChange: 'transform' }}
         />
       ) : (
         <div
@@ -96,7 +95,7 @@ export default function ProductCard({ product, offset, onClick }: ProductCardPro
 
       {/* Content */}
       <div className="absolute bottom-0 left-0 right-0 p-8 text-left">
-        <h3 className="font-serif text-[1.8rem] font-bold text-white leading-tight mb-3">
+        <h3 className="font-heading text-[1.8rem] font-bold text-white leading-tight mb-3">
           {product.name}
         </h3>
 

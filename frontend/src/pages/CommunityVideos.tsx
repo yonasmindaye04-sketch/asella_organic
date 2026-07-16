@@ -6,15 +6,15 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 const getEmbedUrl = (url: string) => {
   if (url.includes('youtube.com/shorts/')) {
     const id = url.split('youtube.com/shorts/')[1]?.split('?')[0];
-    return `https://www.youtube.com/embed/${id}?rel=0`;
+    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
   }
   if (url.includes('youtu.be/')) {
     const id = url.split('youtu.be/')[1]?.split('?')[0];
-    return `https://www.youtube.com/embed/${id}?rel=0`;
+    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
   }
   if (url.includes('youtube.com/watch?v=')) {
     const id = new URLSearchParams(url.split('?')[1]).get('v');
-    return `https://www.youtube.com/embed/${id}?rel=0`;
+    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
   }
   return url;
 };
@@ -50,7 +50,7 @@ const LazyIframe: React.FC<{ src: string; title: string }> = ({ src, title }) =>
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-neutral-900 animate-pulse">
-          <span className="material-symbols-outlined text-white/30 text-[64px]">play_circle</span>
+          <span className="material-symbols-outlined text-white/60 text-[64px]">play_circle</span>
         </div>
       )}
     </div>
@@ -94,7 +94,7 @@ const CommunityVideos: React.FC = () => {
             More Community <span className="text-highland-gold">Voices</span>
           </h1>
           {!loading && videos.length > 0 && (
-            <p className="text-slate-500 text-sm mt-3 font-mono">{videos.length} videos</p>
+            <p className="text-slate-700 text-sm mt-3 font-mono">{videos.length} videos</p>
           )}
         </div>
 
@@ -117,7 +117,7 @@ const CommunityVideos: React.FC = () => {
 
         {/* Empty */}
         {!loading && !error && videos.length === 0 && (
-          <p className="text-center text-slate-500 font-mono text-lg">No videos available yet. Check back soon!</p>
+          <p className="text-center text-slate-700 font-mono text-lg">No videos available yet. Check back soon!</p>
         )}
 
         {/* Grid */}

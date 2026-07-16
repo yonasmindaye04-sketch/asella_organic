@@ -5,6 +5,8 @@
 
 import "./config/env.js";
 import app from "./app.js";
+import cron from "node-cron";
+import { sendMorningBriefing } from "./lib/telegram.js";
 
 const PORT = process.env.PORT ?? "3001";
 
@@ -29,6 +31,11 @@ async function shutdown(signal: string): Promise<void> {
     process.exit(1);
   }, 10_000);
 }
+
+// ── Schedule morning briefing (daily at 8:00 AM EAT) ────────────
+cron.schedule("0 8 * * *", sendMorningBriefing, {
+  timezone: "Africa/Addis_Ababa",
+});
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT",  () => shutdown("SIGINT"));

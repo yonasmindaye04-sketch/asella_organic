@@ -107,7 +107,7 @@ export const CreateOrderSchema = z.object({
   items: z
     .array(OrderItemSchema)
     .min(1, "At least one item is required")
-    .max(20, "Too many items in one order"),
+    .max(50, "Too many items in one order"),
 });
 
 export const UpdateStatusSchema = z.object({
@@ -130,7 +130,7 @@ export const UpdateItemsSchema = z.object({
   items: z
     .array(OrderItemSchema)
     .min(1, "At least one item is required")
-    .max(20),
+    .max(50),
 });
 
 // ─── Products ─────────────────────────────────────────────────────────────

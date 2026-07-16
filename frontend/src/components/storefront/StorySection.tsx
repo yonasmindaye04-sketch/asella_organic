@@ -4,11 +4,11 @@ import { useLanguage } from '../../LanguageContext';
 const StorySection: React.FC = () => {
   const { t } = useLanguage();
   return (
-    <section className="relative w-full py-16 lg:py-20 bg-parchment dark:bg-[#121212] overflow-hidden" id="story">
+    <section className="relative w-full py-16 lg:py-20 bg-parchment dark:bg-[#121212] overflow-hidden content-visibility-auto" id="story">
       {/* Subtle background blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-parchment-mid rounded-full blur-[100px] opacity-40 -translate-y-1/2 translate-x-1/4"></div>
-        <div className="absolute bottom-0 left-0 w-[40vw] h-[40vw] bg-amber-50 rounded-full blur-[80px] opacity-30 translate-y-1/3 -translate-x-1/4"></div>
+        <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-parchment-mid rounded-full opacity-40 -translate-y-1/2 translate-x-1/4"></div>
+        <div className="absolute bottom-0 left-0 w-[40vw] h-[40vw] bg-amber-50 rounded-full opacity-30 translate-y-1/3 -translate-x-1/4"></div>
       </div>
       
       <div className="max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 relative z-10 px-6 lg:px-12 items-start">

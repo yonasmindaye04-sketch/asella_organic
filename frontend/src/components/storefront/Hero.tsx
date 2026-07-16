@@ -42,7 +42,7 @@ const Hero: React.FC = () => {
       <div className="relative z-10 w-[95%] max-w-[1600px] mx-auto text-center flex flex-col items-center">
         
         {/* Title */}
-        <h1 className="font-serif text-4xl md:text-5xl lg:text-7xl xl:text-[90px] leading-[1.05] mb-6 font-extrabold tracking-tight drop-shadow-md transition-all duration-300 hover:scale-105 hover:drop-shadow-2xl cursor-default">
+        <h1 className="font-heading text-4xl md:text-5xl lg:text-7xl xl:text-[90px] leading-[1.05] mb-6 font-extrabold tracking-tight drop-shadow-md transition-all duration-300 hover:scale-105 hover:drop-shadow-2xl cursor-default">
           <span className="text-obsidian dark:text-white block">{t('hero.title1')}</span>
           <span className="text-highland-gold block mt-1">{t('hero.title2')}</span>
         </h1>
@@ -55,7 +55,7 @@ const Hero: React.FC = () => {
         {/* Buttons */}
         <div className="flex flex-col md:flex-row justify-center items-center gap-4 lg:gap-6 mb-14 lg:mb-20 w-full max-w-4xl mx-auto px-4 md:px-0">
           
-          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-bounce">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-gentle-bounce">
             <span className="material-symbols-outlined text-base lg:text-xl">shopping_cart</span>
             {t('hero.btn.order')}
           </button>
@@ -126,8 +126,8 @@ const Hero: React.FC = () => {
 
       {/* Background Blobs */}
       <div className="absolute inset-0 pointer-events-none z-0">
-        <div className="absolute top-[15%] left-[5%] w-80 h-80 bg-highland-gold/10 rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-[10%] right-[5%] w-[28rem] h-[28rem] bg-obsidian/5 rounded-full blur-[100px]"></div>
+        <div className="absolute top-[15%] left-[5%] w-80 h-80 bg-highland-gold/10 rounded-full"></div>
+        <div className="absolute bottom-[10%] right-[5%] w-[28rem] h-[28rem] bg-obsidian/5 rounded-full"></div>
       </div>
     </section>
   );

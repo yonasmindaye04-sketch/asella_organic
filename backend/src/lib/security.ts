@@ -104,4 +104,4 @@ export function verifyResetToken(token: string): string {
 // ─── Random ID helper ─────────────────────────────────────────────────────
 
 export const randomId = (bytes = 8): string =>
-  crypto.randomBytes(bytes).toString("base64url").toUpperCase();
+  crypto.randomBytes(bytes).toString("hex").toUpperCase();

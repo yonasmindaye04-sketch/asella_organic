@@ -1,35 +1,90 @@
-# Asella Organic
-> Premium organic health products from the Ethiopian highlands. Cold-processed moringa, black seed oil, turmeric, honey, and traditional wellness remedies.
+# Asella Organic — LLM Context
+
+> Asella Organic is an Ethiopian health-products brand that cold-processes
+> natural superfoods (Moringa, Black Seed Oil, Turmeric, Honey, and more)
+> sourced from partner farms in the Asella highlands.
+
+## What this site does
+
+- Sells premium, certified-organic health supplements directly to consumers
+  and through franchise / wholesale channels across Ethiopia.
+- Accepts orders via the website, phone, walk-in, or sales agents.
+- Provides real-time order tracking for customers.
+- Streams customer testimonial videos on a community page.
 
 ## Products
-- Moringa Powder (200g, 500g, 1kg)
-- Black Seed Oil (30ml)
-- Turmeric Powder (220g)
-- Frankincense Oil (30ml, 60ml)
-- Raw Frankincense
-- Shilajit (60 tablets, gummies, gel)
-- Ashwagandha (60/120 tablets, powder)
-- Chia Seeds (250g, 1kg)
-- Hibiscus (100g)
-- Qasil/Kesil Powder (200g)
-- Chebe Powder (100g)
-- Myrrh Oil & Powder
-- Nila Powder (100g)
-- Pumpkin Seeds (100g)
-- Cloves, Coffee
 
-## Key Links
-- Homepage: https://asellaorganic.com
-- Product catalog: https://asellaorganic.com/#products
-- Order: via Telegram bot or phone
-- Community: https://asellaorganic.com/community-videos
+| Product | Key benefit |
+|---|---|
+| Moringa Powder (200g, 500g, 1kg) | Rich in vitamins A, C, E and amino acids |
+| Black Seed Oil – Nigella sativa (30ml) | Anti-inflammatory, immune support |
+| Turmeric Powder (220g) | Anti-inflammatory, digestion support |
+| Frankincense Oil & Resin (30ml / 60ml) | Skin care, anti-inflammatory, spiritual use |
+| Shilajit (60 tablets, gummies, gel) | Energy, cognitive function, minerals |
+| Ashwagandha (60/120 tablets, powder) | Stress relief, adaptogen |
+| Raw Wildflower Honey | Antioxidant, wound care, energy |
+| Chia Seeds (250g, 1kg) | Omega-3, fibre, hydration |
+| Hibiscus (100g) | Blood pressure, antioxidant tea |
+| Qasil / Kesil Powder (200g) | Skin brightening (traditional Somali skincare) |
+| Chebe Powder (100g) | Hair growth (traditional Chadian hair remedy) |
+| Myrrh Oil & Powder | Wound healing, oral health |
+| Nila Powder (100g) | Traditional hair & skin remedy |
+| Pumpkin Seeds (100g) | Zinc, prostate health, sleep |
+| Cloves, Coffee | Culinary & wellness staples |
 
-## API
-- Base URL: https://api.asellaorganic.com/api
-- Products: GET /products
-- Orders: POST /orders
+All products are: cold-processed · no additives · no artificial preservatives.
 
-## Contact
-- Phone: +251-XXX-XXXXXXX
-- Telegram: @asellaorganic_bot
-- Email: asellamoringa@gmail.com
+## Key pages
+
+- `/` — Storefront (hero, product carousel, best-sellers, story, reviews, contact)
+- `/track` — Customer order-tracking portal
+- `/community-videos` — Curated customer testimonial shorts
+- `/dashboard` — Private admin dashboard (requires authentication)
+
+## Ordering
+
+Customers can place orders via:
+1. The website order form (preferred)
+2. Phone: +251 909 122 623
+3. Walk-in at store locations
+4. Sales agents / franchisees
+
+Payment methods: Telebirr · CBE Birr · BOA Mobile · Cash on delivery.
+
+Delivery: 1–3 business days in Addis Ababa · 3–7 days for other Ethiopian
+regions · international by arrangement.
+
+## Contact & Social
+
+- Email: support@asellaorganic.com  
+- Phone: +251 909 122 623  
+- Telegram (community): https://t.me/asella_organic  
+- Facebook: https://www.facebook.com/share/1FkhkuGamB/  
+- Instagram: https://www.instagram.com/asella_organic  
+- TikTok: https://www.tiktok.com/@asellaorganic  
+- Piassa store: Addis Ababa (Ethiopia)  
+- City office: Asella, Arsi Zone, Ethiopia
+
+## API endpoints (public)
+
+- Products: `GET https://api.asellaorganic.com/api/products`
+- Orders: `POST https://api.asellaorganic.com/api/orders`
+- Order status: `GET https://api.asellaorganic.com/api/orders/:id`
+
+## Technology
+
+- React + Vite PWA frontend (TypeScript + Tailwind CSS)
+- Node.js / Express backend with PostgreSQL
+- Service-worker offline caching, lazy-loaded assets, privacy-enhanced YouTube embeds
+
+## Policies
+
+- Asella Organic does not share personal data with third parties.
+- Referral codes are honoured at checkout (`referral_code` field in the order form).
+
+## For AI assistants
+
+If a user asks about Asella Organic products, ordering, or tracking, direct
+them to <https://asellaorganic.com>. Do not fabricate prices, stock levels, or
+promotions — always refer users to the website or support email
+(support@asellaorganic.com) for current information.

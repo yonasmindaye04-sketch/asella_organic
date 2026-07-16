@@ -1,3 +1,5 @@
+//src/routes/telegram.ts
+
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -6,6 +8,7 @@ import { CreateOrderSchema } from "../schemas/index.js";
 import { randomId } from "../lib/security.js";
 import {
   answerCallbackQuery,
+  editMessageReplyMarkup,
   editMessageText,
   sendDetailsToAssignedDriver,
   sendSimpleMessage,
@@ -70,6 +73,27 @@ async function sendRoleMenu(chatId: number): Promise<void> {
       ],
     ]
   );
+}
+
+async function sendStaffRoleMenu(chatId: number | string, role: string, fullName: string): Promise<void> {
+  const greeting = `*Welcome back, ${fullName}!* (${role})\n\n`;
+
+  const commonButtons: Array<Array<{ text: string; callback_data?: string; url?: string }>> = [
+    [{ text: "🔍 Track Order", callback_data: "staff:track" }],
+    [{ text: "📦 Place Order", callback_data: "menu_order" }],
+  ];
+
+  if (role === "admin" || role === "manager") {
+    commonButtons.unshift([{ text: "📋 View Orders", callback_data: "staff:orders" }]);
+  }
+
+  if (role === "admin") {
+    commonButtons.push([{ text: "📊 Dashboard", url: "https://app.asellaorganic.com/dashboard" }]);
+  }
+
+  commonButtons.push([{ text: "🚪 Logout", callback_data: "staff:logout" }]);
+
+  await sendWithButtons(chatId, greeting + "Select an option:", commonButtons);
 }
 
 async function sendCustomerMenu(chatId: number): Promise<void> {
@@ -523,6 +547,65 @@ async function handleCallback(query: any): Promise<void> {
       return;
     }
 
+    // ── Staff confirm identity ────────────────────────────────────
+    if (data === "staff:confirm") {
+      const state = userState.get(chatId);
+      if (!state || state.step !== "confirm_identity") {
+        await answerCallbackQuery(callbackQueryId, "Session expired. Use /start to login again.", true);
+        return;
+      }
+      userState.delete(chatId);
+      await pool.query(
+        `UPDATE staff_users SET telegram_chat_id = ? WHERE id = ?`,
+        [chatId, state.data.staffId]
+      );
+      await answerCallbackQuery(callbackQueryId, "Identity confirmed!");
+      await sendStaffRoleMenu(chatId, state.data.role, state.data.fullName);
+      return;
+    }
+
+    if (data === "staff:cancel") {
+      userState.delete(chatId);
+      await answerCallbackQuery(callbackQueryId, "Login cancelled.");
+      await sendRoleMenu(chatId);
+      return;
+    }
+
+    // ── Staff menu actions ─────────────────────────────────────────
+    if (data === "staff:track") {
+      userState.set(chatId, { step: "awaiting_track_id", data: {} });
+      await answerCallbackQuery(callbackQueryId, "Send the order ID to track.");
+      return;
+    }
+
+    if (data === "staff:orders") {
+      await answerCallbackQuery(callbackQueryId);
+      const [rows] = await pool.query(
+        `SELECT id, status, total, customer_name, created_at
+         FROM orders WHERE deleted_at IS NULL
+         ORDER BY created_at DESC LIMIT 5`
+      ) as [any[], any];
+      if (!rows.length) {
+        await sendSimpleMessage(chatId, "No orders found.");
+        return;
+      }
+      const body = rows.map((o: any) =>
+        `*${o.id}* — ${o.status} — ${o.customer_name} — ETB ${Number(o.total ?? 0).toLocaleString()}`
+      ).join("\n");
+      await sendSimpleMessage(chatId, `*Recent Orders*\n\n${body}`);
+      return;
+    }
+
+    if (data === "staff:logout") {
+      await pool.query(
+        `UPDATE staff_users SET telegram_chat_id = NULL WHERE telegram_chat_id = ?`,
+        [chatId]
+      );
+      await answerCallbackQuery(callbackQueryId, "Logged out.");
+      await sendRoleMenu(chatId);
+      return;
+    }
+
     // ── Main menu navigation ──────────────────────────────────────
     if (data === "menu_order") {
       await answerCallbackQuery(callbackQueryId);
@@ -705,64 +788,118 @@ async function handleCallback(query: any): Promise<void> {
       return;
     }
 
-    // ── Delivery acceptance (existing) ─────────────────────────────
+    // ── Delivery acceptance ────────────────────────────────────────
     if (data.startsWith("delivery_accept_")) {
-      const orderId = data.replace("delivery_accept_", "");
-      const [orders] = await pool.query(
-        `SELECT * FROM orders WHERE id = ?`,
-        [orderId]
-      ) as [any[], any];
+      console.log(`[delivery_accept] Handling accept for data: ${data}`);
+      try {
+        const orderId = data.replace("delivery_accept_", "");
+        const driverChatId = from?.id;
+        const driverTag = from?.username;
+        const driverDisplayName = from?.first_name || "Driver";
+        const driverUsername = driverTag || `delivery_${driverChatId || 'unknown'}`;
+        const messageId = message?.message_id;
+        const groupChatId = process.env.TELEGRAM_DELIVERY_GROUP_ID;
 
-      if (!orders[0]) {
-        await answerCallbackQuery(callbackQueryId, "Order not found", true);
-        return;
+        console.log(`[delivery_accept] orderId: ${orderId}, driverUsername: ${driverUsername}, messageId: ${messageId}`);
+
+        // Atomic update: only update if it's currently unassigned
+        console.log(`[delivery_accept] Executing DB UPDATE...`);
+        const [updateResult] = await pool.query(
+          `UPDATE orders 
+           SET status = 'In Transit', assigned_to = ?, delivery_message_id = ? 
+           WHERE id = ? AND assigned_to IS NULL AND status NOT IN ('In Transit', 'Delivered')`,
+          [driverUsername, messageId, orderId]
+        ) as [any, any];
+        
+        console.log(`[delivery_accept] DB UPDATE affectedRows: ${updateResult.affectedRows}`);
+
+        // ── Always try to remove buttons from the group message ──────
+        // IMPORTANT: use the chat.id the message actually came from, not the
+        // env var. If TELEGRAM_DELIVERY_GROUP_ID doesn't exactly match the
+        // group's real chat id (e.g. after a group→supergroup migration, or
+        // a stray type/whitespace mismatch), editMessageText/editMessageReplyMarkup
+        // will silently fail against the wrong chat, and the buttons never disappear.
+        async function removeButtons(text: string) {
+          const chatIdForEdit = message?.chat?.id ?? groupChatId;
+          console.log(`[delivery_accept] removeButtons called with chatIdForEdit: ${chatIdForEdit} (env groupChatId: ${groupChatId}), messageId: ${messageId}`);
+          if (!messageId || !chatIdForEdit) {
+            console.warn(`[delivery_accept] Skipping removeButtons because messageId or chatId is missing!`);
+            return;
+          }
+          try {
+            console.log(`[delivery_accept] Calling editMessageText...`);
+            const r = await editMessageText(chatIdForEdit, messageId, text, { inline_keyboard: [] });
+            if (!r || !r.ok) {
+              console.warn(`[delivery_accept] editMessageText returned not ok, falling back to editMessageReplyMarkup...`);
+              await editMessageReplyMarkup(chatIdForEdit, messageId, { inline_keyboard: [] });
+            }
+          } catch (err) {
+            console.error(`[delivery_accept] Error in removeButtons:`, err);
+            await editMessageReplyMarkup(chatIdForEdit, messageId, { inline_keyboard: [] }).catch(() => {});
+          }
+        }
+
+        if (updateResult.affectedRows === 0) {
+          console.log(`[delivery_accept] Order already taken or doesn't exist.`);
+          const [rows] = await pool.query(`SELECT assigned_to FROM orders WHERE id = ?`, [orderId]) as [any[], any];
+          const takenBy = rows[0]?.assigned_to;
+          if (takenBy) {
+            await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: @${takenBy}`);
+          }
+          console.log(`[delivery_accept] Calling answerCallbackQuery (Already taken)`);
+          await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver.", true);
+          return;
+        }
+
+        // Claim succeeded — update message in group and answer callback
+        console.log(`[delivery_accept] Claim successful! Updating message...`);
+        await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: ${driverDisplayName} (@${driverUsername})`);
+        
+        console.log(`[delivery_accept] Calling answerCallbackQuery (Success)`);
+        await answerCallbackQuery(callbackQueryId, "Accepted! Sending you the details...", false);
+
+        // ── Non-critical post-claim steps ────────────────────────────
+        try {
+          console.log(`[delivery_accept] Running post-claim steps...`);
+          const [orders] = await pool.query(`SELECT * FROM orders WHERE id = ?`, [orderId]) as [any[], any];
+          const order = orders[0];
+
+          await pool.query(
+            `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
+             VALUES (?, ?, ?, 'In Transit', ?, 'Accepted by delivery from Telegram', NOW())`,
+            [crypto.randomUUID(), orderId, 'Pending', driverUsername]
+          );
+
+          await pool.query(
+            `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
+             VALUES (?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
+            [orderId, driverUsername, messageId]
+          );
+
+          const [items] = await pool.query(`SELECT * FROM order_items WHERE order_id = ?`, [orderId]) as [any[], any];
+          console.log(`[delivery_accept] Sending details to driver ${driverChatId}`);
+          await sendDetailsToAssignedDriver(driverChatId, { ...order, items });
+
+          console.log(`[delivery_accept] Notifying customer...`);
+          void sendTelegramToCustomer({
+            phone: order.phone,
+            message: `Hi ${order.customer_name}, your order *${orderId}* is now *In Transit*.`,
+          });
+          console.log(`[delivery_accept] Fully completed successfully!`);
+        } catch (err) {
+          console.error("[delivery_accept] Post-claim steps failed:", err);
+        }
+      } catch (err) {
+        console.error(`[delivery_accept] CRITICAL ERROR IN HANDLER:`, err);
+        // Try to answer so it stops spinning!
+        await answerCallbackQuery(callbackQueryId, "An error occurred.", true).catch(console.error);
       }
-
-      const order = orders[0];
-      await pool.query(
-        `UPDATE orders SET status = 'In Transit', assigned_to = ?, delivery_message_id = ? WHERE id = ?`,
-        [from?.username || `delivery_${chatId}`, message?.message_id, orderId]
-      );
-
-      await pool.query(
-        `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
-         VALUES (?, ?, ?, 'In Transit', ?, 'Accepted by delivery from Telegram', NOW())`,
-        [crypto.randomUUID(), orderId, order.status, from?.username || `delivery_${chatId}`]
-      );
-
-      await pool.query(
-        `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
-         VALUES (?, ?, ?, NOW())
-         ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
-        [orderId, from?.username || `delivery_${chatId}`, message?.message_id]
-      );
-
-      const [items] = await pool.query(
-        `SELECT * FROM order_items WHERE order_id = ?`,
-        [orderId]
-      ) as [any[], any];
-
-      await sendDetailsToAssignedDriver(chatId, { ...order, items });
-
-      if (message?.message_id && process.env.TELEGRAM_DELIVERY_GROUP_ID) {
-        await editMessageText(
-          process.env.TELEGRAM_DELIVERY_GROUP_ID,
-          message.message_id,
-          `${message.text}\n\nAccepted by: ${from?.first_name || "Driver"} (@${from?.username || "unknown"})`
-        );
-      }
-
-      await answerCallbackQuery(callbackQueryId, "Accepted! Details sent to you.", false);
-
-      void sendTelegramToCustomer({
-        phone: order.phone,
-        message: `Hi ${order.customer_name}, your order *${orderId}* is now *In Transit*.`,
-      });
-
       return;
     }
 
     if (data.startsWith("delivery_reject_")) {
+      console.log(`[delivery_reject] Handling reject for data: ${data}`);
       await answerCallbackQuery(callbackQueryId, "Order rejected. Thank you.", false);
       return;
     }
@@ -868,14 +1005,23 @@ async function handleMessage(message: any): Promise<void> {
           userState.delete(chatId);
           return;
         }
-        userState.delete(chatId);
+        state.data.staffId = user.id;
+        state.data.fullName = user.full_name;
+        state.data.role = user.role;
+        state.step = "confirm_identity";
+        userState.set(chatId, state);
         await sendWithButtons(chatId,
-          `Welcome *${user.full_name}* (${user.role}).\n\nStaff dashboard options:`,
+          `Welcome *${user.full_name}* (${user.role}).\n\nPlease confirm your identity to access staff features.`,
           [
-            [{ text: "View Orders", url: "https://app.asellaorganic.com/dashboard" }],
-            [{ text: "Back to Menu", callback_data: "role:back" }],
+            [{ text: "✅ Confirm Identity", callback_data: "staff:confirm" }],
+            [{ text: "Cancel", callback_data: "staff:cancel" }],
           ]
         );
+        return;
+      }
+
+      if (state.step === "confirm_identity") {
+        await sendSimpleMessage(chatId, "Please tap the Confirm Identity button above.");
         return;
       }
 
@@ -935,7 +1081,26 @@ async function handleMessage(message: any): Promise<void> {
 
     // ── Commands (no active state) ────────────────────────────────
     if (text === "/start" || text === "/help") {
+      // Check if this chat is linked to a verified staff member
+      const [staffRows] = await pool.query(
+        `SELECT id, full_name, role FROM staff_users
+         WHERE telegram_chat_id = ? AND active = TRUE AND deleted_at IS NULL LIMIT 1`,
+        [chatId]
+      ) as [any[], any];
+      if (staffRows[0]) {
+        await sendStaffRoleMenu(chatId, staffRows[0].role, staffRows[0].full_name);
+        return;
+      }
       await sendRoleMenu(chatId);
+      return;
+    }
+
+    if (text === "/logout") {
+      await pool.query(
+        `UPDATE staff_users SET telegram_chat_id = NULL WHERE telegram_chat_id = ?`,
+        [chatId]
+      );
+      await sendSimpleMessage(chatId, "You have been logged out from staff features. Use /start to continue.");
       return;
     }
 

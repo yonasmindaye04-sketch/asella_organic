@@ -147,7 +147,7 @@ const CustomerOrderTracking: React.FC = () => {
             <span className="material-symbols-outlined text-[16px]">local_shipping</span>
             Order Tracking
           </div>
-          <h1 className="font-bebas text-5xl md:text-7xl text-obsidian dark:text-white tracking-wide mb-4">
+          <h1 className="font-heading font-black text-5xl md:text-7xl text-obsidian dark:text-white tracking-tight mb-4">
             {t('tracking.title')}
           </h1>
           <p className="text-slate-700 dark:text-slate-300 max-w-2xl mx-auto text-[18px] leading-relaxed">

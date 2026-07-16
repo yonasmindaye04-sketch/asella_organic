@@ -8,6 +8,8 @@ interface User {
   username: string;
   email: string;
   role: string;
+  phone: string;
+  telegram_username?: string;
   active: boolean;
 }
 
@@ -25,7 +27,8 @@ const UserManagementPage: React.FC = () => {
     full_name: '',
     email: '',
     role: 'employee',
-    phone: ''
+    phone: '',
+    telegram_username: ''
   });
 
   const showToast = (message: string, type?: string) => {
@@ -62,7 +65,8 @@ const UserManagementPage: React.FC = () => {
         full_name: user.full_name,
         email: user.email || '',
         role: user.role,
-        phone: ''
+        phone: user.phone || '',
+        telegram_username: user.telegram_username || ''
       });
     } else {
       setEditingUser(null);
@@ -72,7 +76,8 @@ const UserManagementPage: React.FC = () => {
         full_name: '',
         email: '',
         role: 'employee',
-        phone: ''
+        phone: '',
+        telegram_username: ''
       });
     }
     setIsModalOpen(true);
@@ -128,7 +133,7 @@ const UserManagementPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto py-6">
+      <div className="max-w-5xl mx-auto py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-[#112415]">User Management</h1>
@@ -148,21 +153,32 @@ const UserManagementPage: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Name</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Username</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Telegram</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-8">Loading...</td></tr>
+                <tr><td colSpan={6} className="text-center py-8">Loading...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8">No users found.</td></tr>
+                <tr><td colSpan={6} className="text-center py-8">No users found.</td></tr>
               ) : (
                 users.map(u => (
                   <tr key={u.id} className={`hover:bg-gray-50 transition ${!u.active ? 'opacity-50' : ''}`}>
                     <td className="px-6 py-4 font-bold text-[#112415] text-sm">{u.full_name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.username}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {u.telegram_username ? (
+                        <span className="inline-flex items-center gap-1 text-[#2e7d32]">
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                          @{u.telegram_username}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4"><span className="px-3 py-1 bg-[#e8f5e9] text-[#112415] text-[10px] font-bold uppercase tracking-wider rounded-full">
                       {u.role === 'delivery' ? 'driver' : u.role}</span></td>
                     <td className="px-6 py-4 text-right">
@@ -197,6 +213,10 @@ const UserManagementPage: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Email</label>
                 <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border rounded-lg px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Telegram Username (without @)</label>
+                <input type="text" value={formData.telegram_username} onChange={e => setFormData({...formData, telegram_username: e.target.value})} className="w-full border rounded-lg px-3 py-2" placeholder="e.g. yona64" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Role</label>
