@@ -273,16 +273,6 @@ const OrderForm: React.FC = () => {
             )}
 
             <div className="col-span-1 md:col-span-1">
-              <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.source')}</label>
-              <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
-                <option value="website">{t('orderForm.sourceWebsite')}</option>
-                <option value="phone">{t('orderForm.sourcePhone')}</option>
-                <option value="walk-in">{t('orderForm.sourceWalkIn')}</option>
-                <option value="other">{t('orderForm.sourceOther')}</option>
-              </select>
-            </div>
-
-            <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.orderType')}</label>
               <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
                 <option value="delivery">{t('orderForm.delivery')}</option>

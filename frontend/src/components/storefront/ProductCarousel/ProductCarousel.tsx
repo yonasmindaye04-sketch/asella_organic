@@ -104,7 +104,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
         </div>
 
         {/* Dots */}
-        <div className="flex gap-2 justify-center mt-8" role="tablist" aria-label="Product navigation">
+        <div className="flex gap-1 justify-center mt-8" role="tablist" aria-label="Product navigation">
           {products.map((p, i) => (
             <button
               key={p.id}
@@ -112,12 +112,14 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
               aria-selected={i === current}
               aria-label={`Go to ${p.name}`}
               onClick={() => setCurrent(i)}
-              className={`w-2 h-2 rounded-full border-none p-0 cursor-pointer transition-all duration-300
-                ${i === current
+              className="group w-6 h-6 flex items-center justify-center border-none p-0 bg-transparent cursor-pointer transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a07832] rounded-full"
+            >
+              <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                i === current
                   ? "bg-[#a07832] scale-[1.4]"
-                  : "bg-[#c8b890] hover:bg-[#a07832]/60"
-                }`}
-            />
+                  : "bg-[#c8b890] group-hover:bg-[#a07832]/60"
+              }`} />
+            </button>
           ))}
         </div>
 

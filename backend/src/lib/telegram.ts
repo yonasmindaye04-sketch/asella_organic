@@ -376,11 +376,12 @@ export async function sendMorningBriefing(): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
     const todayKey = -Math.abs(parseInt(today.replace(/-/g, ''), 10));
 
-    const [existing] = await pool.query(
-      `SELECT 1 FROM webhook_events WHERE update_id = ?`,
+    const [claim] = await pool.query(
+      `INSERT IGNORE INTO webhook_events (update_id) VALUES (?)`,
       [todayKey]
-    ) as [any[], any];
-    if (existing.length > 0) {
+    ) as [any, any];
+
+    if (claim.affectedRows === 0) {
       console.log(`[sendMorningBriefing] Already sent for ${today} — skipping`);
       return;
     }
@@ -413,10 +414,7 @@ export async function sendMorningBriefing(): Promise<void> {
       ]
     );
 
-    await pool.query(
-      `INSERT IGNORE INTO webhook_events (update_id) VALUES (?)`,
-      [todayKey]
-    );
+
   } catch (err) {
     console.error("[sendMorningBriefing]", err);
   }

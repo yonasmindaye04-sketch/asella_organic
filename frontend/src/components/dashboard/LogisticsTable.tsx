@@ -52,7 +52,7 @@ export default function LogisticsTable({ orders }: Props) {
           <p className="text-[11px] text-[var(--muted)] mt-0.5">{filtered.length} of {orders.length} total orders</p>
         </div>
         <div className="relative">
-          <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)] text-[9px]" />
+          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)] text-[9px]">search</span>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter orders..." className="search-input" aria-label="Filter orders" />
         </div>
       </div>
@@ -90,7 +90,7 @@ export default function LogisticsTable({ orders }: Props) {
                   <td>
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-[var(--bg-deep)] border border-[var(--border)] flex items-center justify-center text-[var(--fg-secondary)]">
-                        <i className="fa-solid fa-user text-[10px]" />
+                        <span className="material-symbols-outlined text-[10px]">person</span>
                       </div>
                       <span className="font-medium text-[var(--fg)]">{order.customer_name}</span>
                     </div>

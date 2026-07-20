@@ -131,7 +131,7 @@ const ExpensesPage: React.FC = () => {
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 bg-[var(--emerald)] text-white rounded-lg text-sm font-bold hover:opacity-90 transition flex items-center gap-2"
             >
-              <i className="fa-solid fa-plus text-[12px]" />
+              <span className="material-symbols-outlined text-[12px]">add</span>
               Add Expense
             </button>
             <div className="w-12 h-12 rounded-xl bg-transparent flex items-center justify-center">
@@ -146,7 +146,7 @@ const ExpensesPage: React.FC = () => {
           <div className="card p-4 animate-in" style={{ animationDelay: '0.05s' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <i className="fa-solid fa-money-bill-wave text-[18px] text-[var(--emerald)]" />
+                <span className="material-symbols-outlined text-[18px] text-[var(--emerald)]">payments</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Total Revenue</span>
             </div>
@@ -159,7 +159,7 @@ const ExpensesPage: React.FC = () => {
           <div className="card p-4 animate-in" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <i className="fa-solid fa-money-bill-transfer text-[18px] text-[var(--rose)]" />
+                <span className="material-symbols-outlined text-[18px] text-[var(--rose)]">currency_exchange</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Total Expenses</span>
             </div>
@@ -172,7 +172,7 @@ const ExpensesPage: React.FC = () => {
           <div className="card p-4 animate-in" style={{ animationDelay: '0.15s' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <i className="fa-solid fa-piggy-bank text-[18px] text-[var(--accent)]" />
+                <span className="material-symbols-outlined text-[18px] text-[var(--accent)]">savings</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Net Profit</span>
             </div>
@@ -185,7 +185,7 @@ const ExpensesPage: React.FC = () => {
           <div className="card p-4 animate-in" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <i className="fa-solid fa-calendar-day text-[18px] text-[var(--sky)]" />
+                <span className="material-symbols-outlined text-[18px] text-[var(--sky)]">event</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Expenses This Month</span>
             </div>
@@ -302,7 +302,7 @@ const ExpensesPage: React.FC = () => {
               <div className="flex justify-between items-center mb-5 border-b border-[var(--border)] pb-3">
                 <h3 className="text-lg font-bold text-[var(--fg)]">Record Expense</h3>
                 <button onClick={() => !submitting && setIsModalOpen(false)} className="text-[var(--muted)] hover:text-[var(--fg)]">
-                  <i className="fa-solid fa-xmark" />
+                  <span className="material-symbols-outlined">close</span>
                 </button>
               </div>
 

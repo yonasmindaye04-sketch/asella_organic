@@ -70,12 +70,12 @@ export default function TopHeader({ isSidebarOpen = false, onToggleSidebar }: To
             onClick={() => navigate('/')}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-card-hover)] transition-colors text-[var(--fg)]"
           >
-            <i className="fa-solid fa-store text-[11px]" />
+            <span className="material-symbols-outlined text-[11px]">store</span>
             <span className="text-[11px] font-medium hidden sm:inline">Storefront</span>
           </button>
 
           <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]">
-            <i className="fa-solid fa-calendar-day text-[var(--muted)] text-[10px]" />
+            <span className="material-symbols-outlined text-[var(--muted)] text-[10px]">event</span>
             <span className="text-[11px] font-medium text-[var(--fg-secondary)]">{dateStr}</span>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function TopHeader({ isSidebarOpen = false, onToggleSidebar }: To
           className="relative w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--bg-card)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)] hover:border-[var(--border-light)] transition-all"
           aria-label="Notifications"
         >
-          <i className="fa-solid fa-bell text-[11px]" />
+          <span className="material-symbols-outlined text-[11px]">notifications</span>
           {notifCount > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--rose)] text-white text-[9px] font-bold rounded-full">
               {notifCount > 99 ? '99+' : notifCount}
@@ -107,7 +107,7 @@ export default function TopHeader({ isSidebarOpen = false, onToggleSidebar }: To
               <p className="text-[11px] font-bold leading-tight text-[var(--fg)]">{displayName}</p>
               <p className="text-[9px] text-[var(--muted)] uppercase tracking-wider font-semibold capitalize">{role}</p>
             </div>
-            <i className={`fa-solid fa-chevron-down text-[8px] text-[var(--muted)] transition-transform ml-1 ${profileOpen ? "rotate-180" : ""}`} />
+            <span className={`material-symbols-outlined text-[8px] text-[var(--muted)] transition-transform ml-1 ${profileOpen ? "rotate-180" : ""}`}>expand_more</span>
           </button>
           
           {profileOpen && (
@@ -117,11 +117,11 @@ export default function TopHeader({ isSidebarOpen = false, onToggleSidebar }: To
                 <p className="text-[9.5px] text-[var(--muted)] truncate capitalize">{role}</p>
               </div>
               <button onClick={() => { setProfileOpen(false); navigate('/dashboard/change-password'); }} className="w-full text-left px-3 py-1.5 text-[11px] font-medium text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center gap-2">
-                <i className="fa-solid fa-gear w-4 text-center text-[10px]" /> Settings
+                <span className="material-symbols-outlined w-4 text-center text-[10px]">settings</span> Settings
               </button>
               <div className="h-px bg-[var(--border)] my-1" />
               <button onClick={() => { setProfileOpen(false); navigate('/login'); }} className="w-full text-left px-3 py-1.5 text-[11px] font-medium text-[var(--rose)] hover:bg-[var(--rose-dim)] transition-colors flex items-center gap-2">
-                <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center text-[10px]" /> Sign out
+                <span className="material-symbols-outlined w-4 text-center text-[10px]">logout</span> Sign out
               </button>
             </div>
           )}

@@ -42,7 +42,7 @@ const FALLBACK_COLOR = '#5c6280';
 // ─── Revenue Chart (Line Graph) ───
 export function RevenueChart({ orders, expenses = [] }: { orders: any[]; expenses?: any[] }) {
   const chartRef = useRef<ChartJS<"line">>(null);
-  const [rangeMonths, setRangeMonths] = useState<6 | 12>(6);
+  const [rangeMonths, setRangeMonths] = useState<1 | 3 | 6 | 12>(6);
   const { showToast } = useToast();
 
   const { labels, dataThis, dataProfit } = React.useMemo(() => {
@@ -115,6 +115,8 @@ export function RevenueChart({ orders, expenses = [] }: { orders: any[]; expense
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#34d399]" />Profit</span>
           </div>
           <div className="flex gap-0.5 bg-[var(--bg-deep)] rounded-lg p-0.5 border border-[var(--border)]">
+            <button className={`tab-btn ${rangeMonths === 1 ? "active" : ""}`} onClick={() => { setRangeMonths(1); showToast("Switched to 1M view", "info"); }}>1M</button>
+            <button className={`tab-btn ${rangeMonths === 3 ? "active" : ""}`} onClick={() => { setRangeMonths(3); showToast("Switched to 3M view", "info"); }}>3M</button>
             <button className={`tab-btn ${rangeMonths === 6 ? "active" : ""}`} onClick={() => { setRangeMonths(6); showToast("Switched to 6M view", "info"); }}>6M</button>
             <button className={`tab-btn ${rangeMonths === 12 ? "active" : ""}`} onClick={() => { setRangeMonths(12); showToast("Switched to 12M view", "info"); }}>12M</button>
           </div>

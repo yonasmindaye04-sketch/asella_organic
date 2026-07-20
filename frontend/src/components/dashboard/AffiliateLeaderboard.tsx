@@ -38,7 +38,7 @@ export default function AffiliateLeaderboard() {
           <p className="text-[11px] font-bold text-slate-500 dark:text-[#A0F399] mt-0.5">Highest commission earners</p>
         </div>
         <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-          <i className="fa-solid fa-trophy text-[14px]" />
+          <span className="material-symbols-outlined text-[14px]">emoji_events</span>
         </div>
       </div>
 
