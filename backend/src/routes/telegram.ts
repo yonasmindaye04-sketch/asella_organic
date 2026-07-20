@@ -21,6 +21,10 @@ const router = Router();
 
 const verifyTelegramWebhook = (token?: string) => token === process.env.TELEGRAM_WEBHOOK_SECRET;
 
+function escapeMarkdown(text: string): string {
+  return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+}
+
 // ─── Interactive conversation state ────────────────────────────────────
 interface ConvState {
   step: string;
@@ -844,7 +848,7 @@ async function handleCallback(query: any): Promise<void> {
           const [rows] = await pool.query(`SELECT assigned_to FROM orders WHERE id = ?`, [orderId]) as [any[], any];
           const takenBy = rows[0]?.assigned_to;
           if (takenBy) {
-            await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: @${takenBy}`);
+            await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: @${escapeMarkdown(takenBy)}`);
           }
           console.log(`[delivery_accept] Calling answerCallbackQuery (Already taken)`);
           await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver.", true);
@@ -853,7 +857,7 @@ async function handleCallback(query: any): Promise<void> {
 
         // Claim succeeded — update message in group and answer callback
         console.log(`[delivery_accept] Claim successful! Updating message...`);
-        await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: ${driverDisplayName} (@${driverUsername})`);
+        await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: ${escapeMarkdown(driverDisplayName)} (@${escapeMarkdown(driverUsername)})`);
         
         console.log(`[delivery_accept] Calling answerCallbackQuery (Success)`);
         await answerCallbackQuery(callbackQueryId, "Accepted! Sending you the details...", false);

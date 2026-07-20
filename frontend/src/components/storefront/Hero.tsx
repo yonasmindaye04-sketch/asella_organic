@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { openOrderModal } from '../../store/slices/uiSlice';
 import { useLanguage } from '../../LanguageContext';
+import HeroVines from './HeroVines';
 
 const Hero: React.FC = () => {
   const dispatch = useDispatch();
@@ -38,6 +39,8 @@ const Hero: React.FC = () => {
           background: 'radial-gradient(600px circle at var(--glow-x, 50%) var(--glow-y, 45%), rgba(197,160,89,0.12), transparent 40%)'
         }}
       />
+
+      <HeroVines />
 
       <div className="relative z-10 w-[95%] max-w-[1600px] mx-auto text-center flex flex-col items-center">
         
