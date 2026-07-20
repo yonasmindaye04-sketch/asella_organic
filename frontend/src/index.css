@@ -731,3 +731,26 @@
   position: absolute;
   pointer-events: none;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Hero Liana Animations
+   ══════════════════════════════════════════════════════════════ */
+@keyframes sway-left {
+  0% { transform: rotate(-2deg); }
+  100% { transform: rotate(3deg); }
+}
+
+@keyframes sway-right {
+  0% { transform: rotate(2deg); }
+  100% { transform: rotate(-3deg); }
+}
+
+/* ── Landing page: remove all section borders ────────────── */
+.storefront-page .border-border,
+.storefront-page .border-highland-gold\/10,
+.storefront-page .border-highland-gold\/20,
+.storefront-page .border-gray-100,
+.storefront-page .border-parchment-mid,
+.storefront-page .border-white\/20 {
+  border-color: transparent !important;
+}

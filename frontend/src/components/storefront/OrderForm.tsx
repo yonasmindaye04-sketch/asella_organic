@@ -35,17 +35,19 @@ const OrderForm: React.FC = () => {
   });
   
   const [countryCode, setCountryCode] = useState('+251');
-  const [items, setItems] = useState([{ name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
+  const [items, setItems] = useState([{ name: '', packageSize: '', qty: 1 }]);
+  const [globalDeliveryDate, setGlobalDeliveryDate] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   useEffect(() => {
     if (orderModalOpen) {
+      setGlobalDeliveryDate('');
       if (orderFormMode === 'buy_now' && selectedProductName) {
-        setItems([{ name: selectedProductName, packageSize: '', qty: 1, deliveryDate: '' }]);
+        setItems([{ name: selectedProductName, packageSize: '', qty: 1 }]);
       } else {
-        setItems([{ name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
+        setItems([{ name: '', packageSize: '', qty: 1 }]);
       }
     }
   }, [orderModalOpen, orderFormMode, selectedProductName]);
@@ -74,10 +76,10 @@ const OrderForm: React.FC = () => {
     return sum + (price * qty);
   }, 0);
 
-  const total = itemsTotal;
+  const total = itemsTotal + deliveryFee;
 
   const addItemRow = () => {
-    setItems([...items, { name: '', packageSize: '', qty: 1, deliveryDate: '' }]);
+    setItems([...items, { name: '', packageSize: '', qty: 1 }]);
   };
 
   const updateItem = (index: number, field: string, value: string | number) => {
@@ -128,8 +130,7 @@ const OrderForm: React.FC = () => {
       });
 
       // delivery_date must be YYYY-MM-DD or omitted entirely — empty string fails Zod
-      const rawDate = items[0]?.deliveryDate;
-      const topLevelDeliveryDate = rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : undefined;
+      const topLevelDeliveryDate = globalDeliveryDate && /^\d{4}-\d{2}-\d{2}$/.test(globalDeliveryDate) ? globalDeliveryDate : undefined;
 
       // Bundle chosen country code prefix with the customer's phone entry
       const fullPhoneNumber = `${countryCode} ${formData.phone.trim()}`;
@@ -328,15 +329,24 @@ const OrderForm: React.FC = () => {
               <h4 className="text-base font-mono font-bold text-obsidian dark:text-white mb-4 flex items-center gap-2">
                 {t('orderForm.itemDetailsTitle')}
               </h4>
-              
+
+              {/* Global Delivery Date */}
+              <div className="mb-4">
+                <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Delivery Date (Optional)</label>
+                <input type="date" value={globalDeliveryDate} onChange={e => setGlobalDeliveryDate(e.target.value)} className="w-full max-w-xs px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base" />
+              </div>
+
               <div className="bg-white dark:bg-obsidian border border-border rounded-2xl p-4 md:p-6 mb-4 space-y-4">
                 {items.map((item, index) => {
                   const selectedProductVariants = products.filter(p => p.name === item.name);
                   const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
+                  const selectedProduct = products.find(p => p.name === item.name && p.package_size === item.packageSize);
+                  const unitPrice = selectedProduct ? Number(selectedProduct.price) : 0;
+                  const lineSubtotal = unitPrice * (Number(item.qty) || 1);
                   
                   return (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end relative border-b border-border pb-4 last:border-b-0 last:pb-0">
-                      <div>
+                      <div className="md:col-span-2">
                         <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.itemLabel')}</label>
                         <select required value={item.name} onChange={e => updateItem(index, 'name', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none">
                           <option value="">{t('orderForm.itemPlaceholder')}</option>
@@ -350,9 +360,13 @@ const OrderForm: React.FC = () => {
                         <select required value={item.packageSize} onChange={e => updateItem(index, 'packageSize', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none">
                           <option value="">{t('orderForm.select')}...</option>
                           {availableSizes.length > 0 ? (
-                            availableSizes.map(size => (
-                              <option key={size} value={size}>{size}</option>
-                            ))
+                            availableSizes.map(size => {
+                              const variant = selectedProductVariants.find(p => p.package_size === size);
+                              const price = variant ? Number(variant.price) : 0;
+                              return (
+                                <option key={size} value={size}>{size} — {price.toLocaleString()} ETB</option>
+                              );
+                            })
                           ) : (
                             <option disabled>{t('orderForm.chooseItemFirst')}</option>
                           )}
@@ -363,8 +377,10 @@ const OrderForm: React.FC = () => {
                         <input id={`qty-${index}`} required type="number" min="1" value={item.qty} onChange={e => { const v = parseInt(e.target.value); updateItem(index, 'qty', isNaN(v) ? 1 : v); }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none font-mono" />
                       </div>
                       <div>
-                        <label htmlFor={`delivery-date-${index}`} className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.deliveryDate')}</label>
-                        <input id={`delivery-date-${index}`} required type="date" value={item.deliveryDate} onChange={e => updateItem(index, 'deliveryDate', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none font-mono" />
+                        <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">Subtotal</label>
+                        <div className="w-full px-3 py-2 rounded-lg bg-parchment-mid dark:bg-[#1A301D] border border-border text-base font-mono text-obsidian dark:text-white flex items-center h-[42px]">
+                          {unitPrice > 0 ? `${lineSubtotal.toLocaleString()} ETB` : '—'}
+                        </div>
                       </div>
                       <div>
                         {items.length > 1 && (
@@ -409,12 +425,15 @@ const OrderForm: React.FC = () => {
           </button>
           
           <div className="text-right">
+            <div className="text-white/70 text-xs font-mono mb-1">
+              Subtotal: <span className="text-white/90">{itemsTotal.toLocaleString()} {t('common.currency')}</span>
+            </div>
             {deliveryFee > 0 && (
               <div className="text-white/70 text-xs font-mono mb-1">
                 Delivery Fee: <span className="text-highland-gold/80">{deliveryFee.toLocaleString()} {t('common.currency')}</span>
               </div>
             )}
-            <div className="text-white text-lg md:text-xl font-mono font-bold leading-none">
+            <div className="text-white text-lg md:text-xl font-mono font-bold leading-none border-t border-white/20 pt-1">
               {t('orderForm.total')} <span className="text-highland-gold">{total.toLocaleString()} {t('common.currency')}</span>
             </div>
           </div>

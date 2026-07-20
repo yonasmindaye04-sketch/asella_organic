@@ -27,7 +27,7 @@ const Storefront: React.FC = () => {
   }, []);
 
   return (
-    <>
+    <div className="storefront-page">
       <Header />
       <Hero />
       <Suspense fallback={null}><DailyHighlights /></Suspense>
@@ -37,7 +37,7 @@ const Storefront: React.FC = () => {
       <Suspense fallback={null}><ContactSection /></Suspense>
       <Suspense fallback={null}><Footer /></Suspense>
       <Suspense fallback={null}><OrderForm /></Suspense>
-    </>
+    </div>
   );
 };
 
