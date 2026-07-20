@@ -32,6 +32,7 @@ import { mirrorToSheets }             from "../lib/sheets.js";
 import { sanitizeObject, randomId }   from "../lib/security.js";
 import { createLogger }               from "../lib/logger.js";
 import { deductOrderStock, restoreOrderStock }           from "../lib/inventory.js";
+import jwt from "jsonwebtoken";
 
 const router = Router();
 
@@ -60,6 +61,19 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   const total   = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
 
+  let staffUserId = null;
+  let staffUsername = null;
+  const token = req.cookies?.access_token || (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
+  if (token && process.env.JWT_SECRET) {
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET) as any;
+      staffUserId = payload.id;
+      staffUsername = payload.username;
+    } catch (e) {
+      // Ignore token errors for public endpoint
+    }
+  }
+
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -83,15 +97,23 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     await connection.query(
       `INSERT INTO orders
          (id, source, customer_name, phone, location, city, gender, age_group,
-          order_type, status, total, notes, customer_id, delivery_date, payment_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, 'Pending')`,
+          order_type, status, total, notes, customer_id, delivery_date, payment_status, created_by_staff_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, 'Pending', ?)`,
       [
         orderId, fields.source, fields.customer_name, fields.phone,
         fields.location, fields.city, fields.gender ?? null,
         fields.age_group ?? null, fields.order_type, total,
-        fields.notes ?? null, customerId, fields.delivery_date ?? null,
+        fields.notes ?? null, customerId, fields.delivery_date ?? null, staffUserId,
       ]
     );
+
+    if (staffUserId) {
+      await connection.query(
+        `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, new_values)
+         VALUES ('orders', ?, ?, ?, 'ORDER_CREATED', ?)`,
+        [orderId, orderId, staffUserId, JSON.stringify({ items_count: items.length, total })]
+      );
+    }
 
     for (const item of items) {
       await connection.query(
@@ -220,7 +242,7 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const [orders] = await pool.query(
       `SELECT id, customer_name, phone, status, total, city, location,
-              order_type, notes, created_at, updated_at, delivery_date
+              order_type, notes, created_at, updated_at, delivery_date, created_by_staff_id
        FROM orders
        WHERE id = ? AND deleted_at IS NULL
        LIMIT 1`,
@@ -451,6 +473,12 @@ router.patch(
       [crypto.randomUUID(), orderId, current.status, status, (req as any).user?.username ?? 'system', note ?? null]
     );
 
+    await pool.query(
+      `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, new_values)
+       VALUES ('orders', ?, ?, ?, 'ORDER_STATUS_UPDATED', ?)`,
+      [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ status })]
+    );
+
     void sendTelegramToCustomer({
       phone:   current.phone as string,
       message: `Hi ${current.customer_name}, your order *${orderId}* is now *${status}*.`,
@@ -492,6 +520,12 @@ router.patch(
       const newTotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
       await connection.query(
         `UPDATE orders SET total = ?, updated_at = NOW() WHERE id = ?`, [newTotal, orderId]
+      );
+
+      await connection.query(
+        `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, new_values)
+         VALUES ('order_items', ?, ?, ?, 'ORDER_MODIFIED_ITEMS', ?)`,
+        [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ items_count: items.length, newTotal })]
       );
 
       await connection.commit();

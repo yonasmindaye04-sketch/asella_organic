@@ -27,10 +27,10 @@ const typeStyles: Record<ToastType, string> = {
 };
 
 const typeIcons: Record<ToastType, string> = {
-  info: "fa-circle-info",
-  success: "fa-circle-check",
-  warning: "fa-triangle-exclamation",
-  error: "fa-circle-xmark",
+  info: "info",
+  success: "check_circle",
+  warning: "warning",
+  error: "cancel",
 };
 
 const typeIconColors: Record<ToastType, string> = {
@@ -74,7 +74,9 @@ export function DashboardToastProvider({ children }: { children: React.ReactNode
                 : "animate-[slideInRight_0.3s_ease-out_forwards]"
             }`}
           >
-            <i className={`fa-solid ${typeIcons[toast.type]} text-[13px]`} style={{ color: typeIconColors[toast.type] }} />
+            <span className="material-symbols-outlined text-[13px]" style={{ color: typeIconColors[toast.type] }}>
+              {typeIcons[toast.type]}
+            </span>
             {toast.message}
           </div>
         ))}

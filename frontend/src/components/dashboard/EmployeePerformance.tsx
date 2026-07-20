@@ -4,7 +4,7 @@ import type { StaffProfile } from "../../services/api";
 
 interface Performer {
   name: string;
-  quota: number;
+  actions: number;
   sales: number;
   color: string;
 }
@@ -40,26 +40,20 @@ export default function EmployeePerformance() {
           // Initialize totals for each real staff member
           const staffTotals = new Array(activeStaff.length).fill(0);
           
-          // Distribute real orders among the real staff deterministically based on order ID
           activeOrders.forEach(o => {
-            // Hash the order ID string into a simple number to deterministically pick a staff member
-            const orderIdStr = String(o.id || o.order_id || '');
-            let hash = 0;
-            for (let i = 0; i < orderIdStr.length; i++) {
-              hash = ((hash << 5) - hash) + orderIdStr.charCodeAt(i);
-              hash |= 0; // Convert to 32bit integer
+            if (o.created_by_staff_id) {
+              const empIdx = activeStaff.findIndex(s => s.id === o.created_by_staff_id);
+              if (empIdx !== -1) {
+                staffTotals[empIdx] += Number(o.total || o.total_amount || 0);
+              }
             }
-            
-            const empIdx = Math.abs(hash) % activeStaff.length;
-            staffTotals[empIdx] += Number(o.total || o.total_amount || 0);
           });
           
-          const maxSales = Math.max(...staffTotals, 1);
           
           const perfData = activeStaff.map((staff, i) => ({
             name: staff.full_name,
             sales: staffTotals[i],
-            quota: maxSales > 0 ? Math.round((staffTotals[i] / maxSales) * 98) : 0,
+            actions: staff.actions_count || 0,
             color: colors[i % colors.length]
           })).sort((a, b) => b.sales - a.sales).slice(0, 5); // top 5
           
@@ -87,7 +81,7 @@ export default function EmployeePerformance() {
       <div className="flex items-center justify-between mb-4 relative z-[2]">
         <div>
           <h3 className="text-sm font-bold text-[var(--fg)]">Employee Performance</h3>
-          <p className="text-[11px] text-[var(--muted)] mt-0.5">Top performers by sales quota</p>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">Top performers by sales & system actions</p>
         </div>
         <button className="text-[11px] text-[var(--accent)] font-semibold hover:text-[var(--accent-light)] transition-colors">View All</button>
       </div>
@@ -107,14 +101,14 @@ export default function EmployeePerformance() {
                     <p className="text-[12.5px] font-medium truncate text-[var(--fg)]">{p.name}</p>
                     <div className="flex items-center gap-3">
                     <span className="text-[11px] text-[var(--muted)]">{formatETB(p.sales)}</span>
-                    <span className="text-[11px] font-bold w-10 text-right" style={{ color: p.color }}>{p.quota}%</span>
+                    <span className="text-[11px] font-bold w-12 text-right" style={{ color: p.color }}>{p.actions} acts</span>
                     </div>
                 </div>
                 <div className="h-[5px] rounded-full bg-[rgba(255,255,255,0.04)] overflow-hidden">
                     <div
                     className="h-full rounded-full transition-all duration-[1.2s] ease-out"
                     style={{
-                        width: animated ? `${p.quota}%` : "0%",
+                        width: animated ? `${Math.max((p.sales / Math.max(...performers.map(x => x.sales), 1)) * 98, 4)}%` : "0%",
                         background: `linear-gradient(90deg, ${p.color}88, ${p.color})`,
                     }}
                     />

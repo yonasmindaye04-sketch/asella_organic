@@ -1,61 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
-const getEmbedUrl = (url: string) => {
-  if (url.includes('youtube.com/shorts/')) {
-    const id = url.split('youtube.com/shorts/')[1]?.split('?')[0];
-    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
-  }
-  if (url.includes('youtu.be/')) {
-    const id = url.split('youtu.be/')[1]?.split('?')[0];
-    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
-  }
-  if (url.includes('youtube.com/watch?v=')) {
-    const id = new URLSearchParams(url.split('?')[1]).get('v');
-    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
-  }
-  return url;
-};
-
 interface Video { id: number; url: string; title: string; }
 
-/** Only renders the iframe once it enters the viewport */
-const LazyIframe: React.FC<{ src: string; title: string }> = ({ src, title }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
-      { rootMargin: '200px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={ref} className="w-full h-full bg-black">
-      {visible ? (
-        <iframe
-          src={src}
-          title={title}
-          className="w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          loading="lazy"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-neutral-900 animate-pulse">
-          <span className="material-symbols-outlined text-white/60 text-[64px]">play_circle</span>
-        </div>
-      )}
-    </div>
-  );
-};
+import { YouTubeFacade } from '../components/common/YouTubeFacade';
 
 const CommunityVideos: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>([]);
@@ -128,7 +78,7 @@ const CommunityVideos: React.FC = () => {
                 key={v.id}
                 className="bg-black rounded-3xl overflow-hidden shadow-sm border border-[#d4ecd4] hover:shadow-xl hover:border-highland-gold transition-all duration-500 h-[500px] w-full"
               >
-                <LazyIframe src={getEmbedUrl(v.url)} title={v.title} />
+                <YouTubeFacade url={v.url} title={v.title} />
               </div>
             ))}
           </div>

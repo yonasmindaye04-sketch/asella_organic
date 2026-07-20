@@ -71,7 +71,8 @@ router.get(
 
       const [rows] = await pool.query(
         `SELECT id, username, full_name, role, email, phone, telegram_username, active,
-                two_factor_enabled, created_at, updated_at
+                two_factor_enabled, created_at, updated_at,
+                (SELECT COUNT(*) FROM audit_log WHERE actor = staff_users.id) AS actions_count
          FROM staff_users ${where}
          ORDER BY created_at DESC
          LIMIT ? OFFSET ?`,

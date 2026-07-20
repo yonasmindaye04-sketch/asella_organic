@@ -128,6 +128,7 @@ export interface StaffProfile {
   email:             string | null;
   active:            boolean;
   two_factor_enabled: boolean;
+  actions_count?:    number;
 }
 
 export const auth = {

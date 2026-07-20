@@ -2,13 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../LanguageContext';
 
-const getEmbedUrl = (url: string) => {
-  if (url.includes('youtube.com/shorts/')) {
-    const id = url.split('youtube.com/shorts/')[1]?.split('?')[0];
-    return `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
-  }
-  return url;
-};
+
 
 const ALL_VIDEOS = [
   { id: 1, url: "https://youtube.com/shorts/gmab7MMwTS0", title: "Customer Testimonial 1" },
@@ -24,6 +18,8 @@ const ALL_VIDEOS = [
   
   
 ];
+
+import { YouTubeFacade } from '../common/YouTubeFacade';
 
 const Reviews: React.FC = () => {
   const { t } = useLanguage();
@@ -54,14 +50,7 @@ const Reviews: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
           {videos.map((v) => (
             <div key={v.id} className="bg-black rounded-3xl overflow-hidden shadow-sm border border-border hover:shadow-xl hover:border-highland-gold transition-all duration-500 h-[550px] w-full">
-              <iframe
-                src={getEmbedUrl(v.url)}
-                title={v.title}
-                loading="lazy"
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+              <YouTubeFacade url={v.url} title={v.title} />
             </div>
           ))}
         </div>

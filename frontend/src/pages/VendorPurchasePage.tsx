@@ -229,7 +229,7 @@ const VendorPurchasePage: React.FC = () => {
                 : 'text-[var(--muted)] hover:text-[var(--fg)]'
             }`}
           >
-            <i className="fa-solid fa-plus mr-2 text-[11px]" />
+            <span className="material-symbols-outlined mr-2 text-[11px]">add</span>
             New Order
           </button>
           <button
@@ -240,7 +240,7 @@ const VendorPurchasePage: React.FC = () => {
                 : 'text-[var(--muted)] hover:text-[var(--fg)]'
             }`}
           >
-            <i className="fa-solid fa-clock-rotate-left mr-2 text-[11px]" />
+            <span className="material-symbols-outlined mr-2 text-[11px]">history</span>
             Order History
             {orders.filter(o => o.status === 'pending').length > 0 && (
               <span className="ml-2 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
@@ -433,15 +433,15 @@ const VendorPurchasePage: React.FC = () => {
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Pending', count: orders.filter(o => o.status === 'pending').length, color: 'text-white', bg: 'bg-amber-500 shadow-sm shadow-amber-500/20', icon: 'fa-solid fa-clock' },
-                { label: 'Approved', count: orders.filter(o => o.status === 'approved').length, color: 'text-white', bg: 'bg-blue-500 shadow-sm shadow-blue-500/20', icon: 'fa-solid fa-check' },
-                { label: 'Received', count: orders.filter(o => o.status === 'received').length, color: 'text-white', bg: 'bg-emerald-500 shadow-sm shadow-emerald-500/20', icon: 'fa-solid fa-box-open' },
-                { label: 'Cancelled', count: orders.filter(o => o.status === 'cancelled').length, color: 'text-white', bg: 'bg-red-500 shadow-sm shadow-red-500/20', icon: 'fa-solid fa-ban' },
+                { label: 'Pending', count: orders.filter(o => o.status === 'pending').length, color: 'text-white', bg: 'bg-amber-500 shadow-sm shadow-amber-500/20', icon: 'schedule' },
+                { label: 'Approved', count: orders.filter(o => o.status === 'approved').length, color: 'text-white', bg: 'bg-blue-500 shadow-sm shadow-blue-500/20', icon: 'check' },
+                { label: 'Received', count: orders.filter(o => o.status === 'received').length, color: 'text-white', bg: 'bg-emerald-500 shadow-sm shadow-emerald-500/20', icon: 'inventory_2' },
+                { label: 'Cancelled', count: orders.filter(o => o.status === 'cancelled').length, color: 'text-white', bg: 'bg-red-500 shadow-sm shadow-red-500/20', icon: 'block' },
               ].map((s, i) => (
                 <div key={s.label} className="card p-4 animate-in" style={{ animationDelay: `${0.05 * i}s` }}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.bg}`}>
-                      <i className={`${s.icon} text-[12px] ${s.color}`} />
+                      <span className={`material-symbols-outlined text-[12px] ${s.color}`}>{s.icon}</span>
                     </div>
                     <span className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wide">{s.label}</span>
                   </div>
@@ -454,7 +454,7 @@ const VendorPurchasePage: React.FC = () => {
             <div className="card p-4">
               <div className="flex flex-wrap gap-3 items-center">
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] flex-1 min-w-[200px]">
-                  <i className="fa-solid fa-search text-[var(--muted)] text-[12px]" />
+                  <span className="material-symbols-outlined text-[var(--muted)] text-[12px]">search</span>
                   <input
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
@@ -516,7 +516,7 @@ const VendorPurchasePage: React.FC = () => {
                             <td className="px-5 py-3.5">
                               {order.product_name ? (
                                 <span className="text-[12px] font-bold text-[var(--emerald)] flex items-center gap-1.5 whitespace-nowrap">
-                                  <i className="fa-solid fa-link text-[10px] opacity-60" />
+                                  <span className="material-symbols-outlined text-[10px] opacity-60">link</span>
                                   {order.product_name}
                                 </span>
                               ) : (
@@ -537,13 +537,13 @@ const VendorPurchasePage: React.FC = () => {
                                       onClick={() => setConfirmModal({ orderId: order.id, action: 'approved', orderRef: order.order_id })}
                                       className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-[11px] font-bold hover:bg-blue-600 transition-colors"
                                     >
-                                      <i className="fa-solid fa-check mr-1" /> Approve
+                                      <span className="material-symbols-outlined mr-1">check</span> Approve
                                     </button>
                                     <button
                                       onClick={() => setConfirmModal({ orderId: order.id, action: 'cancelled', orderRef: order.order_id })}
                                       className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-[11px] font-bold hover:bg-red-600 transition-colors"
                                     >
-                                      <i className="fa-solid fa-xmark mr-1" /> Cancel
+                                      <span className="material-symbols-outlined mr-1">close</span> Cancel
                                     </button>
                                   </>
                                 )}
@@ -553,13 +553,13 @@ const VendorPurchasePage: React.FC = () => {
                                       onClick={() => setConfirmModal({ orderId: order.id, action: 'received', orderRef: order.order_id })}
                                       className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-[11px] font-bold hover:bg-emerald-600 transition-colors"
                                     >
-                                      <i className="fa-solid fa-box-open mr-1" /> Mark Received
+                                      <span className="material-symbols-outlined mr-1">inventory_2</span> Mark Received
                                     </button>
                                     <button
                                       onClick={() => setConfirmModal({ orderId: order.id, action: 'cancelled', orderRef: order.order_id })}
                                       className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-[11px] font-bold hover:bg-red-600 transition-colors"
                                     >
-                                      <i className="fa-solid fa-xmark mr-1" /> Cancel
+                                      <span className="material-symbols-outlined mr-1">close</span> Cancel
                                     </button>
                                   </>
                                 )}
@@ -596,7 +596,7 @@ const VendorPurchasePage: React.FC = () => {
               {confirmModal.action === 'received' && (
                 <div className="mt-3 p-3 rounded-lg bg-emerald-600 text-white border border-emerald-500/20">
                   <p className="text-[18px] text-emerald-500 font-medium">
-                    <i className="fa-solid fa-circle-info mr-1" />
+                    <span className="material-symbols-outlined mr-1">info</span>
                     This will automatically add stock to inventory (if linked to a product) and record an expense.
                   </p>
                 </div>
@@ -605,7 +605,7 @@ const VendorPurchasePage: React.FC = () => {
               {confirmModal.action === 'cancelled' && (
                 <div className="mt-3 p-3 rounded-lg bg-red-600 text-white border border-red-500/20">
                   <p className="text-[18px] text-red-500 font-medium">
-                    <i className="fa-solid fa-triangle-exclamation mr-1" />
+                    <span className="material-symbols-outlined mr-1">warning</span>
                     This action cannot be undone.
                   </p>
                 </div>

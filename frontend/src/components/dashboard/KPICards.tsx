@@ -61,7 +61,7 @@ function KPICard({ kpi, index }: { kpi: KPIConfig; index: number }) {
           className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 hover:scale-110" 
           style={{ background: kpi.colorDim, color: kpi.color }}
         >
-          <i className={`${kpi.icon} text-[12px]`} />
+          <span className="material-symbols-outlined text-[12px]">{kpi.icon}</span>
         </div>
         <span className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wide">
           {kpi.label}
@@ -144,17 +144,17 @@ export default function KPICards() {
   }, []);
 
   const adminKpis: KPIConfig[] = [
-    { label: "Total Revenue", value: loading ? -1 : data.revenue, suffix: " ETB", subtitle: "Lifetime sales", icon: "fa-solid fa-money-bill-wave", color: "var(--emerald)", colorDim: "var(--emerald-dim)" },
-    { label: "Total Expenses", value: loading ? -1 : data.expenses, suffix: " ETB", subtitle: "All recorded expenses", icon: "fa-solid fa-money-bill-transfer", color: "var(--rose)", colorDim: "var(--rose-dim)" },
-    { label: "Net Profit", value: loading ? -1 : data.netProfit, suffix: " ETB", subtitle: "Revenue minus expenses", icon: "fa-solid fa-piggy-bank", color: "var(--accent)", colorDim: "var(--accent-dim)" },
-    { label: "Total Orders", value: loading ? -1 : data.orders, subtitle: "Excluding cancelled", icon: "fa-solid fa-cart-shopping", color: "var(--sky)", colorDim: "var(--sky-dim)" },
+    { label: "Total Revenue", value: loading ? -1 : data.revenue, suffix: " ETB", subtitle: "Lifetime sales", icon: "payments", color: "var(--emerald)", colorDim: "var(--emerald-dim)" },
+    { label: "Total Expenses", value: loading ? -1 : data.expenses, suffix: " ETB", subtitle: "All recorded expenses", icon: "currency_exchange", color: "var(--rose)", colorDim: "var(--rose-dim)" },
+    { label: "Net Profit", value: loading ? -1 : data.netProfit, suffix: " ETB", subtitle: "Revenue minus expenses", icon: "savings", color: "var(--accent)", colorDim: "var(--accent-dim)" },
+    { label: "Total Orders", value: loading ? -1 : data.orders, subtitle: "Excluding cancelled", icon: "shopping_cart", color: "var(--sky)", colorDim: "var(--sky-dim)" },
   ];
 
   const staffKpis: KPIConfig[] = [
-    { label: "Total Orders", value: loading ? -1 : data.orders, subtitle: "Excluding cancelled", icon: "fa-solid fa-cart-shopping", color: "var(--sky)", colorDim: "var(--sky-dim)" },
-    { label: "Pending Orders", value: loading ? -1 : data.pendingOrders, subtitle: "Awaiting action", icon: "fa-solid fa-clock", color: "var(--amber)", colorDim: "var(--amber-dim)" },
-    { label: "In Progress", value: loading ? -1 : data.processingOrders, subtitle: "Packed or in transit", icon: "fa-solid fa-truck-fast", color: "var(--accent)", colorDim: "var(--accent-dim)" },
-    { label: "Completed Orders", value: loading ? -1 : data.completedOrders, subtitle: "Successfully delivered", icon: "fa-solid fa-check-circle", color: "var(--emerald)", colorDim: "var(--emerald-dim)" },
+    { label: "Total Orders", value: loading ? -1 : data.orders, subtitle: "Excluding cancelled", icon: "shopping_cart", color: "var(--sky)", colorDim: "var(--sky-dim)" },
+    { label: "Pending Orders", value: loading ? -1 : data.pendingOrders, subtitle: "Awaiting action", icon: "schedule", color: "var(--amber)", colorDim: "var(--amber-dim)" },
+    { label: "In Progress", value: loading ? -1 : data.processingOrders, subtitle: "Packed or in transit", icon: "local_shipping", color: "var(--accent)", colorDim: "var(--accent-dim)" },
+    { label: "Completed Orders", value: loading ? -1 : data.completedOrders, subtitle: "Successfully delivered", icon: "check_circle", color: "var(--emerald)", colorDim: "var(--emerald-dim)" },
   ];
 
   const kpis = isStaff ? staffKpis : adminKpis;

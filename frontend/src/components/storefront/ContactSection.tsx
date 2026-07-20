@@ -171,8 +171,9 @@ const ContactSection: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-mono font-bold text-highland-gold uppercase tracking-widest mb-1.5 ml-1">{t('contact.date')}</label>
+                <label htmlFor="delivery-date" className="block text-sm font-mono font-bold text-highland-gold uppercase tracking-widest mb-1.5 ml-1">{t('contact.date')}</label>
                 <input 
+                  id="delivery-date"
                   type="date" 
                   required
                   value={formData.preferred_date}

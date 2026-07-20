@@ -40,12 +40,17 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               'border-blue-500'
             }`}
           >
-            <i className={`fa-solid ${
-              t.type === 'error' ? 'fa-circle-xmark text-red-600' :
-              t.type === 'warn' ? 'fa-triangle-exclamation text-amber-500' :
-              t.type === 'success' ? 'fa-circle-check text-[var(--g700)]' :
-              'fa-circle-info text-blue-500'
-            }`}></i>
+            <span className={`material-symbols-outlined ${
+              t.type === 'error' ? 'text-red-600' :
+              t.type === 'warn' ? 'text-amber-500' :
+              t.type === 'success' ? 'text-[var(--g700)]' :
+              'text-blue-500'
+            }`}>
+              {t.type === 'error' ? 'cancel' :
+               t.type === 'warn' ? 'warning' :
+               t.type === 'success' ? 'check_circle' :
+               'info'}
+            </span>
             {t.message}
           </div>
         ))}
