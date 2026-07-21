@@ -21,6 +21,7 @@ import { authenticate, authorise } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { recordMovement } from "../lib/inventory.js";
 import { sendVendorPO } from "../lib/telegram.js";
+import { mirrorVendorOrderToSheets, mirrorVendorOrderStatusToSheets, mirrorExpenseToSheets } from "../lib/sheets.js";
 
 const router = Router();
 
@@ -187,6 +188,19 @@ router.post(
 
       res.status(201).json({ success: true, data: rows[0] });
 
+      void mirrorVendorOrderToSheets({
+        id: id,
+        orderId: orderId,
+        productName: rows[0]?.product_name ?? null,
+        item,
+        amount,
+        price,
+        vendorName: body.vendor_name,
+        status: "pending",
+        deliveryDate: body.delivery_date ?? null,
+        createdAt: new Date().toISOString(),
+      });
+
       // Send PO to vendor via Telegram (non-blocking, after response)
       if (vendorChatId) {
         void sendVendorPO(
@@ -299,9 +313,11 @@ router.patch(
       }
 
       // ── On "received": always create expense record ─────────────
+      let expenseId: string | undefined;
+      let expenseDescription = "";
       if (status === "received") {
-        const expenseId = crypto.randomUUID();
-        const expenseDescription = vo.product_id
+        expenseId = crypto.randomUUID();
+        expenseDescription = vo.product_id
           ? `Vendor purchase: ${vo.item} from ${vo.vendor_name} (ref: ${vo.order_id})`
           : `Expense: ${vo.item} from ${vo.vendor_name} (ref: ${vo.order_id})`;
 
@@ -314,6 +330,19 @@ router.patch(
 
       await conn.commit();
 
+      // Mirror expense to sheets if this was a receipt
+      if (status === "received" && expenseId) {
+        void mirrorExpenseToSheets({
+          id: expenseId,
+          category: "vendor_purchase",
+          description: expenseDescription,
+          amount: vo.price as number,
+          vendorOrderId: id as string,
+          recordedBy: req.user?.username ?? null,
+          notes: notes ?? null,
+        });
+      }
+
       // Fetch updated record
       const [updatedRows] = await pool.query(
         `SELECT vo.*, p.name AS product_name, p.package_size AS product_package_size,
@@ -324,6 +353,27 @@ router.patch(
          WHERE vo.id = ?`,
         [id]
       ) as [any[], any];
+
+      void mirrorVendorOrderToSheets({
+        id: vo.id as string,
+        orderId: vo.order_id as string,
+        productName: updatedRows[0]?.product_name ?? null,
+        item: vo.item as string,
+        amount: vo.amount as string,
+        price: vo.price as number,
+        vendorName: vo.vendor_name as string,
+        status,
+        deliveryDate: null,
+        createdAt: vo.created_at ? new Date(vo.created_at).toISOString() : new Date().toISOString(),
+      });
+
+      void mirrorVendorOrderStatusToSheets({
+        vendorOrderId: id as string,
+        oldStatus: vo.status as string,
+        newStatus: status,
+        changedBy: req.user?.username ?? "system",
+        note: notes ?? null,
+      });
 
       res.json({
         success: true,

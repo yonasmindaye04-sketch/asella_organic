@@ -16,6 +16,7 @@ import {
   sendToDeliveryGroup,
   sendWithButtons,
 } from "../lib/telegram.js";
+import { mirrorDeliveryAssignmentToSheets, mirrorOrderStatusToSheets } from "../lib/sheets.js";
 
 const router = Router();
 
@@ -874,12 +875,26 @@ async function handleCallback(query: any): Promise<void> {
             [crypto.randomUUID(), orderId, 'Pending', driverUsername]
           );
 
+          void mirrorOrderStatusToSheets({
+            orderId,
+            oldStatus: "Pending",
+            newStatus: "In Transit",
+            changedBy: driverUsername ?? "delivery_driver",
+            note: "Accepted by delivery from Telegram",
+          });
+
           await pool.query(
             `INSERT INTO delivery_assignments (order_id, driver_username, telegram_message_id, claimed_at)
              VALUES (?, ?, ?, NOW())
              ON DUPLICATE KEY UPDATE driver_username = VALUES(driver_username), claimed_at = NOW()`,
             [orderId, driverUsername, messageId]
           );
+
+          void mirrorDeliveryAssignmentToSheets({
+            orderId,
+            driverUsername,
+            messageId: messageId ?? null,
+          });
 
           const [items] = await pool.query(`SELECT * FROM order_items WHERE order_id = ?`, [orderId]) as [any[], any];
           console.log(`[delivery_accept] Sending details to driver ${driverChatId}`);

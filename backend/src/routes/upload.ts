@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { fileTypeFromBuffer } from "file-type";
 
 import cloudinary from "../lib/cloudinary.js";
+import { authenticate, authorise } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -21,8 +22,8 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB limit
 });
 
-// Cloudinary Image Upload Endpoint
-router.post("/image", upload.single("image"), async (req: Request, res: Response) => {
+// Cloudinary Image Upload Endpoint (Protected: Admin/Manager only)
+router.post("/image", authenticate, authorise("admin", "manager"), upload.single("image"), async (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ success: false, error: "No image file uploaded" });
     return;
