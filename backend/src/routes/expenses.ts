@@ -14,6 +14,7 @@ import { z } from "zod";
 import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
+import { mirrorExpenseToSheets } from "../lib/sheets.js";
 
 const router = Router();
 
@@ -187,6 +188,15 @@ router.post(
          WHERE e.id = ?`,
         [id]
       ) as [any[], any];
+
+      void mirrorExpenseToSheets({
+        id,
+        category,
+        description,
+        amount,
+        recordedBy: req.user?.username ?? null,
+        notes: notes ?? null,
+      });
 
       res.status(201).json({ success: true, data: rows[0] });
     } catch (err) {

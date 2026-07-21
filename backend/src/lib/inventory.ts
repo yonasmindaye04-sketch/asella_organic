@@ -29,6 +29,7 @@
 
 import pool from "../config/db.js";
 import { sendLowStockAlert } from "./telegram.js";
+import { mirrorStockMovementToSheets } from "./sheets.js";
 import crypto from "crypto";
 import type { PoolConnection } from "mysql2/promise";
 
@@ -65,6 +66,8 @@ export interface MovementResult {
   previousQty:   number;
   belowThreshold: boolean;
   movementId:     string;
+  productName:    string;
+  packageSize:    string;
 }
 
 // ─── Core function ────────────────────────────────────────────────────────
@@ -169,11 +172,27 @@ export async function recordMovement(
       });
     }
 
+    void mirrorStockMovementToSheets({
+      id:            movementId,
+      productName:   product.name  as string,
+      packageSize:   product.package_size as string,
+      movementType:  options.type,
+      changeAmount:  options.changeAmount,
+      quantityAfter: finalQty,
+      reason:        options.reason,
+      referenceId:   options.referenceId  ?? null,
+      referenceType: options.referenceType ?? null,
+      performedBy:   options.performedBy  ?? null,
+      notes:         options.notes        ?? null,
+    });
+
     return {
       newQuantity:    finalQty,
       previousQty,
       belowThreshold,
       movementId,
+      productName:   product.name  as string,
+      packageSize:   product.package_size as string,
     };
   } catch (err) {
     if (useOwnTransaction) await conn.rollback();

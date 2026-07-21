@@ -28,7 +28,7 @@ import {
   sendSimpleMessage,
   sendTelegramToCustomer,
 } from "../lib/telegram.js";
-import { mirrorToSheets }             from "../lib/sheets.js";
+import { mirrorToSheets, mirrorOrderStatusToSheets, mirrorOrderDeletionToSheets } from "../lib/sheets.js";
 import { sanitizeObject, randomId }   from "../lib/security.js";
 import { createLogger }               from "../lib/logger.js";
 import { deductOrderStock, restoreOrderStock }           from "../lib/inventory.js";
@@ -205,7 +205,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       void sendOrderToAdmin({ id: orderId, ...fields, total, items, message_type: "franchise" });
     } else {
       void sendOrderToAdmin({ id: orderId, ...fields, total, items });
-      if (fields.city?.toLowerCase().includes("addis")) {
+      if (fields.city?.toLowerCase().includes("addis") && fields.order_type === "delivery") {
         void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
       }
     }
@@ -479,6 +479,12 @@ router.patch(
       [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ status })]
     );
 
+    void mirrorOrderStatusToSheets({
+      orderId, oldStatus: current.status as string | null,
+      newStatus: status, changedBy: (req as any).user?.username ?? 'system',
+      note: note ?? null,
+    });
+
     void sendTelegramToCustomer({
       phone:   current.phone as string,
       message: `Hi ${current.customer_name}, your order *${orderId}* is now *${status}*.`,
@@ -578,6 +584,13 @@ router.delete(
       res.status(404).json({ success: false, error: "Order not found" });
       return;
     }
+
+    void mirrorOrderDeletionToSheets({
+      orderId: req.params.id as string,
+      deletedBy: userId,
+      ip,
+      reason,
+    });
 
     log.info("Order archived", { orderId: req.params.id });
     res.json({ success: true, data: { message: "Order archived." } });
