@@ -17,6 +17,7 @@ import pool   from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { require2FA }   from "../middleware/2fa.js";
 import { validate }     from "../middleware/validate.js";
+import { recordMovement } from "../lib/inventory.js";
 import {
   CreateOrderSchema,
   UpdateStatusSchema,
@@ -116,10 +117,17 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     }
 
     for (const item of items) {
+      const [prodRows] = await connection.query(
+        `SELECT id, unit_cost FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? LIMIT 1`,
+        [item.name, item.package_size]
+      ) as [any[], any];
+      const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
+      const productId = prodRows.length ? prodRows[0].id : null;
+
       await connection.query(
-        `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price]
+        `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, unitCost, productId]
       );
     }
 
@@ -280,7 +288,8 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (err) {
-    console.error("[GET /orders/track/:id] Error:", err);
+    const log = createLogger(req);
+    log.error("Error in public order tracking", err);
     res.status(500).json({ success: false, error: "Internal server error. Please try again." });
   }
 });
@@ -508,19 +517,73 @@ router.patch(
     const { items } = req.body as {
       items: Array<{ name: string; package_size: string; quantity: number; unit_price: number }>;
     };
-    const orderId    = req.params.id;
+    const orderId = String(req.params.id);
     const connection = await pool.getConnection();
 
     try {
       await connection.beginTransaction();
+
+      // 1. Fetch old items for inventory rebalancing
+      const [oldItemsRows] = await connection.query(
+        `SELECT product_id, quantity FROM order_items WHERE order_id = ?`,
+        [orderId]
+      ) as [any[], any];
+
       await connection.query(`DELETE FROM order_items WHERE order_id = ?`, [orderId]);
 
+      // Map to hold net quantity changes per product_id
+      const deltaMap = new Map<string, number>();
+      for (const row of oldItemsRows) {
+        if (row.product_id) {
+          deltaMap.set(row.product_id, (deltaMap.get(row.product_id) || 0) + row.quantity); // start with old qty (positive means we return to stock)
+        }
+      }
+
       for (const item of items) {
+        const [prodRows] = await connection.query(
+          `SELECT id, unit_cost FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? LIMIT 1`,
+          [item.name, item.package_size]
+        ) as [any[], any];
+        
+        const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
+        const productId = prodRows.length ? prodRows[0].id : null;
+
+        if (productId) {
+          deltaMap.set(productId, (deltaMap.get(productId) || 0) - item.quantity); // subtract new qty (negative means we deduct from stock)
+        }
+
         await connection.query(
-          `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price]
+          `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, unitCost, productId]
         );
+      }
+
+      // Rebalance inventory
+      for (const [productId, delta] of deltaMap.entries()) {
+        if (delta > 0) {
+          // Returned to stock
+          await recordMovement({
+            productId,
+            type: 'return',
+            changeAmount: delta,
+            performedBy: (req as any).user?.id ?? 'system',
+            referenceId: orderId,
+            referenceType: 'order',
+            reason: `Order ${orderId} edited: item quantity reduced or removed`
+          }, connection);
+        } else if (delta < 0) {
+          // Deduct from stock (delta is negative, which is exactly what recordMovement needs)
+          await recordMovement({
+            productId,
+            type: 'sale',
+            changeAmount: delta,
+            performedBy: (req as any).user?.id ?? 'system',
+            referenceId: orderId,
+            referenceType: 'order',
+            reason: `Order ${orderId} edited: item quantity increased or added`
+          }, connection);
+        }
       }
 
       const newTotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);

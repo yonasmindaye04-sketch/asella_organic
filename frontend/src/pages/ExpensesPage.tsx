@@ -13,6 +13,8 @@ interface Expense {
   recorded_by_name: string | null;
   vendor_order_ref: string | null;
   vendor_name: string | null;
+  voided_at?: string | null;
+  void_reason?: string | null;
 }
 
 interface ExpenseSummary {
@@ -36,15 +38,18 @@ const ExpensesPage: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
   const [revenue, setRevenue] = useState(0);
+  const [cogs, setCogs] = useState(0);
   const [loading, setLoading] = useState(true);
   
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [showVoided, setShowVoided] = useState(false);
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [form, setForm] = useState({ category: 'operational', description: '', amount: '', notes: '' });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -68,8 +73,27 @@ const ExpensesPage: React.FC = () => {
       
       if (ordRes.success && ordRes.data) {
         const validOrders = ordRes.data.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
-        const totalRev = validOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+        
+        let totalRev = 0;
+        let totalCogs = 0;
+
+        validOrders.forEach(o => {
+          let items = [];
+          if (typeof o.items === 'string') {
+            try { items = JSON.parse(o.items); } catch { items = []; }
+          } else if (Array.isArray(o.items)) {
+            items = o.items;
+          }
+          
+          const itemsTotal = items.reduce((sum: number, item: any) => sum + (Number(item.quantity || item.qty || 1) * Number(item.unit_price || item.price || 0)), 0);
+          totalRev += Number(o.total) || itemsTotal;
+          
+          const itemsCogs = items.reduce((sum: number, item: any) => sum + (Number(item.quantity || item.qty || 1) * Number(item.unit_cost || 0)), 0);
+          totalCogs += itemsCogs;
+        });
+
         setRevenue(totalRev);
+        setCogs(totalCogs);
       }
     } catch {
       // Ignore
@@ -93,18 +117,28 @@ const ExpensesPage: React.FC = () => {
       return;
     }
 
-    const res = await api.post<any>('/api/expenses', {
-      ...form,
-      amount: amountNum,
-      notes: form.notes || undefined,
-    });
+    let res;
+    if (editingExpense) {
+      res = await api.patch<any>(`/api/expenses/${editingExpense.id}`, {
+        amount: amountNum,
+        description: form.description,
+        notes: form.notes || undefined,
+      });
+    } else {
+      res = await api.post<any>('/api/expenses', {
+        ...form,
+        amount: amountNum,
+        notes: form.notes || undefined,
+      });
+    }
 
     if (res.success) {
-      setMessage({ type: 'success', text: 'Expense recorded successfully!' });
-      setForm({ category: 'operational', description: '', amount: '', notes: '' });
+      setMessage({ type: 'success', text: editingExpense ? 'Expense updated successfully!' : 'Expense recorded successfully!' });
       fetchExpenses();
       setTimeout(() => {
         setIsModalOpen(false);
+        setEditingExpense(null);
+        setForm({ category: 'operational', description: '', amount: '', notes: '' });
         setMessage(null);
       }, 1500);
     } else {
@@ -112,6 +146,40 @@ const ExpensesPage: React.FC = () => {
     }
     setSubmitting(false);
   };
+
+  const handleVoid = async (expense: Expense) => {
+    const reason = window.prompt("Please enter a reason for voiding this expense:");
+    if (!reason) return;
+    if (reason.length < 3) {
+      alert("Reason must be at least 3 characters.");
+      return;
+    }
+    const res = await api.delete<any>(`/api/expenses/${expense.id}`, { reason });
+    if (res.success) {
+      fetchExpenses();
+    } else {
+      alert(res.error || "Failed to void expense.");
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingExpense(null);
+    setForm({ category: 'operational', description: '', amount: '', notes: '' });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (expense: Expense) => {
+    setEditingExpense(expense);
+    setForm({ 
+      category: expense.category, 
+      description: expense.description, 
+      amount: expense.amount.toString(), 
+      notes: expense.notes || '' 
+    });
+    setIsModalOpen(true);
+  };
+
+  const displayedExpenses = expenses.filter(e => showVoided ? true : !e.voided_at);
 
   const formatCurrency = (n: number) => `${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`;
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -128,7 +196,7 @@ const ExpensesPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={openAddModal}
               className="px-4 py-2 bg-[var(--emerald)] text-white rounded-lg text-sm font-bold hover:opacity-90 transition flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-[12px]">add</span>
@@ -177,7 +245,7 @@ const ExpensesPage: React.FC = () => {
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Net Profit</span>
             </div>
             <div className="text-[22px] font-black tracking-tight text-[var(--fg)]">
-              {loading ? '...' : formatCurrency(revenue - (summary?.total_expenses || 0))}
+              {loading ? '...' : formatCurrency(revenue - (summary?.total_expenses || 0) - cogs)}
             </div>
           </div>
 
@@ -231,10 +299,20 @@ const ExpensesPage: React.FC = () => {
                 className="w-full px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] text-sm outline-none"
               />
             </div>
-            {(categoryFilter || dateFrom || dateTo) && (
+            <div className="flex items-center gap-2 mb-2 min-w-[150px]">
+              <input 
+                type="checkbox" 
+                id="showVoided" 
+                checked={showVoided} 
+                onChange={e => setShowVoided(e.target.checked)} 
+                className="rounded border-[var(--border)] text-[var(--emerald)] focus:ring-[var(--emerald)]"
+              />
+              <label htmlFor="showVoided" className="text-sm font-medium text-[var(--muted)] cursor-pointer">Show Voided</label>
+            </div>
+            {(categoryFilter || dateFrom || dateTo || showVoided) && (
               <button
-                onClick={() => { setCategoryFilter(''); setDateFrom(''); setDateTo(''); }}
-                className="px-4 py-2 rounded-lg border border-[var(--border)] text-[var(--muted)] text-sm hover:text-[var(--fg)] transition-colors"
+                onClick={() => { setCategoryFilter(''); setDateFrom(''); setDateTo(''); setShowVoided(false); }}
+                className="px-4 py-2 mb-1 rounded-lg border border-[var(--border)] text-[var(--muted)] text-sm hover:text-[var(--fg)] transition-colors"
               >
                 Clear
               </button>
@@ -248,7 +326,7 @@ const ExpensesPage: React.FC = () => {
             <div className="text-center py-16">
               <span className="material-symbols-outlined animate-spin text-4xl text-[var(--muted)]">sync</span>
             </div>
-          ) : expenses.length === 0 ? (
+          ) : displayedExpenses.length === 0 ? (
             <div className="text-center py-16">
               <span className="material-symbols-outlined text-5xl text-[var(--muted)] mb-3 block">receipt_long</span>
               <p className="text-sm text-[var(--muted)]">No expenses found matching your criteria</p>
@@ -263,19 +341,27 @@ const ExpensesPage: React.FC = () => {
                     <th className="text-left px-5 py-3.5 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Category</th>
                     <th className="text-left px-5 py-3.5 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Amount</th>
                     <th className="text-left px-5 py-3.5 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Recorded By</th>
+                    <th className="text-right px-5 py-3.5 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {expenses.map((expense) => {
+                  {displayedExpenses.map((expense) => {
                     const sc = CATEGORY_CONFIG[expense.category] || CATEGORY_CONFIG['other'];
+                    const isSystem = (expense.category as string) === 'vendor_purchase' || (expense.category as string) === 'affiliate_payout';
+                    const isVoided = !!expense.voided_at;
                     return (
-                      <tr key={expense.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-card-hover)] transition-colors">
+                      <tr key={expense.id} className={`border-b border-[var(--border)] hover:bg-[var(--bg-card-hover)] transition-colors ${isVoided ? 'opacity-50' : ''}`}>
                         <td className="px-5 py-3.5 text-[12px] text-[var(--muted)]">{formatDate(expense.created_at)}</td>
-                        <td className="px-5 py-3.5 text-[var(--fg)] font-medium">
+                        <td className={`px-5 py-3.5 text-[var(--fg)] font-medium ${isVoided ? 'line-through' : ''}`}>
                           {expense.description}
                           {expense.vendor_order_ref && (
-                            <span className="ml-2 text-[10px] bg-[var(--bg)] border border-[var(--border)] px-1.5 py-0.5 rounded text-[var(--muted)] font-mono">
+                            <span className="ml-2 text-[10px] bg-[var(--bg)] border border-[var(--border)] px-1.5 py-0.5 rounded text-[var(--muted)] font-mono no-underline">
                               {expense.vendor_order_ref}
+                            </span>
+                          )}
+                          {isVoided && (
+                            <span className="block text-[10px] text-red-500 font-normal no-underline mt-1">
+                              Voided: {expense.void_reason}
                             </span>
                           )}
                         </td>
@@ -284,8 +370,20 @@ const ExpensesPage: React.FC = () => {
                             {sc.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 font-mono font-bold text-[var(--fg)]">{formatCurrency(expense.amount)}</td>
+                        <td className={`px-5 py-3.5 font-mono font-bold text-[var(--fg)] ${isVoided ? 'line-through' : ''}`}>{formatCurrency(expense.amount)}</td>
                         <td className="px-5 py-3.5 text-[var(--fg-secondary)] text-[12px]">{expense.recorded_by_name || 'System'}</td>
+                        <td className="px-5 py-3.5 text-right">
+                          {!isSystem && !isVoided && (
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => openEditModal(expense)} className="text-[var(--muted)] hover:text-blue-500" title="Edit">
+                                <span className="material-symbols-outlined text-[16px]">edit</span>
+                              </button>
+                              <button onClick={() => handleVoid(expense)} className="text-[var(--muted)] hover:text-red-500" title="Void">
+                                <span className="material-symbols-outlined text-[16px]">delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -300,7 +398,7 @@ const ExpensesPage: React.FC = () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]" onClick={() => !submitting && setIsModalOpen(false)}>
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 w-full max-w-md mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-5 border-b border-[var(--border)] pb-3">
-                <h3 className="text-lg font-bold text-[var(--fg)]">Record Expense</h3>
+                <h3 className="text-lg font-bold text-[var(--fg)]">{editingExpense ? 'Edit Expense' : 'Record Expense'}</h3>
                 <button onClick={() => !submitting && setIsModalOpen(false)} className="text-[var(--muted)] hover:text-[var(--fg)]">
                   <span className="material-symbols-outlined">close</span>
                 </button>
@@ -319,9 +417,10 @@ const ExpensesPage: React.FC = () => {
                   <label className="block text-[11px] font-bold text-[var(--muted)] mb-1.5 uppercase tracking-wide">Category *</label>
                   <select
                     required
+                    disabled={!!editingExpense}
                     value={form.category}
                     onChange={e => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] focus:border-[var(--emerald)] outline-none transition"
+                    className="w-full px-4 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] focus:border-[var(--emerald)] outline-none transition disabled:opacity-50"
                   >
                     <option value="operational">Operational</option>
                     <option value="salary">Salary</option>

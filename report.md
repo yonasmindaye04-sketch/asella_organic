@@ -1,12 +1,28 @@
 # Asella Organic — Session Status Report
 
-**Date:** 2026-07-15  
+**Date:** 2026-07-25
 **Last Commit:** `633a9ea` (2026-07-07) — Telegram notifier fix  
 **Status:** 27 files modified, 1 new file, all TypeScript clean (0 errors)
 
 ---
 
-## 1. Telegram Bot — Staff RBAC with Identity Verification
+## 1. Accounting — Accrual / COGS Migration
+
+### What changed
+- **New DB migration** (`backend/db/sql/016_add_unit_cost.sql`): Added `unit_cost` to `products` and `order_items` tables.
+- **Backend vendor API** (`backend/src/routes/vendor-orders.ts`): Automatically calculates and updates the Moving Average Cost (MAC) of a product when a vendor purchase is marked as `received`.
+- **Backend order API** (`backend/src/routes/orders.ts`): Snapshots the product's current `unit_cost` into the `order_items` table at the time of order creation/update, preserving historical profitability.
+- **Backend expenses API** (`backend/src/routes/expenses.ts`): Removed `vendor_purchase` records from the generic operating expenses summary, as they are now treated as inventory assets rather than immediate expenses.
+- **Frontend Dashboard** (`frontend/src/components/dashboard/KPICards.tsx`): Updated the Net Profit calculation to correctly subtract Cost of Goods Sold (COGS) and Operating Expenses from Total Revenue.
+- **Frontend Products** (`frontend/src/pages/ProductsPage.tsx`): Added `Unit Cost` field to product creation and editing modals.
+- **Migration Script** (`backend/scripts/migrate_cogs.ts`): A Node script to back-calculate historical `unit_cost` for existing products and orders, using a 50% fallback if no vendor purchases are found.
+
+### Risk assessment
+- **High risk if migration is skipped.** You must run `node scripts/migrate_cogs.ts` and apply the `016_add_unit_cost.sql` database migration. Otherwise, the frontend and backend will fail when trying to access or save the `unit_cost` field. Once the migration is run, the transition is seamless.
+
+---
+
+## 2. Telegram Bot — Staff RBAC with Identity Verification
 
 ### What changed
 - **New DB migration** (`backend/db/sql/013_staff_telegram_username.sql`): Added `telegram_username VARCHAR(255)` and `telegram_chat_id BIGINT` columns to `staff_users` table with indexes for fast lookups.
@@ -24,7 +40,7 @@
 
 ---
 
-## 2. Performance — Lighthouse Optimizations
+## 3. Performance — Lighthouse Optimizations
 
 ### What changed (Round 1)
 | File | Change | Impact |
@@ -60,7 +76,7 @@
 
 ---
 
-## 3. Telegram Library — Corruption Fix
+## 4. Telegram Library — Corruption Fix
 
 ### What changed
 - **`backend/src/lib/telegram.ts`** was accidentally overwritten with a copy of `backend/src/routes/telegram.ts` (the webhook/router code). The file should contain the Telegram Bot API helper functions. Rewrote it from scratch with all 7 exported helpers: `sendSimpleMessage`, `sendWithButtons`, `answerCallbackQuery`, `editMessageText`, `sendTelegramToCustomer`, `sendToDeliveryGroup`, `sendDetailsToAssignedDriver`.
@@ -71,7 +87,7 @@
 
 ---
 
-## 4. Order Form — Delivery Fee & Price Edits
+## 5. Order Form — Delivery Fee & Price Edits
 
 ### What changed
 - **`frontend/src/pages/NewOrderPage.tsx`**: Removed the "Subtotal: 0 ETB" label that showed when no product was selected. Removed `deliveryFee` from total calculation. Added separate "Delivery Fee" line in footer summary (shown only for delivery orders).
@@ -82,7 +98,7 @@
 
 ---
 
-## 5. Receipt — Print & Layout Fixes
+## 6. Receipt — Print & Layout Fixes
 
 ### What changed
 - **`frontend/src/components/storefront/OrderReceipt.tsx`**:
@@ -95,7 +111,7 @@
 
 ---
 
-## 6. Font Awesome — Invisible Icons Fix
+## 7. Font Awesome — Invisible Icons Fix
 
 ### What changed
 - **`frontend/src/index.css`**: Added CSS rule forcing `font-family: "Font Awesome 6 Free"` with `!important` on all `fa-*` classes. Fixes icons rendering invisible because Tailwind's global `Poppins` / `DM Sans` font declaration was overriding Font Awesome's font via specificity.
@@ -105,7 +121,7 @@
 
 ---
 
-## 7. Morning Briefing — Duplicate Send Guard
+## 8. Morning Briefing — Duplicate Send Guard
 
 ### What changed
 - **`backend/src/lib/telegram.ts`**: Added DB-backed dedup guard using `webhook_events` table. Before sending the daily briefing, checks for a negative `update_id` key (e.g. `-20260715`). If found, skips. After sending, `INSERT IGNORE` records the key. Guarantees one briefing per day even if PM2 restarts the process at 8 AM.
@@ -119,6 +135,7 @@
 
 | Category | Files Changed | Status |
 |---|---|---|
+| Accrual Accounting | 7 (1 SQL, 3 backend, 2 frontend, 1 script) | Done — uncommitted |
 | Telegram RBAC | 6 (1 SQL, 2 backend, 1 frontend, 2 config) | Done — uncommitted |
 | Lighthouse Performance (Round 1) | 5 frontend files | Done — uncommitted |
 | Lighthouse Performance (Round 2) | 8 frontend files | Done — uncommitted |
@@ -132,6 +149,7 @@
 ## Deploy Checklist
 
 - [x] All TypeScript builds pass (backend + frontend — zero errors)
+- [ ] Run `backend/db/sql/016_add_unit_cost.sql` and `node scripts/migrate_cogs.ts` against production DB
 - [ ] Run `backend/db/sql/013_staff_telegram_username.sql` against production DB
 - [ ] Rebuild backend: `cd backend && npm run build`
 - [ ] Rebuild frontend: `cd frontend && npm run build`

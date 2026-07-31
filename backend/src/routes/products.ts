@@ -70,7 +70,7 @@ router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => 
 
     let orderByClause = "ORDER BY featured DESC, name ASC";
     let joinClause = "";
-    const selectFields = `p.id, p.name, p.package_size, p.price, p.description, p.image_url,
+    const selectFields = `p.id, p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
                           p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active`;
     
     if (req.query.sort === "sales") {
@@ -155,7 +155,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, package_size, price, description, image_url,
+      `SELECT id, name, package_size, price, unit_cost, description, image_url,
               featured, tag, inventory_quantity, low_stock_threshold
        FROM products
        WHERE id = ? AND active = true`,
@@ -189,11 +189,11 @@ router.post(
 
       await pool.query(
         `INSERT INTO products
-           (id, name, package_size, price, description, image_url,
+           (id, name, package_size, price, unit_cost, description, image_url,
             featured, tag, inventory_quantity, low_stock_threshold, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          newId, d.name, d.package_size, d.price,
+          newId, d.name, d.package_size, d.price, d.unit_cost ?? 0,
           d.description ?? null, d.image_url ?? null,
           d.featured ?? false, d.tag ?? null,
           d.inventory_quantity ?? 0, d.low_stock_threshold ?? 10,
@@ -233,7 +233,7 @@ router.patch(
     try {
       const fields  = req.body as Record<string, unknown>;
       const allowed = [
-        "name", "package_size", "price", "description",
+        "name", "package_size", "price", "unit_cost", "description",
         "image_url", "featured", "tag", "active",
         "inventory_quantity", "low_stock_threshold",
       ];

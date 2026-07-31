@@ -152,6 +152,12 @@ const Sidebar: React.FC = () => {
                   </Link>
                 </li>
                 <li>
+                  <Link to="/dashboard/analytics" className={link('/dashboard/analytics')}>
+                    <span className={icon('/dashboard/analytics')}>analytics</span>
+                    Reports
+                  </Link>
+                </li>
+                <li>
                   <Link to="/dashboard/notifications" className={link('/dashboard/notifications')}>
                     <span className={icon('/dashboard/notifications')}>notifications</span>
                     Notifications
@@ -183,9 +189,16 @@ const Sidebar: React.FC = () => {
                     User Management
                   </Link>
                 </li>
+                <li>
+                  <Link to="/dashboard/audit-log" className={link('/dashboard/audit-log')}>
+                    <span className={icon('/dashboard/audit-log')}>manage_history</span>
+                    Audit Log
+                  </Link>
+                </li>
               </ul>
             </div>
           )}
+
         </nav>
       </div>
 

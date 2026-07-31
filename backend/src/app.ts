@@ -18,7 +18,10 @@ import helmet from "helmet";
 import { generalRateLimit } from "./middleware/rateLimit.js";
 import { requestId }        from "./middleware/requestId.js";
 import { idempotencyMiddleware } from "./middleware/idempotency.js";
-import { logger }           from "./lib/logger.js";
+import { logger, createLogger } from "./lib/logger.js";
+import compression from "compression";
+import imageRoutes from "./routes/images.js";
+
 
 import authRoutes     from "./routes/auth.js";
 import orderRoutes    from "./routes/orders.js";
@@ -34,6 +37,7 @@ import appointmentRoutes   from "./routes/appointments.js";
 import adminRoutes          from "./routes/admin.js";
 import expenseRoutes        from "./routes/expenses.js";
 import videoRoutes          from "./routes/videos.js";
+import reportRoutes         from "./routes/reports.js";
 
 const app = express();
 
@@ -71,7 +75,12 @@ app.use(helmet({
   },
 }));
 
+// ── 1b. Gzip / Brotli compression ────────────────────────────────────────────
+app.use(compression());
+
 // ── 2. Static files ───────────────────────────────────────────────────────────
+// Image optimizer must be BEFORE express.static so it intercepts /image/* first
+app.use("/image", imageRoutes);
 app.use(express.static(path.join(process.cwd(), "public")));
 
 // ── 3. CORS ───────────────────────────────────────────────────────────────────
@@ -244,6 +253,7 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/admin",        adminRoutes],
   ["/expenses",     expenseRoutes],
   ["/videos",       videoRoutes],
+  ["/reports",      reportRoutes],
 ];
 
 for (const [path, router] of routeMounts) {
@@ -260,11 +270,14 @@ app.use((_req: Request, res: Response) => {
 
 // ── 13. Global error handler ──────────────────────────────────────────────────
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  logger.error(`Unhandled error on ${req.method} ${req.path}`, err);
-  res.status(500).json({
-    success: false,
-    error: process.env.NODE_ENV === "production" ? "Internal server error" : err.message,
-  });
+  const log = createLogger(req);
+  log.error(`Unhandled error on ${req.method} ${req.path}`, err);
+  if (!res.headersSent) {
+    res.status(500).json({
+      success: false,
+      error: process.env.NODE_ENV === "production" ? "Internal server error" : err.message,
+    });
+  }
 });
 
 export default app;

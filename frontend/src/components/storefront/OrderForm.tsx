@@ -227,24 +227,27 @@ const OrderForm: React.FC = () => {
           </button>
         </div>
 
-        <div className="px-8 pb-4">
-          <hr className="border-highland-gold/10" />
-        </div>
-
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-8 pb-8 overflow-y-auto flex-1 font-sans">
+        <form onSubmit={handleSubmit} className="px-8 pb-8 overflow-y-auto flex-1 min-h-0 font-sans">
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* ── Step 1: Customer Info ── */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-full bg-highland-gold text-obsidian flex items-center justify-center text-sm font-black font-mono shadow-md">1</div>
+              <h4 className="text-base font-bold text-obsidian dark:text-white tracking-tight">{t('orderForm.customerName')}</h4>
+              <div className="flex-1 h-px bg-highland-gold/20"></div>
+            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.customerName')}</label>
-              <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base" placeholder={t('orderForm.customerNamePlaceholder')} />
+              <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" placeholder={t('orderForm.customerNamePlaceholder')} />
             </div>
 
             {orderFormMode === 'franchise' && (
               <div className="col-span-1 md:col-span-1">
                 <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.franchiseType')}</label>
-                <select value={formData.franchiseType} onChange={e => setFormData({...formData, franchiseType: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
+                <select value={formData.franchiseType} onChange={e => setFormData({...formData, franchiseType: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
                   <option>Cosmetics Store</option>
                   <option>Pharmacy</option>
                   <option>Retail Store</option>
@@ -257,7 +260,7 @@ const OrderForm: React.FC = () => {
               <>
                 <div className="col-span-1 md:col-span-1">
                   <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.gender')}</label>
-                  <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
+                  <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
                     <option value="">{t('orderForm.select')}</option>
                     <option>{t('orderForm.male')}</option>
                     <option>{t('orderForm.female')}</option>
@@ -265,7 +268,7 @@ const OrderForm: React.FC = () => {
                 </div>
                 <div className="col-span-1 md:col-span-1">
                   <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.ageGroup')}</label>
-                  <select value={formData.ageGroup} onChange={e => setFormData({...formData, ageGroup: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
+                  <select value={formData.ageGroup} onChange={e => setFormData({...formData, ageGroup: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
                     <option>Under 18</option><option>19-25</option><option>26-30</option>
                     <option>31-36</option><option>37-41</option><option>42-48</option>
                   </select>
@@ -275,7 +278,7 @@ const OrderForm: React.FC = () => {
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.orderType')}</label>
-              <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
+              <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
                 <option value="delivery">{t('orderForm.delivery')}</option>
                 <option value="pickup">{t('orderForm.pickup')}</option>
               </select>
@@ -283,14 +286,14 @@ const OrderForm: React.FC = () => {
             
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.referralCode')}</label>
-              <input type="text" value={formData.referral_code} onChange={e => setFormData({...formData, referral_code: e.target.value.toUpperCase()})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base" placeholder="e.g. BIRUK10" />
+              <input type="text" value={formData.referral_code} onChange={e => setFormData({...formData, referral_code: e.target.value.toUpperCase()})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" placeholder="e.g. BIRUK10" />
             </div>
             
             {orderFormMode === 'franchise' && <div className="hidden md:block"></div>}
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.location')}</label>
-              <select value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base">
+              <select value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
                 <option>{t('orderForm.locAddis')}</option>
                 <option>{t('orderForm.locOther')}</option>
                 <option>{t('orderForm.locAbroad')}</option>
@@ -298,11 +301,11 @@ const OrderForm: React.FC = () => {
             </div>
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.city')}</label>
-              <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base" placeholder="e.g. Bole, Lideta..." />
+              <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" placeholder="e.g. Bole, Lideta..." />
             </div>
 
             <div className="col-span-1 md:col-span-2">
-              <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.phone')}</label>
+              <label className="block text-xs font-mono font-bold text-obsidian/80 dark:text-white/80 uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.phone')} <span className="text-red-500">*</span></label>
               <div className="flex w-full">
                 
                 {/* Dynamic Country Code Dropdown Select Menu */}
@@ -318,25 +321,28 @@ const OrderForm: React.FC = () => {
                   ))}
                 </select>
 
-                <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-3 rounded-r-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base font-mono" placeholder="911 234 567" />
+                <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-3 rounded-r-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base font-mono text-obsidian dark:text-white" placeholder="911 234 567" />
               </div>
             </div>
 
           </div>
+          </div>
 
-          {/* Item Details */}
+          {/* ── Step 2: Order Items ── */}
           <div className="mb-8">
-              <h4 className="text-base font-mono font-bold text-obsidian dark:text-white mb-4 flex items-center gap-2">
-                {t('orderForm.itemDetailsTitle')}
-              </h4>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-full bg-highland-gold text-obsidian flex items-center justify-center text-sm font-black font-mono shadow-md">2</div>
+              <h4 className="text-base font-bold text-obsidian dark:text-white tracking-tight">{t('orderForm.itemDetailsTitle')}</h4>
+              <div className="flex-1 h-px bg-highland-gold/20"></div>
+            </div>
 
               {/* Global Delivery Date */}
               <div className="mb-4">
                 <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Delivery Date (Optional)</label>
-                <input type="date" value={globalDeliveryDate} onChange={e => setGlobalDeliveryDate(e.target.value)} className="w-full max-w-xs px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base" />
+                <input type="date" value={globalDeliveryDate} onChange={e => setGlobalDeliveryDate(e.target.value)} className="w-full max-w-xs px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" />
               </div>
 
-              <div className="bg-white dark:bg-obsidian border border-border rounded-2xl p-4 md:p-6 mb-4 space-y-4">
+              <div className="bg-white dark:bg-[#1a2e1b] border border-highland-gold/15 rounded-2xl p-4 md:p-6 mb-4 space-y-4 shadow-sm">
                 {items.map((item, index) => {
                   const selectedProductVariants = products.filter(p => p.name === item.name);
                   const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
@@ -345,47 +351,52 @@ const OrderForm: React.FC = () => {
                   const lineSubtotal = unitPrice * (Number(item.qty) || 1);
                   
                   return (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end relative border-b border-border pb-4 last:border-b-0 last:pb-0">
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.itemLabel')}</label>
-                        <select required value={item.name} onChange={e => updateItem(index, 'name', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none">
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end relative border-b border-highland-gold/10 pb-4 last:border-b-0 last:pb-0">
+                      {/* Item number badge */}
+                      <div className="hidden md:flex md:col-span-1 items-center justify-center">
+                        <span className="w-7 h-7 rounded-full bg-parchment-mid dark:bg-[#1A301D] border border-highland-gold/20 text-highland-gold text-xs font-bold flex items-center justify-center">{index + 1}</span>
+                      </div>
+                      <div className="col-span-12 md:col-span-3">
+                        <label className="block text-xs font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">{t('orderForm.itemLabel')} <span className="text-red-500">*</span></label>
+                        <select required value={item.name} onChange={e => updateItem(index, 'name', e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-obsidian/20 dark:border-white/20 focus:border-highland-gold focus:ring-1 focus:ring-highland-gold/30 text-sm outline-none text-obsidian dark:text-white transition-all">
                           <option value="">{t('orderForm.itemPlaceholder')}</option>
                           {Array.from(new Set(products.map(p => p.name))).map(name => (
                             <option key={name} value={name}>{name}</option>
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.packageSize')}</label>
-                        <select required value={item.packageSize} onChange={e => updateItem(index, 'packageSize', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none">
+                      <div className="col-span-12 md:col-span-2">
+                        <label className="block text-xs font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">{t('orderForm.packageSize')} <span className="text-red-500">*</span></label>
+                        <select required value={item.packageSize} onChange={e => updateItem(index, 'packageSize', e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-obsidian/20 dark:border-white/20 focus:border-highland-gold focus:ring-1 focus:ring-highland-gold/30 text-sm outline-none text-obsidian dark:text-white transition-all">
                           <option value="">{t('orderForm.select')}...</option>
                           {availableSizes.length > 0 ? (
-                            availableSizes.map(size => {
-                              const variant = selectedProductVariants.find(p => p.package_size === size);
-                              const price = variant ? Number(variant.price) : 0;
-                              return (
-                                <option key={size} value={size}>{size} — {price.toLocaleString()} ETB</option>
-                              );
-                            })
+                            availableSizes.map(size => (
+                              <option key={size} value={size}>{size}</option>
+                            ))
                           ) : (
                             <option disabled>{t('orderForm.chooseItemFirst')}</option>
                           )}
                         </select>
                       </div>
-                      <div>
-                        <label htmlFor={`qty-${index}`} className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">{t('orderForm.qty')}</label>
-                        <input id={`qty-${index}`} required type="number" min="1" value={item.qty} onChange={e => { const v = parseInt(e.target.value); updateItem(index, 'qty', isNaN(v) ? 1 : v); }} className="w-full px-3 py-2 rounded-lg bg-white dark:bg-obsidian border border-border focus:border-highland-gold text-base outline-none font-mono" />
+                      <div className="col-span-6 md:col-span-2">
+                        <label htmlFor={`qty-${index}`} className="block text-xs font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">{t('orderForm.qty')} <span className="text-red-500">*</span></label>
+                        <input id={`qty-${index}`} required type="number" min="1" value={item.qty} onChange={e => { const v = parseInt(e.target.value); updateItem(index, 'qty', isNaN(v) ? 1 : v); }} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-obsidian/20 dark:border-white/20 focus:border-highland-gold focus:ring-1 focus:ring-highland-gold/30 text-sm outline-none text-obsidian dark:text-white font-mono transition-all" />
                       </div>
-                      <div>
-                        <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1">Subtotal</label>
-                        <div className="w-full px-3 py-2 rounded-lg bg-parchment-mid dark:bg-[#1A301D] border border-border text-base font-mono text-obsidian dark:text-white flex items-center h-[42px]">
-                          {unitPrice > 0 ? `${lineSubtotal.toLocaleString()} ETB` : '—'}
+                      <div className="col-span-6 md:col-span-3">
+                        <label className="block text-xs font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">{t('orderForm.total')}</label>
+                        <div className={`w-full px-3 py-2.5 rounded-lg border text-sm font-mono flex items-center justify-between h-[42px] transition-all ${
+                          unitPrice > 0
+                            ? 'bg-highland-gold/10 dark:bg-highland-gold/5 border-highland-gold/30 text-obsidian dark:text-highland-gold-light font-bold'
+                            : 'bg-parchment-mid dark:bg-[#1A301D] border-border text-obsidian/40 dark:text-white/40'
+                        }`}>
+                          <span></span>
+                          <span className="font-black">{unitPrice > 0 ? `${lineSubtotal.toLocaleString()} ETB` : '—'}</span>
                         </div>
                       </div>
-                      <div>
+                      <div className="col-span-12 md:col-span-1 flex items-end justify-end">
                         {items.length > 1 && (
-                          <button type="button" onClick={() => removeItem(index)} className="w-full md:w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors border border-red-200">
-                            ✕
+                          <button type="button" onClick={() => removeItem(index)} className="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors border border-red-200 dark:border-red-800" title="Remove item">
+                            <span className="material-symbols-outlined text-lg">close</span>
                           </button>
                         )}
                       </div>
@@ -399,21 +410,32 @@ const OrderForm: React.FC = () => {
               </button>
             </div>
 
-          <div className="bg-parchment-mid dark:bg-[#1A301D] border border-border rounded-xl p-5 mb-6">
+          {/* Delivery info callout */}
+          <div className="bg-[#e8f5e9] dark:bg-[#1A301D] border border-[#d4ecd4] dark:border-[#3a5c3a] rounded-xl p-5 mb-8 flex items-start gap-3">
+            <span className="material-symbols-outlined text-[#2e7d32] dark:text-[#81c784] text-xl mt-0.5">local_shipping</span>
             <p className="text-obsidian dark:text-white text-sm leading-relaxed">
-              <strong>{t('orderForm.deliveryFeeInfoTitle')}</strong><br />
+              <strong className="text-[#2e7d32] dark:text-[#81c784]">{t('orderForm.deliveryFeeInfoTitle')}</strong><br />
               {t('orderForm.deliveryFeeInfoText')}
             </p>
           </div>
+
+          {/* ── Step 3: Additional Info ── */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-full bg-highland-gold text-obsidian flex items-center justify-center text-sm font-black font-mono shadow-md">3</div>
+              <h4 className="text-base font-bold text-obsidian dark:text-white tracking-tight">{t('orderForm.notes')}</h4>
+              <div className="flex-1 h-px bg-highland-gold/20"></div>
+            </div>
           
           <div className="mb-6">
-            <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.notes')}</label>
-            <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base min-h-[80px]" placeholder={t('orderForm.notes')} />
+            <label className="block text-xs font-mono font-bold text-obsidian/80 dark:text-white/80 uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.notes')}</label>
+            <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-2 focus:ring-highland-gold/30 transition-all text-base text-obsidian dark:text-white min-h-[80px]" placeholder={t('orderForm.notes')} />
           </div>
           
           <div className="mb-4">
-            <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.attachment')}</label>
+            <label className="block text-xs font-mono font-bold text-obsidian/80 dark:text-white/80 uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.attachment')}</label>
             <input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-700 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-border p-4 rounded-xl cursor-pointer" />
+          </div>
           </div>
 
         </form>

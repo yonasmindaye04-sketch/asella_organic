@@ -10,17 +10,21 @@
 export function resolveProductImage(
   dbImageUrl: string | null | undefined,
   productName: string,
+  options?: { width?: number; quality?: number },
 ): string {
+  const { width = 400, quality = 78 } = options ?? {};
+
   // 1. Try local image by product name
   const localMatch = getLocalImage(productName);
-  if (localMatch) return localMatch;
+  if (localMatch) return optimizeLocalUrl(localMatch, width, quality);
 
   // 2. If DB has a local path, use it directly
   if (dbImageUrl && dbImageUrl.trim() !== '') {
     const url = dbImageUrl.trim();
-    if (url.startsWith('/image/') || url.startsWith('/image\\')) return url;
+    if (url.startsWith('/image/') || url.startsWith('/image\\'))
+      return optimizeLocalUrl(url, width, quality);
 
-    // 3. Full external URL (Google Drive etc.) — last resort
+    // 3. Full external URL (Google Drive etc.) — last resort, can't optimize
     if (url.startsWith('http')) return url;
 
     // Bare Google Drive ID
@@ -30,6 +34,15 @@ export function resolveProductImage(
   }
 
   return '';
+}
+
+/**
+ * Appends ?w=&q= to a local /image/* URL so the backend optimizer picks it up.
+ * External URLs are returned unchanged.
+ */
+export function optimizeLocalUrl(src: string, width = 800, quality = 78): string {
+  if (!src || !src.startsWith('/image/')) return src;
+  return `${src}?w=${width}&q=${quality}`;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

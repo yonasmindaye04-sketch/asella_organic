@@ -24,6 +24,8 @@ import { validate } from "../middleware/validate.js";
 import { recordMovement } from "../lib/inventory.js";
 import { sendStockRequestAlert } from "../lib/telegram.js";
 import { z } from "zod";
+import { createLogger } from "../lib/logger.js";
+
 
 const router = Router();
 
@@ -115,7 +117,7 @@ router.get(
              ELSE 'ok'
            END AS stock_status,
            -- stock value
-           (p.inventory_quantity * p.price) AS stock_value,
+           (p.inventory_quantity * COALESCE(p.unit_cost, 0)) AS stock_value,
            -- last movement
            (SELECT im.created_at
             FROM   inventory_movements im
@@ -135,7 +137,8 @@ router.get(
 
       res.json({ success: true, data: rows });
     } catch (err) {
-      console.error("[GET /stock]", err);
+      const log = createLogger(req);
+      log.error("Failed to list stock", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -153,7 +156,7 @@ router.get(
         `SELECT
            COUNT(*)                                                          AS total_products,
            SUM(inventory_quantity)                                           AS total_units,
-           SUM(inventory_quantity * price)                                   AS total_stock_value,
+           SUM(inventory_quantity * COALESCE(unit_cost, 0))                  AS total_stock_value,
            SUM(CASE WHEN inventory_quantity = 0 THEN 1 ELSE 0 END)         AS out_of_stock_count,
            SUM(CASE WHEN inventory_quantity > 0
                     AND inventory_quantity <= low_stock_threshold / 2
@@ -188,7 +191,8 @@ router.get(
         },
       });
     } catch (err) {
-      console.error("[GET /stock/summary]", err);
+      const log = createLogger(_req);
+      log.error("Failed to fetch stock summary", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -265,7 +269,8 @@ router.get(
         },
       });
     } catch (err) {
-      console.error("[GET /stock/movements]", err);
+      const log = createLogger(req);
+      log.error("Failed to fetch stock movements", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -296,7 +301,8 @@ router.get(
 
       res.json({ success: true, data: rows });
     } catch (err) {
-      console.error("[GET /stock/low]", err);
+      const log = createLogger(_req);
+      log.error("Failed to fetch low stock", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -463,7 +469,8 @@ router.post(
       });
     } catch (err: any) {
       await conn.rollback();
-      console.error("[POST /stock/receive/:vendorOrderId]", err);
+      const log = createLogger(req);
+      log.error("Failed to receive vendor order stock", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     } finally {
       conn.release();
@@ -530,7 +537,8 @@ router.post(
 
       res.status(201).json({ success: true, data: reqRows[0] });
     } catch (err) {
-      console.error("[POST /stock/request]", err);
+      const log = createLogger(req);
+      log.error("Failed to create stock request", err);
       res.status(500).json({ success: false, error: "Failed to create stock request." });
     }
   }
@@ -570,7 +578,8 @@ router.get(
 
       res.json({ success: true, data: rows });
     } catch (err) {
-      console.error("[GET /stock/requests]", err);
+      const log = createLogger(req);
+      log.error("Failed to fetch stock requests", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -659,7 +668,8 @@ router.patch(
       });
     } catch (err: any) {
       await conn.rollback();
-      console.error("[PATCH /stock/requests/:id/status]", err);
+      const log = createLogger(req);
+      log.error("Failed to update stock request status", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     } finally {
       conn.release();

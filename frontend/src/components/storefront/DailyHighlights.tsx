@@ -5,31 +5,35 @@ import { openOrderModal } from '../../store/slices/uiSlice';
 import ProductCarousel from './ProductCarousel';
 import type { CarouselProduct } from './ProductCarousel/carouselData';
 import { useLanguage } from '../../LanguageContext';
+import { optimizeLocalUrl } from '../../utils/image';
+
 
 const categoryCards = [
-  { key: 'powders', image: '/image/products/Moringa 200g,500g and 1kg.png' },
-  { key: 'oils', image: '/image/products/Blackseed Oil ( 30ml ).JPG' },
-  { key: 'seeds', image: '/image/products/Chiaseed 250g and 1kg.png' },
-  { key: 'supplements', image: '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png' },
-  { key: 'herbsSpices', image: '/image/products/Erid Turmeric ( 220g ).png' },
-  { key: 'essentialOils', image: '/image/products/Frankincense Oil  30ml and 60 ml.jpeg' },
-  { key: 'naturalBeauty', image: '/image/products/Qasil Powder ( 200g ).png' },
-  { key: 'wellness', image: '/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png' },
+  { key: 'powders',       image: optimizeLocalUrl('/image/products/Moringa 200g,500g and 1kg.png', 224, 78) },
+  { key: 'oils',          image: optimizeLocalUrl('/image/products/Blackseed Oil ( 30ml ).JPG',    224, 78) },
+  { key: 'seeds',         image: optimizeLocalUrl('/image/products/Chiaseed 250g and 1kg.png',     224, 78) },
+  { key: 'supplements',   image: optimizeLocalUrl('/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png', 224, 78) },
+  { key: 'herbsSpices',   image: optimizeLocalUrl('/image/products/Erid Turmeric ( 220g ).png',   224, 78) },
+  { key: 'essentialOils', image: optimizeLocalUrl('/image/products/Frankincense Oil  30ml and 60 ml.jpeg', 224, 78) },
+  { key: 'naturalBeauty', image: optimizeLocalUrl('/image/products/Qasil Powder ( 200g ).png',    224, 78) },
+  { key: 'wellness',      image: optimizeLocalUrl('/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png', 224, 78) },
 ];
 
+
 const highlightsMapping = [
-  { image: '/image/dailyimages/Moringa Powder.png', searchKey: 'Moringa', tagKey: 'trending' },
-  { image: '/image/dailyimages/Shilajit.png', searchKey: 'Shilajit Gel', tagKey: 'bestseller' },
-  { image: '/image/dailyimages/Ashwegenda powder.png', searchKey: 'Ashewagenda powder', tagKey: 'organic' },
-  { image: '/image/dailyimages/Aswhwegnda Tablet.png', searchKey: 'Ashewagenda (Himalya) Tablet', tagKey: 'supplement' },
-  { image: '/image/dailyimages/Black seed  oil.png', searchKey: 'Blackseed Oil', tagKey: 'pure' },
-  { image: '/image/dailyimages/Chiaseed.png', searchKey: 'Chia Seed', tagKey: 'superfood' },
-  { image: '/image/dailyimages/Franchinses Oil.png', searchKey: 'Frankincense Oil', tagKey: 'essential' },
-  { image: '/image/dailyimages/Hibscus.png', searchKey: 'Hibiscus', tagKey: 'herbal' },
-  { image: '/image/dailyimages/Kerbe Oil.png', searchKey: 'Kerebe', tagKey: 'aromatic' },
-  { image: '/image/dailyimages/Kesil Powder.png', searchKey: 'Kesil Powder', tagKey: 'natural' },
-  { image: '/image/dailyimages/Turemic Erid.png', searchKey: 'Turmeric', tagKey: 'spice' },
+  { image: optimizeLocalUrl('/image/dailyimages/Moringa Powder.png',        600, 75), searchKey: 'Moringa',                    tagKey: 'trending' },
+  { image: optimizeLocalUrl('/image/dailyimages/Shilajit.png',              600, 75), searchKey: 'Shilajit Gel',               tagKey: 'bestseller' },
+  { image: optimizeLocalUrl('/image/dailyimages/Ashwegenda powder.png',     600, 75), searchKey: 'Ashewagenda powder',         tagKey: 'organic' },
+  { image: optimizeLocalUrl('/image/dailyimages/Aswhwegnda Tablet.png',     600, 75), searchKey: 'Ashewagenda (Himalya) Tablet', tagKey: 'supplement' },
+  { image: optimizeLocalUrl('/image/dailyimages/Black seed  oil.png',       600, 75), searchKey: 'Blackseed Oil',              tagKey: 'pure' },
+  { image: optimizeLocalUrl('/image/dailyimages/Chiaseed.png',              600, 75), searchKey: 'Chia Seed',                  tagKey: 'superfood' },
+  { image: optimizeLocalUrl('/image/dailyimages/Franchinses Oil.png',       600, 75), searchKey: 'Frankincense Oil',           tagKey: 'essential' },
+  { image: optimizeLocalUrl('/image/dailyimages/Hibscus.png',               600, 75), searchKey: 'Hibiscus',                   tagKey: 'herbal' },
+  { image: optimizeLocalUrl('/image/dailyimages/Kerbe Oil.png',             600, 75), searchKey: 'Kerebe',                     tagKey: 'aromatic' },
+  { image: optimizeLocalUrl('/image/dailyimages/Kesil Powder.png',          600, 75), searchKey: 'Kesil Powder',               tagKey: 'natural' },
+  { image: optimizeLocalUrl('/image/dailyimages/Turemic Erid.png',          600, 75), searchKey: 'Turmeric',                   tagKey: 'spice' },
 ];
+
 
 const DailyHighlights: React.FC = () => {
   const dispatch = useDispatch();

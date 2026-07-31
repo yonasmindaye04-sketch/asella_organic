@@ -28,6 +28,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",
@@ -47,6 +48,7 @@
     "otplib": "^13.4.0",
     "qrcode": "^1.5.4",
     "redis": "^6.0.1",
+    "sharp": "^0.35.3",
     "uuid": "^14.0.0",
     "validator": "^13.15.35",
     "winston": "^3.19.0",
@@ -54,6 +56,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/helmet": "^0.0.48",
