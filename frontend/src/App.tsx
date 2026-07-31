@@ -24,6 +24,8 @@ const NewOrderPage         = lazy(() => import('./pages/NewOrderPage'));
 const CustomerOrderTracking = lazy(() => import('./pages/CustomerOrderTracking'));
 const ExpensesPage         = lazy(() => import('./pages/ExpensesPage'));
 const VideoManagementPage  = lazy(() => import('./pages/VideoManagementPage'));
+const AuditLogPage         = lazy(() => import('./pages/AuditLogPage'));
+
 
 function App() {
   useEffect(() => {
@@ -63,6 +65,7 @@ function App() {
 
                 {/* Combined Products page — replaces /dashboard/catalog and /dashboard/inventory */}
                 <Route path="/dashboard/products"     element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+                <Route path="/dashboard/audit-log"    element={<ProtectedRoute><AuditLogPage /></ProtectedRoute>} />
               </Routes>
             </Suspense>
           </ToastProvider>

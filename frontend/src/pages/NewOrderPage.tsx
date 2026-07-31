@@ -194,18 +194,21 @@ export default function NewOrderPage() {
           <p className="text-sm font-sans text-slate-500 dark:text-slate-300">Stock deduction happens automatically when order status reaches Delivered.</p>
         </div>
 
-        <div className="px-8 pb-4">
-          <hr className="border-[#d4ecd4] dark:border-border" />
-        </div>
-
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-8 pb-8 flex-1">
+        <form onSubmit={handleSubmit} className="px-8 pb-8 flex-1 min-h-0 overflow-y-auto">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* ── Step 1: Customer Info ── */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-full bg-highland-gold text-obsidian flex items-center justify-center text-sm font-black font-mono shadow-md">1</div>
+              <h4 className="text-base font-bold text-obsidian dark:text-white tracking-tight">Customer Information</h4>
+              <div className="flex-1 h-px bg-highland-gold/20"></div>
+            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Customer Name *</label>
-              <input required type="text" value={form.customer_name} onChange={e => setForm({...form, customer_name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="Full name" />
+              <input required type="text" value={form.customer_name} onChange={e => setForm({...form, customer_name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white" placeholder="Full name" />
             </div>
 
             <div className="col-span-1 md:col-span-1">
@@ -222,13 +225,13 @@ export default function NewOrderPage() {
                     </option>
                   ))}
                 </select>
-                <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-4 py-3 rounded-r-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm font-mono" placeholder="911 234 567" />
+                <input required type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-4 py-3 rounded-r-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white font-mono" placeholder="911 234 567" />
               </div>
             </div>
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">City *</label>
-              <select required value={form.city} onChange={e => setForm({...form, city: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+              <select required value={form.city} onChange={e => setForm({...form, city: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white">
                 <option value="">— Select city —</option>
                 {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -236,12 +239,12 @@ export default function NewOrderPage() {
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Location / Address *</label>
-              <input required type="text" value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="e.g. Bole, near airport..." />
+              <input required type="text" value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white" placeholder="e.g. Bole, near airport..." />
             </div>
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Source</label>
-              <select value={form.source} onChange={e => setForm({...form, source: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+              <select value={form.source} onChange={e => setForm({...form, source: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white">
                 {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -249,7 +252,7 @@ export default function NewOrderPage() {
             <div className="grid grid-cols-2 gap-4 col-span-1 md:col-span-1">
               <div>
                 <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Gender</label>
-                <select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+                <select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white">
                   <option value="">—</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -258,7 +261,7 @@ export default function NewOrderPage() {
               </div>
               <div>
                 <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Age Group</label>
-                <select value={form.age_group} onChange={e => setForm({...form, age_group: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+                <select value={form.age_group} onChange={e => setForm({...form, age_group: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white">
                   <option value="">—</option>
                   {AGE_GROUPS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
@@ -267,7 +270,7 @@ export default function NewOrderPage() {
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Order Type</label>
-              <select value={form.order_type} onChange={e => setForm({...form, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm">
+              <select value={form.order_type} onChange={e => setForm({...form, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white">
                 <option value="delivery">Delivery</option>
                 <option value="pickup">Pickup</option>
               </select>
@@ -275,21 +278,24 @@ export default function NewOrderPage() {
 
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Referral Code</label>
-              <input type="text" value={form.referral_code} onChange={e => setForm({...form, referral_code: e.target.value.toUpperCase()})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm" placeholder="e.g. BIRUK10" />
+              <input type="text" value={form.referral_code} onChange={e => setForm({...form, referral_code: e.target.value.toUpperCase()})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white" placeholder="e.g. BIRUK10" />
             </div>
 
           </div>
+          </div>
 
-          {/* Item Details */}
+          {/* ── Step 2: Order Items ── */}
           <div className="mb-8">
-            <h4 className="text-sm font-mono font-bold text-obsidian dark:text-white mb-4 flex items-center gap-2">
-              Order Items
-            </h4>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-full bg-highland-gold text-obsidian flex items-center justify-center text-sm font-black font-mono shadow-md">2</div>
+              <h4 className="text-base font-bold text-obsidian dark:text-white tracking-tight">Order Items</h4>
+              <div className="flex-1 h-px bg-highland-gold/20"></div>
+            </div>
 
             {productsLoading ? (
               <p className="text-sm text-slate-500 mb-4">Loading products...</p>
             ) : (
-              <div className="bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border rounded-2xl p-4 md:p-6 mb-4 space-y-4 shadow-sm">
+              <div className="bg-white dark:bg-[#1a2e1b] border border-highland-gold/15 rounded-2xl p-4 md:p-6 mb-4 space-y-4 shadow-sm">
                 {form.items.map((item, index) => {
                   const selectedProductVariants = products.filter(p => p.name === item.name);
                   const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
@@ -298,18 +304,23 @@ export default function NewOrderPage() {
                   const stockQty = selectedVariant ? Number(selectedVariant.inventory_quantity) : null;
 
                   return (
-                    <div key={index} className="border-b border-[#d4ecd4]/50 pb-4 last:border-b-0 last:pb-0">
+                    <div key={index} className="border-b border-highland-gold/10 pb-4 last:border-b-0 last:pb-0">
                       <div className="grid grid-cols-12 gap-3 items-end relative">
 
+                      {/* Item number badge */}
+                      <div className="hidden md:flex md:col-span-1 items-center justify-center">
+                        <span className="w-7 h-7 rounded-full bg-parchment-mid dark:bg-[#1A301D] border border-highland-gold/20 text-highland-gold text-xs font-bold flex items-center justify-center">{index + 1}</span>
+                      </div>
+
                       <div className="col-span-12 md:col-span-3">
-                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Item *</label>
+                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Item <span className="text-red-500">*</span></label>
                         <select required value={item.name} onChange={e => {
                           const newName = e.target.value;
                           updateItem(index, 'name', newName);
                           updateItem(index, 'package_size', '');
                           updateItem(index, 'product_id', '');
                           updateItem(index, 'unit_price', 0);
-                        }} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none transition-all">
+                        }} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none transition-all text-obsidian dark:text-white">
                           <option value="">— Select Item —</option>
                           {Array.from(new Set(products.map(p => p.name))).map(name => (
                             <option key={name} value={name}>{name}</option>
@@ -317,8 +328,8 @@ export default function NewOrderPage() {
                         </select>
                       </div>
 
-                      <div className="col-span-12 md:col-span-3">
-                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Size *</label>
+                      <div className="col-span-12 md:col-span-2">
+                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Size <span className="text-red-500">*</span></label>
                         <select required value={item.package_size} onChange={e => {
                           const size = e.target.value;
                           const variant = products.find(p => p.name === item.name && p.package_size === size);
@@ -327,7 +338,7 @@ export default function NewOrderPage() {
                             updateItem(index, 'product_id', variant.id);
                             updateItem(index, 'unit_price', Number(variant.price));
                           }
-                        }} className={`w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border focus:ring-1 focus:ring-highland-gold text-sm outline-none transition-all ${
+                        }} className={`w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border focus:ring-1 focus:ring-highland-gold/30 text-sm outline-none transition-all text-obsidian dark:text-white ${
                           isOutOfStock ? 'border-red-400 focus:border-red-400' : 'border-[#d4ecd4] dark:border-border focus:border-highland-gold'
                         }`}>
                           <option value="">— Size —</option>
@@ -337,14 +348,24 @@ export default function NewOrderPage() {
                         </select>
                       </div>
 
-                      <div className="col-span-6 md:col-span-3">
-                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Qty *</label>
-                        <input required type="number" min="1" value={item.quantity} onChange={e => updateItem(index, 'quantity', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none font-mono transition-all" />
-
-
+                      <div className="col-span-6 md:col-span-2">
+                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Qty <span className="text-red-500">*</span></label>
+                        <input required type="number" min="1" value={item.quantity} onChange={e => updateItem(index, 'quantity', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold/30 text-sm outline-none font-mono transition-all text-obsidian dark:text-white" />
                       </div>
 
-                      <div className="col-span-12 md:col-span-3 flex items-center justify-end gap-2 h-[42px]">
+                      <div className="col-span-6 md:col-span-3">
+                        <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Subtotal</label>
+                        <div className={`w-full px-3 py-2.5 rounded-lg border text-sm font-mono flex items-center justify-between h-[42px] transition-all ${
+                          item.unit_price > 0
+                            ? 'bg-highland-gold/10 dark:bg-highland-gold/5 border-highland-gold/30 text-obsidian dark:text-highland-gold-light font-bold'
+                            : 'bg-parchment-mid dark:bg-[#1A301D] border-[#d4ecd4] dark:border-border text-obsidian/40 dark:text-white/40'
+                        }`}>
+                          <span></span>
+                          <span className="font-black">{item.unit_price > 0 ? `${(item.unit_price * item.quantity).toLocaleString()} ETB` : '—'}</span>
+                        </div>
+                      </div>
+
+                      <div className="col-span-12 md:col-span-1 flex items-center justify-end gap-2 h-[42px]">
                         {form.items.length > 1 && (
                           <button type="button" onClick={() => removeItem(index)} className="w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors border border-red-200 shadow-sm" title="Remove Item">
                             ✕
@@ -385,17 +406,24 @@ export default function NewOrderPage() {
             </button>
           </div>
 
-          {/* Notes & Attachments */}
+          {/* ── Step 3: Notes & Attachments ── */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-full bg-highland-gold text-obsidian flex items-center justify-center text-sm font-black font-mono shadow-md">3</div>
+              <h4 className="text-base font-bold text-obsidian dark:text-white tracking-tight">Notes & Attachments</h4>
+              <div className="flex-1 h-px bg-highland-gold/20"></div>
+            </div>
           <div className="grid grid-cols-1 gap-6 mb-4">
             <div>
               <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Notes (Optional)</label>
-              <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm min-h-[80px]" placeholder="Any specific requirements for your order..." />
+              <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white min-h-[80px]" placeholder="Any specific requirements for your order..." />
             </div>
 
             <div>
               <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">Attachment (Receipt / ID)</label>
               <input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="w-full text-xs text-slate-500 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-parchment-mid dark:file:bg-[#1A301D] file:text-obsidian dark:file:text-white hover:file:bg-[#d4ecd4] dark:hover:file:bg-[#2e7d32] transition-all border border-dashed border-[#d4ecd4] dark:border-border p-4 rounded-xl cursor-pointer" />
             </div>
+          </div>
           </div>
 
           {/* Error Message */}

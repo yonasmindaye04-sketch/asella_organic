@@ -29,13 +29,28 @@ const Dashboard: React.FC = () => {
   const isStaff = user?.role === 'staff' || user?.role === 'employee' || user?.role === 'driver' || user?.role === 'delivery';
   const [orders, setOrders] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  
+  // Default to previous month to capture dummy data
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      from: firstDay.toISOString().split('T')[0],
+      to: lastDay.toISOString().split('T')[0],
+    };
+  });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        let queryParams = '?limit=1000';
+        if (dateRange.from && dateRange.to) {
+          queryParams += `&from=${dateRange.from}&to=${dateRange.to}`;
+        }
         const [ordRes, expRes] = await Promise.all([
-          api.get<any[]>('/api/orders?limit=1000'),
-          api.get<any>('/api/expenses?limit=10000'), // needed for profit plot
+          api.get<any[]>(`/api/orders${queryParams}`),
+          api.get<any>(`/api/expenses${queryParams}`), // needed for profit plot
         ]);
         if (ordRes.success && ordRes.data) {
           const withTotals = ordRes.data.map(o => ({ ...o, total: getOrderTotal(o) }));
@@ -49,14 +64,33 @@ const Dashboard: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [dateRange]);
 
   const filteredOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
 
   return (
     <DashboardLayout>
       <main className="p-6 space-y-5 max-w-[1440px] mx-auto">
-        {!isManager && <KPICards />}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border shadow-sm">
+            <input 
+              type="date" 
+              className="text-sm outline-none text-gray-700 bg-transparent"
+              value={dateRange.from}
+              onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+            />
+            <span className="text-gray-400">to</span>
+            <input 
+              type="date" 
+              className="text-sm outline-none text-gray-700 bg-transparent"
+              value={dateRange.to}
+              onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        {!isManager && <KPICards from={dateRange.from} to={dateRange.to} />}
 
         {/* Row 1: Heatmap + Pipeline (2 cards) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
@@ -67,7 +101,7 @@ const Dashboard: React.FC = () => {
         {/* Row 2: Sales by Location + Top Products (2 cards) */}
         <div className={`grid grid-cols-1 ${!isStaff ? 'lg:grid-cols-2' : ''} gap-3 mb-6`}>
           <SalesByLocation orders={filteredOrders} />
-          {!isStaff && <TopProducts orders={filteredOrders} isManager={isManager} />}
+          {!isStaff && <TopProducts orders={filteredOrders} />}
         </div>
 
         {/* Row 3: Revenue Overview + Sales Distribution (Hidden for managers and staff) */}

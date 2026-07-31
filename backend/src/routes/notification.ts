@@ -12,6 +12,8 @@
 import { Router, Request, Response } from "express";
 import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
+import { createLogger } from "../lib/logger.js";
+
 
 const router = Router();
 
@@ -172,8 +174,9 @@ router.get(
 
       res.json({ success: true, data: result, total: result.length });
     } catch (err: any) {
-      console.error("[GET /notifications]", err);
-      res.status(500).json({ success: false, error: err?.message, stack: err?.stack });
+      const log = createLogger(req);
+      log.error("Failed to fetch notifications", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
 );
@@ -228,7 +231,8 @@ router.get(
         },
       });
     } catch (err: any) {
-      console.error("[GET /notifications/summary]", err);
+      const log = createLogger(req);
+      log.error("Failed to fetch notification summary", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }

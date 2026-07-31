@@ -15,6 +15,8 @@ import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { mirrorExpenseToSheets } from "../lib/sheets.js";
+import { createLogger }          from "../lib/logger.js";
+
 
 const router = Router();
 
@@ -41,7 +43,7 @@ router.get(
     const LIMIT  = Math.min(100, parseInt(limit ?? "50", 10));
     const OFFSET = (PAGE - 1) * LIMIT;
 
-    const conditions: string[] = [];
+    const conditions: string[] = ["e.voided_at IS NULL"];
     const values: unknown[]    = [];
 
     if (category) { conditions.push("e.category = ?");     values.push(category); }
@@ -89,7 +91,8 @@ router.get(
         },
       });
     } catch (err) {
-      console.error("[GET /expenses]", err);
+      const log = createLogger(req);
+      log.error("Failed to list expenses", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -102,18 +105,31 @@ router.get(
   "/summary",
   authenticate,
   authorise("admin", "manager"),
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     try {
+      const { from, to } = req.query as Record<string, string | undefined>;
+
+      const dateConditions: string[] = ["voided_at IS NULL"];
+      const dateValues: unknown[] = [];
+
+      if (from) { dateConditions.push("created_at >= ?"); dateValues.push(from); }
+      if (to) { dateConditions.push("created_at <= ?"); dateValues.push(`${to} 23:59:59`); }
+
+      const dateWhere = dateConditions.length ? `WHERE ${dateConditions.join(" AND ")}` : "";
+
       // Overall totals
       const [[totals]] = await pool.query(
         `SELECT
-           COALESCE(SUM(amount), 0)                                                     AS total_expenses,
-           COALESCE(SUM(CASE WHEN created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+           COALESCE(SUM(CASE WHEN category != 'vendor_purchase' THEN amount ELSE 0 END), 0) AS total_expenses,
+           COALESCE(SUM(CASE WHEN category = 'vendor_purchase' THEN amount ELSE 0 END), 0) AS total_vendor_purchases,
+           COALESCE(SUM(CASE WHEN created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND category != 'vendor_purchase'
                              THEN amount ELSE 0 END), 0)                                AS this_month,
-           COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+           COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND category != 'vendor_purchase'
                              THEN amount ELSE 0 END), 0)                                AS last_30_days,
            COUNT(*)                                                                      AS total_count
-         FROM expenses`
+         FROM expenses
+         ${dateWhere}`,
+        dateValues
       ) as [any[], any];
 
       // Category breakdown
@@ -123,23 +139,25 @@ router.get(
            COALESCE(SUM(amount), 0) AS total,
            COUNT(*)                 AS count
          FROM expenses
+         ${dateWhere}
          GROUP BY category
-         ORDER BY total DESC`
+         ORDER BY total DESC`,
+         dateValues
       ) as [any[], any];
 
-      // Monthly totals (last 6 months)
+      // Monthly totals (last 6 months) - operating expenses only
       const [monthly] = await pool.query(
         `SELECT
            DATE_FORMAT(created_at, '%Y-%m') AS month,
            COALESCE(SUM(amount), 0)         AS total,
            COUNT(*)                         AS count
          FROM expenses
-         WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) AND category != 'vendor_purchase' AND voided_at IS NULL
          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
          ORDER BY month DESC`
       ) as [any[], any];
 
-      // Calculate average monthly
+      // Calculate average monthly operating expenses
       const monthCount = monthly.length || 1;
       const avgMonthly = Number(totals.total_expenses) / Math.max(monthCount, 1);
 
@@ -147,6 +165,7 @@ router.get(
         success: true,
         data: {
           total_expenses: Number(totals.total_expenses),
+          total_vendor_purchases: Number(totals.total_vendor_purchases),
           this_month:     Number(totals.this_month),
           last_30_days:   Number(totals.last_30_days),
           total_count:    Number(totals.total_count),
@@ -156,7 +175,8 @@ router.get(
         },
       });
     } catch (err) {
-      console.error("[GET /expenses/summary]", err);
+      const log = createLogger(req);
+      log.error("Failed to fetch expense summary", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -198,9 +218,132 @@ router.post(
         notes: notes ?? null,
       });
 
+      const log = createLogger(req);
+      log.info("Expense recorded", { id, category, amount });
       res.status(201).json({ success: true, data: rows[0] });
     } catch (err) {
-      console.error("[POST /expenses]", err);
+      const log = createLogger(req);
+      log.error("Failed to record expense", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+// ─── PATCH /api/expenses/:id ──────────────────────────────────────────────
+// Edit an existing expense (cannot edit system categories)
+
+const UpdateExpenseSchema = z.object({
+  amount:      z.number().positive("Amount must be greater than 0").optional(),
+  description: z.string().trim().min(2).max(500).optional(),
+  notes:       z.string().trim().max(1000).optional(),
+});
+
+router.patch(
+  "/:id",
+  authenticate,
+  authorise("admin", "manager"),
+  validate(UpdateExpenseSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { amount, description, notes } = req.body as z.infer<typeof UpdateExpenseSchema>;
+
+    try {
+      const [existingRows] = await pool.query(
+        `SELECT category, voided_at FROM expenses WHERE id = ?`,
+        [id]
+      ) as [any[], any];
+
+      const existing = existingRows[0];
+      if (!existing) {
+        res.status(404).json({ success: false, error: "Expense not found" });
+        return;
+      }
+      if (existing.voided_at) {
+        res.status(400).json({ success: false, error: "Cannot edit a voided expense" });
+        return;
+      }
+      if (existing.category === "vendor_purchase" || existing.category === "affiliate_payout") {
+        res.status(400).json({ success: false, error: "Cannot edit system-generated expenses" });
+        return;
+      }
+
+      const updates: string[] = [];
+      const values: unknown[] = [];
+
+      if (amount !== undefined) { updates.push("amount = ?"); values.push(amount); }
+      if (description !== undefined) { updates.push("description = ?"); values.push(description); }
+      if (notes !== undefined) { updates.push("notes = ?"); values.push(notes); }
+
+      if (updates.length > 0) {
+        values.push(id);
+        await pool.query(
+          `UPDATE expenses SET ${updates.join(", ")} WHERE id = ?`,
+          values
+        );
+      }
+
+      const [updatedRows] = await pool.query(
+        `SELECT e.*, su.full_name AS recorded_by_name
+         FROM expenses e
+         LEFT JOIN staff_users su ON e.recorded_by = su.id
+         WHERE e.id = ?`,
+        [id]
+      ) as [any[], any];
+
+      res.json({ success: true, data: updatedRows[0] });
+    } catch (err) {
+      const log = createLogger(req);
+      log.error("Failed to update expense", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+// ─── DELETE /api/expenses/:id ─────────────────────────────────────────────
+// Soft-void an expense (admin only)
+
+const VoidExpenseSchema = z.object({
+  reason: z.string().trim().min(3, "Void reason is required").max(255),
+});
+
+router.delete(
+  "/:id",
+  authenticate,
+  authorise("admin"),
+  validate(VoidExpenseSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { reason } = req.body as z.infer<typeof VoidExpenseSchema>;
+
+    try {
+      const [existingRows] = await pool.query(
+        `SELECT category, voided_at FROM expenses WHERE id = ?`,
+        [id]
+      ) as [any[], any];
+
+      const existing = existingRows[0];
+      if (!existing) {
+        res.status(404).json({ success: false, error: "Expense not found" });
+        return;
+      }
+      if (existing.voided_at) {
+        res.status(400).json({ success: false, error: "Expense is already voided" });
+        return;
+      }
+      if (existing.category === "vendor_purchase" || existing.category === "affiliate_payout") {
+        res.status(400).json({ success: false, error: "Cannot void system-generated expenses directly. Please use the appropriate system workflow." });
+        return;
+      }
+
+      await pool.query(
+        `UPDATE expenses SET voided_at = NOW(), voided_by = ?, void_reason = ? WHERE id = ?`,
+        [req.user!.id, reason, id]
+      );
+
+      res.json({ success: true, message: "Expense successfully voided" });
+    } catch (err) {
+      const log = createLogger(req);
+      log.error("Failed to void expense", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }

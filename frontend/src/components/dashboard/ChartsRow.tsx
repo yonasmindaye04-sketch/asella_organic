@@ -59,18 +59,33 @@ export function RevenueChart({ orders, expenses = [] }: { orders: any[]; expense
     }
     const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
     
-    // Sum Revenue
+    // Sum Revenue and COGS
     activeOrders.forEach(o => {
       const created = new Date(o.created_at);
       const monthsAgo = (now.getFullYear() - created.getFullYear()) * 12
                        + (now.getMonth() - created.getMonth());
       if (monthsAgo >= 0 && monthsAgo < rangeMonths) {
         buckets[rangeMonths - 1 - monthsAgo].revenue += Number(o.total || 0);
+        
+        let cogs = 0;
+        let items: any[] = [];
+        if (typeof o.items === 'string') {
+          try { items = JSON.parse(o.items); } catch { items = []; }
+        } else if (Array.isArray(o.items)) {
+          items = o.items;
+        }
+        items.forEach((item: any) => {
+          cogs += (Number(item.quantity || item.qty || 1) * Number(item.unit_cost || 0));
+        });
+        buckets[rangeMonths - 1 - monthsAgo].expense += cogs; // We treat COGS as an expense for the profit calculation
       }
     });
 
-    // Sum Expenses
+    // Sum Operating Expenses
     expenses.forEach(e => {
+      if (e.voided_at) return;
+      if (e.category === 'vendor_purchase') return; // Vendor purchases are handled via COGS when items are sold
+      
       const created = new Date(e.created_at);
       const monthsAgo = (now.getFullYear() - created.getFullYear()) * 12
                        + (now.getMonth() - created.getMonth());
@@ -257,14 +272,18 @@ export function SalesDistribution({ orders }: { orders: any[] }) {
   );
 }
 
-// ─── Top Products ───
-export function TopProducts({ orders, isManager = false }: { orders: any[]; isManager?: boolean }) {
-  const COLORS = ['#f0a030', '#38bdf8', '#a78bfa', '#34d399', '#fb7185', '#facc15', '#818cf8'];
+// ─── Top Products (Line Chart) ───
+export function TopProducts({ orders }: { orders: any[] }) {
+  const COLORS = ['#38bdf8', '#f0a030', '#fb7185', '#a78bfa', '#34d399', '#facc15'];
+  const [rangeMonths, setRangeMonths] = useState<1 | 3 | 6 | 12>(6);
+  const { showToast } = useToast();
 
-  const productData = React.useMemo(() => {
+  const chartData = React.useMemo(() => {
+    const now = new Date();
     const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
-    const productMap: Record<string, { qty: number; revenue: number }> = {};
-
+    
+    // 1. Find the top 4 products all-time (or within range, let's do all-time for stability)
+    const productMap: Record<string, number> = {};
     activeOrders.forEach(o => {
       let items: any[] = [];
       if (typeof o.items === 'string') {
@@ -272,69 +291,112 @@ export function TopProducts({ orders, isManager = false }: { orders: any[]; isMa
       } else if (Array.isArray(o.items)) {
         items = o.items;
       }
-
       items.forEach((item: any) => {
         const name = item.name || item.item_name || 'Unknown';
         const qty = Number(item.quantity || item.qty || 1);
-        const price = Number(item.unit_price || item.price || 0);
-        if (!productMap[name]) productMap[name] = { qty: 0, revenue: 0 };
-        productMap[name].qty += qty;
-        productMap[name].revenue += qty * price;
+        productMap[name] = (productMap[name] || 0) + qty;
       });
     });
 
-    return Object.entries(productMap)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 6);
-  }, [orders]);
+    const topProducts = Object.entries(productMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(e => e[0]);
 
-  const maxQty = productData.length > 0 ? Math.max(...productData.map(p => p.qty)) : 1;
+    // 2. Setup buckets
+    const labels: string[] = [];
+    for (let i = rangeMonths - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      labels.push(d.toLocaleString('en-GB', { month: 'short' }));
+    }
+
+    const datasetsData: Record<string, number[]> = {};
+    topProducts.forEach(p => datasetsData[p] = new Array(rangeMonths).fill(0));
+
+    // 3. Fill buckets
+    activeOrders.forEach(o => {
+      const created = new Date(o.created_at);
+      const monthsAgo = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+      if (monthsAgo >= 0 && monthsAgo < rangeMonths) {
+        let items: any[] = [];
+        if (typeof o.items === 'string') {
+          try { items = JSON.parse(o.items); } catch { items = []; }
+        } else if (Array.isArray(o.items)) {
+          items = o.items;
+        }
+        items.forEach((item: any) => {
+          const name = item.name || item.item_name || 'Unknown';
+          if (topProducts.includes(name)) {
+            const qty = Number(item.quantity || item.qty || 1);
+            datasetsData[name][rangeMonths - 1 - monthsAgo] += qty;
+          }
+        });
+      }
+    });
+
+    // 4. Format datasets
+    const datasets = topProducts.map((p, i) => ({
+      label: p,
+      data: datasetsData[p],
+      fill: false,
+      borderColor: COLORS[i % COLORS.length],
+      backgroundColor: COLORS[i % COLORS.length],
+      borderWidth: 2.5,
+      pointBackgroundColor: COLORS[i % COLORS.length],
+      pointBorderColor: "#fff",
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      tension: 0.4,
+    }));
+
+    return { labels, datasets };
+  }, [orders, rangeMonths]);
 
   return (
     <div className="card p-5 h-full animate-in" style={{ animationDelay: "0.25s" }}>
-      <div className="mb-4 relative z-[2]">
-        <h3 className="text-sm font-bold text-[var(--fg)]">Top Products</h3>
-        <p className="text-[11px] text-[var(--muted)] mt-0.5">Most ordered items</p>
+      <div className="flex items-center justify-between mb-4 relative z-[2]">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--fg)]">Top Products Sales Trend</h3>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">Quantity sold over time</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex gap-0.5 bg-[var(--bg-deep)] rounded-lg p-0.5 border border-[var(--border)] hidden sm:flex">
+            <button className={`tab-btn ${rangeMonths === 3 ? "active" : ""}`} onClick={() => { setRangeMonths(3); showToast("Switched to 3M view", "info"); }}>3M</button>
+            <button className={`tab-btn ${rangeMonths === 6 ? "active" : ""}`} onClick={() => { setRangeMonths(6); showToast("Switched to 6M view", "info"); }}>6M</button>
+            <button className={`tab-btn ${rangeMonths === 12 ? "active" : ""}`} onClick={() => { setRangeMonths(12); showToast("Switched to 12M view", "info"); }}>12M</button>
+          </div>
+        </div>
       </div>
 
-      {productData.length > 0 ? (
-        <div className="space-y-3 relative z-[2]">
-          {productData.map((product, i) => (
-            <div key={product.name} className="group">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[12px] font-medium text-[var(--fg)] truncate max-w-[60%]">{product.name}</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-[var(--muted)] font-mono">{product.qty} sold</span>
-                  {!isManager && <span className="text-[10px] font-bold text-[var(--accent)] font-mono">{product.revenue.toLocaleString()} ETB</span>}
-                </div>
-              </div>
-              <div className="h-2 rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-1000 ease-out"
-                  style={{
-                    width: `${Math.max((product.qty / maxQty) * 100, 4)}%`,
-                    background: COLORS[i % COLORS.length],
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex items-center justify-center h-[200px] text-[var(--muted)] text-sm relative z-[2]">No product data</div>
-      )}
+      <div className="flex flex-wrap gap-3 mb-4">
+        {chartData.datasets.map((ds, i) => (
+          <div key={ds.label} className="flex items-center gap-1.5 text-[11px] text-[var(--muted)]">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+            <span className="truncate max-w-[100px]" title={ds.label}>{ds.label}</span>
+          </div>
+        ))}
+      </div>
 
-      {/* Summary */}
-      <div className="mt-auto pt-4 border-t border-[var(--border)] grid grid-cols-2 gap-3 relative z-[2]">
-        <div className="text-center">
-          <p className="text-lg font-bold text-[var(--accent)]">{productData.length}</p>
-          <p className="text-[9px] text-[var(--muted)] uppercase tracking-wider font-semibold">Products</p>
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-bold text-[var(--fg)]">{productData.reduce((s, p) => s + p.qty, 0)}</p>
-          <p className="text-[9px] text-[var(--muted)] uppercase tracking-wider font-semibold">Total Sold</p>
-        </div>
+      <div style={{ height: 220 }}>
+        {chartData.datasets.length > 0 ? (
+          <Line
+            key={rangeMonths}
+            data={chartData}
+            options={{
+              responsive: true, maintainAspectRatio: false,
+              interaction: { mode: "index", intersect: false },
+              plugins: { tooltip: { ...tooltipStyle, callbacks: { label: (ctx: any) => ` ${ctx.dataset.label}: ${ctx.parsed.y} sold` } }, legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, grid: { color: "rgba(30,34,51,0.5)" }, border: { display: false } },
+                x: { grid: { display: false }, border: { display: false } },
+              },
+            }}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-[var(--muted)] text-sm">No product data</div>
+        )}
       </div>
     </div>
   );

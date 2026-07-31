@@ -22,6 +22,8 @@ import { validate } from "../middleware/validate.js";
 import { recordMovement } from "../lib/inventory.js";
 import { sendVendorPO } from "../lib/telegram.js";
 import { mirrorVendorOrderToSheets, mirrorVendorOrderStatusToSheets, mirrorExpenseToSheets } from "../lib/sheets.js";
+import { createLogger } from "../lib/logger.js";
+
 
 const router = Router();
 
@@ -124,7 +126,8 @@ router.get(
 
       res.json({ success: true, data: rows });
     } catch (err) {
-      console.error("[GET /vendor-orders]", err);
+      const log = createLogger(req);
+      log.error("Failed to list vendor orders", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -217,7 +220,8 @@ router.post(
         );
       }
     } catch (err) {
-      console.error("[POST /vendor-orders]", err);
+      const log = createLogger(req);
+      log.error("Failed to create vendor order", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -309,6 +313,33 @@ router.patch(
             });
             return;
           }
+
+          // ── Calculate and Update Moving Average Cost ──
+          try {
+            const [prodRows] = await conn.query(
+              `SELECT inventory_quantity, unit_cost FROM products WHERE id = ?`,
+              [vo.product_id]
+            ) as [any[], any];
+            
+            const prod = prodRows[0];
+            if (prod && stockResult) {
+              const currentQty = Math.max(0, stockResult.newQuantity - parsedQty);
+              const currentUnitCost = Number(prod.unit_cost || 0);
+              const addedCost = Number(vo.price || 0);
+              
+              const totalValueBefore = currentQty * currentUnitCost;
+              const newTotalValue = totalValueBefore + addedCost;
+              const newUnitCost = stockResult.newQuantity > 0 ? (newTotalValue / stockResult.newQuantity) : 0;
+              
+              await conn.query(
+                `UPDATE products SET unit_cost = ? WHERE id = ?`,
+                [newUnitCost, vo.product_id]
+              );
+            }
+          } catch (costErr: any) {
+            const log = createLogger(req);
+            log.error("MAC (Moving Average Cost) calculation failed", costErr);
+          }
         }
       }
 
@@ -386,7 +417,8 @@ router.patch(
       });
     } catch (err) {
       await conn.rollback();
-      console.error("[PATCH /vendor-orders/:id/status]", err);
+      const log = createLogger(req);
+      log.error("Failed to update vendor order status", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     } finally {
       conn.release();

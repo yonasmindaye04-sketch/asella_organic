@@ -20,6 +20,7 @@ interface Product {
   name:                string;
   package_size:        string;
   price:               number;
+  unit_cost:           number;
   description:         string | null;
   image_url:           string | null;
   featured:            boolean;
@@ -151,7 +152,7 @@ function errMsg(e: unknown, fallback = 'Something went wrong'): string {
 
 type ProductDraft = Omit<Product, 'id'>;
 const EMPTY_DRAFT: ProductDraft = {
-  name: '', tag: 'Traditional', price: 0, active: true,
+  name: '', tag: 'Traditional', price: 0, unit_cost: 0, active: true,
   image_url: '', package_size: '', description: '',
   inventory_quantity: 0, low_stock_threshold: 10, featured: false,
 };
@@ -181,6 +182,7 @@ function ProductFormModal({ initial, onClose, onSaved }: ProductFormModalProps) 
       name:                draft.name.trim(),
       package_size:        draft.package_size.trim(),
       price,
+      unit_cost:           Number(draft.unit_cost) || 0,
       tag:                 draft.tag?.trim()         || undefined,
       description:         draft.description?.trim() || undefined,
       image_url:           draft.image_url?.trim()   || undefined, // empty string stripped
@@ -239,6 +241,16 @@ function ProductFormModal({ initial, onClose, onSaved }: ProductFormModalProps) 
               value={draft.price === 0 ? '' : draft.price}
               onChange={e => set('price', parseFloat(e.target.value) || 0)}
               placeholder="e.g. 1000"
+              className="input" />
+          </div>
+
+          {/* Unit Cost */}
+          <div>
+            <label className="label">Unit Cost (ETB)</label>
+            <input type="number" min="0" step="0.01"
+              value={draft.unit_cost === 0 ? '' : draft.unit_cost}
+              onChange={e => set('unit_cost', parseFloat(e.target.value) || 0)}
+              placeholder="e.g. 500"
               className="input" />
           </div>
 

@@ -66,6 +66,10 @@ const Footer: React.FC = () => {
                 <span className="material-symbols-outlined text-highland-gold text-lg">mail</span>
                 <a href="mailto:yonasmindaye04@gmail.com" className="hover:text-white transition-colors break-all">yonasmindaye04@gmail.com</a>
               </li>
+              <li className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-highland-gold text-lg">language</span>
+                <a href="https://afro-tech-et.vercel.app/" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">afro-tech-et.vercel.app</a>
+              </li>
             </ul>
           </div>
 
@@ -89,10 +93,10 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="font-mono font-bold text-highland-gold mb-4 text-sm uppercase tracking-widest">{t('footer.importantLinks')}</h3>
             <ul className="space-y-2 text-parchment font-mono text-base">
-              <li><a href="/" className="hover:text-white transition-colors">{t('footer.home')}</a></li>
-              <li><a href="#products" className="hover:text-white transition-colors">{t('footer.catalog')}</a></li>
-              <li><a href="#story" className="hover:text-white transition-colors">{t('footer.ourStory')}</a></li>
-              <li><a href="/" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a></li>
+              <li><a href="/#hero" className="hover:text-white transition-colors">{t('footer.home')}</a></li>
+              <li><a href="/#products" className="hover:text-white transition-colors">{t('footer.catalog')}</a></li>
+              <li><a href="/#story" className="hover:text-white transition-colors">{t('footer.ourStory')}</a></li>
+              <li><a href="/#contact" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a></li>
             </ul>
           </div>
 
@@ -113,15 +117,15 @@ const Footer: React.FC = () => {
             <ul className="space-y-2 text-parchment font-mono text-base">
               <li className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-lg">mail</span>
-                support@asellaorganic.com
+                <a href="mailto:support@asellaorganic.com" className="hover:text-white transition-colors break-all">support@asellaorganic.com</a>
               </li>
               <li className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-lg">call</span>
-                +251 909 122 623
+                <a href="tel:+251909122623" className="hover:text-white transition-colors">+251 909 122 623</a>
               </li>
               <li className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-highland-gold text-lg">location_on</span>
-                Asella, Ethiopia
+                Addis Ababa, Ethiopia
               </li>
             </ul>
           </div>
@@ -131,8 +135,8 @@ const Footer: React.FC = () => {
         <div className="pt-4 border-t border-highland-gold/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-parchment font-mono">
           <p>{t('footer.rights')}</p>
           <div className="flex gap-4">
-            <a href="/" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
-            <a href="/" className="hover:text-white transition-colors">{t('footer.termsOfService')}</a>
+            <a href="/#contact" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
+            <a href="/#contact" className="hover:text-white transition-colors">{t('footer.termsOfService')}</a>
           </div>
         </div>
       </div>

@@ -31,18 +31,23 @@
 Asella Organic is a full-stack e-commerce and inventory management system built for a
 premium organic health products company based in Ethiopia. The platform handles:
 
-- **Public storefront** � product catalog, checkout, community videos
-- **Customer order tracking** � real-time order status by order ID
-- **Admin dashboard** � order management, inventory, stock alerts, analytics
-- **Staff management** � user roles, 2FA, permissions
-- **Affiliate/referral system** � referral tracking, commissions
-- **Vendor purchase tracking** � vendor orders, bulk purchasing
-- **Expenses tracking** � business expense management
-- **Video management** � community video upload and management (admin)
-- **Telegram integration** � order notifications, delivery group alerts
-- **Google Sheets sync** � order mirroring for reporting
-- **Cloudinary integration** � cloud-based image/file storage
-- **PWA support** � offline catalog, install-to-home-screen
+- **Public storefront** - product catalog, checkout, community videos
+- **Customer order tracking** - real-time order status by order ID
+- **Admin dashboard** - order management, inventory, stock alerts, analytics
+- **Staff management** - user roles, 2FA, permissions
+- **Affiliate/referral system**  referral tracking, commissions
+- **Vendor purchase tracking**  vendor orders, bulk purchasing
+- **Expenses tracking**  business expense management
+- **Video management**  community video upload and management (admin)
+- **Telegram integration**  order notifications, delivery group alerts
+- **Google Sheets sync**  order mirroring for reporting
+- **Cloudinary integration**  cloud-based image/file storage
+- **PWA support**  offline catalog, install-to-home-screen
+
+### Accounting & Inventory Valuation
+- **Accrual Accounting:** Net Profit is calculated using **Cost of Goods Sold (COGS)** rather than cash-basis accounting.
+- **Moving Average Cost (MAC):** When new inventory is received via a Vendor Purchase, the system automatically recalculates the product's `unit_cost` by blending existing inventory value with the new stock value.
+- **Order COGS:** At the moment an order is created or updated, the system copies the current `unit_cost` from the product to the `order_items` table. This acts as a historical snapshot, ensuring that future cost changes do not affect past order profitability.
 
 ---
 
