@@ -61,10 +61,10 @@ const MATERIAL_TYPES = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  pending:   { label: 'Pending',   bg: 'bg-amber-500', text: 'text-white' },
-  approved:  { label: 'Approved',  bg: 'bg-blue-500',  text: 'text-white' },
-  received:  { label: 'Received',  bg: 'bg-emerald-500', text: 'text-white' },
-  cancelled: { label: 'Cancelled', bg: 'bg-red-500',   text: 'text-white' },
+  pending:   { label: 'Pending',   bg: '', text: 'text-amber-500' },
+  approved:  { label: 'Approved',  bg: '', text: 'text-blue-500' },
+  received:  { label: 'Received',  bg: '', text: 'text-emerald-500' },
+  cancelled: { label: 'Cancelled', bg: '', text: 'text-red-500' },
 };
 
 // ─── Component ───────────────────────────────────────────────────

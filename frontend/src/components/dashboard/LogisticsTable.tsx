@@ -98,7 +98,7 @@ export default function LogisticsTable({ orders }: Props) {
                   <td className="capitalize">{order.source}</td>
                   <td className="font-semibold text-[var(--fg)]">{Number(order.total || 0).toLocaleString()} ETB</td>
                   <td>{new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                  <td><span className={`badge ${st.cls}`}><span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{displayStatus}</span></td>
+                  <td><span className={`badge ${st.cls}`}>{displayStatus}</span></td>
                 </tr>
               );
             })}

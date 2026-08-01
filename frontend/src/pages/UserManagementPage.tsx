@@ -179,7 +179,7 @@ const UserManagementPage: React.FC = () => {
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-4"><span className="px-3 py-1 bg-[#e8f5e9] text-[#112415] text-[10px] font-bold uppercase tracking-wider rounded-full">
+                    <td className="px-6 py-4"><span className="px-3 py-1 text-[#112415] text-[10px] font-bold uppercase tracking-wider rounded-full">
                       {u.role === 'delivery' ? 'driver' : u.role}</span></td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => handleOpenModal(u)} className="text-gray-400 hover:text-[#4ade80] transition px-2">

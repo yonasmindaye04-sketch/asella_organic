@@ -77,17 +77,17 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const SOURCE_BADGES: Record<string, string> = {
-  Sales_DB: 'bg-[#dbeafe] text-[#1e40af]',
-  Order_DB: 'bg-[#fce7f3] text-[#9d174d]',
-  Franchise_DB: 'bg-[#ede9fe] text-[#5b21b6]',
-  website: 'bg-[#fce7f3] text-[#9d174d]',
-  telegram: 'bg-[#cffafe] text-[#155e75]',
-  instagram: 'bg-[#fce7f3] text-[#9d174d]',
-  facebook: 'bg-[#dbeafe] text-[#1e40af]',
-  phone: 'bg-[#fef3c7] text-[#92400e]',
-  'walk-in': 'bg-[#dcfce7] text-[#166534]',
-  other: 'bg-[#e5e7eb] text-[#374151]',
-  _franchise: 'bg-[#ede9fe] text-[#5b21b6]',
+  Sales_DB: 'text-[#1e40af]',
+  Order_DB: 'text-[#9d174d]',
+  Franchise_DB: 'text-[#5b21b6]',
+  website: 'text-[#9d174d]',
+  telegram: 'text-[#155e75]',
+  instagram: 'text-[#9d174d]',
+  facebook: 'text-[#1e40af]',
+  phone: 'text-[#92400e]',
+  'walk-in': 'text-[#166534]',
+  other: 'text-[#374151]',
+  _franchise: 'text-[#5b21b6]',
 };
 
 const normalizeStatus = (status?: string) => LEGACY_STATUS_MAP[status || ''] || status || 'Pending';
@@ -689,8 +689,7 @@ const OrderTracking: React.FC = () => {
                       {Number(o.total || o.total_amount).toLocaleString()}
                     </td>
                     <td className="px-3 py-2 align-middle whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: `${STATUS_COLORS[displayStatus]}20`, color: STATUS_COLORS[displayStatus] }}>
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: STATUS_COLORS[displayStatus] }}></div>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider" style={{ color: STATUS_COLORS[displayStatus] }}>
                         {displayStatus}
                       </span>
                     </td>
@@ -723,7 +722,7 @@ const OrderTracking: React.FC = () => {
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar">
                 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-extrabold uppercase tracking-wider" style={{ backgroundColor: `${STATUS_COLORS[normalizeStatus(selectedOrder.status)]}20`, color: STATUS_COLORS[normalizeStatus(selectedOrder.status)] }}>
+                  <span className="inline-flex items-center gap-1 text-[12px] font-extrabold uppercase tracking-wider" style={{ color: STATUS_COLORS[normalizeStatus(selectedOrder.status)] }}>
                     {normalizeStatus(selectedOrder.status)}
                   </span>
                   <span className="text-[12px] text-[#607d66]">

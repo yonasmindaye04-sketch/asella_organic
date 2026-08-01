@@ -214,13 +214,13 @@
   font-weight: 600;
   letter-spacing: 0.01em;
 }
-.badge-delivered { background: var(--emerald-dim); color: var(--emerald); }
-.badge-transit { background: var(--sky-dim); color: var(--sky); }
-.badge-pending { background: var(--accent-dim); color: var(--accent); }
-.badge-cancelled { background: var(--rose-dim); color: var(--rose); }
-.badge-active { background: var(--emerald-dim); color: var(--emerald); }
-.badge-away { background: var(--accent-dim); color: var(--accent); }
-.badge-offline { background: rgba(92,98,128,0.15); color: var(--muted); }
+.badge-delivered { background: transparent; color: var(--emerald); }
+.badge-transit { background: transparent; color: var(--sky); }
+.badge-pending { background: transparent; color: var(--accent); }
+.badge-cancelled { background: transparent; color: var(--rose); }
+.badge-active { background: transparent; color: var(--emerald); }
+.badge-away { background: transparent; color: var(--accent); }
+.badge-offline { background: transparent; color: var(--muted); }
 
 .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .data-table thead th {

@@ -523,7 +523,25 @@ router.patch(
     try {
       await connection.beginTransaction();
 
-      // 1. Fetch old items for inventory rebalancing
+      // 0. Fetch the order's current status — stock is only live once Delivered
+      const [orderRows] = await connection.query(
+        `SELECT status FROM orders WHERE id = ? AND deleted_at IS NULL`,
+        [orderId]
+      ) as [any[], any];
+
+      if (!orderRows.length) {
+        await connection.rollback();
+        res.status(404).json({ success: false, error: "Order not found" });
+        return;
+      }
+
+      const orderStatus: string = orderRows[0].status;
+      // Only rebalance stock if the order is already Delivered.
+      // For Pending / Transit / etc., deductOrderStock() will fire at
+      // delivery time and will deduct whatever is currently in order_items.
+      const isDelivered = orderStatus === "Delivered";
+
+      // 1. Fetch old items for inventory rebalancing (only needed when Delivered)
       const [oldItemsRows] = await connection.query(
         `SELECT product_id, quantity FROM order_items WHERE order_id = ?`,
         [orderId]
@@ -533,9 +551,12 @@ router.patch(
 
       // Map to hold net quantity changes per product_id
       const deltaMap = new Map<string, number>();
-      for (const row of oldItemsRows) {
-        if (row.product_id) {
-          deltaMap.set(row.product_id, (deltaMap.get(row.product_id) || 0) + row.quantity); // start with old qty (positive means we return to stock)
+
+      if (isDelivered) {
+        for (const row of oldItemsRows) {
+          if (row.product_id) {
+            deltaMap.set(row.product_id, (deltaMap.get(row.product_id) || 0) + row.quantity); // start with old qty (positive means we return to stock)
+          }
         }
       }
 
@@ -548,7 +569,7 @@ router.patch(
         const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
         const productId = prodRows.length ? prodRows[0].id : null;
 
-        if (productId) {
+        if (isDelivered && productId) {
           deltaMap.set(productId, (deltaMap.get(productId) || 0) - item.quantity); // subtract new qty (negative means we deduct from stock)
         }
 
@@ -559,30 +580,32 @@ router.patch(
         );
       }
 
-      // Rebalance inventory
-      for (const [productId, delta] of deltaMap.entries()) {
-        if (delta > 0) {
-          // Returned to stock
-          await recordMovement({
-            productId,
-            type: 'return',
-            changeAmount: delta,
-            performedBy: (req as any).user?.id ?? 'system',
-            referenceId: orderId,
-            referenceType: 'order',
-            reason: `Order ${orderId} edited: item quantity reduced or removed`
-          }, connection);
-        } else if (delta < 0) {
-          // Deduct from stock (delta is negative, which is exactly what recordMovement needs)
-          await recordMovement({
-            productId,
-            type: 'sale',
-            changeAmount: delta,
-            performedBy: (req as any).user?.id ?? 'system',
-            referenceId: orderId,
-            referenceType: 'order',
-            reason: `Order ${orderId} edited: item quantity increased or added`
-          }, connection);
+      // Rebalance inventory — only when the order is already Delivered
+      if (isDelivered) {
+        for (const [productId, delta] of deltaMap.entries()) {
+          if (delta > 0) {
+            // Returned to stock (quantity was reduced or item removed)
+            await recordMovement({
+              productId,
+              type: 'return',
+              changeAmount: delta,
+              performedBy: (req as any).user?.id ?? 'system',
+              referenceId: orderId,
+              referenceType: 'order',
+              reason: `Order ${orderId} edited: item quantity reduced or removed`
+            }, connection);
+          } else if (delta < 0) {
+            // Additional deduction (quantity was increased or item added)
+            await recordMovement({
+              productId,
+              type: 'sale',
+              changeAmount: delta,
+              performedBy: (req as any).user?.id ?? 'system',
+              referenceId: orderId,
+              referenceType: 'order',
+              reason: `Order ${orderId} edited: item quantity increased or added`
+            }, connection);
+          }
         }
       }
 
@@ -598,7 +621,7 @@ router.patch(
       );
 
       await connection.commit();
-      log.info("Order items updated", { orderId, newTotal });
+      log.info("Order items updated", { orderId, newTotal, stockRebalanced: isDelivered });
       res.json({ success: true, data: { id: orderId, total: newTotal } });
     } catch (err) {
       await connection.rollback();

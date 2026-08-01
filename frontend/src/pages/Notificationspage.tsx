@@ -35,10 +35,10 @@ const CATEGORIES: { key: Category; label: string; icon: string; color: string; b
 ];
 
 const CATEGORY_STYLES: Record<string, { dot: string; badge: string; border: string }> = {
-  low_stock:     { dot: 'bg-red-500',    badge: 'bg-red-100 text-red-700',    border: 'border-red-200' },
-  stock_request: { dot: 'bg-amber-500',  badge: 'bg-amber-100 text-amber-700',border: 'border-amber-200' },
-  new_order:     { dot: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-700',  border: 'border-blue-200' },
-  vendor:        { dot: 'bg-green-500',  badge: 'bg-green-100 text-green-700',border: 'border-green-200' },
+  low_stock:     { dot: 'bg-red-500',    badge: 'text-red-600',    border: 'border-red-200' },
+  stock_request: { dot: 'bg-amber-500',  badge: 'text-amber-600',  border: 'border-amber-200' },
+  new_order:     { dot: 'bg-blue-500',   badge: 'text-blue-600',   border: 'border-blue-200' },
+  vendor:        { dot: 'bg-green-500',  badge: 'text-green-700',  border: 'border-green-200' },
 };
 
 function timeAgo(dateStr: string) {
@@ -156,7 +156,7 @@ export default function NotificationsPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition
                 ${activeCategory === cat.key
                   ? 'bg-[#112415] text-white shadow-sm'
-                  : `${cat.bg} ${cat.color} hover:shadow-sm`
+                  : `${cat.color} hover:shadow-sm`
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">{cat.icon}</span>

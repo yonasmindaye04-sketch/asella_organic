@@ -15,10 +15,10 @@ import {
 import type { StockRequest } from "../../../store/slices/stockSlice";
 
 const STATUS_CONFIG = {
-  pending:   { label: "Pending",   className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  ordered:   { label: "Ordered",   className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  received:  { label: "Received",  className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  cancelled: { label: "Cancelled", className: "bg-slate-500/15 text-slate-400 border-slate-600" },
+  pending:   { label: "Pending",   className: "text-amber-400 border-amber-500/30" },
+  ordered:   { label: "Ordered",   className: "text-blue-400 border-blue-500/30" },
+  received:  { label: "Received",  className: "text-emerald-400 border-emerald-500/30" },
+  cancelled: { label: "Cancelled", className: "text-slate-400 border-slate-600" },
 };
 
 const StockRequestsTable: React.FC = () => {
