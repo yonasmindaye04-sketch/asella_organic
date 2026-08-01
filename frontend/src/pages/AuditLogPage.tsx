@@ -26,22 +26,22 @@ interface Meta {
 // ─── Action colour coding ─────────────────────────────────────────────────────
 
 const ACTION_STYLE: Record<string, { bg: string; text: string; icon: string }> = {
-  ORDER_CREATED:        { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: 'add_shopping_cart' },
-  ORDER_MODIFIED_ITEMS: { bg: 'bg-blue-100',    text: 'text-blue-800',    icon: 'edit_note' },
-  ORDER_STATUS_UPDATED: { bg: 'bg-purple-100',  text: 'text-purple-800',  icon: 'update' },
-  ORDER_DELETED:        { bg: 'bg-red-100',      text: 'text-red-800',     icon: 'delete' },
-  PRODUCT_CREATED:      { bg: 'bg-teal-100',     text: 'text-teal-800',    icon: 'add_box' },
-  PRODUCT_UPDATED:      { bg: 'bg-cyan-100',     text: 'text-cyan-800',    icon: 'inventory_2' },
-  PRODUCT_DEACTIVATED:  { bg: 'bg-orange-100',   text: 'text-orange-800',  icon: 'do_not_disturb_on' },
-  PRODUCT_REACTIVATED:  { bg: 'bg-lime-100',     text: 'text-lime-800',    icon: 'check_circle' },
-  STAFF_CREATED:        { bg: 'bg-indigo-100',   text: 'text-indigo-800',  icon: 'person_add' },
-  STAFF_DEACTIVATED:    { bg: 'bg-red-100',      text: 'text-red-800',     icon: 'person_off' },
-  LOGIN_SUCCESS:        { bg: 'bg-green-100',    text: 'text-green-800',   icon: 'login' },
-  LOGIN_FAIL:           { bg: 'bg-red-100',      text: 'text-red-800',     icon: 'block' },
+  ORDER_CREATED:        { bg: '', text: 'text-emerald-800', icon: 'add_shopping_cart' },
+  ORDER_MODIFIED_ITEMS: { bg: '', text: 'text-blue-800',    icon: 'edit_note' },
+  ORDER_STATUS_UPDATED: { bg: '', text: 'text-purple-800',  icon: 'update' },
+  ORDER_DELETED:        { bg: '', text: 'text-red-800',     icon: 'delete' },
+  PRODUCT_CREATED:      { bg: '', text: 'text-teal-800',    icon: 'add_box' },
+  PRODUCT_UPDATED:      { bg: '', text: 'text-cyan-800',    icon: 'inventory_2' },
+  PRODUCT_DEACTIVATED:  { bg: '', text: 'text-orange-800',  icon: 'do_not_disturb_on' },
+  PRODUCT_REACTIVATED:  { bg: '', text: 'text-lime-800',    icon: 'check_circle' },
+  STAFF_CREATED:        { bg: '', text: 'text-indigo-800',  icon: 'person_add' },
+  STAFF_DEACTIVATED:    { bg: '', text: 'text-red-800',     icon: 'person_off' },
+  LOGIN_SUCCESS:        { bg: '', text: 'text-green-800',   icon: 'login' },
+  LOGIN_FAIL:           { bg: '', text: 'text-red-800',     icon: 'block' },
 };
 
 const getActionStyle = (action: string) =>
-  ACTION_STYLE[action] ?? { bg: 'bg-gray-100', text: 'text-gray-700', icon: 'info' };
+  ACTION_STYLE[action] ?? { bg: '', text: 'text-gray-700', icon: 'info' };
 
 const TABLE_OPTIONS = [
   '', 'orders', 'order_items', 'products', 'staff_users', 'expenses',

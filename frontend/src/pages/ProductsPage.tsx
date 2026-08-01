@@ -100,19 +100,19 @@ const MOVEMENT_LABELS: Record<string, string> = {
 };
 
 const MOVEMENT_COLORS: Record<string, string> = {
-  sale:               'text-red-600 bg-red-50',
-  purchase_received:  'text-green-600 bg-green-50',
-  adjustment:         'text-blue-600 bg-blue-50',
-  return:             'text-purple-600 bg-purple-50',
-  damage_loss:        'text-orange-600 bg-orange-50',
-  initial_stock:      'text-gray-600 bg-gray-50',
+  sale:               'text-red-600',
+  purchase_received:  'text-green-600',
+  adjustment:         'text-blue-600',
+  return:             'text-purple-600',
+  damage_loss:        'text-orange-600',
+  initial_stock:      'text-gray-600',
 };
 
 const STATUS_STYLES: Record<StockItem['stock_status'], { badge: string; row: string; dot: string }> = {
-  ok:           { badge: 'bg-green-100 text-green-800',   row: '',                    dot: 'bg-green-500'  },
-  low:          { badge: 'bg-amber-100 text-amber-800',   row: 'bg-amber-50/40',      dot: 'bg-amber-500'  },
-  critical:     { badge: 'bg-orange-100 text-orange-800', row: 'bg-orange-50/40',     dot: 'bg-orange-500' },
-  out_of_stock: { badge: 'bg-red-100 text-red-800',       row: 'bg-red-50/50',        dot: 'bg-red-600'    },
+  ok:           { badge: 'text-green-700 font-bold',   row: '',                    dot: 'bg-green-500'  },
+  low:          { badge: 'text-amber-700 font-bold',   row: 'bg-amber-50/40',      dot: 'bg-amber-500'  },
+  critical:     { badge: 'text-orange-700 font-bold',  row: 'bg-orange-50/40',     dot: 'bg-orange-500' },
+  out_of_stock: { badge: 'text-red-700 font-bold',     row: 'bg-red-50/50',        dot: 'bg-red-600'    },
 };
 
 const STATUS_LABELS: Record<StockItem['stock_status'], string> = {
@@ -1210,12 +1210,12 @@ function StockTab({ reloadKey }: StockTabProps) {
                         <td className="px-4 py-3 text-center text-xs text-gray-500">{fmtDate(r.delivery_date)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                            r.status === 'pending'   ? 'bg-amber-100 text-amber-700' :
-                            r.status === 'ordered'   ? 'bg-blue-100 text-blue-700'   :
-                            r.status === 'received'  ? 'bg-green-100 text-green-700' :
-                            r.status === 'returned'  ? 'bg-purple-100 text-purple-700' :
-                            r.status === 'rejected'  ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-500'
+                            r.status === 'pending'   ? 'text-amber-600' :
+                            r.status === 'ordered'   ? 'text-blue-600'  :
+                            r.status === 'received'  ? 'text-green-700' :
+                            r.status === 'returned'  ? 'text-purple-600' :
+                            r.status === 'rejected'  ? 'text-red-600' :
+                            'text-gray-500'
                           }`}>{r.status}</span>
                         </td>
                         <td className="px-4 py-3 text-center">

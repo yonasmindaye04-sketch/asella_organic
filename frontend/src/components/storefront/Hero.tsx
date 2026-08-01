@@ -58,17 +58,17 @@ const Hero: React.FC = () => {
         {/* Buttons */}
         <div className="flex flex-col md:flex-row justify-center items-center gap-4 lg:gap-6 mb-14 lg:mb-20 w-full max-w-4xl mx-auto px-4 md:px-0">
           
-          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-gentle-bounce">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-gentle-bounce">
             <span className="material-symbols-outlined text-base lg:text-xl">shopping_cart</span>
             {t('hero.btn.order')}
           </button>
 
-          <a href="#story" className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <a href="#story" className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined text-base lg:text-xl">info</span>
             {t('hero.btn.about')}
           </a>
 
-          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-full font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined text-base lg:text-xl">inventory_2</span>
             {t('hero.btn.bulk')}
           </button>
