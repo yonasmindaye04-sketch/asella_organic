@@ -91,6 +91,10 @@ export default {
         breathe: {
           '0%, 100%': { opacity: '0.6', transform: 'scale(1)' },
           '50%': { opacity: '1', transform: 'scale(1.05)' }
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' }
         }
       },
       animation: {
@@ -99,7 +103,8 @@ export default {
         'pulse-gold': 'pulse-gold 2s cubic-bezier(0.4,0,0.6,1) infinite',
         'fade-up': 'fade-up 0.6s ease-out forwards',
         breathe: 'breathe 3s ease-in-out infinite',
-        'gentle-bounce': 'gentle-bounce 2s ease-in-out infinite'
+        'gentle-bounce': 'gentle-bounce 2s ease-in-out infinite',
+        shimmer: 'shimmer 2.5s linear infinite'
       },
       borderRadius: {
         "DEFAULT": "0.25rem",

@@ -159,9 +159,42 @@ class DefaultErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: "2rem", textAlign: "center" }}>
-          <h1>Something went wrong</h1>
-          <p>Please refresh the page or contact support.</p>
+        <div className="min-h-screen bg-[var(--cream,#FAF9F6)] dark:bg-[#121212] flex flex-col items-center justify-center p-6 text-center">
+          <div className="max-w-lg w-full space-y-6">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-heading">
+              Something went wrong
+            </h1>
+            
+            <p className="text-slate-700 dark:text-slate-300 text-base">
+              Please refresh the page or contact support.
+            </p>
+
+            <div className="space-y-2 text-slate-800 dark:text-slate-200 text-sm font-sans">
+              <div>
+                <span className="font-bold text-[#D4AF37]">Phone:</span>{" "}
+                <a href="tel:+251909122623" className="hover:underline font-mono">+251 909 122 623</a> / <a href="tel:+251942223999" className="hover:underline font-mono">+251 942 223 999</a>
+              </div>
+
+              <div>
+                <span className="font-bold text-[#D4AF37]">Email:</span>{" "}
+                <a href="mailto:support@asellaorganic.com" className="hover:underline font-mono text-[#D4AF37]">support@asellaorganic.com</a>
+              </div>
+
+              <div>
+                <span className="font-bold text-[#D4AF37]">Telegram:</span>{" "}
+                <a href="https://t.me/asella_organic" target="_blank" rel="noreferrer" className="hover:underline font-mono text-[#D4AF37]">@asella_organic</a>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-[#D4AF37] hover:bg-[#b8952b] text-slate-950 font-bold rounded-lg text-sm uppercase tracking-wider transition-colors shadow-sm"
+              >
+                Refresh Page
+              </button>
+            </div>
+          </div>
         </div>
       );
     }

@@ -21,6 +21,8 @@ const ALL_VIDEOS = [
 
 import { YouTubeFacade } from '../common/YouTubeFacade';
 
+import ScrollReveal from '../ui/ScrollReveal';
+
 const Reviews: React.FC = () => {
   const { t } = useLanguage();
   const [videos] = useState(() => {
@@ -37,21 +39,25 @@ const Reviews: React.FC = () => {
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12">
         
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-3">
-            {t('reviews.subtitle')}
-          </p>
-          <h2 className="font-display-lg font-black text-obsidian dark:text-white text-4xl md:text-5xl leading-tight tracking-tight">
-            {t('reviews.title')}<span className="text-highland-gold">{t('reviews.titleHighlight')}</span>
-          </h2>
-        </div>
+        <ScrollReveal variant="fade-up" duration={700}>
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <p className="font-mono text-2xl text-highland-gold uppercase tracking-[0.2em] mb-3">
+              {t('reviews.subtitle')}
+            </p>
+            <h2 className="font-display-lg font-black text-obsidian dark:text-white text-4xl md:text-5xl leading-tight tracking-tight">
+              {t('reviews.title')}<span className="text-highland-gold">{t('reviews.titleHighlight')}</span>
+            </h2>
+          </div>
+        </ScrollReveal>
 
         {/* Videos Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-7xl mx-auto">
-          {videos.map((v) => (
-            <div key={v.id} className="bg-black rounded-3xl overflow-hidden shadow-sm border border-border hover:shadow-xl hover:border-highland-gold transition-all duration-500 h-[550px] w-full">
-              <YouTubeFacade url={v.url} title={v.title} />
-            </div>
+          {videos.map((v, i) => (
+            <ScrollReveal key={v.id} variant="zoom-in" duration={600} delay={i * 120}>
+              <div className="bg-black rounded-3xl overflow-hidden shadow-sm border border-border hover:shadow-xl hover:border-highland-gold transition-all duration-500 h-[550px] w-full">
+                <YouTubeFacade url={v.url} title={v.title} />
+              </div>
+            </ScrollReveal>
           ))}
         </div>
         

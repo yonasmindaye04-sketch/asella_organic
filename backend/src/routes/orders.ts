@@ -213,7 +213,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       void sendOrderToAdmin({ id: orderId, ...fields, total, items, message_type: "franchise" });
     } else {
       void sendOrderToAdmin({ id: orderId, ...fields, total, items });
-      if (fields.city?.toLowerCase().includes("addis") && fields.order_type === "delivery") {
+      if (fields.order_type === "delivery") {
         void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
       }
     }

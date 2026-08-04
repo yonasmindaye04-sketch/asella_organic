@@ -8,6 +8,7 @@ import OrderReceipt from './OrderReceipt';
 import type { ReceiptData } from './OrderReceipt';
 import { api, type Order } from '../../services/api';
 import { useLanguage } from '../../LanguageContext';
+import ButtonSpinner from '../ui/ButtonSpinner';
 
 import { COUNTRY_CODES as _CC } from '../../constants/countries';
 
@@ -442,8 +443,15 @@ const OrderForm: React.FC = () => {
 
         {/* Footer Summary & Submit */}
         <div className="bg-obsidian border-t border-highland-gold/10 px-8 py-5 flex items-center justify-between relative z-10">
-          <button disabled={submitting} type="submit" onClick={handleSubmit} className="px-8 py-3.5 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white rounded-xl font-mono text-sm font-bold uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 transition-all duration-300 disabled:opacity-70">
-            {submitting ? t('common.loading') : t('common.submit')}
+          <button disabled={submitting} type="submit" onClick={handleSubmit} className="px-8 py-3.5 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white rounded-xl font-mono text-sm font-bold uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-2">
+            {submitting ? (
+              <>
+                <ButtonSpinner className="w-4 h-4 text-obsidian dark:text-white" />
+                {t('common.loading')}
+              </>
+            ) : (
+              t('common.submit')
+            )}
           </button>
           
           <div className="text-right">

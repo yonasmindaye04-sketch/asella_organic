@@ -34,12 +34,15 @@ fs.mkdir(CACHE_DIR, { recursive: true }).catch(() => {});
 // Allowed extensions for image optimization
 const ALLOWED_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".avif"]);
 
-router.get("/*subpath", async (req: Request, res: Response): Promise<void> => {
+router.get(/.*/, async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
 
   // Extract sub-path after /image/
-  const param = req.params.subpath;
-  const subPath = Array.isArray(param) ? param.join('/') : param;
+  let subPath = decodeURI(req.path);
+  if (subPath.startsWith("/")) {
+    subPath = subPath.substring(1);
+  }
+  
   if (!subPath) {
     res.status(400).json({ error: "No image path provided" });
     return;
