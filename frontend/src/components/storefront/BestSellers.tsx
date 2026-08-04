@@ -98,12 +98,12 @@ const BestSellers: React.FC = () => {
             }}
           >
             {[...Array(15)].map((_, i) => (
-              <div key={i} className="rounded-2xl overflow-hidden bg-white dark:bg-obsidian border border-border shadow-sm flex flex-col min-h-[300px]">
-                <div className="aspect-[4/5] bg-slate-100 dark:bg-white/10 animate-pulse border-b border-border" />
+              <div key={i} className="rounded-2xl overflow-hidden bg-white dark:bg-obsidian border border-highland-gold/10 shadow-sm flex flex-col min-h-[300px]">
+                <div className="aspect-[4/5] bg-gradient-to-r from-highland-gold/10 via-highland-gold/20 to-highland-gold/10 bg-[length:200%_100%] animate-[shimmer_2s_infinite] border-b border-highland-gold/10" />
                 <div className="p-3 space-y-2 flex-1 flex flex-col">
-                  <div className="h-4 bg-slate-200 dark:bg-white/10 rounded-lg animate-pulse w-3/4 mb-1" />
-                  <div className="h-3 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse mb-auto" />
-                  <div className="h-8 bg-slate-200 dark:bg-white/10 rounded-lg animate-pulse w-full mt-2" />
+                  <div className="h-4 bg-highland-gold/20 rounded-lg animate-pulse w-3/4 mb-1" />
+                  <div className="h-3 bg-highland-gold/10 rounded-lg animate-pulse mb-auto" />
+                  <div className="h-8 bg-highland-gold/30 rounded-lg animate-pulse w-full mt-2" />
                 </div>
               </div>
             ))}

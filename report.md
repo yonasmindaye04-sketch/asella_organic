@@ -131,6 +131,20 @@
 
 ---
 
+---
+
+## 9. Recent Session Updates (2026-08-04)
+
+### What changed
+- **UI & Aesthetics**: Updated button border radius in `ProductCard.tsx` from `rounded-full` to `rounded-lg` for site-wide consistency.
+- **Telegram Delivery Group**: Removed `city.includes("addis")` check in `orders.ts` and `telegram.ts` so all regional delivery orders post to the group.
+- **Asset Optimization**: Compressed 35 PNG/JPEG product and receipt images using `sharp` script.
+- **Loading System**: Added SVG leaf pulse (`LoadingSpinner.tsx`), route progress bar (`TopProgressBar.tsx` + `nprogress`), button submit spinner (`ButtonSpinner.tsx`), and gold skeleton shimmer (`BestSellers.tsx` + `tailwind.config.js`).
+- **Scroll Reveal Animations**: Created `useScrollReveal.ts` hook & `ScrollReveal.tsx` wrapper component. Wrapped sections in `Storefront.tsx`, `StorySection.tsx`, and `Reviews.tsx` for scroll-triggered entrance animations.
+- **Notification Details**: Included `package_size` in stock request notification SQL query (`notification.ts`) and added a `📦 <package_size>` badge on `Notificationspage.tsx`.
+
+---
+
 ## Current Task Summary
 
 | Category | Files Changed | Status |
@@ -144,7 +158,7 @@
 | Receipt print fix | 1 frontend file | Done — uncommitted |
 | Font Awesome CSS | 1 frontend file | Done — uncommitted |
 | Morning briefing dedup | 1 backend file | Done — uncommitted |
-| Merge conflicts | 2 backend files | Done — uncommitted |
+| Recent session updates (2026-08-04) | 12 (backend, frontend, config, documentation) | Done — uncommitted |
 
 ## Deploy Checklist
 
@@ -157,3 +171,4 @@
 - [ ] Visit `https://<domain>/api/telegram/set-webhook` to register bot webhook
 - [ ] Run Lighthouse audit in incognito to verify performance gains (expect 3–6 s Speed Index)
 - [ ] Enter Telegram usernames in User Management dashboard for staff bot access
+

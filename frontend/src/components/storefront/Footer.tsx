@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../../LanguageContext';
 
 const TelegramIcon = () => (
@@ -96,7 +97,7 @@ const Footer: React.FC = () => {
               <li><a href="/#hero" className="hover:text-white transition-colors">{t('footer.home')}</a></li>
               <li><a href="/#products" className="hover:text-white transition-colors">{t('footer.catalog')}</a></li>
               <li><a href="/#story" className="hover:text-white transition-colors">{t('footer.ourStory')}</a></li>
-              <li><a href="/#contact" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a></li>
+              <li><Link to="/privacy" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</Link></li>
             </ul>
           </div>
 
@@ -135,8 +136,8 @@ const Footer: React.FC = () => {
         <div className="pt-4 border-t border-highland-gold/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-parchment font-mono">
           <p>{t('footer.rights')}</p>
           <div className="flex gap-4">
-            <a href="/#contact" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</a>
-            <a href="/#contact" className="hover:text-white transition-colors">{t('footer.termsOfService')}</a>
+            <Link to="/privacy" className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">{t('footer.termsOfService')}</Link>
           </div>
         </div>
       </div>

@@ -459,7 +459,7 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
     connection.release();
   }
 
-  if (fields.order_type === "delivery" && fields.city.toLowerCase().includes("addis")) {
+  if (fields.order_type === "delivery") {
     void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
   }
   return { id: orderId, total };

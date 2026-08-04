@@ -76,7 +76,9 @@ router.get(
              CONCAT('Stock Request: ', sr.item) AS title,
              CONCAT(
                COALESCE(sr.requested_by, 'Staff'), ' needs ', sr.qty_needed,
-               ' units', IF(sr.delivery_date IS NOT NULL, CONCAT(' by ', sr.delivery_date), ''),
+               ' units',
+               IF(sr.package_size IS NOT NULL AND sr.package_size != '', CONCAT(' of ', sr.package_size), ''),
+               IF(sr.delivery_date IS NOT NULL, CONCAT(' by ', sr.delivery_date), ''),
                ' (current stock: ', sr.stock_available, ')'
              ) AS body,
              sr.created_at,

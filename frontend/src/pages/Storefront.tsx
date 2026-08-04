@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense } from 'react';
 import Header from '../components/storefront/Header';
 import Hero from '../components/storefront/Hero';
+import ScrollReveal from '../components/ui/ScrollReveal';
 
 const DailyHighlights = React.lazy(() => import('../components/storefront/DailyHighlights'));
 const BestSellers = React.lazy(() => import('../components/storefront/BestSellers'));
@@ -30,12 +31,37 @@ const Storefront: React.FC = () => {
     <div className="storefront-page">
       <Header />
       <Hero />
-      <Suspense fallback={null}><DailyHighlights /></Suspense>
-      <Suspense fallback={null}><BestSellers /></Suspense>
-      <Suspense fallback={null}><StorySection /></Suspense>
-      <Suspense fallback={null}><Reviews /></Suspense>
-      <Suspense fallback={null}><ContactSection /></Suspense>
-      <Suspense fallback={null}><Footer /></Suspense>
+
+      {/* Daily Highlights — fade up */}
+      <ScrollReveal variant="fade-up" duration={800}>
+        <Suspense fallback={null}><DailyHighlights /></Suspense>
+      </ScrollReveal>
+
+      {/* Best Sellers — zoom in from slightly below */}
+      <ScrollReveal variant="zoom-in-up" duration={900} delay={50}>
+        <Suspense fallback={null}><BestSellers /></Suspense>
+      </ScrollReveal>
+
+      {/* Story Section — slide from left */}
+      <ScrollReveal variant="fade-left" duration={800} delay={0}>
+        <Suspense fallback={null}><StorySection /></Suspense>
+      </ScrollReveal>
+
+      {/* Reviews — fade in elegantly */}
+      <ScrollReveal variant="fade-in" duration={1000} delay={0}>
+        <Suspense fallback={null}><Reviews /></Suspense>
+      </ScrollReveal>
+
+      {/* Contact — slide from right */}
+      <ScrollReveal variant="fade-right" duration={800} delay={0}>
+        <Suspense fallback={null}><ContactSection /></Suspense>
+      </ScrollReveal>
+
+      {/* Footer — fade up */}
+      <ScrollReveal variant="fade-up" duration={600} delay={0}>
+        <Suspense fallback={null}><Footer /></Suspense>
+      </ScrollReveal>
+
       <Suspense fallback={null}><OrderForm /></Suspense>
     </div>
   );

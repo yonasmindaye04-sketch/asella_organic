@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../../LanguageContext';
+import ScrollReveal from '../ui/ScrollReveal';
 
 const StorySection: React.FC = () => {
   const { t } = useLanguage();
@@ -15,16 +16,17 @@ const StorySection: React.FC = () => {
         
         {/* Left: Typography & Story */}
         <div className="col-span-1 lg:col-span-5 flex flex-col gap-6 pt-2">
-          
-          
-          <h2 className="font-display-lg font-black text-obsidian dark:text-white leading-[1.15]" style={{ fontSize: 'clamp(36px, 4.5vw, 56px)', letterSpacing: '-0.02em' }}>
-            {t('story.title')}<br/>
-            <span className="text-highland-gold">{t('story.titleHighlight')}</span>
-          </h2>
-          
-         <p className="max-w-4xl font-sans text-slate-1000 text-2xl leading-10">
+          <ScrollReveal variant="fade-right" duration={800}>
+            <h2 className="font-display-lg font-black text-obsidian dark:text-white leading-[1.15]" style={{ fontSize: 'clamp(36px, 4.5vw, 56px)', letterSpacing: '-0.02em' }}>
+              {t('story.title')}<br/>
+              <span className="text-highland-gold">{t('story.titleHighlight')}</span>
+            </h2>
+          </ScrollReveal>
+          <ScrollReveal variant="fade-right" duration={800} delay={150}>
+           <p className="max-w-4xl font-sans text-slate-1000 text-2xl leading-10">
   {t('story.desc')}
 </p>
+          </ScrollReveal>
         </div>
         
         {/* Right: Asymmetrical Feature Cards */}
@@ -40,48 +42,56 @@ const StorySection: React.FC = () => {
           <div className="relative z-10 flex flex-col gap-4 h-full justify-start">
             
             {/* Feature 1 */}
-            <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%]">
-              <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
-                <span className="material-symbols-outlined">nature</span>
+            <ScrollReveal variant="fade-left" duration={600} delay={0}>
+              <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%]">
+                <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
+                  <span className="material-symbols-outlined">nature</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature1Title')}</h3>
+                  <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature1Desc')}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature1Title')}</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature1Desc')}</p>
-              </div>
-            </div>
+            </ScrollReveal>
             
             {/* Feature 2 */}
-            <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-8">
-              <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
-                <span className="material-symbols-outlined">handshake</span>
+            <ScrollReveal variant="fade-left" duration={600} delay={120}>
+              <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-8">
+                <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
+                  <span className="material-symbols-outlined">handshake</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature2Title')}</h3>
+                  <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature2Desc')}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature2Title')}</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature2Desc')}</p>
-              </div>
-            </div>
+            </ScrollReveal>
             
             {/* Feature 3 */}
-            <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-16">
-              <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
-                <span className="material-symbols-outlined">science</span>
+            <ScrollReveal variant="fade-left" duration={600} delay={240}>
+              <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-16">
+                <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
+                  <span className="material-symbols-outlined">science</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature3Title')}</h3>
+                  <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature3Desc')}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature3Title')}</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature3Desc')}</p>
-              </div>
-            </div>
+            </ScrollReveal>
             
             {/* Feature 4 */}
-            <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-24">
-              <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
-                <span className="material-symbols-outlined">award_star</span>
+            <ScrollReveal variant="fade-left" duration={600} delay={360}>
+              <div className="flex items-start gap-4 bg-white dark:bg-obsidian p-4 rounded-xl border border-border shadow-sm hover:shadow-md hover:border-highland-gold transition-all duration-300 w-full lg:w-[80%] lg:ml-24">
+                <div className="w-12 h-12 shrink-0 rounded-full bg-parchment-mid flex items-center justify-center text-highland-gold">
+                  <span className="material-symbols-outlined">award_star</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature4Title')}</h3>
+                  <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature4Desc')}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-mono font-bold text-obsidian dark:text-white mb-1 uppercase tracking-wider">{t('story.feature4Title')}</h3>
-                <p className="text-slate-700 dark:text-slate-300 text-2xl leading-relaxed">{t('story.feature4Desc')}</p>
-              </div>
-            </div>
+            </ScrollReveal>
             
           </div>
         </div>

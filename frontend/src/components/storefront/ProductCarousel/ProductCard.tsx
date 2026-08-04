@@ -55,7 +55,7 @@ export default function ProductCard({ product, offset, onClick }: ProductCardPro
   return (
     <div
       className="absolute left-1/2 top-1/2 w-[400px] h-[480px] rounded-[24px] overflow-hidden cursor-pointer
-                 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                 transition-transform transition-opacity duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
       style={style}
       onClick={onClick}
       role="button"
@@ -105,7 +105,7 @@ export default function ProductCard({ product, offset, onClick }: ProductCardPro
 
         <button
           className="inline-block bg-highland-gold hover:bg-[#c09040] text-white text-[15px] font-bold
-                     tracking-[0.06em] border-none rounded-full px-7 py-3 cursor-pointer
+                     tracking-[0.06em] border-none rounded-lg px-7 py-3 cursor-pointer
                      transition-colors duration-200"
           onClick={(e) => {
             e.stopPropagation();

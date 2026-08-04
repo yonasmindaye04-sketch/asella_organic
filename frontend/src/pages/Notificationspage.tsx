@@ -224,6 +224,11 @@ export default function NotificationsPage() {
                               <span className="text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                                 Need: {n.metadata.qty_needed} units
                               </span>
+                              {n.metadata.package_size && (
+                                <span className="text-[11px] bg-highland-gold/10 text-highland-gold border border-highland-gold/30 px-2 py-0.5 rounded-full font-mono font-semibold">
+                                   {n.metadata.package_size}
+                                </span>
+                              )}
                               <span className={`text-[11px] px-2 py-0.5 rounded-full ${
                                 n.metadata.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                                 n.metadata.status === 'received' ? 'bg-green-100 text-green-700' :

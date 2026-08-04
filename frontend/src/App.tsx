@@ -4,6 +4,7 @@ import ProtectedRoute       from './components/ui/ProtectedRoute';
 import { ToastProvider }    from './components/ui/ToastProvider';
 import { LanguageProvider } from './LanguageContext';
 import LoadingSpinner       from './components/ui/LoadingSpinner';
+import TopProgressBar       from './components/ui/TopProgressBar';
 
 const Storefront           = lazy(() => import('./pages/Storefront'));
 const Checkout             = lazy(() => import('./pages/Checkout'));
@@ -25,6 +26,8 @@ const CustomerOrderTracking = lazy(() => import('./pages/CustomerOrderTracking')
 const ExpensesPage         = lazy(() => import('./pages/ExpensesPage'));
 const VideoManagementPage  = lazy(() => import('./pages/VideoManagementPage'));
 const AuditLogPage         = lazy(() => import('./pages/AuditLogPage'));
+const PrivacyPolicy        = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService       = lazy(() => import('./pages/TermsOfService'));
 
 
 function App() {
@@ -38,6 +41,7 @@ function App() {
       <main className="min-h-screen bg-[var(--cream)]">
         <LanguageProvider>
           <ToastProvider>
+            <TopProgressBar />
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>
                 {/* Public */}
@@ -45,6 +49,8 @@ function App() {
                 <Route path="/checkout"         element={<Checkout />} />
                 <Route path="/community-videos" element={<CommunityVideos />} />
                 <Route path="/login"            element={<Login />} />
+                <Route path="/privacy"          element={<PrivacyPolicy />} />
+                <Route path="/terms"            element={<TermsOfService />} />
                 <Route path="/track"            element={<CustomerOrderTracking />} />
                 <Route path="/track/:orderId"   element={<CustomerOrderTracking />} />
 
