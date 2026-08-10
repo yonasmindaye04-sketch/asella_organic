@@ -14,24 +14,31 @@ export function resolveProductImage(
 ): string {
   const { width = 400, quality = 78 } = options ?? {};
 
-  // 1. Try local image by product name
-  const localMatch = getLocalImage(productName);
-  if (localMatch) return optimizeLocalUrl(localMatch, width, quality);
-
-  // 2. If DB has a local path, use it directly
+  // 1. If DB has an image URL, use it first
   if (dbImageUrl && dbImageUrl.trim() !== '') {
     const url = dbImageUrl.trim();
-    if (url.startsWith('/image/') || url.startsWith('/image\\'))
+    if (url.startsWith('/image/') || url.startsWith('/image\\')) {
       return optimizeLocalUrl(url, width, quality);
+    }
 
-    // 3. Full external URL (Google Drive etc.) — last resort, can't optimize
-    if (url.startsWith('http')) return url;
+    // Extract ID from full Google Drive URL
+    const gDriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (gDriveMatch) {
+      return `https://drive.google.com/uc?export=view&id=${gDriveMatch[1]}`;
+    }
 
     // Bare Google Drive ID
     if (/^[a-zA-Z0-9_-]{20,}$/.test(url)) {
       return `https://drive.google.com/uc?export=view&id=${url}`;
     }
+
+    // Full external URL (fallback)
+    if (url.startsWith('http')) return url;
   }
+
+  // 2. Fallback: Try local image by product name
+  const localMatch = getLocalImage(productName);
+  if (localMatch) return optimizeLocalUrl(localMatch, width, quality);
 
   return '';
 }

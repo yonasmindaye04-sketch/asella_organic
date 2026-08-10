@@ -15,7 +15,7 @@
 
 2. **Order Lifecycle & Delivery Routing:**
    - Orders can originate from the web storefront, Telegram bot, or manual admin entry.
-   - All `delivery` orders are automatically broadcasted to the Telegram delivery driver group.
+   - All `delivery` orders from Addis Ababa are automatically broadcasted to the Telegram delivery driver group. Delivery orders from other regions are sent directly to the admin.
 
 3. **Accrual Accounting & COGS:**
    - Uses Cost of Goods Sold (COGS) accounting rather than cash-basis.

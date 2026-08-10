@@ -41,6 +41,9 @@ import reportRoutes         from "./routes/reports.js";
 
 const app = express();
 
+// @ts-ignore: csp-config is a commonjs file without types
+import cspConfig from "../../csp-config.js";
+
 // ── 1. Security headers (helmet) — must be first ──────────────────────────────
 app.use(helmet({
   strictTransportSecurity: {
@@ -49,19 +52,7 @@ app.use(helmet({
     preload: true,
   },
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://api.asellaorganic.com"],
-      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
-      objectSrc: ["'none'"],
-      frameAncestors: ["'self'"],
-      upgradeInsecureRequests: [],
-    },
+    directives: cspConfig,
   },
   // @ts-expect-error — permissionsPolicy works at runtime but @types/helmet doesn't include it
   permissionsPolicy: {
@@ -86,11 +77,13 @@ app.use(express.static(path.join(process.cwd(), "public")));
 // ── 3. CORS ───────────────────────────────────────────────────────────────────
 // credentials:true is required for HttpOnly cookies to work cross-origin.
 // NOTE: When credentials:true, origin cannot be "*" — must be explicit.
-// In development, allow http://localhost:5173. In production, restrict to FRONTEND_URL.
+// In development, allow http://localhost:5173. In production, restrict to ALLOWED_ORIGINS.
 const allowedOrigins =
   process.env.NODE_ENV === "production"
-    ? (process.env.FRONTEND_URL ?? "https://asellaorganic.com").split(",").map(s => s.trim())
+    ? (process.env.ALLOWED_ORIGINS ?? "https://asellaorganic.com").split(",").map(s => s.trim())
     : ["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"];
+
+logger.info("CORS allowed origins resolved to:", { allowedOrigins });
 
 app.use(cors({
   origin: allowedOrigins,
