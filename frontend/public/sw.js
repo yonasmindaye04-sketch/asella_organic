@@ -13,7 +13,7 @@
  * via src/lib/sw-register.ts.
  */
 
-const CACHE_VERSION    = 'v1';
+const CACHE_VERSION    = '__VERSION__';
 const STATIC_CACHE     = `asella-static-${CACHE_VERSION}`;
 const IMAGE_CACHE      = `asella-images-${CACHE_VERSION}`;
 const API_CACHE        = `asella-api-${CACHE_VERSION}`;
@@ -46,13 +46,14 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Updated fetch handling with network-first for navigation requests
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
 
-  // ── API calls: network-only ──────────────
+  // API calls: network-only
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(() => new Response(
@@ -63,7 +64,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── Images: cache-first (offline catalog) ──────────────────────────
+  // Images: cache-first (offline catalog)
   if (request.destination === 'image') {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -82,7 +83,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── Static assets: stale-while-revalidate ─────────────────────────
+  // Static assets: stale-while-revalidate
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -98,5 +99,14 @@ self.addEventListener('fetch', (event) => {
         return cached || fetchPromise;
       })
     );
+    return;
+  }
+
+  // Navigation requests: network-first (no cache)
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('/offline.html'))
+    );
+    return;
   }
 });

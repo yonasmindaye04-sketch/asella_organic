@@ -249,7 +249,7 @@ describe("A07 — Authentication Failures", () => {
 
 describe("CORS", () => {
   it("responds with correct CORS headers for allowed origin", async () => {
-    const allowedOrigin = process.env.FRONTEND_URL ?? "http://localhost:5173";
+    const allowedOrigin = process.env.ALLOWED_ORIGINS ?? "http://localhost:5173";
     const res = await request(app)
       .get("/api/health")
       .set("Origin", allowedOrigin);

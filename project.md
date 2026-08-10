@@ -448,16 +448,15 @@ asella_organic/
 ## Integrations
 
 ### Telegram Bot
-- **Order notifications** � New order alerts to admin chat
-- **Delivery group** � Order updates to delivery team
-- **Vendor notifications** � Purchase order alerts
-- **Webhook support** � Incoming message processing
-- **Staff RBAC** � Identity verification, role-specific menus (Employee: track/place; Manager: +view orders; Admin: +dashboard link)
-- **Morning briefing** � Daily stats sent once per day with dedup guard (DB-backed, survives PM2 restart)
-- **Polling mode** � Alternative to webhooks for development (`npm run telegram:poll`)
+- **Order notifications** — New order alerts to admin chat
+- **Delivery group** — Order updates to delivery team (Note: Only delivery orders originating from Addis Ababa are routed to the delivery group. All other regions go only to the admin).
+- **Vendor notifications** — Purchase order alerts
+- **Webhook support** — Incoming message processing
+- **Staff RBAC** — Identity verification, role-specific menus (Employee: track/place; Manager: +view orders; Admin: +dashboard link)
+- **Morning briefing**  Daily stats sent once per day with dedup guard (DB-backed, survives PM2 restart)
+- **Polling mode**  Alternative to webhooks for development (`npm run telegram:poll`)
 
 ### Google Sheets
-- **Order mirroring** � Real-time order sync to spreadsheet
 - **Service account auth** � Credential-based, no user interaction
 - **Optional integration** � Graceful degradation if not configured
 

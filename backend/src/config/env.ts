@@ -20,7 +20,7 @@ const EnvSchema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
 
   // ── Frontend ──────────────────────────────────────────────
-  FRONTEND_URL: z.string().url().default("http://localhost:5173"),
+  ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
 
   // ── Telegram ─────────────────────────────────────────────
   TELEGRAM_BOT_TOKEN: z.string().min(20, "TELEGRAM_BOT_TOKEN looks too short").optional().or(z.literal("")),

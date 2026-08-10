@@ -1,6 +1,20 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+</IfModule>
+
 # ═══════════════════════════════════════════════════════════════════
 # Asella Organic — Cache Headers & Security
 # ═══════════════════════════════════════════════════════════════════
+
+# ── 0. SPA fallback — serve index.html for client-side routes ─────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule . /index.html [L]
+</IfModule>
 
 # ── 1. Enable compression ─────────────────────────────────────────
 <IfModule mod_deflate.c>
@@ -65,9 +79,16 @@
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+  Header always set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://api.asellaorganic.com https://i.ytimg.com https://lh3.googleusercontent.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; object-src 'none'; frame-src https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com; frame-ancestors 'self'; upgrade-insecure-requests"
 </IfModule>
 
 # ── 4. Block access to dotfiles ───────────────────────────────────
 <FilesMatch "^\.(?!htaccess)">
   Require all denied
 </FilesMatch>
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP:X-Forwarded-SSL} !on
+RewriteCond %{HTTP_HOST} ^asellaorganic\.com$ [OR]
+RewriteCond %{HTTP_HOST} ^www\.asellaorganic\.com$
+RewriteRule ^(.*)$ "https\:\/\/www\.asellaorganic\.com\/$1" [R=301,L]
