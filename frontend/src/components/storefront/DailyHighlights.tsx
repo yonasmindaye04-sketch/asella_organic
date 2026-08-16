@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { api } from '../../services/api';
 import { useDispatch } from 'react-redux';
 import { openOrderModal } from '../../store/slices/uiSlice';
@@ -6,6 +6,8 @@ import ProductCarousel from './ProductCarousel';
 import type { CarouselProduct } from './ProductCarousel/carouselData';
 import { useLanguage } from '../../LanguageContext';
 import { optimizeLocalUrl } from '../../utils/image';
+
+const Reviews = React.lazy(() => import('./Reviews'));
 
 
 const categoryCards = [
@@ -106,6 +108,11 @@ const DailyHighlights: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Reviews — Real Experiences / Voices of Our Community */}
+      <Suspense fallback={null}>
+        <Reviews />
+      </Suspense>
 
     </section>
   );

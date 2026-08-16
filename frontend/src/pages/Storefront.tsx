@@ -6,7 +6,6 @@ import ScrollReveal from '../components/ui/ScrollReveal';
 const DailyHighlights = React.lazy(() => import('../components/storefront/DailyHighlights'));
 const BestSellers = React.lazy(() => import('../components/storefront/BestSellers'));
 const StorySection = React.lazy(() => import('../components/storefront/StorySection'));
-const Reviews = React.lazy(() => import('../components/storefront/Reviews'));
 const ContactSection = React.lazy(() => import('../components/storefront/ContactSection'));
 const Footer = React.lazy(() => import('../components/storefront/Footer'));
 const OrderForm = React.lazy(() => import('../components/storefront/OrderForm'));
@@ -45,11 +44,6 @@ const Storefront: React.FC = () => {
       {/* Story Section — slide from left */}
       <ScrollReveal variant="fade-left" duration={800} delay={0}>
         <Suspense fallback={null}><StorySection /></Suspense>
-      </ScrollReveal>
-
-      {/* Reviews — fade in elegantly */}
-      <ScrollReveal variant="fade-in" duration={1000} delay={0}>
-        <Suspense fallback={null}><Reviews /></Suspense>
       </ScrollReveal>
 
       {/* Contact — slide from right */}

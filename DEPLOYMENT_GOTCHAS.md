@@ -38,3 +38,19 @@ This document summarizes three common production failure modes in this codebase 
 **The Fix**:
 - `frontend/src/utils/image.ts` was updated to prioritize database image URLs over the hardcoded local string matches.
 - The code now automatically detects full Google Drive URLs and rewrites them into direct-download URLs (`.../uc?export=view&id=...`) so they render seamlessly on the storefront.
+
+## 6. CSP Blocks Inline `<script>` Tags (No `unsafe-inline`)
+**The Problem**: The site's `Content-Security-Policy` (written into `dist/.htaccess` at build time by `postbuild.js`) sets a strict `script-src` that only allows `'self'` and `https://static.cloudflareinsights.com` — **no `'unsafe-inline'`**. An `Array.prototype.at` polyfill was written as an inline `<script>` block directly in `index.html`. This worked fine in local development because the dev server (`vite dev`) does not serve the `.htaccess` file or any CSP header — the policy is only enforced in production via Apache. The polyfill was silently blocked in production, causing JavaScript errors in older browsers and crawler bots.
+
+**The Fix**:
+- The inline `<script>` block was extracted verbatim into `frontend/public/polyfills.js`.
+- The inline block in `index.html` was replaced with `<script src="/polyfills.js"></script>`.
+- Vite copies all files in `frontend/public/` to `dist/` root as-is, so no build config change was needed.
+- A **regression check** was added to `scripts/postbuild.js` (step 4). After every build it scans `dist/index.html` for any `<script>` tag without a `src=` attribute and **fails the build with a clear error** if one is found.
+
+**Rule for all future contributors**:
+> Any `<script>` added to `frontend/index.html` **must** reference an external file via `src=`.
+> Put the file in `frontend/public/` — Vite copies it to the dist root automatically.
+> **Never** use an inline `<script>...</script>` block, even for small snippets.
+> If a script truly requires runtime/server-rendered values (e.g. a nonce or dynamic config), that is a deployment-config concern and needs a CSP `nonce` or `hash` strategy — raise it before adding the script.
+

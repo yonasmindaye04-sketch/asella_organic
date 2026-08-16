@@ -1,5 +1,20 @@
 # Asella Organic — Changelog & Activity Log
 
+## [2026-08-16] — CSP Compliance & Image Path Fixes
+
+### 1. CSP Strict Compliance (No `unsafe-inline`)
+- **Extracted Inline Scripts**: Moved the `Array.prototype.at` polyfill from an inline `<script>` block in `frontend/index.html` to an external file (`frontend/public/polyfills.js`) to comply with the strict Content-Security-Policy (which blocks `'unsafe-inline'`).
+- **Build-Time Regression Check**: Added an automated regex check to `frontend/scripts/postbuild.js` that scans `dist/index.html` post-build and fails if any inline `<script>` blocks (without a `src` attribute) are detected.
+- **Documentation**: Added §6 to `DEPLOYMENT_GOTCHAS.md` explaining the strict script-src CSP rules and providing guidelines for future contributors.
+
+### 2. Product Image Path Corrections
+- **Fixed Database Records**: Corrected canonical database paths and fallback mappings in `frontend/src/utils/image.ts` for multiple products whose images weren't showing:
+  - **Cinnamon**: Assigned dedicated `Cinnamon.png`
+  - **Coffee**: Assigned dedicated `Coffee.png`
+  - **Cloves**: Fixed broken reference to `Cloves.png`
+  - **Asella Frankincense Raw**: Fixed broken reference to `Asella Frankincense Raw.jpeg`
+  - **Ashewagenda (Himalya) Tablet**: Fixed case-sensitivity bug on Linux by updating path to use uppercase `Himalaya ashwagandha tablet 120 ( 250 mg ).png`
+
 ## [2026-08-04] — Recent Session Updates & Feature Implementations
 
 ### 1. UI & Aesthetics Consistency

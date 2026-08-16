@@ -2,9 +2,9 @@
  * Resolves the best available image for a product.
  *
  * Priority:
- *   1. Local `/image/products/…` file matched by product name  (always works, no CORS issues)
- *   2. DB `image_url` if it's already a local path (`/image/…`)
- *   3. DB `image_url` if it's any other URL (Google Drive, etc.)  — last resort
+ *   1. DB `image_url` if it's a local path (`/image/…`) or cloud storage URL
+ *   2. DB `image_url` if it's any other HTTP URL
+ *   3. Local `/image/products/…` file matched by product name
  *   4. Empty string (no image available)
  */
 export function resolveProductImage(
@@ -17,20 +17,15 @@ export function resolveProductImage(
   // 1. If DB has an image URL, use it first
   if (dbImageUrl && dbImageUrl.trim() !== '') {
     const url = dbImageUrl.trim();
+
+    // Local path - optimize it
     if (url.startsWith('/image/') || url.startsWith('/image\\')) {
       return optimizeLocalUrl(url, width, quality);
     }
 
-    // Extract ID from full Google Drive URL
-    const gDriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (gDriveMatch) {
-      return `https://drive.google.com/uc?export=view&id=${gDriveMatch[1]}`;
-    }
-
-    // Bare Google Drive ID
-    if (/^[a-zA-Z0-9_-]{20,}$/.test(url)) {
-      return `https://drive.google.com/uc?export=view&id=${url}`;
-    }
+    // Cloud storage URLs - convert to direct image links
+    const cloudUrl = convertCloudStorageUrl(url);
+    if (cloudUrl) return cloudUrl;
 
     // Full external URL (fallback)
     if (url.startsWith('http')) return url;
@@ -41,6 +36,98 @@ export function resolveProductImage(
   if (localMatch) return optimizeLocalUrl(localMatch, width, quality);
 
   return '';
+}
+
+/**
+ * Converts various cloud storage URLs to direct image URLs.
+ * Supports: Google Drive, Dropbox, OneDrive, Box, Cloudinary, Imgur, etc.
+ */
+function convertCloudStorageUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+
+    // Google Drive - multiple URL formats
+    if (u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) {
+      // Format: https://drive.google.com/file/d/FILE_ID/view
+      let fileId = u.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+      // Format: https://drive.google.com/open?id=FILE_ID
+      if (!fileId) fileId = u.searchParams.get('id') ?? undefined;
+      // Format: https://docs.google.com/uc?id=FILE_ID
+      if (!fileId) fileId = u.searchParams.get('id') ?? undefined;
+      if (fileId) {
+        return `https://drive.google.com/uc?export=view&id=${fileId}`;
+      }
+    }
+
+    // Dropbox - convert to raw=1
+    if (u.hostname.includes('dropbox.com')) {
+      if (u.searchParams.has('raw')) return url;
+      u.searchParams.set('raw', '1');
+      return u.toString();
+    }
+
+    // OneDrive / SharePoint - use /download endpoint
+    if (u.hostname.includes('1drv.ms') || u.hostname.includes('onedrive.live.com') || u.hostname.includes('sharepoint.com')) {
+      // For onedrive/SharePoint, we can't easily convert without API, return as-is
+      // but add a note that it might not work directly
+      return url;
+    }
+
+    // Box.com - use direct download
+    if (u.hostname.includes('box.com')) {
+      const fileId = u.pathname.match(/\/file\/([a-zA-Z0-9]+)/)?.[1];
+      if (fileId) {
+        return `https://app.box.com/api/2.0/files/${fileId}/content`;
+      }
+    }
+
+    // Cloudinary - already direct, but we can add transformations
+    if (u.hostname.includes('cloudinary.com')) {
+      return url; // Already a direct image URL
+    }
+
+    // Imgur - convert to direct image
+    if (u.hostname.includes('imgur.com')) {
+      const id = u.pathname.match(/\/([a-zA-Z0-9]+)(?:\.\w+)?$/)?.[1];
+      if (id && !u.pathname.includes('/a/') && !u.pathname.includes('/gallery/')) {
+        return `https://i.imgur.com/${id}.jpg`;
+      }
+      return url;
+    }
+
+    // GitHub raw content
+    if (u.hostname === 'raw.githubusercontent.com' || u.hostname === 'github.com') {
+      if (u.hostname === 'github.com') {
+        // Convert github.com/user/repo/blob/path to raw.githubusercontent.com/user/repo/path
+        const parts = u.pathname.split('/');
+        if (parts.length >= 5 && parts[3] === 'blob') {
+          parts.splice(3, 1); // Remove 'blob'
+          return `https://raw.githubusercontent.com${parts.join('/')}`;
+        }
+      }
+      return url;
+    }
+
+    // AWS S3 - already direct if public
+    if (u.hostname.includes('s3.') || u.hostname.includes('.s3.')) {
+      return url;
+    }
+
+    // Google Cloud Storage
+    if (u.hostname.includes('storage.googleapis.com')) {
+      return url;
+    }
+
+    // Azure Blob Storage
+    if (u.hostname.includes('.blob.core.windows.net')) {
+      return url;
+    }
+
+  } catch {
+    // Invalid URL, return null
+  }
+
+  return null;
 }
 
 /**
@@ -100,6 +187,10 @@ function getLocalImage(productName: string): string {
   if (n.includes('chia'))
     return '/image/products/Chiaseed 250g and 1kg.png';
 
+  // Cinnamon
+  if (n.includes('cinnamon'))
+    return '/image/products/Cinnamon.png';
+
   // Cloves
   if (n.includes('clove'))
     return '/image/products/Cloves.png';
@@ -118,7 +209,7 @@ function getLocalImage(productName: string): string {
 
   // Frankincense Raw / generic
   if (n.includes('frankincense') || n.includes('itan'))
-    return '/image/products/Asella Frankincense Raw.jpeg';
+    return '/image/products/Asella Frankincense Raw.jpeg'; // correct filename
 
   // Hibiscus
   if (n.includes('hibiscus') || n.includes('kerkede'))
