@@ -50,7 +50,7 @@ VALUES
 
 -- ASHWAGANDA HIMALAYA TABLETS
 ('11111111-0001-0001-0001-000000000006', 'Ashewagenda (Himalya) Tablet', '120 Tablet', 4500, 'Herbs',
- '/image/products/himalaya ashwagandha tablet 120 ( 250 mg ).png',
+ '/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png',
  'Supports a healthy stress response while promoting balance, energy, and well-being. 120 count.', false, true, 0, 10, NOW(), NOW()),
 
 ('11111111-0001-0001-0001-000000000007', 'Ashewagenda (Himalya) Tablet', '60 Tablet', 2500, 'Herbs',
@@ -110,7 +110,7 @@ VALUES
 
 -- COFFEE
 ('11111111-0001-0001-0001-000000000019', 'Coffee', '500g', 800, 'Traditional',
- '/image/products/Moringa 200g,500g and 1kg.png',
+ '/image/products/Coffee.png',
  'Premium Ethiopian coffee that delivers rich flavor, energy, and mental alertness. 500g.', false, true, 0, 10, NOW(), NOW()),
 
 -- KESIL
@@ -138,7 +138,7 @@ VALUES
 
 -- CLOVES
 ('11111111-0001-0001-0001-000000000025', 'Cloves', '100g', 400, 'Traditional',
- '/image/products/Asella Cloves 100g.png',
+ '/image/products/Cloves.png',
  'Rich in antioxidants and traditionally used to support oral and digestive health. 100g.', false, true, 0, 10, NOW(), NOW()),
 
 -- PUMPKIN SEED
@@ -158,12 +158,12 @@ VALUES
 
 -- FRANKINCENSE RAW
 ('11111111-0001-0001-0001-000000000029', 'Asella Frankincense Raw', '100g', 800, 'Traditional',
- '/image/products/Asella Frankincense ( 100g ).jpeg',
+ '/image/products/Asella Frankincense Raw.jpeg',
  'Premium natural resin traditionally used for relaxation and aromatic wellness. 100g.', false, true, 0, 10, NOW(), NOW()),
 
 -- CINNAMON
 ('11111111-0001-0001-0001-000000000030', 'Cinnamon', '100g', 600, 'Traditional',
- '/image/products/Moringa 200g,500g and 1kg.png',
+ '/image/products/Cinnamon.png',
  'Rich in antioxidants and commonly used to support metabolic wellness. 100g.', false, true, 0, 10, NOW(), NOW());
 
 -- 4. Rebuild stock_snapshots for all new products (start at 0)

@@ -14,16 +14,16 @@ const imageMap: Record<string, string> = {
   'Kerkede Leafe': '/image/products/Hibiscus ( 100g ).png',
   'Chebe Powder': '/image/products/Chebe powder  ( 100g ).png',
   'Erde': '/image/products/Erid Turmeric ( 220g ).png',
-  'Coffee': '/image/products/Moringa 200g,500g and 1kg.png', // Fallback
+  'Coffee': '/image/products/Coffee.png',
   'Kesil Powder': '/image/products/Qasil Powder ( 200g ).png',
   'Kerebe (Myrrh) Oil': '/image/products/Kerebe Oil (Myrrh Oil )  30ml and 60 ml.png',
   'Frankincense Oil': '/image/products/Frankincense Oil  30ml and 60 ml.jpeg',
-  'Cloves': '/image/products/Asella Cloves 100g.png',
+  'Cloves': '/image/products/Cloves.png',
   'Pumpkin Seed': '/image/products/Pumpkin Seed  100g.jpeg',
   'Blackseed Oil': '/image/products/Blackseed Oil ( 30ml ).JPG',
   'Nila powder': '/image/products/Nila Powder 100g.jpeg',
-  'Asella Frankincense Raw': '/image/products/Asella Frankincense ( 100g ).jpeg',
-  'Cinnamon': '/image/products/Moringa 200g,500g and 1kg.png', // Fallback
+  'Asella Frankincense Raw': '/image/products/Asella Frankincense Raw.jpeg',
+  'Cinnamon': '/image/products/Cinnamon.png',
   'Turmeric Powder': '/image/products/Erid Turmeric ( 220g ).png',
   'Ginger Powder': '/image/products/Erid Turmeric ( 220g ).png', // Fallback
   'Spirulina Powder': '/image/products/Moringa 200g,500g and 1kg.png', // Fallback

@@ -166,11 +166,37 @@ interface ProductFormModalProps {
 function ProductFormModal({ initial, onClose, onSaved }: ProductFormModalProps) {
   const [draft, setDraft] = useState<ProductDraft & { id?: string }>({ ...EMPTY_DRAFT, ...initial });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError]   = useState<string | null>(null);
   const isEdit = !!draft.id;
 
   const set = <K extends keyof ProductDraft>(k: K, v: ProductDraft[K]) =>
     setDraft(d => ({ ...d, [k]: v }));
+
+  async function handleImageUpload(file: File) {
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const BASE = (import.meta as { env: Record<string, string> }).env['VITE_API_URL'] ?? '';
+      const res = await fetch(`${BASE}/api/upload/image`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      const json = await res.json() as { success: boolean; data?: { url: string }; error?: string };
+      if (!res.ok || !json.success) throw new Error(json.error || 'Upload failed');
+
+      set('image_url', json.data!.url);
+    } catch (err) {
+      setError(errMsg(err, 'Failed to upload image.'));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -286,11 +312,35 @@ function ProductFormModal({ initial, onClose, onSaved }: ProductFormModalProps) 
           {/* Image URL */}
           <div className="col-span-2">
             <label className="label">Image URL <span className="font-normal text-gray-400">(leave blank to skip)</span></label>
-            <input type="text"
-              value={draft.image_url ?? ''}
-              onChange={e => set('image_url', e.target.value)}
-              placeholder="/image/products/name.png  or  https://…"
-              className="input" />
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-2">
+                <input type="text"
+                  value={draft.image_url ?? ''}
+                  onChange={e => set('image_url', e.target.value)}
+                  placeholder="/image/products/name.png  or  https://drive.google.com/…  or  any cloud storage URL"
+                  className="input flex-1" />
+                <label className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 cursor-pointer transition text-sm border border-gray-200"
+                  title="Upload image to Cloudinary">
+                  <span className="material-symbols-outlined">cloud_upload</span>
+                  <input type="file"
+                    accept="image/*"
+                    className="absolute opacity-0 w-full h-full cursor-pointer"
+                    onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+                    disabled={uploading} />
+                </label>
+              </div>
+              {draft.image_url && (
+                <div className="flex items-center gap-3">
+                  <img src={draft.image_url.startsWith('/image/') ? draft.image_url + '?w=100&q=60' : draft.image_url}
+                    alt="Preview" className="w-20 h-20 object-cover rounded-lg border border-gray-200" />
+                  <span className="text-sm text-gray-500 truncate flex-1">{draft.image_url}</span>
+                </div>
+              )}
+              <p className="text-xs text-gray-400">
+                Supports: Cloudinary (auto-upload), Google Drive, Dropbox, OneDrive, Imgur, S3, Azure Blob, GitHub Raw, direct image URLs.
+                <br />For Google Drive: Share file with "Anyone with the link" and use the sharing URL.
+              </p>
+            </div>
           </div>
 
           {/* Description */}
@@ -325,14 +375,21 @@ function ProductFormModal({ initial, onClose, onSaved }: ProductFormModalProps) 
             </div>
           )}
 
+          {uploading && (
+            <div className="col-span-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-4 py-2.5 text-sm flex items-center gap-2">
+              <span className="material-symbols-outlined animate-spin">sync</span>
+              Uploading image to Cloudinary…
+            </div>
+          )}
+
           <div className="col-span-2 flex justify-end gap-3 pt-2 border-t border-gray-100">
             <button type="button" onClick={onClose}
               className="px-5 py-2.5 rounded-lg font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition text-sm">
               Cancel
             </button>
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || uploading}
               className="px-5 py-2.5 rounded-lg font-semibold text-[#112415] bg-[#4ade80] hover:bg-[#3bca6d] transition text-sm disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save Product'}
+              {saving ? 'Saving…' : uploading ? 'Uploading…' : 'Save Product'}
             </button>
           </div>
         </form>

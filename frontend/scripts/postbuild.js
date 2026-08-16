@@ -66,3 +66,60 @@ if (fs.existsSync(swPath)) {
 } else {
   console.warn('⚠️  dist/sw.js not found. Skipping.');
 }
+
+// 4. Regression check — fail if any inline <script> block exists in dist/index.html
+//
+// WHY: The site CSP has no 'unsafe-inline' in script-src. Any inline <script>
+// block (no src= attribute) will be silently blocked in production.
+// Vite itself only emits <script type="module" src="..."> tags for this project
+// (no @vitejs/plugin-legacy = no inline module-preload polyfill), so any
+// inline <script> found here was added manually and must be externalised.
+//
+// Allowed patterns (must have a src= or be Vite's own type="module" tag):
+//   <script type="module" src="/assets/index-xxx.js">  ← Vite bundle entry
+//   <script src="/polyfills.js">                        ← externalised polyfill
+// Blocked pattern (no src=):
+//   <script>...code...</script>                         ← CSP violation!
+
+const distIndexPath = path.join(distDir, 'index.html');
+if (fs.existsSync(distIndexPath)) {
+  const html = fs.readFileSync(distIndexPath, 'utf8');
+
+  // Strip HTML comments first so that comment text mentioning <script>
+  // (like our own CSP notice comment) doesn't trigger a false positive.
+  const htmlWithoutComments = html.replace(/<!--[\s\S]*?-->/g, '');
+
+  // Match <script> tags that have NO src= attribute (i.e. inline scripts).
+  // The negative lookahead (?![^>]*\bsrc=) skips any tag that contains src=.
+  const inlineScriptRe = /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi;
+  const inlineMatches = htmlWithoutComments.match(inlineScriptRe) ?? [];
+
+
+  // Filter out empty self-closing variants that Vite may emit for edge cases.
+  const violations = inlineMatches.filter(tag => {
+    // Strip the opening/closing tags and check if there is actual content.
+    const inner = tag.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
+    return inner.length > 0;
+  });
+
+  if (violations.length > 0) {
+    console.error('');
+    console.error('❌ CSP VIOLATION DETECTED in dist/index.html!');
+    console.error('   Found ' + violations.length + ' inline <script> block(s) without a src= attribute.');
+    console.error('   These will be blocked by the site CSP in production (no \'unsafe-inline\').');
+    console.error('');
+    console.error('   Fix: move the script content to a file in frontend/public/');
+    console.error('        and reference it with <script src="/yourfile.js"></script>.');
+    console.error('   See DEPLOYMENT_GOTCHAS.md §6 for details.');
+    console.error('');
+    violations.forEach((v, i) => {
+      const preview = v.length > 120 ? v.slice(0, 120) + '...' : v;
+      console.error(`   Violation ${i + 1}: ${preview}`);
+    });
+    process.exit(1);
+  } else {
+    console.log('✅ No inline <script> blocks found in dist/index.html (CSP safe).');
+  }
+} else {
+  console.warn('⚠️  dist/index.html not found. Skipping inline-script check.');
+}

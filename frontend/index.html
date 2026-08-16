@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!--
+  CSP NOTICE — READ BEFORE ADDING ANY <script> TAG:
+  This site's Content-Security-Policy (set in .htaccess via postbuild.js) has
+  NO 'unsafe-inline' in script-src by design. Any inline <script>...</script>
+  block will be silently blocked in production even if it works fine locally
+  (local dev servers do not enforce the CSP header from .htaccess).
+
+  Rule: every script added to this file MUST use an external file via src=.
+  Put the file in frontend/public/ — Vite copies it to dist/ root as-is.
+  See DEPLOYMENT_GOTCHAS.md §6 for full details.
+-->
 <html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
@@ -35,17 +46,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=swap" rel="stylesheet" />
 
 
-    <!-- Polyfill for older browsers (.at) -->
-    <script>
-      if (!Array.prototype.at) {
-        Array.prototype.at = function(n) {
-          n = Math.trunc(n) || 0;
-          if (n < 0) n += this.length;
-          if (n < 0 || n >= this.length) return undefined;
-          return this[n];
-        };
-      }
-    </script>
+    <!-- Polyfill for older browsers (.at) — external file required by CSP -->
+    <script src="/polyfills.js"></script>
   </head>
   <body>
     <div id="root"></div>
