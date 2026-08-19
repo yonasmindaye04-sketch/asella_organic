@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useProducts } from '../hooks/useProducts';
+import { useGroupedProducts } from '../hooks/useProducts';
 import { api } from '../services/api';
 import { COUNTRY_CODES as _CC } from '../constants/countries';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -45,7 +45,7 @@ const CITIES = ['Addis Ababa', 'Other Regions', 'Abroad'];
 
 export default function NewOrderPage() {
   const navigate = useNavigate();
-  const { products, loading: productsLoading } = useProducts();
+  const { groupedProducts, loading: productsLoading } = useGroupedProducts();
 
   const [form, setForm] = useState<OrderForm>({
     customer_name: '',
@@ -105,7 +105,9 @@ export default function NewOrderPage() {
     // Out-of-stock check
     const outOfStockItems = form.items.filter(item => {
       if (!item.product_id) return false;
-      const variant = products.find(p => p.id === item.product_id);
+      const group = groupedProducts.find(g => g.name === item.name);
+      if (!group) return false;
+      const variant = group.variants.find(v => v.id === item.product_id);
       return variant && Number(variant.inventory_quantity) <= 0;
     });
     if (outOfStockItems.length > 0) {
@@ -297,9 +299,9 @@ export default function NewOrderPage() {
             ) : (
               <div className="bg-white dark:bg-[#1a2e1b] border border-highland-gold/15 rounded-2xl p-4 md:p-6 mb-4 space-y-4 shadow-sm">
                 {form.items.map((item, index) => {
-                  const selectedProductVariants = products.filter(p => p.name === item.name);
-                  const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
-                  const selectedVariant = item.product_id ? products.find(p => p.id === item.product_id) : null;
+                  const selectedGroup = groupedProducts.find(p => p.name === item.name);
+                  const availableVariants = selectedGroup ? selectedGroup.variants : [];
+                  const selectedVariant = item.product_id ? availableVariants.find(v => v.id === item.product_id) : null;
                   const isOutOfStock = selectedVariant && Number(selectedVariant.inventory_quantity) <= 0;
                   const stockQty = selectedVariant ? Number(selectedVariant.inventory_quantity) : null;
 
@@ -322,8 +324,8 @@ export default function NewOrderPage() {
                           updateItem(index, 'unit_price', 0);
                         }} className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:border-highland-gold focus:ring-1 focus:ring-highland-gold text-sm outline-none transition-all text-obsidian dark:text-white">
                           <option value="">— Select Item —</option>
-                          {Array.from(new Set(products.map(p => p.name))).map(name => (
-                            <option key={name} value={name}>{name}</option>
+                          {groupedProducts.map(group => (
+                            <option key={group.name} value={group.name}>{group.name}</option>
                           ))}
                         </select>
                       </div>
@@ -332,7 +334,7 @@ export default function NewOrderPage() {
                         <label className="block text-[10px] font-mono font-bold text-obsidian/70 dark:text-white/70 uppercase tracking-widest mb-1">Size <span className="text-red-500">*</span></label>
                         <select required value={item.package_size} onChange={e => {
                           const size = e.target.value;
-                          const variant = products.find(p => p.name === item.name && p.package_size === size);
+                          const variant = availableVariants.find(v => v.package_size === size);
                           updateItem(index, 'package_size', size);
                           if (variant) {
                             updateItem(index, 'product_id', variant.id);
@@ -342,8 +344,8 @@ export default function NewOrderPage() {
                           isOutOfStock ? 'border-red-400 focus:border-red-400' : 'border-[#d4ecd4] dark:border-border focus:border-highland-gold'
                         }`}>
                           <option value="">— Size —</option>
-                          {availableSizes.map(size => (
-                            <option key={size} value={size}>{size}</option>
+                          {availableVariants.map(variant => (
+                            <option key={variant.id} value={variant.package_size}>{variant.package_size}</option>
                           ))}
                         </select>
                       </div>

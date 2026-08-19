@@ -26,6 +26,23 @@ import { sendLowStockAlert } from "../lib/telegram.js";
 import { createLogger }      from "../lib/logger.js";
 import { apiCache }          from "../middleware/apiCache.js";
 
+// Helper for application-level data quality validation
+function validateProductData(name?: string, image_url?: string | null) {
+  if (name) {
+    const sizePattern = /\(\d+\s*(g|ml|kg|pcs|tablet|gummies|pills)\)/i;
+    if (sizePattern.test(name)) {
+      return "Size-like pattern found in name. Please remove it and use the package_size field instead.";
+    }
+  }
+  if (image_url) {
+    const lower = image_url.toLowerCase();
+    if (lower.includes("drive.google.com") || lower.includes("dropbox.com")) {
+      return "Direct image URL or local upload path is required, not a cloud drive share link.";
+    }
+  }
+  return null;
+}
+
 const router = Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,6 +124,118 @@ router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/products/grouped  — Returns products grouped by name
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<void> => {
+  const log = createLogger(req);
+  try {
+    const { search, tag, active } = req.query as Record<string, string>;
+
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (active !== undefined) {
+      conditions.push("p.active = ?");
+      params.push(active === "true");
+    } else {
+      conditions.push("p.active = true");
+    }
+
+    if (search) {
+      conditions.push("p.name LIKE ?");
+      params.push(`%${search}%`);
+    }
+    if (tag) {
+      conditions.push("p.tag = ?");
+      params.push(tag);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    // Fetch all matching rows (since there are < 100 base products, no pagination needed here)
+    const selectFields = `p.id, p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
+                          p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active`;
+    
+    let joinClause = "";
+    let orderByClause = "ORDER BY p.featured DESC, p.name ASC, p.price ASC";
+    
+    if (req.query.sort === "sales") {
+      joinClause = `LEFT JOIN order_items oi ON p.id = oi.product_id`;
+      orderByClause = `GROUP BY p.id ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.name ASC, p.price ASC`;
+    }
+
+    const [rows] = await pool.query(
+      `SELECT ${selectFields} FROM products p ${joinClause} ${where} ${orderByClause}`,
+      params
+    ) as [any[], any];
+
+    // Group the rows in memory with normalization for duplicate names
+    const groupsMap = new Map<string, any>();
+    for (const row of rows) {
+      let baseName = (row.name || '').trim();
+      let extractedSize = (row.package_size || '').trim();
+
+      // 1. Remove trailing sizes like "(100g)", "200 g", "60 Tablet" from name
+      const sizeRegex = /(?:\s*\(?\s*(\d+\s*(?:g|ml|kg|pcs|tablets?|gummies|pills?))\s*\)?)$/i;
+      const match = baseName.match(sizeRegex);
+      if (match) {
+        if (!extractedSize) {
+          extractedSize = match[1].trim(); // use extracted size if db field was empty
+        }
+        baseName = baseName.replace(sizeRegex, '').trim();
+      }
+
+      // 2. Title Case for grouping consistency (e.g., "Nila powder" -> "Nila Powder")
+      baseName = baseName
+        .toLowerCase()
+        .split(' ')
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      // 3. Hardcoded corrections for major inconsistencies in the DB
+      if (baseName === "Hibiscus Kerkede Leafe" || baseName === "Hibiscus Kerkede") {
+        baseName = "Hibiscus Dry Leafe";
+      }
+
+      if (!groupsMap.has(baseName)) {
+        groupsMap.set(baseName, {
+          name: baseName,
+          description: row.description,
+          image_url: row.image_url,
+          featured: Boolean(row.featured),
+          tag: row.tag,
+          active: Boolean(row.active),
+          variants: []
+        });
+      }
+      
+      // Push the variant using the extracted size (or 'Default Size' if still empty)
+      groupsMap.get(baseName).variants.push({
+        id: row.id,
+        package_size: extractedSize || 'Standard',
+        price: row.price,
+        unit_cost: row.unit_cost,
+        inventory_quantity: row.inventory_quantity,
+        low_stock_threshold: row.low_stock_threshold,
+        active: Boolean(row.active)
+      });
+    }
+
+    const groupedData = Array.from(groupsMap.values());
+
+    log.info("Grouped products listed", { totalGroups: groupedData.length, search, tag });
+
+    res.json({
+      success: true,
+      data: groupedData
+    });
+  } catch (err) {
+    log.error("Failed to list grouped products", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/products/low-stock  — paginated (authenticated)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get(
@@ -149,6 +278,77 @@ router.get(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/products/health  — admin data-quality check
+// ─────────────────────────────────────────────────────────────────────────────
+router.get(
+  "/health",
+  authenticate,
+  authorise("admin"),
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    try {
+      // 1. Broken images (drive.google, dropbox, missing, or no extension)
+      const [brokenImages] = await pool.query(
+        `SELECT id, name, package_size, image_url 
+         FROM products 
+         WHERE active = true AND (
+           image_url IS NULL OR 
+           image_url = '' OR 
+           image_url LIKE '%drive.google.com%' OR 
+           image_url LIKE '%dropbox.com%' OR
+           (image_url NOT LIKE '%.jpg' AND image_url NOT LIKE '%.jpeg' AND image_url NOT LIKE '%.png' AND image_url NOT LIKE '%.webp' AND image_url NOT LIKE 'http%')
+         )`
+      ) as [any[], any];
+
+      // 2. Invalid tags
+      const allowedTags = ["Traditional", "Herbs", "Oils", "Superfood", "Other"];
+      const [invalidTags] = await pool.query(
+        `SELECT id, name, package_size, tag 
+         FROM products 
+         WHERE active = true AND tag IS NOT NULL AND tag != '' AND tag NOT IN (?)`,
+        [allowedTags]
+      ) as [any[], any];
+
+      // 3. Near duplicates (same normalized name and size)
+      // We do this in-memory because regex replacing in MySQL 5.7 is tricky.
+      const [allActive] = await pool.query(
+        `SELECT id, name, package_size FROM products WHERE active = true`
+      ) as [any[], any];
+
+      const normalizedMap = new Map<string, any[]>();
+      for (const p of allActive) {
+        // Strip trailing sizes like (100g)
+        let baseName = (p.name || '').trim();
+        const sizeRegex = /(?:\s*\(?\s*(\d+\s*(?:g|ml|kg|pcs|tablet|gummies|pills))\s*\)?)$/i;
+        baseName = baseName.replace(sizeRegex, '').trim().toLowerCase();
+        
+        const size = (p.package_size || '').trim().toLowerCase();
+        const key = `${baseName}|${size}`;
+        
+        if (!normalizedMap.has(key)) normalizedMap.set(key, []);
+        normalizedMap.get(key)!.push(p);
+      }
+      
+      const nearDuplicates = Array.from(normalizedMap.values())
+        .filter(group => group.length > 1)
+        .flat();
+
+      res.json({
+        success: true,
+        data: {
+          brokenImages,
+          invalidTags,
+          nearDuplicates
+        }
+      });
+    } catch (err) {
+      log.error("Failed to run health check", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/products/:id
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
@@ -185,6 +385,13 @@ router.post(
     const log = createLogger(req);
     try {
       const d     = req.body;
+
+      const validationError = validateProductData(d.name, d.image_url);
+      if (validationError) {
+        res.status(400).json({ success: false, error: validationError });
+        return;
+      }
+
       const newId = crypto.randomUUID();
 
       await pool.query(
@@ -232,6 +439,13 @@ router.patch(
     const log = createLogger(req);
     try {
       const fields  = req.body as Record<string, unknown>;
+
+      const validationError = validateProductData(fields.name as string, fields.image_url as string);
+      if (validationError) {
+        res.status(400).json({ success: false, error: validationError });
+        return;
+      }
+
       const allowed = [
         "name", "package_size", "price", "unit_cost", "description",
         "image_url", "featured", "tag", "active",

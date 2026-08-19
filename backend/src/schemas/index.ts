@@ -136,7 +136,11 @@ export const UpdateItemsSchema = z.object({
 // ─── Products ─────────────────────────────────────────────────────────────
 
 export const CreateProductSchema = z.object({
-  name:         z.string().trim().min(2).max(100),
+  name:         z.string()
+                  .trim()
+                  .min(2)
+                  .max(100)
+                  .transform((val) => val.replace(/\s+/g, ' ')), // collapse multiple spaces
   package_size: z.string().trim().min(1).max(50),
   price:        z.number().positive(),
   unit_cost:    z.number().nonnegative().default(0),
@@ -144,7 +148,7 @@ export const CreateProductSchema = z.object({
   image_url:    z.string().trim().max(2048).optional().nullable(),
   featured:     z.coerce.boolean().default(false),
   active:       z.coerce.boolean().default(true),
-  tag:          z.string().trim().max(50).optional(),
+  tag:          z.enum(["Traditional", "Herbs", "Oils", "Superfood", "Other"]).optional(),
   inventory_quantity: z
     .number()
     .int()
@@ -159,7 +163,7 @@ export const CreateProductSchema = z.object({
 
 export const UpdateProductSchema = z
   .object({
-    name:                z.string().trim().min(2).max(100).optional(),
+    name:                z.string().trim().min(2).max(100).transform((val) => val.replace(/\s+/g, ' ')).optional(),
     package_size:        z.string().trim().min(1).max(50).optional(),
     price:               z.number().positive().optional(),
     unit_cost:           z.number().nonnegative().optional(),
@@ -167,7 +171,7 @@ export const UpdateProductSchema = z
     image_url:           z.string().trim().max(2048).optional().nullable(),
     featured:            z.coerce.boolean().optional(),
     active:              z.coerce.boolean().optional(),
-    tag:                 z.string().trim().max(50).optional(),
+    tag:                 z.enum(["Traditional", "Herbs", "Oils", "Superfood", "Other"]).optional(),
     inventory_quantity:  z.number().int().nonnegative().optional(),
     low_stock_threshold: z.number().int().nonnegative().optional(),
   })

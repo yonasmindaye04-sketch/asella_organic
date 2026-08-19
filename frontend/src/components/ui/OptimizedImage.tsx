@@ -37,8 +37,7 @@ export interface OptimizedImageProps {
   fetchPriority?: 'high' | 'low' | 'auto';
 }
 
-const PLACEHOLDER_PNG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=';
+const PLACEHOLDER_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="%23f3f4f6"/><path d="M150 150 L250 250 M250 150 L150 250" stroke="%239ca3af" stroke-width="4" stroke-linecap="round"/><text x="50%" y="280" font-family="sans-serif" font-size="16" fill="%236b7280" text-anchor="middle">Image Not Found</text></svg>`;
 
 export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   src,
@@ -51,7 +50,17 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   decoding = 'async',
   fetchPriority,
 }) => {
-  const [errored, setErrored] = useState(false);
+  // Pre-validate known bad URLs (e.g. drive.google.com, dropbox share links)
+  const isKnownBadUrl = (url: string) => {
+    if (!url) return true;
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('drive.google.com') || lowerUrl.includes('dropbox.com/s/')) return true;
+    if (lowerUrl.startsWith('data:')) return false; // base64 is fine
+    // A very basic check: if it doesn't look like a valid path or URL, mark bad
+    return false;
+  };
+
+  const [errored, setErrored] = useState(isKnownBadUrl(src));
 
   // Some image hosts support resizing via query params (e.g.
   // ?w=400, ?w=800). We try to auto-append width hints when the
@@ -82,7 +91,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   return (
     <picture className={className} style={{ display: 'block' }}>
       <img
-        src={errored ? PLACEHOLDER_PNG : src}
+        src={errored ? PLACEHOLDER_SVG : src}
         alt={alt}
         loading={eager ? 'eager' : 'lazy'}
         decoding={decoding}

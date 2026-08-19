@@ -54,3 +54,18 @@ This document summarizes three common production failure modes in this codebase 
 > **Never** use an inline `<script>...</script>` block, even for small snippets.
 > If a script truly requires runtime/server-rendered values (e.g. a nonce or dynamic config), that is a deployment-config concern and needs a CSP `nonce` or `hash` strategy — raise it before adding the script.
 
+## 7. The "Ghost" Duplicate Catalog & Data Validation
+**The Problem**: Three distinct data-quality issues severely impacted the product catalog:
+1. **Parallel product batches**: A seed script (`004_dummy_data.sql`) inserted products with hardcoded UUIDs starting with `pr0000...`. Shortly after, another setup script (`add_products.ts`) was run to populate the DB but failed to detect the existing products because the names contained appended sizes (e.g., `Moringa Seed (500g)` vs `Moringa Seed`). It inserted a new batch of items using `crypto.randomUUID()`. Since there was no unique constraint, both batches coexisted.
+2. **The `tag = 'active'` bug**: An old SQL insert statement had columns misaligned (e.g. `tag` received the boolean for `active`), likely due to manual edits.
+3. **Broken Image URLs**: Users pasted Google Drive (`drive.google.com/file/d/.../view`) share links directly into the `image_url` column instead of providing a direct CDN path. These links return an HTML preview page, not an image.
+
+**The Fix**:
+- We left the `pr0000...` items in the DB but deactivated them (`active = 0`).
+- Added a `active_unique` generated column mapping `active = 1` to `1` and `active = 0` to `NULL`.
+- Added a `UNIQUE INDEX (name, package_size, active_unique)` so only ONE active product per name/size can exist (`018_unique_product_constraint.sql`).
+- Updated `add_products.ts` to require an explicit `--force` flag and normalize names before checking for duplicates.
+- Backend schemas (`backend/src/schemas/index.ts`) now strictly enforce an enum of allowed tags (`['Traditional', 'Herbs', 'Oils', 'Superfood', 'Other']`).
+- Backend routes now actively reject `drive.google.com` or `dropbox.com` links and prevent `(100g)` sizes from being embedded in the product `name`.
+- The frontend `OptimizedImage.tsx` detects such URLs and instantly renders a clear "Image Not Found" SVG placeholder instead of a broken icon.
+- An admin data-quality health check was added at `GET /api/products/health` to proactively spot any similar issues going forward.
