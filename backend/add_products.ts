@@ -34,14 +34,30 @@ const products = [
 ];
 
 async function run() {
+  const force = process.argv.includes('--force');
+  if (!force) {
+    console.error('Safety check: You must provide the --force flag to run this script.');
+    console.error('e.g. npm run tsx add_products.ts -- --force');
+    process.exit(1);
+  }
+
   for (const p of products) {
+    // Normalize name to check for duplicates
+    const normalizedName = p.name.trim().toLowerCase().replace(/\s+/g, ' ');
+    
     // Check if it already exists roughly
-    const [rows] = await pool.query('SELECT id FROM products WHERE name = ? AND package_size = ?', [p.name, p.size]) as any;
+    const [rows] = await pool.query(
+      'SELECT id FROM products WHERE LOWER(TRIM(name)) = ? AND package_size = ?', 
+      [normalizedName, p.size]
+    ) as any;
+    
     if (rows.length === 0) {
       await pool.query(
-        'INSERT INTO products (id, name, package_size, price, description, active) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT IGNORE INTO products (id, name, package_size, price, description, active) VALUES (?, ?, ?, ?, ?, ?)',
         [crypto.randomUUID(), p.name, p.size, p.price, 'Premium organic supplement.', true]
       );
+    } else {
+      console.log(`Skipping duplicate: ${p.name} ${p.size}`);
     }
   }
   console.log('Products added');

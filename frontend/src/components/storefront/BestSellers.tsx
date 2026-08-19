@@ -6,21 +6,158 @@ import { useLanguage } from '../../LanguageContext';
 import { OptimizedImage } from '../ui/OptimizedImage';
 import { resolveProductImage } from '../../utils/image';
 
-interface Product {
+interface Variant {
   id: string;
-  name: string;
   package_size: string;
   price: number;
-  description: string;
-  featured: boolean;
-  tag: string | null;
-  image_url?: string;
+  inventory_quantity: number;
+  low_stock_threshold: number;
+  active: boolean;
 }
 
+interface GroupedProduct {
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  featured: boolean;
+  tag: string | null;
+  active: boolean;
+  variants: Variant[];
+}
 
+// Sub-component for individual card with its own state for selected variant
+const ProductCard: React.FC<{ product: GroupedProduct }> = ({ product }) => {
+  const dispatch = useDispatch();
+  const { t } = useLanguage();
+  
+  // Default to first variant
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+  const selectedVariant = product.variants[selectedVariantIndex];
+  
+  const productImageUrl = resolveProductImage(product.image_url, product.name);
+  const isOutOfStock = selectedVariant.inventory_quantity <= 0;
+
+  return (
+    <div
+      className="group bg-white dark:bg-obsidian rounded-2xl overflow-hidden border border-border
+                 shadow-sm hover:shadow-lg transition-all duration-400 cursor-pointer flex flex-col"
+    >
+      {/* Image container */}
+      <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+        {/* Tag badge */}
+        {product.tag && (
+          <div className="absolute top-2 right-2 z-10 px-2 py-0.5 bg-white dark:bg-obsidian
+                          backdrop-blur-sm text-obsidian dark:text-white font-mono text-[10px]
+                          rounded-full border border-border">
+            {product.tag}
+          </div>
+        )}
+
+        {/* Product image with zoom on hover */}
+        <OptimizedImage
+          src={productImageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&q=80'}
+          alt={product.name}
+          aspectRatio={4 / 5}
+          sizes="(min-width: 1280px) 220px, (min-width: 768px) 25vw, 50vw"
+          className="w-full h-full"
+          imgClassName="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-[1.08]"
+        />
+
+        {/* Gradient overlay */}
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-[#0D2E10]/60 via-transparent
+                     to-transparent opacity-0 group-hover:opacity-100
+                     transition-opacity duration-500 pointer-events-none"
+        />
+
+        {/* Price badge */}
+        <div
+          className="absolute bottom-2 left-2 right-2 transform translate-y-3
+                     opacity-0 group-hover:translate-y-0 group-hover:opacity-100
+                     transition-all duration-500 pointer-events-none"
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px] text-white/90 font-bold">{t('bestSellers.priceFrom')}</span>
+            <span className="font-display-lg font-bold text-highland-gold text-sm drop-shadow-md">
+              {selectedVariant.price ? Number(selectedVariant.price).toLocaleString() : '—'} {t('common.currency')}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Card body */}
+      <div className="p-3 flex flex-col flex-1 bg-white dark:bg-obsidian">
+        <h3
+          className="font-display-lg font-bold text-obsidian dark:text-white text-sm mb-1.5
+                     group-hover:text-highland-gold transition-colors duration-300 line-clamp-2"
+        >
+          {product.name}
+        </h3>
+        <p className="font-sans text-slate-600 dark:text-slate-300 text-xs leading-snug line-clamp-2 mb-3 flex-1">
+          {product.description || t('bestSellers.defaultDesc')}
+        </p>
+
+        {/* Variant Selector */}
+        {product.variants.length > 1 && (
+          <div className="mb-3">
+            <select
+              className="w-full bg-slate-50 dark:bg-obsidian-mid border border-border rounded-lg px-2 py-1.5 text-xs text-obsidian dark:text-white outline-none focus:border-highland-gold transition-colors"
+              value={selectedVariantIndex}
+              onChange={(e) => {
+                e.stopPropagation();
+                setSelectedVariantIndex(Number(e.target.value));
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {product.variants.map((v, idx) => (
+                <option key={v.id} value={idx}>
+                  {v.package_size} - {Number(v.price).toLocaleString()} {t('common.currency')}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        
+        {/* Variant Info single item */}
+        {product.variants.length === 1 && (
+          <div className="mb-3 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+            <span>{selectedVariant.package_size}</span>
+            <span className="font-bold text-obsidian dark:text-white">
+              {Number(selectedVariant.price).toLocaleString()} {t('common.currency')}
+            </span>
+          </div>
+        )}
+
+        {/* Order button */}
+        <button
+          disabled={isOutOfStock}
+          onClick={(e) => {
+            e.stopPropagation();
+            dispatch(
+              openOrderModal({
+                id: selectedVariant.id,
+                name: `${product.name} (${selectedVariant.package_size})`,
+                price: selectedVariant.price,
+                mode: 'buy_now',
+              })
+            );
+          }}
+          className={`flex items-center justify-center gap-1.5 w-full py-2 mt-auto font-mono font-bold text-[11px] rounded-lg uppercase tracking-widest transition-colors shadow-md ${
+            isOutOfStock 
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:text-gray-500' 
+              : 'bg-highland-gold hover:bg-highland-gold-light text-obsidian'
+          }`}
+        >
+          {isOutOfStock ? t('bestSellers.outOfStock') : t('bestSellers.buyNow')}
+          {!isOutOfStock && <span className="material-symbols-outlined text-[13px]">shopping_cart</span>}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const BestSellers: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<GroupedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const dispatch = useDispatch();
@@ -29,17 +166,9 @@ const BestSellers: React.FC = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await api.get<Product[]>('/api/products?limit=200&sort=sales');
+        const response = await api.get<GroupedProduct[]>('/api/products/grouped?sort=sales');
         if (response.success && response.data && response.data.length > 0) {
-          const uniqueProducts: Product[] = [];
-          const seenNames = new Set<string>();
-          for (const p of response.data) {
-            const normalizedName = p.name.trim().toLowerCase();
-            if (!seenNames.has(normalizedName)) {
-              uniqueProducts.push(p);
-              seenNames.add(normalizedName);
-            }
-          }
+          const uniqueProducts = [...response.data];
           // Randomize the products before displaying
           for (let i = uniqueProducts.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -61,7 +190,6 @@ const BestSellers: React.FC = () => {
 
   const displayedProducts = useMemo(() => {
     if (products.length === 0) return [];
-    // Show all products
     return products;
   }, [products]);
 
@@ -85,7 +213,6 @@ const BestSellers: React.FC = () => {
           </p>
         </div>
 
-        {/* Grid */}
         {/* Grid */}
         {loading ? (
           /* Loading Skeletons */
@@ -131,93 +258,9 @@ const BestSellers: React.FC = () => {
               gridAutoColumns: 'minmax(240px, 1fr)',
             }}
           >
-            {displayedProducts.map((product) => {
-              const productImageUrl = resolveProductImage(product.image_url, product.name);
-              return (
-                <div
-                  key={product.id}
-                  className="group bg-white dark:bg-obsidian rounded-2xl overflow-hidden border border-border
-                             shadow-sm hover:shadow-lg transition-all duration-400 cursor-pointer flex flex-col"
-                >
-                  {/* Image container */}
-                  <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                    {/* Tag badge */}
-                    {product.tag && (
-                      <div className="absolute top-2 right-2 z-10 px-2 py-0.5 bg-white dark:bg-obsidian
-                                      backdrop-blur-sm text-obsidian dark:text-white font-mono text-[10px]
-                                      rounded-full border border-border">
-                        {product.tag}
-                      </div>
-                    )}
-
-                    {/* Product image with zoom on hover */}
-                    <OptimizedImage
-                      src={productImageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&q=80'}
-                      alt={product.name}
-                      aspectRatio={4 / 5}
-                      sizes="(min-width: 1280px) 220px, (min-width: 768px) 25vw, 50vw"
-                      className="w-full h-full"
-                      imgClassName="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-[1.08]"
-                    />
-
-                    {/* Gradient overlay — appears on hover */}
-                    <div
-                      className="absolute inset-0 bg-gradient-to-t from-[#0D2E10]/60 via-transparent
-                                 to-transparent opacity-0 group-hover:opacity-100
-                                 transition-opacity duration-500 pointer-events-none"
-                    />
-
-                    {/* Price badge — slides up on hover */}
-                    <div
-                      className="absolute bottom-2 left-2 right-2 transform translate-y-3
-                                 opacity-0 group-hover:translate-y-0 group-hover:opacity-100
-                                 transition-all duration-500 pointer-events-none"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-white/90 font-bold">{t('bestSellers.priceFrom')}</span>
-                        <span className="font-display-lg font-bold text-highland-gold text-sm drop-shadow-md">
-                          {product.price ? Number(product.price).toLocaleString() : '—'} {t('common.currency')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card body */}
-                  <div className="p-3 flex flex-col flex-1 bg-white dark:bg-obsidian">
-                    <h3
-                      className="font-display-lg font-bold text-obsidian dark:text-white text-sm mb-1.5
-                                 group-hover:text-highland-gold transition-colors duration-300 line-clamp-2"
-                    >
-                      {product.name}
-                    </h3>
-                    <p className="font-sans text-slate-600 dark:text-slate-300 text-xs leading-snug line-clamp-4 mb-3 flex-1">
-                      {product.description || t('bestSellers.defaultDesc')}
-                    </p>
-
-                    {/* Order button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        dispatch(
-                          openOrderModal({
-                            id: product.id,
-                            name: product.name,
-                            price: product.price,
-                            mode: 'buy_now',
-                          })
-                        );
-                      }}
-                      className="flex items-center justify-center gap-1.5 w-full py-2 mt-auto bg-highland-gold
-                                 hover:bg-highland-gold-light text-obsidian font-mono font-bold text-[11px]
-                                 rounded-lg uppercase tracking-widest transition-colors shadow-md"
-                    >
-                      {t('bestSellers.buyNow')}
-                      <span className="material-symbols-outlined text-[13px]">shopping_cart</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {displayedProducts.map((product) => (
+              <ProductCard key={product.name} product={product} />
+            ))}
           </div>
         )}
 
@@ -239,3 +282,4 @@ const BestSellers: React.FC = () => {
 };
 
 export default BestSellers;
+
