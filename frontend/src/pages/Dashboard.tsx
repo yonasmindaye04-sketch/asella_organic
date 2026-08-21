@@ -10,6 +10,7 @@ import { Heatmap, Pipeline } from '../components/dashboard/HeatmapAndPipeline';
 import AffiliateLeaderboard from '../components/dashboard/AffiliateLeaderboard';
 import LowStockTable from '../components/dashboard/LowStockTable';
 import EmployeePerformance from '../components/dashboard/EmployeePerformance';
+import TimeRangeSelector, { type TimeRangeOption } from '../components/dashboard/TimeRangeSelector';
 
 const getOrderTotal = (o: any) => {
   let items = [];
@@ -29,6 +30,7 @@ const Dashboard: React.FC = () => {
   const isStaff = user?.role === 'staff' || user?.role === 'employee' || user?.role === 'driver' || user?.role === 'delivery';
   const [orders, setOrders] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [activeRange, setActiveRange] = useState<TimeRangeOption>('month');
   
   // Default to previous month to capture dummy data
   const [dateRange, setDateRange] = useState(() => {
@@ -40,6 +42,10 @@ const Dashboard: React.FC = () => {
       to: lastDay.toISOString().split('T')[0],
     };
   });
+
+  const handleRangeChange = (from: string, to: string) => {
+    setDateRange({ from, to });
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,21 +77,13 @@ const Dashboard: React.FC = () => {
   return (
     <DashboardLayout>
       <main className="p-6 space-y-5 max-w-[1440px] mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-4 gap-4">
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border shadow-sm">
-            <input 
-              type="date" 
-              className="text-sm outline-none text-gray-700 bg-transparent"
-              value={dateRange.from}
-              onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-            />
-            <span className="text-gray-400">to</span>
-            <input 
-              type="date" 
-              className="text-sm outline-none text-gray-700 bg-transparent"
-              value={dateRange.to}
-              onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <TimeRangeSelector 
+              activeRange={activeRange} 
+              setActiveRange={setActiveRange} 
+              onRangeChange={handleRangeChange} 
             />
           </div>
         </div>
@@ -118,8 +116,8 @@ const Dashboard: React.FC = () => {
 
         {/* Row 4: Employee Performance + Affiliate Leaderboard (2 cards) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
-          <EmployeePerformance />
-          <AffiliateLeaderboard />
+          <EmployeePerformance from={dateRange.from} to={dateRange.to} />
+          <AffiliateLeaderboard from={dateRange.from} to={dateRange.to} />
         </div>
 
         {/* Row 5: Low Stock Table (1 wide card) */}

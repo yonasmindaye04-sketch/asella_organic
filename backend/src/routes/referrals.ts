@@ -155,14 +155,29 @@ router.post("/affiliates", authenticate, authorise("admin"),
 );
 
 router.get("/affiliates", authenticate, authorise("admin"), async (req, res) => {
-  const { active } = req.query;
+  const { active, from, to } = req.query;
   const conditions: string[] = [];
   const values: unknown[] = [];
+
+  let customerJoinCondition = "";
+  let rcJoinCondition = "";
+  let joinValues: unknown[] = [];
+
+  if (from && to) {
+    const fromStr = `${from} 00:00:00`;
+    const toStr = `${to} 23:59:59`;
+    customerJoinCondition = ` AND c.referred_at BETWEEN ? AND ?`;
+    rcJoinCondition = ` AND rc.calculated_at BETWEEN ? AND ?`;
+    joinValues.push(fromStr, toStr, fromStr, toStr);
+  }
+
   if (active !== undefined) {
     conditions.push(`ap.is_active = ?`);
     values.push(active === "true");
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const queryValues = [...joinValues, ...values];
+
   const [rows] = await pool.query(
     `SELECT
        ap.id, ap.referral_code, ap.is_active,
@@ -176,14 +191,14 @@ router.get("/affiliates", authenticate, authorise("admin"), async (req, res) => 
        COUNT(CASE WHEN rc.status='paid'    THEN 1 END) AS paid_count
      FROM affiliate_profiles ap
      LEFT JOIN staff_users          s  ON ap.user_id = s.id
-     LEFT JOIN customers            c  ON c.referred_by_affiliate_id = ap.id
-     LEFT JOIN referral_commissions rc ON rc.affiliate_id = ap.id
+     LEFT JOIN customers            c  ON c.referred_by_affiliate_id = ap.id${customerJoinCondition}
+     LEFT JOIN referral_commissions rc ON rc.affiliate_id = ap.id${rcJoinCondition}
      ${where}
      GROUP BY ap.id, ap.referral_code, ap.is_active, ap.total_earnings,
               ap.total_referrals, ap.created_at, ap.full_name, ap.email,
               s.full_name, s.username, ap.user_id
-     ORDER BY ap.total_earnings DESC`,
-    values
+     ORDER BY total_commissions_amount DESC`,
+    queryValues
   ) as [any[], any];
   res.json({ success: true, data: rows });
 });

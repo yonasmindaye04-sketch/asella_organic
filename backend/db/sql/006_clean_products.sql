@@ -67,7 +67,7 @@ VALUES
  'Traditionally valued for enhancing vitality, endurance, and overall wellness. 60 count.', false, true, 0, 10, NOW(), NOW()),
 
 ('11111111-0001-0001-0001-000000000010', 'Shilajit Oil', '30ml', 5000, 'Oils',
- '/image/products/Neuherb Shilajit gel 20g.png',
+ '/image/products/Shilajit Oil.png',
  'Provides concentrated mineral support for energy, strength, and cognitive function. 30ml.', false, true, 0, 10, NOW(), NOW()),
 
 -- CHIA SEED

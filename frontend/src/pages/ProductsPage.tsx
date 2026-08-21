@@ -319,12 +319,14 @@ function ProductFormModal({ initial, onClose, onSaved }: ProductFormModalProps) 
                   onChange={e => set('image_url', e.target.value)}
                   placeholder="/image/products/name.png  or  https://drive.google.com/…  or  any cloud storage URL"
                   className="input flex-1" />
-                <label className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 cursor-pointer transition text-sm border border-gray-200"
+                <label className="flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 cursor-pointer transition text-sm border border-gray-200 relative overflow-hidden"
                   title="Upload image to Cloudinary">
                   <span className="material-symbols-outlined">cloud_upload</span>
                   <input type="file"
                     accept="image/*"
-                    className="absolute opacity-0 w-full h-full cursor-pointer"
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    style={{ fontSize: 0 }}
+                    onClick={e => e.stopPropagation()}
                     onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
                     disabled={uploading} />
                 </label>
