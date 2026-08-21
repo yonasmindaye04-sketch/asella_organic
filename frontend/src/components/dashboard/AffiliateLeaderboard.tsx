@@ -9,14 +9,24 @@ interface Affiliate {
   total_commissions_amount: number;
 }
 
-export default function AffiliateLeaderboard() {
+interface AffiliateLeaderboardProps {
+  from?: string;
+  to?: string;
+}
+
+export default function AffiliateLeaderboard({ from, to }: AffiliateLeaderboardProps) {
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAffiliates = async () => {
       try {
-        const res = await api.get<Affiliate[]>('/api/referrals/affiliates?active=true');
+        let url = '/api/referrals/affiliates?active=true';
+        if (from && to) {
+          url += `&from=${from}&to=${to}`;
+        }
+        
+        const res = await api.get<Affiliate[]>(url);
         if (res.success && res.data) {
           const sorted = [...res.data].sort((a, b) => b.total_commissions_amount - a.total_commissions_amount);
           setAffiliates(sorted.slice(0, 5));
@@ -28,7 +38,7 @@ export default function AffiliateLeaderboard() {
       }
     };
     fetchAffiliates();
-  }, []);
+  }, [from, to]);
 
   return (
     <div className="card p-4 lg:p-5 flex flex-col h-full bg-white dark:bg-[#001803] border border-slate-200 dark:border-[#E2F0D9]/20 shadow-sm rounded-xl">

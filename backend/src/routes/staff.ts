@@ -44,7 +44,7 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const { role, search, page = "1", limit = "50" } = req.query as Record<string, string>;
+      const { role, search, page = "1", limit = "50", from, to } = req.query as Record<string, string>;
       const pageNum  = Math.max(1, parseInt(page, 10));
       const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
       const offset   = (pageNum - 1) * limitNum;
@@ -62,6 +62,13 @@ router.get(
       }
 
       const where = `WHERE ${conditions.join(" AND ")}`;
+      
+      let dateFilterStr = "";
+      const dateParams: unknown[] = [];
+      if (from && to) {
+        dateFilterStr = " AND created_at BETWEEN ? AND ?";
+        dateParams.push(`${from} 00:00:00`, `${to} 23:59:59`);
+      }
 
       const [countRows] = await pool.query(
         `SELECT COUNT(*) AS total FROM staff_users ${where}`,
@@ -72,12 +79,12 @@ router.get(
       const [rows] = await pool.query(
         `SELECT id, username, full_name, role, email, phone, telegram_username, active,
                 two_factor_enabled, created_at, updated_at,
-                (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id) AS orders_placed_count,
-                (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id AND status = 'Delivered') AS orders_delivered_count
+                (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id${dateFilterStr}) AS orders_placed_count,
+                (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id AND status = 'Delivered'${dateFilterStr}) AS orders_delivered_count
          FROM staff_users ${where}
          ORDER BY created_at DESC
          LIMIT ? OFFSET ?`,
-        [...params, limitNum, offset]
+        [...dateParams, ...dateParams, ...params, limitNum, offset]
       ) as [any[], any];
 
       log.info("Staff listed", { page: pageNum, limit: limitNum, total });

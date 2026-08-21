@@ -11,7 +11,12 @@ interface Performer {
 
 const colors = ["#34d399", "#38bdf8", "#a78bfa", "#f0a030", "#fb7185", "#2dd4bf", "#818cf8"];
 
-export default function EmployeePerformance() {
+interface EmployeePerformanceProps {
+  from?: string;
+  to?: string;
+}
+
+export default function EmployeePerformance({ from, to }: EmployeePerformanceProps) {
   const [animated, setAnimated] = useState(false);
   const [performers, setPerformers] = useState<Performer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +25,12 @@ export default function EmployeePerformance() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const staffRes = await api.get<any>('/api/staff?limit=20');
+        let url = '/api/staff?limit=20';
+        if (from && to) {
+          url += `&from=${from}&to=${to}`;
+        }
+        
+        const staffRes = await api.get<any>(url);
         const staffData = staffRes.data?.data || staffRes.data;
         const activeStaff: StaffProfile[] = Array.isArray(staffData) ? staffData : [];
 
@@ -45,7 +55,7 @@ export default function EmployeePerformance() {
     fetchData();
     const timer = setTimeout(() => setAnimated(true), 400);
     return () => clearTimeout(timer);
-  }, []);
+  }, [from, to]);
 
   return (
     <div className="card p-5 h-full animate-in" style={{ animationDelay: "0.3s" }}>
