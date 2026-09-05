@@ -25,6 +25,7 @@ import {
 } from "../schemas/index.js";
 import {
   sendOrderToAdmin,
+  sendAdminOrderAlert,
   sendToDeliveryGroup,
   sendSimpleMessage,
   sendTelegramToCustomer,
@@ -209,13 +210,25 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     })();
 
     const isFranchise = (fields.notes as string | undefined)?.includes("Franchise Type:");
+    const cityLower = (fields.city as string || "").toLowerCase();
+    const isAddisAbaba = cityLower === "addis ababa";
+    const isAbroad = cityLower === "abroad";
+
     if (isFranchise) {
+      // Franchise/bulk orders always go to admin (existing behaviour)
       void sendOrderToAdmin({ id: orderId, ...fields, total, items, message_type: "franchise" });
-    } else {
-      void sendOrderToAdmin({ id: orderId, ...fields, total, items });
-      if (fields.order_type === "delivery" && fields.city.toLowerCase() === "addis ababa") {
-        void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
-      }
+    } else if (isAbroad) {
+      // Abroad orders: full details to admin with a clear label
+      void sendAdminOrderAlert({ id: orderId, ...fields, total, items }, "Abroad Order ");
+    } else if (isAddisAbaba && fields.order_type === "delivery") {
+      // Standard Addis Ababa delivery: route to the delivery group (unchanged)
+      void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
+    } else if (!isAddisAbaba) {
+      // Other regions (pickup OR delivery outside Addis): notify admin directly
+      void sendAdminOrderAlert(
+        { id: orderId, ...fields, total, items },
+        "Other Region Order "
+      );
     }
     void mirrorToSheets({ id: orderId, ...fields, total, items });
     void sendTelegramToCustomer({
@@ -249,10 +262,13 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
 
   try {
     const [orders] = await pool.query(
-      `SELECT id, customer_name, phone, status, total, city, location,
-              order_type, notes, created_at, updated_at, delivery_date, created_by_staff_id
-       FROM orders
-       WHERE id = ? AND deleted_at IS NULL
+      `SELECT o.id, o.customer_name, o.phone, o.status, o.total, o.city, o.location,
+              o.order_type, o.notes, o.created_at, o.updated_at, o.delivery_date,
+              o.created_by_staff_id,
+              su.full_name AS created_by_staff_name
+       FROM orders o
+       LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
+       WHERE o.id = ? AND o.deleted_at IS NULL
        LIMIT 1`,
       [orderId]
     ) as [any[], any];
@@ -328,7 +344,10 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
     const total = parseInt(countRows[0].count as string, 10);
 
     const [data] = await pool.query(
-      `SELECT o.* FROM orders o ${where}
+      `SELECT o.*, su.full_name AS created_by_staff_name
+       FROM orders o
+       LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
+       ${where}
        ORDER BY o.created_at DESC LIMIT ? OFFSET ?`,
       [...values, limitNum, offset]
     ) as [any[], any];
@@ -378,7 +397,10 @@ router.get(
     const log = createLogger(req);
     try {
       const [orders] = await pool.query(
-        `SELECT o.* FROM orders o WHERE o.id = ? AND o.deleted_at IS NULL`,
+        `SELECT o.*, su.full_name AS created_by_staff_name
+         FROM orders o
+         LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
+         WHERE o.id = ? AND o.deleted_at IS NULL`,
         [req.params.id]
       ) as [any[], any];
 

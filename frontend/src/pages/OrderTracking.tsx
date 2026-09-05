@@ -42,6 +42,8 @@ interface Order {
   created_at: string;
   updated_at?: string;
   employee_id?: string;
+  created_by_staff_id?: string;
+  created_by_staff_name?: string;
   items?: OrderItem[];
   history?: OrderHistory[];
 }
@@ -515,6 +517,7 @@ const OrderTracking: React.FC = () => {
         </td>
         <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
         <td className="px-4 py-3"><div className="h-3 bg-gray-200 rounded w-20"></div></td>
+        <td className="px-4 py-3"><div className="h-3 bg-gray-200 rounded w-24"></div></td>
         <td className="px-4 py-3"><div className="h-3 bg-gray-200 rounded w-32"></div></td>
         <td className="px-4 py-3"><div className="h-3 bg-gray-200 rounded w-16"></div></td>
         <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
@@ -617,8 +620,11 @@ const OrderTracking: React.FC = () => {
               <option value="">Set status...</option>
               {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <button onClick={handleBulkApply} className="px-2 py-1 bg-[#2e7d32] text-white rounded-md text-[11px] font-extrabold ml-1 hover:bg-[#1b3d1e]">Apply</button>
-            <button onClick={clearSelection} className="px-2 py-1 bg-red-500 text-white rounded-md text-[11px] font-extrabold ml-1 hover:bg-red-600">✕</button>
+            <button onClick={clearSelection} className="px-2 py-1 bg-red-500 text-white rounded-md text-[11px] font-extrabold ml-1 hover:bg-red-600 flex items-center justify-center" aria-label="Clear selection">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         )}
       </div>
@@ -639,6 +645,7 @@ const OrderTracking: React.FC = () => {
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('id')}>Order ID {sortCol === 'id' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('customer_name')}>Customer {sortCol === 'customer_name' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('source')}>Source {sortCol === 'source' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap">Employee</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('created_at')}>Date {sortCol === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap">Items</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('total')}>Value ETB {sortCol === 'total' && (sortDir === 'asc' ? '↑' : '↓')}</th>
@@ -649,7 +656,7 @@ const OrderTracking: React.FC = () => {
             <tbody>
               {loading ? renderSkeletons() : paginatedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={10}>
                     <div className="flex flex-col items-center justify-center p-16 gap-2 text-[#607d66]">
                       <span className="material-symbols-outlined text-[35px] opacity-20">inbox</span>
                       <p className="text-sm">No orders match the current filters.</p>
@@ -678,6 +685,9 @@ const OrderTracking: React.FC = () => {
                       >
                         {getSourceLabel(o)}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] text-[#2d3e2f] font-medium">
+                      {o.created_by_staff_name || '—'}
                     </td>
                     <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] text-[#607d66]">
                       {o.created_at ? new Date(o.created_at).toLocaleString('en-GB') : '—'}
@@ -744,6 +754,7 @@ const OrderTracking: React.FC = () => {
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Order Type</label><span className="text-[13px] text-[#141c15] font-medium block">{selectedOrder.order_type || '—'}</span></div>
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Submitted</label><span className="text-[12px] text-[#141c15] font-medium block">{new Date(selectedOrder.created_at).toLocaleString('en-GB')}</span></div>
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Delivery</label><span className="text-[12px] text-[#141c15] font-medium block">{selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString('en-GB') : '—'}</span></div>
+                    <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Placed By</label><span className="text-[13px] text-[#141c15] font-medium block">{selectedOrder.created_by_staff_name || '—'}</span></div>
                   </div>
                 </div>
 

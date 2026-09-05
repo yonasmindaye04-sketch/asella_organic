@@ -58,12 +58,12 @@ async function poll() {
         });
         
         if (!forwardRes.ok) {
-          console.error(`  ❌ Failed to forward to webhook: ${forwardRes.status}`);
+          console.error(`  [ERROR] Failed to forward to webhook: ${forwardRes.status}`);
         } else {
-          console.log(`  ✅ Successfully forwarded to webhook`);
+          console.log(`  [OK] Successfully forwarded to webhook`);
         }
       } catch (err: any) {
-        console.error(`  ❌ Failed to reach local backend at ${TARGET_URL}: ${err.message}`);
+        console.error(`  [ERROR] Failed to reach local backend at ${TARGET_URL}: ${err.message}`);
       }
     }
 

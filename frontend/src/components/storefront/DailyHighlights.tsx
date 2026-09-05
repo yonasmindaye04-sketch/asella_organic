@@ -55,7 +55,7 @@ const DailyHighlights: React.FC = () => {
             name: product.name,
             tagKey: m.tagKey,
             desc: product.description || "default_desc",
-            icon: "🌿",
+            icon: "",
             bgFrom: "#c8960a",
             bgTo: "#6b3a08",
             image: m.image,

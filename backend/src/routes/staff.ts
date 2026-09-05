@@ -80,11 +80,14 @@ router.get(
         `SELECT id, username, full_name, role, email, phone, telegram_username, active,
                 two_factor_enabled, created_at, updated_at,
                 (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id${dateFilterStr}) AS orders_placed_count,
-                (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id AND status = 'Delivered'${dateFilterStr}) AS orders_delivered_count
+                (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id AND status = 'Delivered'${dateFilterStr}) AS orders_delivered_count,
+                (SELECT COALESCE(SUM(total),0) FROM orders
+                 WHERE created_by_staff_id = staff_users.id
+                   AND status NOT IN ('Cancelled','CANCELLED')${dateFilterStr}) AS revenue_generated
          FROM staff_users ${where}
          ORDER BY created_at DESC
          LIMIT ? OFFSET ?`,
-        [...dateParams, ...dateParams, ...params, limitNum, offset]
+        [...dateParams, ...dateParams, ...dateParams, ...params, limitNum, offset]
       ) as [any[], any];
 
       log.info("Staff listed", { page: pageNum, limit: limitNum, total });
@@ -95,6 +98,178 @@ router.get(
       });
     } catch (err) {
       log.error("Failed to list staff", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/staff/:id/performance  — full analytics for one employee
+// ─────────────────────────────────────────────────────────────────────────────
+router.get(
+  "/:id/performance",
+  authenticate,
+  authorise("admin", "manager"),
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    try {
+      const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      if (!staffId || !isValidUUID(staffId)) {
+        res.status(400).json({ success: false, error: "Invalid staff ID" });
+        return;
+      }
+
+      const { from, to } = req.query as Record<string, string | undefined>;
+
+      // Build date filter clause + params
+      let dateFilter = "";
+      const dp: unknown[] = [];
+      if (from && to) {
+        dateFilter = " AND o.created_at BETWEEN ? AND ?";
+        dp.push(`${from} 00:00:00`, `${to} 23:59:59`);
+      }
+
+      // ── 1. Staff info ────────────────────────────────────────────
+      const [staffRows] = await pool.query(
+        `SELECT id, full_name, role, email, phone, created_at
+         FROM staff_users WHERE id = ? AND deleted_at IS NULL`,
+        [staffId]
+      ) as [any[], any];
+      if (!staffRows[0]) {
+        res.status(404).json({ success: false, error: "Staff member not found" });
+        return;
+      }
+
+      // ── 2. Summary KPIs ──────────────────────────────────────────
+      const [summaryRows] = await pool.query(
+        `SELECT
+           COUNT(*)                                                         AS total_orders,
+           SUM(o.status = 'Delivered')                                      AS delivered,
+           SUM(o.status IN ('Cancelled','CANCELLED'))                       AS cancelled,
+           SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED'))       AS pending,
+           COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue,
+           COALESCE(AVG(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total END),0)         AS avg_order_value,
+           MIN(o.created_at)                                                AS first_order_at,
+           MAX(o.created_at)                                                AS last_order_at
+         FROM orders o
+         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}`,
+        [staffId, ...dp]
+      ) as [any[], any];
+      const s = summaryRows[0] || {};
+      const totalOrders   = Number(s.total_orders   || 0);
+      const delivered     = Number(s.delivered       || 0);
+      const cancelled     = Number(s.cancelled       || 0);
+      const pending       = Number(s.pending         || 0);
+      const revenue       = Number(s.revenue         || 0);
+      const avgOrderValue = Number(s.avg_order_value || 0);
+
+      // days between first and last order (or 1 minimum)
+      const daySpan = s.first_order_at && s.last_order_at
+        ? Math.max(1, Math.ceil((new Date(s.last_order_at).getTime() - new Date(s.first_order_at).getTime()) / 86_400_000) + 1)
+        : 1;
+      const ordersPerDay      = totalOrders   / daySpan;
+      const deliveryRate      = totalOrders > 0 ? (delivered / totalOrders) * 100 : 0;
+      const cancellationRate  = totalOrders > 0 ? (cancelled / totalOrders) * 100 : 0;
+
+      // ── 3. Revenue over time (daily) ─────────────────────────────
+      const [revenueRows] = await pool.query(
+        `SELECT DATE(o.created_at) AS date,
+                COUNT(*)            AS orders,
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
+         FROM orders o
+         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         GROUP BY DATE(o.created_at)
+         ORDER BY date ASC`,
+        [staffId, ...dp]
+      ) as [any[], any];
+
+      // ── 4. By channel / source ───────────────────────────────────
+      const [channelRows] = await pool.query(
+        `SELECT o.source,
+                COUNT(*) AS orders,
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
+         FROM orders o
+         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         GROUP BY o.source
+         ORDER BY revenue DESC`,
+        [staffId, ...dp]
+      ) as [any[], any];
+
+      // ── 5. Top products ──────────────────────────────────────────
+      const [productRows] = await pool.query(
+        `SELECT oi.item_name,
+                oi.package_size,
+                SUM(oi.quantity)                  AS qty,
+                SUM(oi.quantity * oi.unit_price)  AS revenue,
+                COUNT(DISTINCT o.id)              AS order_count
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         WHERE o.created_by_staff_id = ?
+           AND o.deleted_at IS NULL
+           AND o.status NOT IN ('Cancelled','CANCELLED')${dateFilter.replace(/o\./g, "o.")}
+         GROUP BY oi.item_name, oi.package_size
+         ORDER BY revenue DESC
+         LIMIT 10`,
+        [staffId, ...dp]
+      ) as [any[], any];
+
+      // ── 6. By city ───────────────────────────────────────────────
+      const [cityRows] = await pool.query(
+        `SELECT o.city,
+                COUNT(*) AS orders,
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
+         FROM orders o
+         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         GROUP BY o.city
+         ORDER BY revenue DESC`,
+        [staffId, ...dp]
+      ) as [any[], any];
+
+      // ── 7. Peak hours ─────────────────────────────────────────────
+      const [hourRows] = await pool.query(
+        `SELECT HOUR(o.created_at) AS hour, COUNT(*) AS orders
+         FROM orders o
+         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         GROUP BY HOUR(o.created_at)
+         ORDER BY hour ASC`,
+        [staffId, ...dp]
+      ) as [any[], any];
+
+      // ── 8. Recent orders ─────────────────────────────────────────
+      const [recentRows] = await pool.query(
+        `SELECT o.id, o.customer_name, o.city, o.source, o.total, o.status, o.created_at
+         FROM orders o
+         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         ORDER BY o.created_at DESC
+         LIMIT 15`,
+        [staffId, ...dp]
+      ) as [any[], any];
+
+      res.json({
+        success: true,
+        data: {
+          staff: staffRows[0],
+          summary: {
+            total_orders:      totalOrders,
+            delivered,
+            cancelled,
+            pending,
+            revenue,
+            avg_order_value:   Math.round(avgOrderValue),
+            delivery_rate:     Number(deliveryRate.toFixed(1)),
+            cancellation_rate: Number(cancellationRate.toFixed(1)),
+            orders_per_day:    Number(ordersPerDay.toFixed(1)),
+          },
+          revenue_over_time: revenueRows,
+          by_channel:        channelRows,
+          top_products:      productRows,
+          by_city:           cityRows,
+          peak_hours:        hourRows,
+          recent_orders:     recentRows,
+        },
+      });
+    } catch (err) {
+      log.error("Failed to fetch staff performance", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }

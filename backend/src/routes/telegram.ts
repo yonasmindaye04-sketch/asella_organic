@@ -11,14 +11,31 @@ import {
   editMessageReplyMarkup,
   editMessageText,
   sendDetailsToAssignedDriver,
+  sendDetailsToGroupAsReply,
   sendSimpleMessage,
   sendTelegramToCustomer,
   sendToDeliveryGroup,
   sendWithButtons,
+  setChatMenuButton,
+  getBotMe,
+  getWebhookInfo,
+  setWebhook,
+  deleteWebhook,
+  initBotConfiguration,
+  sendTelegramPush,
 } from "../lib/telegram.js";
 import { mirrorDeliveryAssignmentToSheets, mirrorOrderStatusToSheets } from "../lib/sheets.js";
+import { validateTelegramInitData } from "../lib/telegram-auth.js";
 
 const router = Router();
+
+function getStoreUrl(): string {
+  if (process.env.TELEGRAM_MINIAPP_URL) {
+    return process.env.TELEGRAM_MINIAPP_URL;
+  }
+  const baseUrl = process.env.PUBLIC_URL || "https://asellaorganic.com";
+  return `${baseUrl.replace(/\/$/, "")}/telegram-store`;
+}
 
 const verifyTelegramWebhook = (token?: string) => token === process.env.TELEGRAM_WEBHOOK_SECRET;
 
@@ -65,16 +82,20 @@ const ORDER_HELP = [
 // ─── Interactive menu helpers ─────────────────────────────────────────
 
 async function sendRoleMenu(chatId: number): Promise<void> {
+  const storeUrl = getStoreUrl();
   await sendWithButtons(chatId,
-    "*Welcome to Asella Organic Bot*\n\nPlease select your role:",
+    "*Welcome to Asella Organic*\n\nPlease select an option:",
     [
       [
-        { text: "Staff", callback_data: "role:staff" },
-        { text: "Vendor", callback_data: "role:vendor" },
+        { text: "Open Organic Store", web_app: { url: storeUrl } },
       ],
       [
-        { text: "Customer", callback_data: "role:customer" },
-        { text: "Driver", callback_data: "role:driver" },
+        { text: "Customer Menu", callback_data: "role:customer" },
+        { text: "Driver Login", callback_data: "role:driver" },
+      ],
+      [
+        { text: "Staff Login", callback_data: "role:staff" },
+        { text: "Vendor Menu", callback_data: "role:vendor" },
       ],
     ]
   );
@@ -83,33 +104,39 @@ async function sendRoleMenu(chatId: number): Promise<void> {
 async function sendStaffRoleMenu(chatId: number | string, role: string, fullName: string): Promise<void> {
   const greeting = `*Welcome back, ${fullName}!* (${role})\n\n`;
 
-  const commonButtons: Array<Array<{ text: string; callback_data?: string; url?: string }>> = [
-    [{ text: "🔍 Track Order", callback_data: "staff:track" }],
-    [{ text: "📦 Place Order", callback_data: "menu_order" }],
+  const commonButtons: Array<Array<{ text: string; callback_data?: string; url?: string; web_app?: { url: string } }>> = [
+    [{ text: "Open Store", web_app: { url: getStoreUrl() } }],
+    [{ text: "Track Order", callback_data: "staff:track" }],
+    [{ text: "Place Order", callback_data: "menu_order" }],
   ];
 
   if (role === "admin" || role === "manager") {
-    commonButtons.unshift([{ text: "📋 View Orders", callback_data: "staff:orders" }]);
+    commonButtons.unshift([{ text: "View Orders", callback_data: "staff:orders" }]);
   }
 
   if (role === "admin") {
-    commonButtons.push([{ text: "📊 Dashboard", url: "https://app.asellaorganic.com/dashboard" }]);
+    commonButtons.push([{ text: "Dashboard", url: "https://app.asellaorganic.com/dashboard" }]);
   }
 
-  commonButtons.push([{ text: "🚪 Logout", callback_data: "staff:logout" }]);
+  commonButtons.push([{ text: "Logout", callback_data: "staff:logout" }]);
 
   await sendWithButtons(chatId, greeting + "Select an option:", commonButtons);
 }
 
 async function sendCustomerMenu(chatId: number): Promise<void> {
+  const storeUrl = getStoreUrl();
   await sendWithButtons(chatId,
-    "*Customer Menu*\n\nChoose an option:",
+    "*Customer Menu*\n\nExplore 100% natural organic health products:",
     [
       [
-        { text: "Place New Order", callback_data: "menu_order" },
-        { text: "Order Tracking", callback_data: "menu_track" },
+        { text: "Open Organic Store", web_app: { url: storeUrl } },
       ],
       [
+        { text: "Track Order", callback_data: "menu_track" },
+        { text: "My Orders", callback_data: "menu_myorders" },
+      ],
+      [
+        { text: "Text Order Flow", callback_data: "menu_order" },
         { text: "Help", callback_data: "menu_help" },
       ],
     ]
@@ -186,7 +213,7 @@ async function showProductCatalog(chatId: number, page = 0): Promise<void> {
 
   const nav = [];
   if (page > 0) nav.push({ text: "Back", callback_data: `page:${page - 1}` });
-  nav.push({ text: "✅ Done", callback_data: "order_done_items" });
+  nav.push({ text: "Done", callback_data: "order_done_items" });
   const [countRows] = await pool.query(
     `SELECT COUNT(DISTINCT name) AS cnt FROM products WHERE active = TRUE`
   ) as [any[], any];
@@ -213,7 +240,7 @@ async function showSizes(chatId: number, productName: string): Promise<void> {
   const buttons = rows.map((r: any) => {
     const label = r.inventory_quantity > 0
       ? `${r.package_size} — ETB ${Number(r.price).toLocaleString()}`
-      : `${r.package_size} — ❌ Out of stock`;
+      : `${r.package_size} — Out of stock`;
     return [{ text: label, callback_data: `size:${r.id}` }];
   });
 
@@ -255,8 +282,8 @@ async function confirmOrderSummary(chatId: number, state: ConvState): Promise<vo
   userState.set(chatId, { ...state, step: "confirming" });
   await sendWithButtons(chatId, summary, [
     [
-      { text: "✅ Confirm Order", callback_data: "confirm:yes" },
-      { text: "❌ Cancel", callback_data: "confirm:no" },
+      { text: "Confirm Order", callback_data: "confirm:yes" },
+      { text: "Cancel", callback_data: "confirm:no" },
     ],
   ]);
 }
@@ -283,10 +310,10 @@ async function submitInteractiveOrder(chatId: number, state: ConvState): Promise
 
     userState.delete(chatId);
     await sendSimpleMessage(chatId,
-      `✅ *Order Placed!*\n\nYour order *${created.id}* has been received.\nTotal: ETB ${created.total.toLocaleString()}\n\nWe'll update you here when the status changes.`
+      `*Order Placed*\n\nYour order *${created.id}* has been received.\nTotal: ETB ${created.total.toLocaleString()}\n\nWe will update you here when the status changes.`
     );
   } catch (err: any) {
-    await sendSimpleMessage(chatId, `❌ I could not create that order: ${err.message}`);
+    await sendSimpleMessage(chatId, `Could not create that order: ${err.message}`);
   }
 }
 
@@ -849,7 +876,7 @@ async function handleCallback(query: any): Promise<void> {
           const [rows] = await pool.query(`SELECT assigned_to FROM orders WHERE id = ?`, [orderId]) as [any[], any];
           const takenBy = rows[0]?.assigned_to;
           if (takenBy) {
-            await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: @${escapeMarkdown(takenBy)}`);
+            await removeButtons(`${message?.text || "Order Details"}\n\nAccepted by: @${escapeMarkdown(takenBy)}`);
           }
           console.log(`[delivery_accept] Calling answerCallbackQuery (Already taken)`);
           await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver.", true);
@@ -858,7 +885,7 @@ async function handleCallback(query: any): Promise<void> {
 
         // Claim succeeded — update message in group and answer callback
         console.log(`[delivery_accept] Claim successful! Updating message...`);
-        await removeButtons(`${message?.text || "Order Details"}\n\n✅ Accepted by: ${escapeMarkdown(driverDisplayName)} (@${escapeMarkdown(driverUsername)})`);
+        await removeButtons(`${message?.text || "Order Details"}\n\nAccepted by: ${escapeMarkdown(driverDisplayName)} (@${escapeMarkdown(driverUsername)})`);
         
         console.log(`[delivery_accept] Calling answerCallbackQuery (Success)`);
         await answerCallbackQuery(callbackQueryId, "Accepted! Sending you the details...", false);
@@ -898,7 +925,23 @@ async function handleCallback(query: any): Promise<void> {
 
           const [items] = await pool.query(`SELECT * FROM order_items WHERE order_id = ?`, [orderId]) as [any[], any];
           console.log(`[delivery_accept] Sending details to driver ${driverChatId}`);
-          await sendDetailsToAssignedDriver(driverChatId, { ...order, items });
+          const dmSent = await sendDetailsToAssignedDriver(driverChatId, { ...order, items });
+
+          if (!dmSent) {
+            // Driver hasn't started the bot in private — can't DM them.
+            // Post the full order details as a reply in the delivery group so
+            // they still receive the information immediately.
+            console.warn(`[delivery_accept] DM to driver ${driverChatId} failed (bot not started). Falling back to group reply.`);
+            const fallbackGroupId = message?.chat?.id ?? process.env.TELEGRAM_DELIVERY_GROUP_ID;
+            if (fallbackGroupId) {
+              await sendDetailsToGroupAsReply(
+                fallbackGroupId,
+                messageId,
+                driverDisplayName,
+                { ...order, items }
+              );
+            }
+          }
 
           console.log(`[delivery_accept] Notifying customer...`);
           void sendTelegramToCustomer({
@@ -1032,7 +1075,7 @@ async function handleMessage(message: any): Promise<void> {
         await sendWithButtons(chatId,
           `Welcome *${user.full_name}* (${user.role}).\n\nPlease confirm your identity to access staff features.`,
           [
-            [{ text: "✅ Confirm Identity", callback_data: "staff:confirm" }],
+            [{ text: "Confirm Identity", callback_data: "staff:confirm" }],
             [{ text: "Cancel", callback_data: "staff:cancel" }],
           ]
         );
@@ -1111,6 +1154,18 @@ async function handleMessage(message: any): Promise<void> {
         return;
       }
       await sendRoleMenu(chatId);
+      return;
+    }
+
+    if (text === "/store" || text === "/shop" || text === "store" || text === "shop") {
+      const storeUrl = getStoreUrl();
+      await sendWithButtons(chatId,
+        "*Asella Organic Store*\n\nBrowse 100% natural health supplements and organic remedies directly inside Telegram:",
+        [
+          [{ text: "Open Organic Store", web_app: { url: storeUrl } }],
+          [{ text: "Track Existing Order", callback_data: "menu_track" }],
+        ]
+      );
       return;
     }
 
@@ -1292,6 +1347,413 @@ router.get("/set-webhook", async (_req: Request, res: Response): Promise<void> =
       res.json({ success: true, webhookUrl, result: data, webhookInfo: info });
     } else {
       res.status(500).json({ success: false, error: data.description, webhookUrl });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Telegram Mini App Endpoints ─────────────────────────────────────
+
+// POST /api/telegram/validate-init-data — Validates Telegram WebApp initData
+router.post("/validate-init-data", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const initData = (req.body?.initData || req.headers["x-telegram-init-data"]) as string;
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+
+    if (!token) {
+      res.status(500).json({ success: false, error: "Bot token not configured on server" });
+      return;
+    }
+
+    if (!initData) {
+      res.status(400).json({ success: false, error: "Missing initData payload" });
+      return;
+    }
+
+    const validation = validateTelegramInitData(initData, token);
+    if (!validation.valid || !validation.user) {
+      res.status(401).json({ success: false, error: validation.error || "Invalid authentication data" });
+      return;
+    }
+
+    const tgUser = validation.user;
+
+    // Upsert into telegram_users table
+    await pool.query(
+      `INSERT INTO telegram_users (chat_id, username, first_name, last_name, registered_at)
+       VALUES (?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         username = VALUES(username),
+         first_name = VALUES(first_name),
+         last_name = VALUES(last_name),
+         last_seen = NOW()`,
+      [tgUser.id, tgUser.username ?? null, tgUser.first_name, tgUser.last_name ?? null]
+    );
+
+    // Look up customer linked to this chat_id
+    const [customers] = await pool.query(
+      `SELECT id, name, phone, city, location, email FROM customers WHERE telegram_chat_id = ? LIMIT 1`,
+      [tgUser.id]
+    ) as [any[], any];
+
+    res.json({
+      success: true,
+      data: {
+        user: tgUser,
+        customer: customers[0] || null,
+        startParam: validation.startParam,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to validate Telegram user" });
+  }
+});
+
+// POST /api/telegram/app-order — Mini App order placement
+router.post("/app-order", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const initData = (req.body?.initData || req.headers["x-telegram-init-data"]) as string;
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    let verifiedChatId: number | null = null;
+
+    if (initData && token) {
+      const validation = validateTelegramInitData(initData, token);
+      if (validation.valid && validation.user) {
+        verifiedChatId = validation.user.id;
+      }
+    }
+
+    const parsed = CreateOrderSchema.safeParse({
+      ...req.body,
+      source: "telegram",
+    });
+
+    if (!parsed.success) {
+      const firstError = Object.values(parsed.error.flatten().fieldErrors).flat()[0];
+      res.status(422).json({
+        success: false,
+        error: firstError ?? "Order validation failed",
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const { referral_code, items, ...fields } = parsed.data;
+    const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const customerId = crypto.randomUUID();
+      await connection.query(
+        `INSERT INTO customers (id, phone, name, city, location, gender, age_group, telegram_chat_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           name = VALUES(name),
+           city = VALUES(city),
+           location = VALUES(location),
+           telegram_chat_id = COALESCE(VALUES(telegram_chat_id), telegram_chat_id),
+           updated_at = NOW()`,
+        [
+          customerId,
+          fields.phone,
+          fields.customer_name,
+          fields.city,
+          fields.location,
+          fields.gender ?? null,
+          fields.age_group ?? null,
+          verifiedChatId,
+        ]
+      );
+
+      const [custRows] = await connection.query(
+        `SELECT id FROM customers WHERE phone = ?`,
+        [fields.phone]
+      ) as [any[], any];
+
+      await connection.query(
+        `INSERT INTO orders
+           (id, source, customer_name, phone, location, city, gender, age_group,
+            order_type, status, total, notes, customer_id, delivery_date, payment_status)
+         VALUES (?, 'telegram', ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, 'Pending')`,
+        [
+          orderId,
+          fields.customer_name,
+          fields.phone,
+          fields.location,
+          fields.city,
+          fields.gender ?? null,
+          fields.age_group ?? null,
+          fields.order_type,
+          total,
+          fields.notes ?? null,
+          custRows[0].id,
+          fields.delivery_date ?? null,
+        ]
+      );
+
+      for (const item of items) {
+        const [prodRows] = await connection.query(
+          `SELECT id, unit_cost FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? LIMIT 1`,
+          [item.name, item.package_size]
+        ) as [any[], any];
+        const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
+        const productId = prodRows.length ? prodRows[0].id : null;
+
+        await connection.query(
+          `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, unitCost, productId]
+        );
+      }
+
+      await connection.query(
+        `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
+         VALUES (?, ?, NULL, 'Pending', 'telegram-miniapp', 'Order placed via Telegram Mini App', NOW())`,
+        [crypto.randomUUID(), orderId]
+      );
+
+      await connection.commit();
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+
+    // Delivery routing to staff/delivery group
+    if (fields.order_type === "delivery") {
+      void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
+    }
+
+    // Direct Telegram Receipt Message to Customer
+    if (verifiedChatId) {
+      const itemsText = items
+        .map((i, idx) => `${idx + 1}. ${i.name} [${i.package_size}] x ${i.quantity} - ETB ${(i.quantity * i.unit_price).toLocaleString()}`)
+        .join("\n");
+      const receipt = [
+        `*Order Confirmation*`,
+        `----------------------------------`,
+        `*Order ID:* ${orderId}`,
+        `*Customer:* ${fields.customer_name}`,
+        `*Phone:* ${fields.phone}`,
+        `*Location:* ${fields.location}, ${fields.city}`,
+        `*Delivery Type:* ${fields.order_type === "delivery" ? "Delivery" : "Store Pickup"}`,
+        ``,
+        `*Items Ordered:*`,
+        itemsText,
+        ``,
+        `*Total:* ETB ${total.toLocaleString()}`,
+        `----------------------------------`,
+        `Thank you for choosing Asella Organic. You will receive real-time updates directly in this chat as your order is prepared and delivered.`,
+      ].join("\n");
+
+      void sendSimpleMessage(verifiedChatId, receipt);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: orderId,
+        total,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to create order" });
+  }
+});
+
+// GET /api/telegram/my-orders — Fetch customer orders
+router.get("/my-orders", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const initData = (req.query.initData || req.headers["x-telegram-init-data"]) as string;
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    let chatId = req.query.chat_id ? Number(req.query.chat_id) : null;
+
+    if (initData && token) {
+      const validation = validateTelegramInitData(initData, token);
+      if (validation.valid && validation.user) {
+        chatId = validation.user.id;
+      }
+    }
+
+    if (!chatId && !req.query.phone) {
+      res.status(400).json({ success: false, error: "Missing chat_id or authentication" });
+      return;
+    }
+
+    const conditions: string[] = ["o.deleted_at IS NULL"];
+    const params: any[] = [];
+
+    if (chatId) {
+      conditions.push("(c.telegram_chat_id = ? OR o.notes LIKE ?)");
+      params.push(chatId, `%tg:${chatId}%`);
+    } else if (req.query.phone) {
+      conditions.push("c.phone = ?");
+      params.push(req.query.phone);
+    }
+
+    const [orders] = await pool.query(
+      `SELECT o.id, o.status, o.total, o.order_type, o.city, o.location, o.created_at, o.payment_status
+       FROM orders o
+       JOIN customers c ON c.phone = o.phone
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY o.created_at DESC
+       LIMIT 20`,
+      params
+    ) as [any[], any];
+
+    const orderIds = orders.map((o: any) => o.id);
+    const itemsByOrder: Record<string, any[]> = {};
+
+    if (orderIds.length > 0) {
+      const [itemRows] = await pool.query(
+        `SELECT order_id, item_name, package_size, quantity, unit_price
+         FROM order_items WHERE order_id IN (?)`,
+        [orderIds]
+      ) as [any[], any];
+
+      for (const item of itemRows) {
+        const list = itemsByOrder[item.order_id] ?? [];
+        list.push(item);
+        itemsByOrder[item.order_id] = list;
+      }
+    }
+
+    const result = orders.map((o: any) => ({
+      ...o,
+      items: itemsByOrder[o.id] || [],
+    }));
+
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to retrieve orders" });
+  }
+});
+
+// POST /api/telegram/set-menu-button — Sets the chat menu button in Telegram
+router.post("/set-menu-button", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const storeUrl = getStoreUrl();
+    const result = await setChatMenuButton(storeUrl, "Store");
+
+    if (result && result.ok) {
+      res.json({ success: true, menuButtonUrl: storeUrl, result });
+    } else {
+      res.status(500).json({ success: false, error: result?.description || "Failed to set menu button", storeUrl });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Error setting menu button" });
+  }
+});
+
+// GET /api/telegram/health — Bot health & webhook diagnostics
+router.get("/health", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const me = await getBotMe();
+    const webhookInfo = await getWebhookInfo();
+
+    if (!me || !me.ok) {
+      res.status(503).json({
+        status: "error",
+        error: me?.description || "Failed to reach Telegram Bot API",
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    res.json({
+      status: "ok",
+      bot: me.result,
+      webhook: webhookInfo?.result || null,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(503).json({
+      status: "error",
+      error: err.message || "Bot health check failed",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// GET /api/telegram/info — Bot metadata
+router.get("/info", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const me = await getBotMe();
+    if (!me || !me.ok) {
+      res.status(503).json({ success: false, error: me?.description || "Failed to fetch bot info" });
+      return;
+    }
+    res.json({ success: true, data: me.result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/telegram/set-webhook — Sets the production webhook URL
+router.post("/set-webhook", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const webhookUrl = req.body?.url || `${(process.env.PUBLIC_URL || "https://asellaorganic.com").replace(/\/$/, "")}/api/telegram/webhook`;
+    const secret = req.body?.secretToken || process.env.TELEGRAM_WEBHOOK_SECRET;
+
+    const result = await setWebhook(webhookUrl, secret);
+    if (result && result.ok) {
+      res.json({ success: true, url: webhookUrl, result });
+    } else {
+      res.status(500).json({ success: false, error: result?.description || "Failed to set webhook", result });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/telegram/delete-webhook — Deletes webhook
+router.post("/delete-webhook", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const dropPending = req.body?.dropPendingUpdates !== false;
+    const result = await deleteWebhook(dropPending);
+    if (result && result.ok) {
+      res.json({ success: true, result });
+    } else {
+      res.status(500).json({ success: false, error: result?.description || "Failed to delete webhook", result });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/telegram/configure-bot — Triggers full bot synchronization
+router.post("/configure-bot", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const success = await initBotConfiguration();
+    if (success) {
+      res.json({ success: true, message: "Bot configuration and commands synchronized successfully." });
+    } else {
+      res.status(500).json({ success: false, error: "Bot synchronization failed. Check logs and TELEGRAM_BOT_TOKEN." });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/telegram/send-push — Pushes notification to chat
+router.post("/send-push", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { chatId, message } = req.body || {};
+    if (!chatId || !message) {
+      res.status(400).json({ success: false, error: "Missing chatId or message" });
+      return;
+    }
+
+    const sent = await sendTelegramPush({ chatId, message });
+    if (sent) {
+      res.json({ success: true, chatId });
+    } else {
+      res.status(500).json({ success: false, error: "Failed to deliver Telegram push message" });
     }
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

@@ -13,6 +13,6 @@ describe('App', () => {
         </Provider>
       );
     });
-    expect(screen.getAllByText('Asella')[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Asella/i)[0]).toBeInTheDocument();
   });
 });

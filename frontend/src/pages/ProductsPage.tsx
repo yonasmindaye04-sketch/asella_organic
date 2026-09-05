@@ -825,8 +825,13 @@ function ProductsTab({ onReloadStock }: ProductsTabProps) {
           <span className="material-symbols-outlined text-gray-400 text-[18px]">search</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search products…"
-            className="w-full bg-transparent outline-none text-sm placeholder-gray-400" />
-          {search && <button onClick={() => setSearch('')} className="text-gray-300 hover:text-gray-600 text-xs">✕</button>}
+          {search && (
+            <button onClick={() => setSearch('')} className="text-gray-300 hover:text-gray-600 p-0.5" aria-label="Clear search">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Tag filter pills */}

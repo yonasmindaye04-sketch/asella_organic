@@ -18,10 +18,10 @@ interface Props {
 }
 
 const MOVEMENT_TYPES = [
-  { value: "adjustment",   label: "Manual Adjustment",  direction: "both",   icon: "⟳" },
-  { value: "return",       label: "Customer Return",     direction: "in",     icon: "↩" },
-  { value: "damage_loss",  label: "Damage / Loss",       direction: "out",    icon: "⚠" },
-  { value: "initial_stock",label: "Opening Balance",     direction: "in",     icon: "📦" },
+  { value: "adjustment",   label: "Manual Adjustment",  direction: "both",   icon: "~" },
+  { value: "return",       label: "Customer Return",     direction: "in",     icon: "<-" },
+  { value: "damage_loss",  label: "Damage / Loss",       direction: "out",    icon: "!" },
+  { value: "initial_stock",label: "Opening Balance",     direction: "in",     icon: "+" },
 ] as const;
 
 type MType = typeof MOVEMENT_TYPES[number]["value"];
@@ -188,7 +188,7 @@ const AdjustmentModal: React.FC<Props> = ({ initialProductId, onClose, onSuccess
                   {projectedQty}
                 </span>
                 {projectedQty! < 0 && (
-                  <span className="text-red-400 ml-2">⚠ Would go negative</span>
+                  <span className="text-red-400 ml-2">Warning: Would go negative</span>
                 )}
               </p>
             )}

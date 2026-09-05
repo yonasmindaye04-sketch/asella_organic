@@ -1,5 +1,47 @@
 # Asella Organic — Changelog & Activity Log
 
+## [2026-09-05] — Yekis TMA Architecture Parity & Bot Management Suite
+
+### 1. Telegram Mini App Frontend Architecture
+- Replicated modular structure from the Yekis project (`frontend/src/telegram/`):
+  - `frontend/src/telegram/types.ts`: Comprehensive TypeScript definitions supporting latest Bot API 8.0+ features (`SecondaryButton`, `safeAreaInset`, `contentSafeAreaInset`, `isFullscreen`, `requestFullscreen`, `exitFullscreen`, `disableVerticalSwipes`, `enableVerticalSwipes`).
+  - `frontend/src/telegram/webApp.ts`: Safe accessor and robust Telegram Mini App platform detector.
+  - `frontend/src/telegram/useTelegramMiniApp.ts`: React hook exposing full Telegram WebApp state and controls.
+  - `frontend/src/telegram/miniApp.css`: High-contrast Telegram theme CSS system adapting `--tg-theme-*` variables, safe area padding, and zero-emoji glass cards.
+  - `frontend/src/api/telegramAuth.ts`: API client functions for Telegram session validation and order retrieval.
+- Configured `frontend/vite.config.ts` with `allowedHosts: true`, `host: true`, and tunnel headers (`ngrok-skip-browser-warning: true`, `X-Frame-Options: ALLOWALL`) to prevent Vite host blocking and ngrok interstitial screens.
+- Enhanced `TelegramStore.tsx` with vertical swipe protection (`disableVerticalSwipes()`) and safe area styling.
+
+### 2. Bot Startup Pre-flight & Automated Configuration
+- Added `initBotConfiguration()` in `backend/src/lib/telegram.ts` triggered automatically on server boot:
+  - Validates `TELEGRAM_BOT_TOKEN` via `getMe()`.
+  - Automatically registers `setMyCommands` (`start`, `store`, `shop`, `track`, `orders`, `help`).
+  - Automatically registers `setMyDescription` and `setMyShortDescription` (zero emojis).
+  - Automatically sets persistent `setChatMenuButton` when `TELEGRAM_MINIAPP_URL` is an HTTPS URL.
+- Added administration endpoints in `backend/src/routes/telegram.ts`:
+  - `GET /api/telegram/health`: Returns bot status, `getMe()` info, and `getWebhookInfo()`.
+  - `GET /api/telegram/info`: Returns bot metadata.
+  - `POST /api/telegram/set-webhook`: Configures webhook URL and secret.
+  - `POST /api/telegram/delete-webhook`: Removes webhook and drops pending updates.
+  - `POST /api/telegram/configure-bot`: Re-synchronizes bot commands and description.
+  - `POST /api/telegram/send-push`: Sends push notifications to customer or staff chats.
+
+### 3. Project-Wide Zero-Emoji Sweep
+- Replaced all legacy unicode cross symbols with clean SVG icons across `BulkOrdersPage.tsx`, `NewOrderPage.tsx`, `OrderTracking.tsx`, and `ProductsPage.tsx`.
+
+## [2026-09-04] — Telegram Mini App Store & Zero-Emoji Policy Implementation
+
+### 1. Telegram Mini App Store
+- Added full Telegram Mini App e-commerce store (`/telegram-store`) enabling Telegram users to browse catalog, choose package sizes, add items to cart, and checkout with one tap.
+- Implemented cryptographic Telegram `initData` HMAC-SHA256 signature verification in the backend API.
+- Integrated Telegram WebApp SDK, native `MainButton`, `BackButton`, and `HapticFeedback`.
+- Built in-app order tracking with real-time status history.
+- Added `/store` command and dynamic web app launch buttons to Telegram Bot.
+
+### 2. Operational Rules & Governance
+- Established strict zero-emoji policy documented in `rule.md` and `agent.md`.
+- Updated Content Security Policy (`csp-config.js`) to whitelist Telegram domains (`telegram.org`, `web.telegram.org`).
+
 ## [2026-08-16] — CSP Compliance & Image Path Fixes
 
 ### 1. CSP Strict Compliance (No `unsafe-inline`)

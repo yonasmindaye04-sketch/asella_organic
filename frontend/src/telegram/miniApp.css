@@ -1,0 +1,144 @@
+/* ==========================================================================
+   Asella Organic — Telegram Mini App High-Contrast Theme System
+   Inspired by Yekis TMA architecture & Core Telegram WebApps Guidelines
+   Strict Zero-Emoji Policy Enforced
+   ========================================================================== */
+
+/* ── Telegram Dynamic CSS Variables Root Defaults ───────────────────────── */
+:root {
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #1a1a1a;
+  --tg-theme-hint-color: #707579;
+  --tg-theme-link-color: #2e7d32;
+  --tg-theme-button-color: #1b4332;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f4f4f5;
+  --tg-theme-header-bg-color: #ffffff;
+  --tg-theme-bottom-bar-bg-color: #ffffff;
+  --tg-content-safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --tg-content-safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --tg-content-safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --tg-content-safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
+/* ── Mini App Main Shell ────────────────────────────────────────────────── */
+.telegram-mini-app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: var(--tg-content-safe-area-inset-top);
+  padding-bottom: max(var(--tg-content-safe-area-inset-bottom), 16px);
+  padding-left: var(--tg-content-safe-area-inset-left);
+  padding-right: var(--tg-content-safe-area-inset-right);
+  background-color: var(--tg-theme-bg-color);
+  color: var(--tg-theme-text-color);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Dark Theme Overrides (High-Contrast) ───────────────────────────────── */
+:root[data-theme="dark"] .telegram-mini-app-shell,
+.dark .telegram-mini-app-shell {
+  --tg-theme-bg-color: #0b1116;
+  --tg-theme-text-color: #f7faf9;
+  --tg-theme-hint-color: #94a3b8;
+  --tg-theme-link-color: #4ade80;
+  --tg-theme-button-color: #15803d;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #121c23;
+  --tg-theme-header-bg-color: #0b1116;
+  --tg-theme-bottom-bar-bg-color: #0b1116;
+}
+
+/* ── Glass Cards & Surface Panels ───────────────────────────────────────── */
+.tma-card {
+  background: var(--tg-theme-secondary-bg-color);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+:root[data-theme="dark"] .tma-card,
+.dark .tma-card {
+  background: #121c23;
+  border-color: #26343d;
+  color: #f7faf9;
+}
+
+.tma-card:hover {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+/* ── Action Buttons & Badges ────────────────────────────────────────────── */
+.tma-btn-primary {
+  background-color: var(--tg-theme-button-color);
+  color: var(--tg-theme-button-text-color);
+  border-radius: 0.75rem;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.tma-btn-primary:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.tma-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tma-badge-success {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+:root[data-theme="dark"] .tma-badge-success,
+.dark .tma-badge-success {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+/* ── Stepper Indicator (Zero Emoji) ─────────────────────────────────────── */
+.tma-step-dot {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tma-step-dot-active {
+  background-color: var(--tg-theme-button-color);
+  color: var(--tg-theme-button-text-color);
+}
+
+.tma-step-dot-pending {
+  background-color: rgba(148, 163, 184, 0.2);
+  color: var(--tg-theme-hint-color);
+}
+
+/* ── Smooth Horizontal Scrollbar ────────────────────────────────────────── */
+.tma-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.tma-scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

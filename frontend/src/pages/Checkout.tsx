@@ -182,8 +182,10 @@ const Checkout: React.FC = () => {
         <Header />
         <main className="max-w-2xl mx-auto px-4 py-16">
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center text-3xl">
-              ✓
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+              <svg className="w-8 h-8 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+              </svg>
             </div>
             <h1 className="text-2xl font-bold text-stone-800 mb-2">Order placed!</h1>
             <p className="text-stone-600 mb-6">

@@ -14,7 +14,7 @@ const EnvSchema = z.object({
   PORT: z.union([z.string(), z.coerce.number()]).default(3001),
 
   // ── Database ─────────────────────────────────────────────
-  DATABASE_URL: z.string().min(10, "DATABASE_URL must be a valid connection URL"),
+  DATABASE_URL: z.string().min(10).optional().or(z.literal("")).default("mysql://root@127.0.0.1:3306/asella_organic"),
 
   // ── Auth ─────────────────────────────────────────────────
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
@@ -29,6 +29,7 @@ const EnvSchema = z.object({
     .min(16, "TELEGRAM_WEBHOOK_SECRET must be at least 16 characters").optional().or(z.literal("")),
   TELEGRAM_ADMIN_CHAT_ID: z.string().min(1).optional().or(z.literal("")),
   TELEGRAM_DELIVERY_GROUP_ID: z.string().min(1).optional().or(z.literal("")),
+  TELEGRAM_MINIAPP_URL: z.string().url().optional().or(z.literal("")),
 
   // ── Google Sheets ─────────────────────────────────────────
   GOOGLE_SPREADSHEET_ID: z.string().min(20).optional().or(z.literal("")),

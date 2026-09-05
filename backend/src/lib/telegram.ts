@@ -92,7 +92,8 @@ export async function editMessageText(
 // is modeled as a discriminated union rather than one flat interface.
 export type TelegramButton =
   | { text: string; callback_data: string }
-  | { text: string; url: string };
+  | { text: string; url: string }
+  | { text: string; web_app: { url: string } };
 
 // ─── Message formatters ───────────────────────────────────────────────────
 
@@ -169,7 +170,7 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
 export async function sendWithButtons(
   chatId: string | number,
   text: string,
-  buttons: Array<Array<{ text: string; callback_data?: string; url?: string }>>
+  buttons: Array<Array<{ text: string; callback_data?: string; url?: string; web_app?: { url: string } }>>
 ): Promise<any> {
   return tg("sendMessage", {
     chat_id:      chatId,
@@ -177,6 +178,131 @@ export async function sendWithButtons(
     parse_mode:   "Markdown",
     reply_markup: { inline_keyboard: buttons },
   });
+}
+
+export async function setChatMenuButton(
+  webAppUrl: string,
+  buttonText = "Store"
+): Promise<any> {
+  return tg("setChatMenuButton", {
+    menu_button: {
+      type: "web_app",
+      text: buttonText,
+      web_app: { url: webAppUrl },
+    },
+  });
+}
+
+export async function getBotMe(): Promise<any> {
+  return tg("getMe", {});
+}
+
+export async function getWebhookInfo(): Promise<any> {
+  return tg("getWebhookInfo", {});
+}
+
+export async function setWebhook(
+  url: string,
+  secretToken?: string
+): Promise<any> {
+  const body: Record<string, unknown> = {
+    url,
+    allowed_updates: [
+      "message",
+      "edited_message",
+      "callback_query",
+      "inline_query",
+      "chosen_inline_result",
+    ],
+    drop_pending_updates: true,
+  };
+  if (secretToken) {
+    body.secret_token = secretToken;
+  }
+  return tg("setWebhook", body);
+}
+
+export async function deleteWebhook(dropPendingUpdates = true): Promise<any> {
+  return tg("deleteWebhook", { drop_pending_updates: dropPendingUpdates });
+}
+
+export async function setMyCommands(
+  commands: Array<{ command: string; description: string }>
+): Promise<any> {
+  return tg("setMyCommands", { commands });
+}
+
+export async function setMyDescription(description: string): Promise<any> {
+  return tg("setMyDescription", { description });
+}
+
+export async function setMyShortDescription(shortDescription: string): Promise<any> {
+  return tg("setMyShortDescription", { short_description: shortDescription });
+}
+
+export async function sendTelegramPush(params: {
+  chatId: string | number;
+  message: string;
+}): Promise<boolean> {
+  const res = await sendSimpleMessage(params.chatId, params.message);
+  return Boolean(res && res.ok);
+}
+
+export async function initBotConfiguration(): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    console.log("[telegram] TELEGRAM_BOT_TOKEN not set — skipping bot pre-flight.");
+    return false;
+  }
+
+  try {
+    const me = await getBotMe();
+    if (!me || !me.ok || !me.result) {
+      console.warn("[telegram] Bot token validation failed. Verify TELEGRAM_BOT_TOKEN in .env.");
+      return false;
+    }
+
+    const botUser = me.result;
+    console.log(`[telegram] Verified bot @${botUser.username} (ID: ${botUser.id}). Syncing configuration...`);
+
+    // 1. Set commands for autocompletion (Strict zero emojis)
+    await setMyCommands([
+      { command: "start",  description: "Start Asella Organic bot & open store" },
+      { command: "store",  description: "Open Asella Organic Mini App store" },
+      { command: "shop",   description: "Browse catalog & place order" },
+      { command: "track",  description: "Track your active delivery" },
+      { command: "orders", description: "View your order history" },
+      { command: "help",   description: "Customer support and assistance" },
+    ]);
+
+    // 2. Set description shown before clicking Start
+    await setMyDescription(
+      "Welcome to Asella Organic!\n\n" +
+      "Ethiopia's premier organic health and wellness store.\n\n" +
+      "Browse 100% natural cold-pressed oils, organic superfoods, herbal remedies, and traditional wellness products from the Ethiopian highlands.\n\n" +
+      "Tap 'Start' below to open the store, place orders, and track your delivery in real-time."
+    );
+
+    // 3. Set short description (seen on bot profile)
+    await setMyShortDescription(
+      "100% natural organic wellness products from Ethiopian highlands."
+    );
+
+    // 4. Set persistent Chat Menu Button if HTTPS Mini App URL configured
+    const miniAppUrl = process.env.TELEGRAM_MINIAPP_URL;
+    if (miniAppUrl && miniAppUrl.startsWith("https://")) {
+      await setChatMenuButton(miniAppUrl, "Store");
+      console.log(`[telegram] Set persistent Chat Menu Button to ${miniAppUrl}`);
+    } else {
+      console.log("[telegram] TELEGRAM_MINIAPP_URL is not HTTPS — skipping menu button in local dev.");
+    }
+
+    console.log(`[telegram] Bot @${botUser.username} configuration synchronized successfully.`);
+    return true;
+  } catch (err: any) {
+    console.warn(`[telegram] Failed to synchronize bot configuration: ${err?.message || err}`);
+    return false;
+  }
 }
 
 export async function sendOrderToAdmin(order: Record<string, unknown>): Promise<void> {
@@ -201,6 +327,62 @@ export async function sendOrderToAdmin(order: Record<string, unknown>): Promise<
   });
 }
 
+/**
+ * Send full order details to the admin chat for orders that require
+ * manual handling: non-Addis-Ababa (other regions) orders and abroad orders.
+ */
+export async function sendAdminOrderAlert(
+  order: Record<string, unknown>,
+  label = "Other Region Order"
+): Promise<void> {
+  const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  if (!chatId) return;
+
+  const items: any[] = Array.isArray(order.items) ? order.items : [];
+  const itemsSummary = items.length
+    ? items
+        .map(
+          (i: any) =>
+            `• ${i.name || i.item_name || "Item"} ` +
+            `[${i.package_size || i.size || "Std"}] × ${i.quantity ?? 1} — ETB ${i.unit_price ?? 0}`
+        )
+        .join("\n")
+    : "No items listed";
+
+  const dateStr = new Date().toLocaleString("en-GB", {
+    timeZone: "Africa/Addis_Ababa",
+  });
+
+  const isBulk = (order.notes as string | undefined)?.includes("Franchise Type:");
+
+  const text = [
+    ` *[ALERT] ${label} — Asella Organic*`,
+    `━━━━━━━━━━━━━━━━━━`,
+    ` *Order ID:* \`${order.id ?? "N/A"}\``,
+    ` *Customer:* ${order.customer_name ?? "N/A"}`,
+    ` *Phone:* ${order.phone ?? "N/A"}`,
+    ` *City / Region:* ${order.city ?? "N/A"}`,
+    ` *Location:* ${order.location ?? "N/A"}`,
+    ` *Order Type:* ${order.order_type ?? "N/A"}${isBulk ? " *(Bulk/Franchise)*" : ""}`,
+    `━━━━━━━━━━━━━━━━━━`,
+    ` *Items:*`,
+    itemsSummary,
+    `━━━━━━━━━━━━━━━━━━`,
+    ` *Total:* ETB ${order.total ?? 0}`,
+    ` *Payment:* ${order.payment_method ?? "N/A"}`,
+    ` *Notes:* ${order.notes ?? "None"}`,
+    `━━━━━━━━━━━━━━━━━━`,
+    ` ${dateStr}`,
+    `_This order requires manual processing — not routed to delivery group._`,
+  ].join("\n");
+
+  await tg("sendMessage", {
+    chat_id:    chatId,
+    text,
+    parse_mode: "Markdown",
+  });
+}
+
 export async function sendToDeliveryGroup(
   order: Record<string, unknown>
 ): Promise<number | null> {
@@ -211,8 +393,8 @@ export async function sendToDeliveryGroup(
   const orderId = String(order.id ?? "UNKNOWN");
   const buttons: Array<Array<TelegramButton>> = [
     [
-      { text: "✅ Accept", callback_data: `delivery_accept_${orderId}` },
-      { text: "❌ Reject", callback_data: `delivery_reject_${orderId}` },
+      { text: "Accept", callback_data: `delivery_accept_${orderId}` },
+      { text: "Reject", callback_data: `delivery_reject_${orderId}` },
     ],
   ];
 
@@ -223,15 +405,72 @@ export async function sendToDeliveryGroup(
   return null;
 }
 
+/**
+ * Send full order details privately to the assigned driver.
+ * Returns true if the message was delivered successfully, false otherwise.
+ * Failure typically means the driver has not started a private chat with the bot.
+ */
 export async function sendDetailsToAssignedDriver(
   driverChatId: string | number,
   order: Record<string, unknown>
-): Promise<void> {
-  await tg("sendMessage", {
+): Promise<boolean> {
+  const result = await tg("sendMessage", {
     chat_id:    driverChatId,
     text:       formatPrivateDeliveryMessage(order),
     parse_mode: "Markdown",
   });
+  return !!(result?.ok);
+}
+
+/**
+ * Fallback: post full order details as a reply to the original group message
+ * when the bot cannot reach the driver via private chat (they haven't started the bot).
+ * Always succeeds because the bot is already a member of the delivery group.
+ */
+export async function sendDetailsToGroupAsReply(
+  groupChatId: string | number,
+  replyToMessageId: number | undefined,
+  driverDisplayName: string,
+  order: Record<string, unknown>
+): Promise<void> {
+  const items: any[] = Array.isArray(order.items) ? order.items : [];
+  const itemsSummary = items.length
+    ? items
+        .map(
+          (i: any) =>
+            `• ${i.name || i.item_name || "Item"} ` +
+            `[${i.package_size || i.size || "Std"}] × ${i.quantity ?? 1}`
+        )
+        .join("\n")
+    : "No items listed";
+
+  const text = [
+    ` *Order Details — for ${driverDisplayName}*`,
+    `━━━━━━━━━━━━━━━━━━`,
+    ` *Order ID:* \`${order.id ?? "N/A"}\``,
+    ` *Customer:* ${order.customer_name ?? "N/A"}`,
+    ` *Phone:* ${order.phone ?? "N/A"}`,
+    ` *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
+    `━━━━━━━━━━━━━━━━━━`,
+    ` *Items:*`,
+    itemsSummary,
+    `━━━━━━━━━━━━━━━━━━`,
+    ` *Total:* ETB ${order.total ?? 0}`,
+    ` *Notes:* ${order.notes ?? "None"}`,
+    `━━━━━━━━━━━━━━━━━━`,
+    `_To receive future details privately, send /start to this bot in a private chat._`,
+  ].join("\n");
+
+  const body: Record<string, unknown> = {
+    chat_id:    groupChatId,
+    text,
+    parse_mode: "Markdown",
+  };
+  if (replyToMessageId) {
+    body.reply_to_message_id = replyToMessageId;
+  }
+
+  await tg("sendMessage", body);
 }
 
 export async function sendTelegramToCustomer({
@@ -346,12 +585,12 @@ export async function sendVendorPO(
 
   const buttons: Array<Array<TelegramButton>> = [
     [
-      { text: "✅ Accept Order",    callback_data: `po_accept_${orderId}` },
-      { text: "❌ Decline Order",   callback_data: `po_decline_${orderId}` },
+      { text: "Accept Order",    callback_data: `po_accept_${orderId}` },
+      { text: "Decline Order",   callback_data: `po_decline_${orderId}` },
     ],
     [
-      { text: " Request Changes", callback_data: `po_changes_${orderId}` },
-      { text: " View Details",    callback_data: `po_view_${orderId}` },
+      { text: "Request Changes", callback_data: `po_changes_${orderId}` },
+      { text: "View Details",    callback_data: `po_view_${orderId}` },
     ],
   ];
 

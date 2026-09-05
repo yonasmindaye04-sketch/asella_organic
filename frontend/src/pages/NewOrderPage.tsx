@@ -370,7 +370,9 @@ export default function NewOrderPage() {
                       <div className="col-span-12 md:col-span-1 flex items-center justify-end gap-2 h-[42px]">
                         {form.items.length > 1 && (
                           <button type="button" onClick={() => removeItem(index)} className="w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors border border-red-200 shadow-sm" title="Remove Item">
-                            ✕
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                           </button>
                         )}
                       </div>

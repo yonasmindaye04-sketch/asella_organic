@@ -6,13 +6,16 @@
 import "./config/env.js";
 import app from "./app.js";
 import cron from "node-cron";
-import { sendMorningBriefing } from "./lib/telegram.js";
+import { sendMorningBriefing, initBotConfiguration } from "./lib/telegram.js";
 
 const PORT = process.env.PORT ?? "3001";
 
 const server = app.listen(PORT as any, () => {
   console.log(`\n Asella Organic API running`);
   console.log(`   http://localhost:${PORT}/api/health\n`);
+
+  // Asynchronously synchronize bot commands, descriptions, and menu button
+  void initBotConfiguration();
 });
 
 // ── Graceful shutdown on SIGINT/SIGTERM/uncaughtException/unhandledRejection 

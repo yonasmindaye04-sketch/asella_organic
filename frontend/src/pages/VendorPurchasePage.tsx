@@ -165,7 +165,7 @@ const VendorPurchasePage: React.FC = () => {
     });
 
     if (res.success) {
-      setMessage({ type: 'success', text: '✅ Vendor purchase order created! View it in Order History.' });
+      setMessage({ type: 'success', text: 'Vendor purchase order created successfully. View it in Order History.' });
       setForm(EMPTY);
       fetchOrders(); // refresh history
     } else {

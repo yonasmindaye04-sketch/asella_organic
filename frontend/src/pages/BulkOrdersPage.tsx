@@ -293,8 +293,10 @@ const BulkOrdersPage: React.FC = () => {
 
                         <div>
                           {items.length > 1 && (
-                            <button type="button" onClick={() => removeItem(index)} className="w-full md:w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors border border-red-200">
-                              ✕
+                            <button type="button" onClick={() => removeItem(index)} className="w-full md:w-10 h-10 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors border border-red-200" aria-label="Remove item">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                             </button>
                           )}
                         </div>

@@ -83,12 +83,16 @@ const allowedOrigins =
     ? (process.env.ALLOWED_ORIGINS ?? "https://asellaorganic.com").split(",").map(s => s.trim())
     : ["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"];
 
+if (!allowedOrigins.includes("https://web.telegram.org")) {
+  allowedOrigins.push("https://web.telegram.org");
+}
+
 logger.info("CORS allowed origins resolved to:", { allowedOrigins });
 
 app.use(cors({
   origin: allowedOrigins,
   methods:        ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-2fa-token", "x-request-id"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-2fa-token", "x-request-id", "x-telegram-init-data"],
   exposedHeaders: ["x-request-id"],
   credentials:    true,
 }));
@@ -101,8 +105,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     return;
   }
   
-  // Skip external webhooks that don't come from a browser
-  if (req.path.includes("/payment/callback") || req.path.includes("/telegram/webhook")) {
+  // Skip external webhooks and requests authenticated via Telegram initData
+  if (
+    req.path.includes("/payment/callback") ||
+    req.path.includes("/telegram/webhook") ||
+    Boolean(req.headers["x-telegram-init-data"])
+  ) {
     next();
     return;
   }

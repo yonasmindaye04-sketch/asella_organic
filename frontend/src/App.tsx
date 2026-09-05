@@ -3,11 +3,14 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ProtectedRoute       from './components/ui/ProtectedRoute';
 import { ToastProvider }    from './components/ui/ToastProvider';
 import { LanguageProvider } from './LanguageContext';
+import { TelegramProvider } from './context/TelegramContext';
 import LoadingSpinner       from './components/ui/LoadingSpinner';
 import TopProgressBar       from './components/ui/TopProgressBar';
+import './telegram/miniApp.css';
 
 const Storefront           = lazy(() => import('./pages/Storefront'));
 const Checkout             = lazy(() => import('./pages/Checkout'));
+const TelegramStore        = lazy(() => import('./pages/TelegramStore'));
 const Dashboard            = lazy(() => import('./pages/Dashboard'));
 const OrderTracking        = lazy(() => import('./pages/OrderTracking'));
 const Login                = lazy(() => import('./pages/Login'));
@@ -40,19 +43,22 @@ function App() {
     <BrowserRouter>
       <main className="min-h-screen bg-[var(--cream)]">
         <LanguageProvider>
-          <ToastProvider>
-            <TopProgressBar />
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                {/* Public */}
-                <Route path="/"                 element={<Storefront />} />
-                <Route path="/checkout"         element={<Checkout />} />
-                <Route path="/community-videos" element={<CommunityVideos />} />
-                <Route path="/login"            element={<Login />} />
-                <Route path="/privacy"          element={<PrivacyPolicy />} />
-                <Route path="/terms"            element={<TermsOfService />} />
-                <Route path="/track"            element={<CustomerOrderTracking />} />
-                <Route path="/track/:orderId"   element={<CustomerOrderTracking />} />
+          <TelegramProvider>
+            <ToastProvider>
+              <TopProgressBar />
+              <Suspense fallback={<LoadingSpinner />}>
+                <Routes>
+                  {/* Public */}
+                  <Route path="/"                 element={<Storefront />} />
+                  <Route path="/checkout"         element={<Checkout />} />
+                  <Route path="/telegram-store"   element={<TelegramStore />} />
+                  <Route path="/tma"              element={<TelegramStore />} />
+                  <Route path="/community-videos" element={<CommunityVideos />} />
+                  <Route path="/login"            element={<Login />} />
+                  <Route path="/privacy"          element={<PrivacyPolicy />} />
+                  <Route path="/terms"            element={<TermsOfService />} />
+                  <Route path="/track"            element={<CustomerOrderTracking />} />
+                  <Route path="/track/:orderId"   element={<CustomerOrderTracking />} />
 
                 {/* Dashboard */}
                 <Route path="/dashboard"        element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -75,7 +81,8 @@ function App() {
               </Routes>
             </Suspense>
           </ToastProvider>
-        </LanguageProvider>
+        </TelegramProvider>
+      </LanguageProvider>
       </main>
     </BrowserRouter>
   );

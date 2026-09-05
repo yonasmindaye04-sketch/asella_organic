@@ -167,7 +167,7 @@ const StockRequestsTable: React.FC = () => {
                                        text-white rounded-lg
                                        transition-colors disabled:opacity-50"
                           >
-                            {isUpdating ? "…" : "✓ Mark Received"}
+                            {isUpdating ? "Processing..." : "Mark Received"}
                           </button>
                         )}
                         {(req.status === "received" || req.status === "cancelled") && (
