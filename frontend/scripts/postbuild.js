@@ -98,7 +98,7 @@ if (fs.existsSync(distIndexPath)) {
   // Filter out empty self-closing variants that Vite may emit for edge cases.
   const violations = inlineMatches.filter(tag => {
     // Strip the opening/closing tags and check if there is actual content.
-    const inner = tag.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
+    const inner = tag.replace(/^<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
     return inner.length > 0;
   });
 
@@ -122,4 +122,37 @@ if (fs.existsSync(distIndexPath)) {
   }
 } else {
   console.warn('⚠️  dist/index.html not found. Skipping inline-script check.');
+}
+
+// The standalone Telegram Mini App has the same CSP constraint, so verify it
+// too. A violation here would break the bot store in production only.
+const distTmaPath = path.join(distDir, 'tma.html');
+if (fs.existsSync(distTmaPath)) {
+  const tmaHtml = fs.readFileSync(distTmaPath, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+  const inlineScriptRe = /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi;
+  const tmaViolations = (tmaHtml.match(inlineScriptRe) ?? []).filter(tag => {
+    const inner = tag.replace(/^<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
+    return inner.length > 0;
+  });
+
+  if (tmaViolations.length > 0) {
+    console.error('');
+    console.error('❌ CSP VIOLATION DETECTED in dist/tma.html!');
+    console.error('   The Telegram Mini App would be blocked in production.');
+    console.error('');
+    process.exit(1);
+  }
+
+  if (!tmaHtml.includes('telegram.org/js/telegram-web-app.js')) {
+    console.error('');
+    console.error('❌ dist/tma.html is missing the Telegram WebApp SDK script tag.');
+    console.error('   window.Telegram.WebApp would be undefined and every Mini App');
+    console.error('   request would fail initData verification.');
+    console.error('');
+    process.exit(1);
+  }
+
+  console.log('✅ dist/tma.html is CSP safe and loads the Telegram SDK.');
+} else {
+  console.warn('⚠️  dist/tma.html not found. Was the Mini App entry built?');
 }

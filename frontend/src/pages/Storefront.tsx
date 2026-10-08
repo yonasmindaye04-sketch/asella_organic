@@ -15,7 +15,17 @@ const Storefront: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref') || params.get('aff');
     if (ref) {
-      localStorage.setItem('referral_code', ref);
+      const code = ref.trim().toUpperCase();
+      localStorage.setItem('referral_code', code);
+      // Record the landing so the affiliate's engagement rate reflects real
+      // link clicks, not just completed orders. Fire-and-forget: a failure
+      // here must never affect the shopper's session.
+      void fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/affiliate/track-click`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, path: window.location.pathname, source: 'storefront' }),
+      }).catch(() => {});
     }
 
     if (window.location.hash) {

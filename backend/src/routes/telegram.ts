@@ -4,7 +4,7 @@ import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import pool from "../config/db.js";
-import { CreateOrderSchema } from "../schemas/index.js";
+import { CreateOrderSchema, TelegramProfileSchema } from "../schemas/index.js";
 import { randomId } from "../lib/security.js";
 import {
   answerCallbackQuery,
@@ -29,18 +29,149 @@ import { validateTelegramInitData } from "../lib/telegram-auth.js";
 
 const router = Router();
 
+/**
+ * Resolves the Mini App URL for the /store command, the inline Store buttons
+ * and the persistent chat menu button.
+ *
+ * Prefer TELEGRAM_MINIAPP_URL. The fallback path is rewritten to the standalone
+ * Mini App document (frontend/tma.html) by both .htaccess and the Vite dev
+ * middleware, so it never falls through to the website homepage.
+ */
 function getStoreUrl(): string {
   if (process.env.TELEGRAM_MINIAPP_URL) {
     return process.env.TELEGRAM_MINIAPP_URL;
   }
   const baseUrl = process.env.PUBLIC_URL || "https://asellaorganic.com";
-  return `${baseUrl.replace(/\/$/, "")}/telegram-store`;
+  return `${baseUrl.replace(/\/$/, "")}/tma`;
 }
 
 const verifyTelegramWebhook = (token?: string) => token === process.env.TELEGRAM_WEBHOOK_SECRET;
 
 function escapeMarkdown(text: string): string {
   return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+}
+
+// ─── Mini App request authentication ──────────────────────────────────
+// Telegram Mini App endpoints that expose customer data require a
+// cryptographically verified initData payload. A caller-supplied chat id is
+// never trusted: chat ids are sequential, so accepting one without a
+// verified HMAC signature would let anyone read another customer's orders.
+
+type MiniAppAuth =
+  | { ok: true; chatId: number; user: NonNullable<ReturnType<typeof validateTelegramInitData>["user"]> }
+  | { ok: false; status: number; error: string };
+
+function readInitData(req: Request): string {
+  const candidate =
+    (typeof req.query.initData === "string" && req.query.initData) ||
+    (typeof req.body?.initData === "string" && req.body.initData) ||
+    req.headers["x-telegram-init-data"];
+  return typeof candidate === "string" ? candidate : "";
+}
+
+/** Maps the Orders tab's filter chips onto concrete order statuses. */
+const ORDER_STATUS_GROUPS: Record<string, string[]> = {
+  processing: ["Pending", "Confirmed", "Packed", "In Transit", "Processing", "Out for Delivery"],
+  delivered: ["Delivered"],
+  refunded: ["Cancelled", "Returned"],
+};
+
+function resolveStatusFilter(filter: string): string[] {
+  const normalized = filter.toLowerCase().replace(/[\s_-]+/g, "");
+  const group = ORDER_STATUS_GROUPS[normalized];
+  if (group) return group;
+  // Allow an exact status pass-through so links can target one state.
+  const match = Object.values(ORDER_STATUS_GROUPS)
+    .flat()
+    .find((status) => status.toLowerCase() === normalized);
+  return match ? [match] : [];
+}
+
+interface TelegramProfileFields {
+  username: string | null;
+  first_name: string;
+  last_name: string | null;
+  display_name?: string;
+  phone?: string;
+  city?: string;
+  location?: string;
+}
+
+/**
+ * Upserts telegram_users for a verified initData user. Profile columns are
+ * only written when supplied so that a plain presence ping never blanks an
+ * existing profile.
+ */
+async function upsertTelegramProfile(
+  chatId: number,
+  fields: TelegramProfileFields,
+  touchProfile: boolean
+): Promise<void> {
+  const hasProfile =
+    fields.display_name !== undefined ||
+    fields.phone !== undefined ||
+    fields.city !== undefined ||
+    fields.location !== undefined;
+
+  await pool.query(
+    `INSERT INTO telegram_users
+       (chat_id, username, first_name, last_name, display_name, phone, city, location,
+        registered_at, profile_updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ${touchProfile ? "NOW()" : "NULL"})
+     ON DUPLICATE KEY UPDATE
+       username = VALUES(username),
+       first_name = VALUES(first_name),
+       last_name = VALUES(last_name),
+       display_name = COALESCE(VALUES(display_name), display_name),
+       phone = COALESCE(VALUES(phone), phone),
+       city = COALESCE(VALUES(city), city),
+       location = COALESCE(VALUES(location), location),
+       profile_updated_at = ${touchProfile ? "NOW()" : "profile_updated_at"},
+       last_seen = NOW()`,
+    [
+      chatId,
+      fields.username,
+      fields.first_name,
+      fields.last_name,
+      hasProfile ? fields.display_name ?? null : null,
+      hasProfile ? fields.phone ?? null : null,
+      hasProfile ? fields.city ?? null : null,
+      hasProfile ? fields.location ?? null : null,
+    ]
+  );
+}
+
+/**
+ * Verifies the Telegram initData signature and returns the authenticated
+ * chat id. Responds with 401/500 and returns null on failure.
+ */
+function authenticateMiniApp(req: Request, res: Response): MiniAppAuth | null {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!token) {
+    res.status(500).json({ success: false, error: "Bot token not configured on server" });
+    return null;
+  }
+
+  const initData = readInitData(req);
+  if (!initData) {
+    res.status(401).json({
+      success: false,
+      error: "Missing initData. Open this page from inside Telegram.",
+    });
+    return null;
+  }
+
+  const validation = validateTelegramInitData(initData, token);
+  if (!validation.valid || !validation.user) {
+    res.status(401).json({
+      success: false,
+      error: validation.error || "Invalid Telegram authentication data",
+    });
+    return null;
+  }
+
+  return { ok: true, chatId: validation.user.id, user: validation.user };
 }
 
 // ─── Interactive conversation state ────────────────────────────────────
@@ -390,14 +521,56 @@ async function upsertTelegramUser(message: any): Promise<void> {
   );
 }
 
-async function linkCustomerChat(phone: string, chatId: string | number, fallbackName: string): Promise<void> {
+type LinkOutcome = "linked" | "already_linked_to_you" | "taken_by_another_chat" | "not_found";
+
+function describeLinkOutcome(outcome: LinkOutcome, phone: string): string {
+  switch (outcome) {
+    case "linked":
+      return "Your Telegram account is linked. You will receive updates for orders with that phone number.";
+    case "already_linked_to_you":
+      return "That phone number is already linked to your Telegram account.";
+    case "taken_by_another_chat":
+      return "That phone number is already linked to another Telegram account. If that is a mistake, contact support to have it unlinked.";
+    case "not_found":
+      return `We could not find any customer record for ${phone}. Place an order first, then link it.`;
+  }
+}
+
+/**
+ * Links a Telegram chat to a customer phone number.
+ *
+ * Linking grants read access to that phone's order history, so it refuses to
+ * take over a phone number that is already attached to a different chat. The
+ * caller is responsible for confirming the phone number with the user first.
+ */
+async function linkCustomerChat(
+  phone: string,
+  chatId: string | number,
+  fallbackName: string
+): Promise<LinkOutcome> {
   const normalizedPhone = normalizePhone(phone);
+
+  const [existing] = await pool.query(
+    `SELECT telegram_chat_id FROM customers WHERE phone = ? LIMIT 1`,
+    [normalizedPhone]
+  ) as [any[], any];
+
+  if (!existing[0]) return "not_found";
+
+  const currentOwner = existing[0].telegram_chat_id;
+  if (currentOwner !== null && currentOwner !== undefined) {
+    if (String(currentOwner) === String(chatId)) return "already_linked_to_you";
+    return "taken_by_another_chat";
+  }
+
   await pool.query(
-    `INSERT INTO customers (id, phone, name, telegram_chat_id)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE telegram_chat_id = VALUES(telegram_chat_id), updated_at = NOW()`,
-    [crypto.randomUUID(), normalizedPhone, fallbackName, chatId]
+    `UPDATE customers
+     SET telegram_chat_id = ?, name = COALESCE(NULLIF(name, ''), ?), updated_at = NOW()
+     WHERE phone = ?`,
+    [chatId, fallbackName, normalizedPhone]
   );
+
+  return "linked";
 }
 
 async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | number): Promise<{ id: string; total: number }> {
@@ -1131,9 +1304,9 @@ async function handleMessage(message: any): Promise<void> {
           return;
         }
         const fallbackName = [from?.first_name, from?.last_name].filter(Boolean).join(" ") || "Telegram Customer";
-        await linkCustomerChat(phone, chatId, fallbackName);
+        const outcome = await linkCustomerChat(phone, chatId, fallbackName);
         userState.delete(chatId);
-        await sendSimpleMessage(chatId, " Your Telegram account is linked! You'll receive updates for orders with that phone number.");
+        await sendSimpleMessage(chatId, describeLinkOutcome(outcome, phone));
         return;
       }
 
@@ -1187,8 +1360,8 @@ async function handleMessage(message: any): Promise<void> {
       }
 
       const fallbackName = [from?.first_name, from?.last_name].filter(Boolean).join(" ") || "Telegram Customer";
-      await linkCustomerChat(phone, chatId, fallbackName);
-      await sendSimpleMessage(chatId, "Your Telegram account is linked. You will receive updates for orders with that phone number.");
+      const outcome = await linkCustomerChat(phone, chatId, fallbackName);
+      await sendSimpleMessage(chatId, describeLinkOutcome(outcome, phone));
       return;
     }
 
@@ -1566,44 +1739,67 @@ router.post("/app-order", async (req: Request, res: Response): Promise<void> => 
   }
 });
 
-// GET /api/telegram/my-orders — Fetch customer orders
+// GET /api/telegram/my-orders — Fetch the authenticated customer's orders
+// Supports ?search= (order id / product name), ?status= (or a status group)
+// and ?page= for the Orders tab. Requires verified Telegram initData.
 router.get("/my-orders", async (req: Request, res: Response): Promise<void> => {
   try {
-    const initData = (req.query.initData || req.headers["x-telegram-init-data"]) as string;
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    let chatId = req.query.chat_id ? Number(req.query.chat_id) : null;
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+    const chatId = auth.chatId;
 
-    if (initData && token) {
-      const validation = validateTelegramInitData(initData, token);
-      if (validation.valid && validation.user) {
-        chatId = validation.user.id;
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit ?? "20"), 10) || 20));
+    const offset = (page - 1) * limit;
+
+    const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
+    const statusFilter = typeof req.query.status === "string" ? req.query.status.trim() : "";
+
+    const conditions: string[] = ["o.deleted_at IS NULL", "c.telegram_chat_id = ?"];
+    const params: any[] = [chatId];
+
+    if (statusFilter && statusFilter !== "all") {
+      const statuses = resolveStatusFilter(statusFilter);
+      if (statuses.length === 0) {
+        res.json({ success: true, data: [], meta: { total: 0, page, limit, pages: 0 } });
+        return;
       }
+      conditions.push(`o.status IN (${statuses.map(() => "?").join(", ")})`);
+      params.push(...statuses);
     }
 
-    if (!chatId && !req.query.phone) {
-      res.status(400).json({ success: false, error: "Missing chat_id or authentication" });
-      return;
+    if (search) {
+      conditions.push("(o.id LIKE ? OR o.customer_name LIKE ? OR o.notes LIKE ?)");
+      const like = `%${search}%`;
+      params.push(like, like, like);
     }
 
-    const conditions: string[] = ["o.deleted_at IS NULL"];
-    const params: any[] = [];
+    const where = conditions.join(" AND ");
 
-    if (chatId) {
-      conditions.push("(c.telegram_chat_id = ? OR o.notes LIKE ?)");
-      params.push(chatId, `%tg:${chatId}%`);
-    } else if (req.query.phone) {
-      conditions.push("c.phone = ?");
-      params.push(req.query.phone);
-    }
+    // Search also matches products inside an order, so filter those orders in.
+    const searchCondition = search
+      ? `EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.id AND oi.item_name LIKE ?)`
+      : null;
 
-    const [orders] = await pool.query(
-      `SELECT o.id, o.status, o.total, o.order_type, o.city, o.location, o.created_at, o.payment_status
+    const [countRows] = await pool.query(
+      `SELECT COUNT(*) AS total
        FROM orders o
        JOIN customers c ON c.phone = o.phone
-       WHERE ${conditions.join(" AND ")}
-       ORDER BY o.created_at DESC
-       LIMIT 20`,
+       WHERE ${where}${searchCondition ? ` AND ${searchCondition}` : ""}`,
       params
+    ) as [any[], any];
+
+    const total = Number(countRows[0]?.total ?? 0);
+
+    const [orders] = await pool.query(
+      `SELECT o.id, o.status, o.total, o.order_type, o.city, o.location,
+              o.created_at, o.payment_status, o.customer_name
+       FROM orders o
+       JOIN customers c ON c.phone = o.phone
+       WHERE ${where}${searchCondition ? ` AND ${searchCondition}` : ""}
+       ORDER BY o.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
     ) as [any[], any];
 
     const orderIds = orders.map((o: any) => o.id);
@@ -1623,14 +1819,154 @@ router.get("/my-orders", async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const result = orders.map((o: any) => ({
+    const data = orders.map((o: any) => ({
       ...o,
       items: itemsByOrder[o.id] || [],
     }));
 
-    res.json({ success: true, data: result });
+    res.json({
+      success: true,
+      data,
+      meta: { total, page, limit, pages: Math.ceil(total / limit) },
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || "Failed to retrieve orders" });
+  }
+});
+
+// GET /api/telegram/profile — Mini App Account tab
+router.get("/profile", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+    const chatId = auth.chatId;
+
+    await upsertTelegramProfile(
+      chatId,
+      {
+        username: auth.user.username ?? null,
+        first_name: auth.user.first_name,
+        last_name: auth.user.last_name ?? null,
+      },
+      false
+    );
+
+    const [userRows] = await pool.query(
+      `SELECT display_name, phone, city, location, profile_updated_at
+       FROM telegram_users WHERE chat_id = ? LIMIT 1`,
+      [chatId]
+    ) as [any[], any];
+
+    const stored = userRows[0] ?? {};
+
+    // Fall back to the customer record so the form is never blank for a
+    // customer who already has delivery history.
+    const [customerRows] = await pool.query(
+      `SELECT name, phone, city, location FROM customers
+       WHERE telegram_chat_id = ? LIMIT 1`,
+      [chatId]
+    ) as [any[], any];
+    const customer = customerRows[0] ?? null;
+
+    const displayName =
+      stored.display_name ||
+      customer?.name ||
+      [auth.user.first_name, auth.user.last_name].filter(Boolean).join(" ");
+
+    const [statsRows] = await pool.query(
+      `SELECT
+         COUNT(*) AS order_count,
+         COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled', 'Returned') THEN o.total ELSE 0 END), 0) AS total_spent,
+         COALESCE(SUM(CASE WHEN o.status = 'Delivered' THEN 1 ELSE 0 END), 0) AS delivered_count,
+         COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'Confirmed', 'Packed', 'In Transit', 'Processing', 'Out for Delivery') THEN 1 ELSE 0 END), 0) AS active_count
+       FROM orders o
+       JOIN customers c ON c.phone = o.phone
+       WHERE c.telegram_chat_id = ? AND o.deleted_at IS NULL`,
+      [chatId]
+    ) as [any[], any];
+    const stats = statsRows[0] ?? {};
+
+    res.json({
+      success: true,
+      data: {
+        chat_id: chatId,
+        telegram: {
+          username: auth.user.username ?? null,
+          first_name: auth.user.first_name,
+          last_name: auth.user.last_name ?? null,
+          photo_url: auth.user.photo_url ?? null,
+          is_premium: auth.user.is_premium ?? false,
+        },
+        profile: {
+          display_name: displayName,
+          phone: stored.phone ?? customer?.phone ?? "",
+          city: stored.city ?? customer?.city ?? "",
+          location: stored.location ?? customer?.location ?? "",
+          updated_at: stored.profile_updated_at ?? null,
+        },
+        stats: {
+          order_count: Number(stats.order_count ?? 0),
+          delivered_count: Number(stats.delivered_count ?? 0),
+          active_count: Number(stats.active_count ?? 0),
+          total_spent: Number(stats.total_spent ?? 0),
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to load profile" });
+  }
+});
+
+// PUT /api/telegram/profile — Persist the editable Account tab profile
+router.put("/profile", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+    const chatId = auth.chatId;
+
+    const parsed = TelegramProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const firstError = Object.values(parsed.error.flatten().fieldErrors).flat()[0];
+      res.status(422).json({
+        success: false,
+        error: firstError ?? "Profile validation failed",
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const { display_name, phone, city, location } = parsed.data;
+    const normalizedPhone = normalizePhone(phone);
+
+    await upsertTelegramProfile(
+      chatId,
+      {
+        username: auth.user.username ?? null,
+        first_name: auth.user.first_name,
+        last_name: auth.user.last_name ?? null,
+        display_name,
+        phone: normalizedPhone,
+        city,
+        location,
+      },
+      true
+    );
+
+    res.json({
+      success: true,
+      data: {
+        chat_id: chatId,
+        profile: {
+          display_name,
+          phone: normalizedPhone,
+          city,
+          location,
+          updated_at: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to update profile" });
   }
 });
 

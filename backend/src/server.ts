@@ -7,6 +7,7 @@ import "./config/env.js";
 import app from "./app.js";
 import cron from "node-cron";
 import { sendMorningBriefing, initBotConfiguration } from "./lib/telegram.js";
+import { sendWeeklyAffiliateReports } from "./scripts/affiliate-report-cron.js";
 
 const PORT = process.env.PORT ?? "3001";
 
@@ -37,6 +38,13 @@ async function shutdown(signal: string): Promise<void> {
 
 // ── Schedule morning briefing (daily at 8:00 AM EAT) ────────────
 cron.schedule("0 8 * * *", sendMorningBriefing, {
+  timezone: "Africa/Addis_Ababa",
+});
+
+// ── Weekly affiliate sales & engagement summary (Mondays, 8:00 AM EAT) ──
+cron.schedule("0 8 * * 1", () => {
+  void sendWeeklyAffiliateReports();
+}, {
   timezone: "Africa/Addis_Ababa",
 });
 

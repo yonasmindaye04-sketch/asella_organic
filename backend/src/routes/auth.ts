@@ -97,11 +97,9 @@ router.post("/login", loginRateLimit, validate(LoginSchema),
       res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
     }
-    if (user.role === "affiliate") {
-      res.status(403).json({ success: false, error: "Affiliates cannot log in." });
-      return;
-    }
-
+    // Affiliates CAN log in, but only into their own portal. The portal API
+    // is gated by role (middleware/affiliateAuth.ts) and resolves scope from
+    // the JWT subject, so an affiliate session cannot reach any staff route.
     const { accessToken, refreshToken } = issueTokens({
       id: user.id, username: user.username, role: user.role as any,
     });
@@ -120,7 +118,7 @@ router.post("/login", loginRateLimit, validate(LoginSchema),
     res.cookie("access_token",  accessToken,  ACCESS_COOKIE);
     res.cookie("refresh_token", refreshToken, REFRESH_COOKIE);
 
-    log.info("Staff login", { userId: user.id, role: user.role });
+    log.info("Login", { userId: user.id, role: user.role });
 
     // Tokens also in body — existing API/mobile clients unchanged
     res.json({

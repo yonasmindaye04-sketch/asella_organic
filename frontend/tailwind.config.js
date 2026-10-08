@@ -5,12 +5,47 @@ import containerQueries from '@tailwindcss/container-queries';
 export default {
   content: [
     "./index.html",
+    "./tma.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: "class",
   theme: {
     extend: {
       colors: {
+        // ── Website organic palette ──────────────────────────────
+        // Mirrors the --g* / --ink / --cream tokens in src/index.css so the
+        // Telegram Mini App (src/tma.css) can reuse the exact site palette.
+        //
+        // CAUTION: these resolve to raw `var(--token)`, so Tailwind cannot
+        // apply an opacity modifier to them — `bg-brand-100/70` silently
+        // compiles to an invalid (transparent) declaration. Use solid classes
+        // or a dedicated translucent token instead.
+        "brand": {
+          50: "var(--g50)",
+          100: "var(--g100)",
+          200: "var(--g200)",
+          300: "var(--g300)",
+          500: "var(--g500)",
+          600: "var(--g600)",
+          700: "var(--g700)",
+          800: "var(--g800)",
+          900: "var(--g900)",
+        },
+        // Accent fill that always carries white text. The green scale is
+        // inverted for dark mode (g700 becomes a light green so it can be used
+        // as *text*), which would leave white-on-light-green buttons. This
+        // token stays dark in both themes.
+        "brand-solid": "var(--accent-solid)",
+        "cream": "var(--cream)",
+        // NOTE: named "panel", not "surface" — this palette already defines a
+        // hardcoded `surface: #fafaf4` further down, and a later duplicate key
+        // would silently win, pinning every card to a fixed light cream.
+        "panel": "var(--surface)",
+        "ink": "var(--ink)",
+        "ink2": "var(--ink2)",
+        "muted": "var(--muted)",
+        "line": "var(--border)",
+
         "surface-bright": "#fafaf4",
         "primary": "#001803",
         "inverse-primary": "#aad1a5",

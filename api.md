@@ -76,6 +76,13 @@ The Asella Organic API is a RESTful API built on Express.js and Node.js. It feat
 ### 9. Telegram Integration (`/api/telegram`)
 - `POST /api/telegram/webhook` — Incoming webhook from Telegram Bot API.
 - `GET /api/telegram/set-webhook` — Register Telegram webhook URL.
+- `POST /api/telegram/validate-init-data` — Verify the signed `initData` payload and return the Telegram user plus any linked customer.
+- `POST /api/telegram/app-order` — Mini App checkout. Creates the order and notifies the delivery group.
+- `GET /api/telegram/my-orders` — Authenticated customer order history. Accepts `search`, `status` (`all`, `processing`, `delivered`, `refunded`, or an exact status), `page`, and `limit`. Returns `data` plus a `meta` block.
+- `GET /api/telegram/profile` — Authenticated Account tab payload: Telegram identity, saved profile, and order stats.
+- `PUT /api/telegram/profile` — Persist the Account tab profile (display name, phone, city, delivery area).
+
+All Mini App customer endpoints require a cryptographically verified `initData` payload, sent in the `x-telegram-init-data` header or as a query parameter. An unverified `chat_id` is rejected.
 
 ### 10. Notifications (`/api/notification`)
 - `GET /api/notification` — In-app notification feed (Low stock, new orders, stock requests).

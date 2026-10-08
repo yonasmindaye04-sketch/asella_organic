@@ -110,6 +110,22 @@ export const CreateOrderSchema = z.object({
     .max(50, "Too many items in one order"),
 });
 
+// ─── Telegram Mini App Profile ─────────────────────────────────────────────
+
+export const TelegramProfileSchema = z.object({
+  display_name: z
+    .string()
+    .trim()
+    .min(2, "Display name must be at least 2 characters")
+    .max(100),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9\s\-]{7,20}$/, "Invalid phone number"),
+  city: z.string().trim().min(1, "City is required").max(100),
+  location: z.string().trim().max(255).optional().default(""),
+});
+
 export const UpdateStatusSchema = z.object({
   status: z.enum([
     "Pending",

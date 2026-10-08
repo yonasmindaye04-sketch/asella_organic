@@ -26,7 +26,8 @@ const Login: React.FC = () => {
           })
         );
         toast('Welcome back!', 'success');
-        navigate('/dashboard');
+        // Affiliates land in their own portal, never the staff dashboard.
+        navigate(res.data.user.role === 'affiliate' ? '/affiliate' : '/dashboard');
       } else {
         toast(res.error || 'Login failed', 'error');
       }

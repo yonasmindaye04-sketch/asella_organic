@@ -91,3 +91,4 @@ Internal stock allocation requests between secondary stores/staff and main wareh
 5. `007_idempotency_keys.sql` — Idempotency table
 6. `013_staff_telegram_username.sql` — Telegram RBAC columns
 7. `016_add_unit_cost.sql` — COGS `unit_cost` migration
+8. `020_telegram_miniapp_profile.sql` — Mini App profile columns on `telegram_users`, plus `customers.telegram_chat_id`, `orders.phone`, and `orders(status, created_at)` indexes for the Orders tab

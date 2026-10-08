@@ -38,10 +38,11 @@ import adminRoutes          from "./routes/admin.js";
 import expenseRoutes        from "./routes/expenses.js";
 import videoRoutes          from "./routes/videos.js";
 import reportRoutes         from "./routes/reports.js";
+import affiliatePortalRoutes, { publicAffiliateRouter } from "./routes/affiliatePortal.js";
 
 const app = express();
 
-// @ts-ignore: csp-config is a commonjs file without types
+// @ts-expect-error: csp-config is a commonjs file without types
 import cspConfig from "../../csp-config.js";
 
 // ── 1. Security headers (helmet) — must be first ──────────────────────────────
@@ -245,6 +246,9 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/orders",       orderRoutes],
   ["/products",     productRoutes],
   ["/referrals",    referralRoutes],
+  // Affiliate self-service portal. Mounted separately from /referrals because
+  // its auth model is inverted: role 'affiliate' only, scoped by JWT subject.
+  ["/affiliate",    affiliatePortalRoutes],
   ["/telegram",     telegramRoutes],
   ["/stock",        stockRoutes],
   ["/upload",       uploadRoutes],
@@ -256,6 +260,13 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/videos",       videoRoutes],
   ["/reports",      reportRoutes],
 ];
+
+// ── Public affiliate click tracking ────────────────────────────────────────
+// Registered BEFORE the route loop so it is not swallowed by the affiliate
+// session guard on the /affiliate router below: a visitor arriving from
+// ?ref=CODE has no session yet. Only POST /track-click lives here.
+app.use("/api/affiliate",    publicAffiliateRouter);
+app.use("/api/v1/affiliate", publicAffiliateRouter);
 
 for (const [path, router] of routeMounts) {
   // Versioned — preferred path

@@ -64,14 +64,12 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
 
   let staffUserId = null;
-  let staffUsername = null;
   const token = req.cookies?.access_token || (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
   if (token && process.env.JWT_SECRET) {
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET) as any;
       staffUserId = payload.id;
-      staffUsername = payload.username;
-    } catch (e) {
+    } catch {
       // Ignore token errors for public endpoint
     }
   }
@@ -132,51 +130,43 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       );
     }
 
+    // ── Referral attribution ──────────────────────────────────────────
+    //
+    // Attribution is claimed on a customer's FIRST order only. Previously
+    // every subsequent order carrying a code re-pointed the customer at a
+    // different affiliate, which silently transferred ownership of that
+    // customer's whole order history between affiliates.
+    //
+    // No commission is created here. Crediting happens exclusively in the
+    // trigger trg_order_delivered_commission when the order is delivered,
+    // so an order cannot be paid twice and cancelled orders are never
+    // credited at all.
     if (referral_code) {
+      const normalizedCode = referral_code.trim().toUpperCase();
+
       const [affiliates] = await connection.query(
         `SELECT ap.id
          FROM   affiliate_profiles ap
          LEFT   JOIN staff_users u ON u.id = ap.user_id
          WHERE  ap.referral_code = ?
            AND  ap.is_active = true
+           AND  ap.deleted_at IS NULL
            AND  (ap.user_id IS NULL OR u.active = true)`,
-        [referral_code.trim().toUpperCase()]
+        [normalizedCode]
       ) as [any[], any];
       const affiliate = affiliates[0];
       if (affiliate) {
+        // Only claim an unattributed customer. An existing attribution is
+        // left alone so history cannot be reassigned after the fact.
         await connection.query(
           `UPDATE customers
            SET referred_by_affiliate_id = ?,
                referral_code_used       = ?,
                referred_at              = NOW()
-           WHERE id = ?`,
-          [affiliate.id, referral_code.trim().toUpperCase(), customerId]
+           WHERE id = ?
+             AND referred_by_affiliate_id IS NULL`,
+          [affiliate.id, normalizedCode, customerId]
         );
-
-        const [configs] = await connection.query(
-          `SELECT * FROM referral_configs WHERE is_active = true ORDER BY created_at DESC LIMIT 1`
-        ) as [any[], any];
-        const config = configs[0];
-
-        if (config && total >= (config.min_order_amount || 0)) {
-          let commissionAmount = 0;
-          if (config.commission_type === 'percentage') {
-             commissionAmount = total * (config.commission_value / 100);
-             if (config.max_commission && commissionAmount > config.max_commission) {
-                commissionAmount = config.max_commission;
-             }
-          } else {
-             commissionAmount = config.commission_value;
-          }
-
-          if (commissionAmount > 0) {
-            await connection.query(
-              `INSERT INTO referral_commissions (id, affiliate_id, order_id, commission_amount, status)
-               VALUES (?, ?, ?, ?, 'pending')`,
-               [crypto.randomUUID(), affiliate.id, orderId, commissionAmount]
-            );
-          }
-        }
       }
     }
 
@@ -206,7 +196,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
             `*Stock Alert — New Order ${orderId}*\nCustomer: ${fields.customer_name}\n\n${alertItems.join("\n")}`
           );
         }
-      } catch (_) { /* non-blocking */ }
+      } catch { /* non-blocking */ }
     })();
 
     const isFranchise = (fields.notes as string | undefined)?.includes("Franchise Type:");
@@ -480,7 +470,13 @@ router.patch(
         });
         return;
       }
-    } else if ((status === "Cancelled" || status === "Issue") && current.status === "Delivered") {
+    } else if (
+      (status === "Cancelled" || status === "Issue" || status === "Returned") &&
+      current.status === "Delivered"
+    ) {
+      // A "Returned" order comes back as Delivered stock, so it needs the
+      // same restoration as a cancellation. The commission reversal trigger
+      // treats all three void statuses identically.
       try {
         await restoreOrderStock(orderId, (req as any).user?.id ?? null);
       } catch (stockErr: any) {

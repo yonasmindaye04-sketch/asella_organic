@@ -8,12 +8,17 @@ import app from "../../src/app.js";
 import pool from "../../src/config/db.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { authenticator } from "otplib";
 
 let adminToken: string;
 let employeeToken: string;
 const adminId    = crypto.randomUUID();
 const employeeId = crypto.randomUUID();
 const staffForAffiliateId = crypto.randomUUID();
+
+// A real TOTP secret so require2FA can be exercised without mocking otplib.
+const TWO_FA_SECRET = "JBSWY3DPEHPK3PXP";
+let testTwoFa: string;
 
 // Track created entities for cleanup
 let createdAffiliateId: string;
@@ -46,6 +51,15 @@ beforeAll(async () => {
      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)`,
     [staffForAffiliateId, hash]
   );
+
+  // Enable 2FA on the admin so the guard-protected routes can be tested.
+  await pool.query(
+    `UPDATE staff_users
+     SET two_factor_secret = ?, two_factor_enabled = TRUE
+     WHERE id = ?`,
+    [TWO_FA_SECRET, adminId]
+  );
+  testTwoFa = authenticator.generate(TWO_FA_SECRET);
 
   const [adminRes, empRes] = await Promise.all([
     request(app).post("/api/auth/login").send({ email: "ref_admin@test.com", password: "RefTest123!" }),
@@ -288,11 +302,12 @@ describe("GET /api/referrals/affiliates/:id/commissions", () => {
 describe("PATCH /api/referrals/commissions/:id/pay", () => {
   beforeAll(async () => {
     if (!createdAffiliateId) return;
-    // Create a test order and commission
+    // The order must be 'Delivered' — paying is refused for any other status,
+    // so that a cancelled order can never be paid out.
     await pool.query(
       `INSERT INTO orders (id, customer_name, phone, city, total, status, source)
-       VALUES ('ORD-REF-TEST', 'Ref Test', '123', 'City', 500, 'Pending', 'other')
-       ON DUPLICATE KEY UPDATE customer_name = 'Ref Test'`
+       VALUES ('ORD-REF-TEST', 'Ref Test', '123', 'City', 500, 'Delivered', 'other')
+       ON DUPLICATE KEY UPDATE customer_name = 'Ref Test', status = 'Delivered'`
     );
     createdCommissionId = crypto.randomUUID();
     await pool.query(
@@ -302,29 +317,98 @@ describe("PATCH /api/referrals/commissions/:id/pay", () => {
     );
   });
 
-  it("marks commission as paid", async () => {
+  it("requires 2FA", async () => {
     if (!createdCommissionId) return;
     const res = await request(app)
       .patch(`/api/referrals/commissions/${createdCommissionId}/pay`)
       .set("Authorization", `Bearer ${adminToken}`);
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/2FA/i);
+  });
+
+  it("marks commission as paid and books an expense", async () => {
+    if (!createdCommissionId) return;
+    const res = await request(app)
+      .patch(`/api/referrals/commissions/${createdCommissionId}/pay`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("x-2fa-token", testTwoFa);
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("paid");
     expect(res.body.data.paid_at).toBeDefined();
+    expect(res.body.data.net_payout).toBe(50);
+
+    // The payout must exist in expenses so it deducts from revenue.
+    const [expenses] = await pool.query(
+      `SELECT amount FROM expenses
+       WHERE category = 'affiliate_payout' AND notes LIKE ?`,
+      [`%${createdCommissionId}%`]
+    ) as [any[], any];
+    expect(Number(expenses[0].amount)).toBe(50);
   });
 
   it("rejects double-pay", async () => {
     if (!createdCommissionId) return;
     const res = await request(app)
       .patch(`/api/referrals/commissions/${createdCommissionId}/pay`)
-      .set("Authorization", `Bearer ${adminToken}`);
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("x-2fa-token", testTwoFa);
     expect(res.status).toBe(409);
   });
 
   it("returns 404 for non-existent commission", async () => {
     const res = await request(app)
       .patch(`/api/referrals/commissions/${crypto.randomUUID()}/pay`)
-      .set("Authorization", `Bearer ${adminToken}`);
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("x-2fa-token", testTwoFa);
     expect(res.status).toBe(404);
+  });
+
+  it("refuses to pay a commission whose order was cancelled", async () => {
+    const orderId   = "ORD-REF-CANCELLED";
+    const commissionId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO orders (id, customer_name, phone, city, total, status, source)
+       VALUES (?, 'Ref Test', '124', 'City', 500, 'Cancelled', 'other')
+       ON DUPLICATE KEY UPDATE status = 'Cancelled'`,
+      [orderId]
+    );
+    await pool.query(
+      `INSERT INTO referral_commissions (id, affiliate_id, order_id, commission_amount, commission_type, commission_value, order_total, status)
+       VALUES (?, ?, ?, 50, 'percentage', 10, 500, 'pending')`,
+      [commissionId, createdAffiliateId, orderId]
+    );
+
+    const res = await request(app)
+      .patch(`/api/referrals/commissions/${commissionId}/pay`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("x-2fa-token", testTwoFa);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/not "Delivered"/);
+
+    await pool.query(`DELETE FROM referral_commissions WHERE id = ?`, [commissionId]);
+    await pool.query(`DELETE FROM orders WHERE id = ?`, [orderId]);
+  });
+
+  it("refuses to pay a reversed commission", async () => {
+    const commissionId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO referral_commissions
+         (id, affiliate_id, order_id, commission_amount, commission_type,
+          commission_value, order_total, status)
+       VALUES (?, ?, 'ORD-REF-TEST', 25, 'percentage', 10, 250, 'reversed')`,
+      [commissionId, createdAffiliateId]
+    );
+
+    const res = await request(app)
+      .patch(`/api/referrals/commissions/${commissionId}/pay`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("x-2fa-token", testTwoFa);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/reversed/i);
+
+    await pool.query(`DELETE FROM referral_commissions WHERE id = ?`, [commissionId]);
   });
 });
 

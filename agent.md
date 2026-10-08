@@ -21,12 +21,15 @@ This document outlines the operational principles, codebase architecture, and ex
 - **Security:** Helmet CSP with unified `csp-config.js`, rate limiting, strict CSRF origin verification, and HMAC-SHA256 Telegram validation.
 
 ### 3. Telegram Mini App Guidelines
-- All Mini App code resides under `frontend/src/context/TelegramContext.tsx` and `frontend/src/pages/TelegramStore.tsx`.
+- SDK access goes through `frontend/src/context/TelegramContext.tsx`. Platform detection and low-level types live in `frontend/src/telegram/`.
+- All Mini App UI lives under `frontend/src/telegram/shop/`, split by concern: `TmaShell`/`BottomNav` (chrome), `StoreTab`, `DiscoverTab`, `OrdersTab`, `AccountTab` (tabs), and `CartView`/`CheckoutView`/`DetailView`/`ConfirmationView` (overlays). `frontend/src/pages/TelegramStore.tsx` stays a thin router that owns shared state.
+- The Mini App has its own entry: `frontend/tma.html` + `frontend/src/tma.tsx`. Never import the website's `App.tsx`, `index.css`, Redux `Provider` or service-worker registration into that entry — customers ordering in Telegram must not download the marketing site. `/tma` and `/telegram-store` are rewritten to `tma.html` by both `public/.htaccess` and the Vite dev middleware, and those rewrites must stay ahead of the SPA fallback.
 - Communication with Telegram must use `window.Telegram.WebApp`.
 - The Mini App must call `WebApp.ready()` and `WebApp.expand()` upon initialization.
 - Sync themes with Telegram theme parameters (`themeParams`) for light and dark environments.
 - Bind the Telegram `MainButton` to cart and checkout actions, and `BackButton` to navigation history.
 - Never trust unverified client data. All requests modifying state must be cryptographically authenticated via `initData` or JWT.
+- Customer-facing Mini App endpoints must call `authenticateMiniApp` in `backend/src/routes/telegram.ts` and must never accept a caller-supplied `chat_id` or `phone` as an identity claim.
 
 ### 4. Database & Accounting Integrity
 - Accrual accounting with Cost of Goods Sold (COGS) requires historical `unit_cost` snapshots on every order line item.

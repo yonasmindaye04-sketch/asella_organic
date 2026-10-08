@@ -1,0 +1,156 @@
+/**
+ * frontend/src/tma.css
+ * Telegram Mini App stylesheet — standalone.
+ *
+ * Reuses the website's organic green design tokens and typography from
+ * `src/index.css` so the Mini App looks identical to the public site.
+ * Deliberately excludes the rest of the 756-line website stylesheet.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Organic green scale — mirrors src/index.css */
+    --g900: #0d2e10;
+    --g800: #1a4d1e;
+    --g700: #2e7d32;
+    --g600: #388e3c;
+    --g500: #43a047;
+    --g300: #81c784;
+    --g200: #c8e6c9;
+    --g100: #e8f5e9;
+    --g50: #f4faf4;
+
+    --ink: #1a2e1b;
+    --ink2: #3a5c3a;
+    --muted: #6b8f6e;
+    --border: #d4ecd4;
+    --white: #ffffff;
+    --cream: #f7fdf7;
+    --surface: #ffffff;
+    --surface-2: #f4faf4;
+    --red: #c62828;
+    --amber: #f59e0b;
+
+    --radius: 14px;
+    --shadow-card: 0 1px 3px rgba(30, 80, 30, 0.05), 0 4px 16px rgba(30, 80, 30, 0.04);
+    --accent-solid: #2e7d32;
+  }
+
+  /* ── Dark theme ────────────────────────────────────────────────────────────
+   * Every colour in the Mini App resolves through the tokens above, so the
+   * whole surface flips by swapping these values. Applied via the .dark class
+   * on <html>, toggled by the header switch and persisted to localStorage.
+   */
+  .dark {
+    --g900: #e8f5e9;
+    --g800: #c8e6c9;
+    --g700: #81c784;
+    --g600: #66bb6a;
+    --g500: #4caf50;
+    --g300: #2e7d32;
+    --g200: #1f4a23;
+    --g100: #1a3d1e;
+    --g50: #16301a;
+
+    --ink: #f2f9f2;
+    --ink2: #c2ddc4;
+    --muted: #8fae92;
+    --border: #26512a;
+    --white: #101a11;
+    --cream: #0c150d;
+    --surface: #141f15;
+    --surface-2: #1a2a1c;
+    --red: #ef5350;
+    --amber: #ffca28;
+
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.22);
+
+    /* Kept dark in both themes so white text on it stays legible. */
+    --accent-solid: #2f7f34;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    font-size: 15px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    /* Telegram owns the scroll container; let overscroll reach the SDK. */
+    overscroll-behavior-y: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Card + panel elevation, matching the website's shadow language. */
+  .tma-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--g200);
+    border-radius: 4px;
+  }
+}
+
+/* Long product names and ETB prices must never force a horizontal scrollbar. */
+#root * {
+  min-width: 0;
+}
+
+/* ── Brand surface override ───────────────────────────────────────────────
+ * miniApp.css sets .telegram-mini-app-shell to Telegram's --tg-theme-bg-color
+ * so the Mini App follows the user's Telegram theme. The Asella brand should
+ * look like the website instead, so the cream surface wins here.
+ *
+ * Declared outside @layer, and imported after miniApp.css, so it takes
+ * precedence over both the layered preflight and the unlayered theme rule.
+ */
+.telegram-mini-app-shell.telegram-mini-app-shell {
+  background-color: var(--cream);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Native dropdown lists are painted by the OS, not the page, so they ignore
+ * the tokens above unless each option sets them explicitly. Without this the
+ * sort and city pickers open as white-on-white in dark mode. */
+select option,
+select optgroup {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+/* Respect the user's motion preference for the subtle tab transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

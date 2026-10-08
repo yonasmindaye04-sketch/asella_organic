@@ -24,6 +24,8 @@ const NotificationsPage    = lazy(() => import('./pages/Notificationspage'));
 const ChangePasswordPage   = lazy(() => import('./pages/ChangePasswordPage'));
 const UserManagementPage   = lazy(() => import('./pages/UserManagementPage'));
 const AffiliateControlPage = lazy(() => import('./pages/AffiliateControlPage'));
+const AffiliateDashboard   = lazy(() => import('./pages/AffiliateDashboard'));
+import AffiliateRoute from './components/ui/AffiliateRoute';
 const NewOrderPage         = lazy(() => import('./pages/NewOrderPage'));
 const CustomerOrderTracking = lazy(() => import('./pages/CustomerOrderTracking'));
 const ExpensesPage         = lazy(() => import('./pages/ExpensesPage'));
@@ -51,10 +53,17 @@ function App() {
                   {/* Public */}
                   <Route path="/"                 element={<Storefront />} />
                   <Route path="/checkout"         element={<Checkout />} />
+                  {/* Fallback only. The canonical Mini App is the standalone
+                      tma.html document; Apache (.htaccess) and Vite both
+                      rewrite /tma and /telegram-store to it. These routes
+                      exist for hosts without those rewrites. */}
                   <Route path="/telegram-store"   element={<TelegramStore />} />
                   <Route path="/tma"              element={<TelegramStore />} />
                   <Route path="/community-videos" element={<CommunityVideos />} />
                   <Route path="/login"            element={<Login />} />
+
+                  {/* Affiliate portal — own layout, role 'affiliate' only */}
+                  <Route path="/affiliate"        element={<AffiliateRoute><AffiliateDashboard /></AffiliateRoute>} />
                   <Route path="/privacy"          element={<PrivacyPolicy />} />
                   <Route path="/terms"            element={<TermsOfService />} />
                   <Route path="/track"            element={<CustomerOrderTracking />} />

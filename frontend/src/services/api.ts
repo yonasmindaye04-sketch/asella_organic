@@ -19,7 +19,18 @@
  *   3. If refresh fails (session truly expired), redirects to /login.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+/**
+ * API base URL.
+ *
+ * Defaults to an empty string, i.e. same-origin relative requests. That is
+ * required for the Telegram Mini App: it is served from a public tunnel
+ * (trycloudflare.com / ngrok), so an absolute "http://localhost:3001" would
+ * resolve to the *user's* device and fail with "Failed to fetch".
+ *
+ * In development the Vite dev server proxies /api to the backend, and in
+ * production .env.production sets VITE_API_URL to the public API host.
+ */
+const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 // ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
@@ -111,11 +122,11 @@ async function request<T>(
 // ─── Typed API surface ────────────────────────────────────────────────────────
 
 export const api = {
-  get:    <T>(path: string)                           => request<T>("GET",    path),
-  post:   <T>(path: string, body: unknown)            => request<T>("POST",   path, body),
-  put:    <T>(path: string, body: unknown)            => request<T>("PUT",    path, body),
-  patch:  <T>(path: string, body: unknown)            => request<T>("PATCH",  path, body),
-  delete: <T>(path: string, headers?: Record<string, string>) => request<T>("DELETE", path, undefined, true, headers),
+  get:    <T>(path: string)                                    => request<T>("GET",    path),
+  post:   <T>(path: string, body: unknown, headers?: Record<string, string>) => request<T>("POST",   path, body, true, headers),
+  put:    <T>(path: string, body: unknown, headers?: Record<string, string>) => request<T>("PUT",    path, body, true, headers),
+  patch:  <T>(path: string, body: unknown, headers?: Record<string, string>) => request<T>("PATCH",  path, body, true, headers),
+  delete: <T>(path: string, headers?: Record<string, string>)   => request<T>("DELETE", path, undefined, true, headers),
 };
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -151,6 +162,178 @@ export const auth = {
    * Returns 401 if not logged in.
    */
   me: () => api.get<StaffProfile>("/api/auth/me"),
+};
+
+// ─── Affiliate helpers (admin surface) ────────────────────────────────────────
+
+export type AffiliateRuleType = 'global' | 'custom';
+export type CommissionStatus = 'pending' | 'paid' | 'reversed';
+
+export interface AffiliateRule {
+  id?: string;
+  affiliate_id?: string;
+  commission_type: 'percentage' | 'fixed';
+  commission_value: number;
+  min_order_amount: number;
+  max_commission: number | null;
+  is_active?: boolean;
+}
+
+export interface AffiliateRuleState {
+  rule_type: AffiliateRuleType;
+  effective: boolean;
+  rule: AffiliateRule | null;
+  global_rule: AffiliateRule | null;
+}
+
+export interface AdminCommission {
+  id: string;
+  order_id: string | null;
+  commission_amount: number;
+  commission_type: string;
+  commission_value: number;
+  order_total: number;
+  status: CommissionStatus;
+  rule_source: 'global' | 'individual';
+  clawback_settled: number;
+  reversal_reason: string | null;
+  reversed_at: string | null;
+  calculated_at: string;
+  paid_at: string | null;
+  affiliate_name: string;
+  referral_code: string;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+}
+
+export const referrals = {
+  stats:     ()         => api.get('/api/referrals/stats'),
+  config:    ()         => api.get<AffiliateRule | null>('/api/referrals/config'),
+  saveConfig:(body: Omit<AffiliateRule, 'id' | 'affiliate_id'>) =>
+                           api.post<AffiliateRule>('/api/referrals/config', body),
+
+  list:      (params: { active?: boolean; rule_type?: AffiliateRuleType } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get(`/api/referrals/affiliates?${qs}`);
+  },
+
+  // Item 1 — per-affiliate commission rules
+  getRule:   (id: string) => api.get<AffiliateRuleState>(`/api/referrals/affiliates/${id}/rule`),
+  saveRule:  (id: string, body: Omit<AffiliateRule, 'id' | 'affiliate_id'>) =>
+                           api.put<AffiliateRule>(`/api/referrals/affiliates/${id}/rule`, body),
+  clearRule: (id: string) => api.delete(`/api/referrals/affiliates/${id}/rule`),
+
+  create:    (body: unknown) => api.post('/api/referrals/affiliates', body),
+  update:    (id: string, body: unknown) => api.patch(`/api/referrals/affiliates/${id}`, body),
+  /** Item 3 — permanent removal (soft delete; deactivation is separate). */
+  remove:    (id: string, twoFaToken: string) =>
+                           api.delete(`/api/referrals/affiliates/${id}`, { 'x-2fa-token': twoFaToken }),
+  /** Item 2 — provision a portal login for an external affiliate. */
+  grantPortalAccess: (id: string, twoFaToken: string) =>
+                           api.post(`/api/referrals/affiliates/${id}/portal-access`, {},
+                                    { 'x-2fa-token': twoFaToken }),
+
+  commissions: (params: { status?: CommissionStatus; page?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get<AdminCommission[]>(`/api/referrals/commissions?${qs}`);
+  },
+  markPaid:  (id: string, twoFaToken: string) =>
+                           api.patch(`/api/referrals/commissions/${id}/pay`, {},
+                                    { 'x-2fa-token': twoFaToken }),
+  reverse:   (id: string, reason: string, twoFaToken: string) =>
+                           api.post(`/api/referrals/commissions/${id}/reverse`, { reason },
+                                    { 'x-2fa-token': twoFaToken }),
+
+  // Item 5 — reporting
+  recipients:   () => api.get('/api/referrals/reports/recipients'),
+  reportHistory:() => api.get('/api/referrals/reports/history'),
+  sendReports:  (body: { affiliate_id?: string; from?: string; to?: string }, twoFaToken: string) =>
+                           api.post('/api/referrals/reports/send', body, { 'x-2fa-token': twoFaToken }),
+  previewUrl:   (affiliateId: string, from: string, to: string) =>
+                           `${BASE_URL}/api/referrals/reports/preview?affiliate_id=${affiliateId}&from=${from}&to=${to}`,
+};
+
+// ─── Affiliate portal helpers (self-service) ─────────────────────────────────
+
+export interface AffiliateMe {
+  referral_code: string;
+  display_name: string;
+  is_active: boolean;
+  rule_type: AffiliateRuleType;
+  member_since: string | null;
+  share_link: string;
+  total_earnings: number;
+  total_customers: number;
+  clawback_pending: number;
+}
+
+export interface AffiliateSummary {
+  affiliateName: string;
+  referralCode: string;
+  period: { start: string; end: string };
+  commissionRule: string;
+  orders: number;
+  grossSales: number;
+  commissionEarned: number;
+  commissionPaid: number;
+  commissionPending: number;
+  commissionReversed: number;
+  clawback: number;
+  netEarned: number;
+  linkClicks: number;
+  uniqueVisitors: number;
+  referredCustomers: number;
+  convertedCustomers: number;
+  conversionRate: number;
+  lifetime: {
+    totalEarned: number;
+    totalPaid: number;
+    totalPending: number;
+    clawbackPending: number;
+    customers: number;
+    orders: number;
+    grossSales: number;
+  };
+}
+
+export interface PortalCommission {
+  id: string;
+  order_id: string | null;
+  order_total: number;
+  commission_amount: number;
+  commission_type: string;
+  status: CommissionStatus;
+  rule_source: 'global' | 'individual';
+  calculated_at: string;
+  paid_at: string | null;
+  reversed_at: string | null;
+  reversal_reason: string | null;
+}
+
+export const affiliatePortal = {
+  me:         () => api.get<AffiliateMe>('/api/affiliate/me'),
+  summary:    (params: { from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get<AffiliateSummary>(`/api/affiliate/me/summary?${qs}`);
+  },
+  commissions: (params: { status?: CommissionStatus; page?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get<PortalCommission[]>(`/api/affiliate/me/commissions?${qs}`);
+  },
+  referrals:  (params: { from?: string; to?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get(`/api/affiliate/me/referrals?${qs}`);
+  },
+  activity:   () => api.get('/api/affiliate/me/activity'),
+  changePassword: (current_password: string, new_password: string) =>
+                           api.post('/api/affiliate/me/change-password', { current_password, new_password }),
+  trackClick: (code: string, path?: string, source?: string) =>
+                           api.post('/api/affiliate/track-click', { code, path, source }),
 };
 
 // ─── Products helpers ─────────────────────────────────────────────────────────
