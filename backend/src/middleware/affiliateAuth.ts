@@ -32,6 +32,12 @@ export interface AffiliateContext {
   referralCode: string;
   displayName: string;
   email: string | null;
+  /**
+   * True while the account still holds the temporary password an admin issued
+   * via POST /referrals/affiliates/:id/portal-access. Such an account may only
+   * read /me and change its password.
+   */
+  mustChangePassword: boolean;
 }
 
 declare global {
@@ -48,6 +54,7 @@ interface ProfileRow extends RowDataPacket {
   referral_code: string;
   full_name: string | null;
   email: string | null;
+  must_change_password: number | boolean | null;
 }
 
 /**
@@ -74,13 +81,17 @@ export const affiliateOnly = async (
 
   try {
     const [rows] = await pool.query(
-      `SELECT ap.id, ap.user_id, ap.referral_code, ap.full_name, ap.email
+      `SELECT ap.id, ap.user_id, ap.referral_code, ap.full_name, ap.email,
+              u.must_change_password
        FROM   affiliate_profiles ap
+       JOIN   staff_users u ON u.id = ap.user_id
        WHERE  ap.user_id = ?
          AND  ap.is_active = TRUE
          AND  ap.deleted_at IS NULL
+         AND  u.active = TRUE
+         AND  u.deleted_at IS NULL
        LIMIT  1`,
-      [req.user.id],
+      [req.user.id]
     ) as [ProfileRow[], unknown];
 
     const profile = rows[0];
@@ -99,6 +110,7 @@ export const affiliateOnly = async (
       referralCode: profile.referral_code,
       displayName: profile.full_name ?? req.user.username,
       email: profile.email,
+      mustChangePassword: Boolean(profile.must_change_password),
     };
 
     next();

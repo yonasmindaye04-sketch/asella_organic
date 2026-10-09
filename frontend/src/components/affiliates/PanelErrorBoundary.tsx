@@ -1,4 +1,5 @@
 import React from 'react';
+import * as t from './theme';
 
 /**
  * Scoped error boundary for one panel of a larger page.
@@ -31,16 +32,16 @@ class PanelErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <section className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <h2 className="text-sm font-black uppercase tracking-wide text-red-700">
+        <section className={`${t.alertError} p-4`}>
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--rose)]">
             {this.props.label} unavailable
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-red-700">
+          <p className={`mt-1 text-xs leading-relaxed text-[var(--rose)]`}>
             {this.state.error.message}
           </p>
           <button
             onClick={() => this.setState({ error: null })}
-            className="mt-3 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100"
+            className={`${t.btnBase} mt-3 border-[1.5px] border-[var(--rose)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--rose)] hover:bg-[var(--rose-dim)]`}
           >
             Retry
           </button>

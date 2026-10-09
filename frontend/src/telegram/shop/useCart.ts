@@ -34,6 +34,13 @@ export interface UseCartReturn {
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   quantityOf: (variantId: string | undefined) => number;
+  /** Overwrites the cart wholesale, e.g. when hydrating from the server. */
+  replace: (items: unknown[]) => void;
+}
+
+export interface UseCartOptions {
+  onHaptic?: (style: 'light' | 'medium') => void;
+  onNotify?: (type: 'error' | 'success' | 'warning') => void;
 }
 
 export function useCart({ onHaptic, onNotify }: UseCartOptions = {}): UseCartReturn {
@@ -123,6 +130,35 @@ export function useCart({ onHaptic, onNotify }: UseCartOptions = {}): UseCartRet
     [cart]
   );
 
+  // Wholesale replacement, used when hydrating the basket the customer left
+  // on another device. Entries are validated because the payload came from a
+  // previous session's stored state rather than this render.
+  const replace = useCallback((items: unknown[]) => {
+    const cleaned: CartItem[] = [];
+
+    for (const raw of Array.isArray(items) ? items : []) {
+      if (!raw || typeof raw !== 'object') continue;
+
+      const item = raw as Record<string, unknown>;
+      const productId = String(item.productId ?? '');
+      const name = String(item.name ?? '');
+      const quantity = Math.floor(Number(item.quantity));
+
+      if (!productId || !name || !Number.isFinite(quantity) || quantity < 1) continue;
+
+      cleaned.push({
+        productId,
+        name,
+        packageSize: String(item.packageSize ?? ''),
+        unitPrice: Number(item.unitPrice) || 0,
+        quantity,
+        imageUrl: typeof item.imageUrl === 'string' ? item.imageUrl : undefined,
+      });
+    }
+
+    setCart(cleaned);
+  }, []);
+
   return {
     cart,
     cartTotal,
@@ -132,5 +168,6 @@ export function useCart({ onHaptic, onNotify }: UseCartOptions = {}): UseCartRet
     removeFromCart,
     clearCart,
     quantityOf,
+    replace,
   };
 }

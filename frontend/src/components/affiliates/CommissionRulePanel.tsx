@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { referrals } from '../../services/api';
 import type { AffiliateRow } from '../../pages/AffiliateControlPage';
+import * as t from './theme';
 
 interface Props {
   affiliates: AffiliateRow[];
@@ -25,8 +26,8 @@ const emptyForm: RuleForm = {
 };
 
 const inputCls =
-  'mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm';
-const labelCls = 'text-xs font-bold text-slate-600';
+  t.input;
+const labelCls = t.inputLabel;
 
 /**
  * Coerce an API rule row into form state.
@@ -116,7 +117,9 @@ const CommissionRulePanel: React.FC<Props> = ({
         commission_type: form.commission_type,
         commission_value: Number(form.commission_value),
         min_order_amount: Number(form.min_order_amount || 0),
-        ...(form.max_commission ? { max_commission: Number(form.max_commission) } : {}),
+        // null, not omitted: the API treats a missing max_commission as "no cap"
+        // and an explicit null as "clear the cap".
+        max_commission: form.max_commission ? Number(form.max_commission) : null,
       };
 
       if (Number.isNaN(body.commission_value) || body.commission_value <= 0) {
@@ -163,15 +166,13 @@ const CommissionRulePanel: React.FC<Props> = ({
   };
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className={`${t.panel} ${t.panelShadow} p-4`}>
       <div className="flex items-start justify-between gap-2">
-        <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">
+        <h2 className={t.label}>
           Commission Rule
         </h2>
         {customRuleCount > 0 && (
-          <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-extrabold text-violet-700">
-            {customRuleCount} individual
-          </span>
+          <t.StatusPill tone="custom" label={`${customRuleCount} individual`} />
         )}
       </div>
 
@@ -193,7 +194,7 @@ const CommissionRulePanel: React.FC<Props> = ({
       </label>
 
       {!isGlobal && target && (
-        <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+        <p className={`mt-2 rounded-md bg-[var(--bg-deep)] px-3 py-2 text-[11px] leading-relaxed ${t.fgSecondary}`}>
           {target.rule_type === 'custom' ? (
             <>
               This affiliate has an <strong>individual rate</strong>. Orders they refer are
@@ -260,7 +261,7 @@ const CommissionRulePanel: React.FC<Props> = ({
           />
         </label>
 
-        <p className="text-[10px] italic leading-relaxed text-slate-500">
+        <p className={`text-[10px] italic leading-relaxed ${t.muted}`}>
           {isGlobal
             ? 'The standard rate applies to every affiliate without an individual rule. Changing it does not affect commissions already credited.'
             : 'Applies only to this affiliate. Commissions already credited keep the rate they were calculated at.'}
@@ -269,7 +270,7 @@ const CommissionRulePanel: React.FC<Props> = ({
         <button
           onClick={save}
           disabled={saving || loading}
-          className="rounded-lg bg-[#2e7d32] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          className={`${t.btnBase} bg-[var(--accent)] px-4 py-2 text-sm text-white hover:bg-[var(--g800)] disabled:opacity-50`}
         >
           {saving ? 'Saving...' : isGlobal ? 'Save Standard Rule' : 'Save Individual Rule'}
         </button>
@@ -278,7 +279,7 @@ const CommissionRulePanel: React.FC<Props> = ({
           <button
             onClick={resetToStandard}
             disabled={saving}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className={`${t.btnBase} border-[1.5px] border-[var(--border)] px-4 py-2 text-sm text-[var(--fg-secondary)] hover:border-[var(--border-light)] hover:text-[var(--fg)] disabled:opacity-40`}
           >
             Revert to Standard Rule
           </button>

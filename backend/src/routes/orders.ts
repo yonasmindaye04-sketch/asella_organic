@@ -18,6 +18,7 @@ import { authenticate, authorise } from "../middleware/auth.js";
 import { require2FA }   from "../middleware/2fa.js";
 import { validate }     from "../middleware/validate.js";
 import { recordMovement } from "../lib/inventory.js";
+import { recordCustomerActivity, activityTypeForStatus } from "../lib/customerActivity.js";
 import {
   CreateOrderSchema,
   UpdateStatusSchema,
@@ -34,14 +35,59 @@ import { mirrorToSheets, mirrorOrderStatusToSheets, mirrorOrderDeletionToSheets 
 import { sanitizeObject, randomId }   from "../lib/security.js";
 import { createLogger }               from "../lib/logger.js";
 import { deductOrderStock, restoreOrderStock }           from "../lib/inventory.js";
+import { orderRateLimit } from "../middleware/rateLimit.js";
 import jwt from "jsonwebtoken";
 
 const router = Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Customer in-app notification helper
+//
+// The Telegram Mini App bell reads from customer_notifications. This resolves
+// the recipient from the order's own verified chat id where possible, so a
+// customer whose checkout phone number differs from the number staff read off
+// the order still gets their updates. Failures are swallowed: a notification
+// must never fail an order update.
+// ─────────────────────────────────────────────────────────────────────────────
+async function notifyCustomerOfStatusChange(params: {
+  orderId: string;
+  phone: string;
+  status: string;
+  customerName: string;
+  chatIdHint: number | null;
+}): Promise<void> {
+  try {
+    let chatId = params.chatIdHint;
+
+    if (!chatId) {
+      const [rows] = await pool.query(
+        `SELECT telegram_chat_id FROM customers WHERE phone = ? AND telegram_chat_id IS NOT NULL LIMIT 1`,
+        [params.phone.replace(/\s+/g, "")]
+      ) as [any[], any];
+      chatId = rows[0]?.telegram_chat_id ? Number(rows[0].telegram_chat_id) : null;
+    }
+
+    if (!chatId) return;
+
+    await pool.query(
+      `INSERT INTO customer_notifications (chat_id, order_id, type, title, body)
+       VALUES (?, ?, 'order_update', ?, ?)`,
+      [
+        chatId,
+        params.orderId,
+        `Order ${params.status}`,
+        `Hi ${params.customerName}, your order ${params.orderId} is now ${params.status}.`,
+      ]
+    );
+  } catch (err: any) {
+    console.warn(`[orders] Failed to record customer notification: ${err?.message || err}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/orders  — create (public, no auth required)
 // ─────────────────────────────────────────────────────────────────────────────
-router.post("/", async (req: Request, res: Response): Promise<void> => {
+router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
 
   const sanitized =
@@ -224,6 +270,21 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     void sendTelegramToCustomer({
       phone:   fields.phone,
       message: `Hi ${fields.customer_name}, your order *${orderId}* has been received. Total: ETB ${total}.`,
+    });
+
+    // Customer timeline: the opening movement. Written after commit
+    // because recordCustomerActivity uses the pool, not this
+    // transaction's connection — writing it inside would deadlock the
+    // two against each other.
+    void recordCustomerActivity({
+      customerId,
+      orderId,
+      activityType: "sale",
+      title: `Order ${orderId} placed`,
+      detail: `${fields.source} • ${fields.city}`,
+      amount: total,
+      statusTo: "Pending",
+      actorId: staffUserId,
     });
 
     log.info("Order created", { orderId, total, source: fields.source });
@@ -428,8 +489,12 @@ router.patch(
       return;
     }
 
+    // customer_id and telegram_chat_id are both read below — the
+    // telegram_chat_id lookup was silently always null because the
+    // column was never selected here.
     const [currentRows] = await pool.query(
-      `SELECT status, phone, customer_name FROM orders WHERE id = ? AND deleted_at IS NULL`,
+      `SELECT status, phone, customer_name, customer_id, telegram_chat_id, total
+       FROM orders WHERE id = ? AND deleted_at IS NULL`,
       [orderId]
     ) as [any[], any];
 
@@ -516,6 +581,42 @@ router.patch(
       phone:   current.phone as string,
       message: `Hi ${current.customer_name}, your order *${orderId}* is now *${status}*.`,
     });
+
+    // In-app notification so the bell in the Mini App updates too. Resolved
+    // from the order's own verified chat id, falling back to the customer
+    // record for orders placed before that column existed.
+    void notifyCustomerOfStatusChange({
+      orderId,
+      phone: current.phone as string,
+      status,
+      customerName: current.customer_name as string,
+      chatIdHint: (current.telegram_chat_id as number | null) ?? null,
+    });
+
+    // Customer timeline: the status change itself. Returns and
+    // cancellations are tagged as their own movement types so the
+    // timeline can be filtered down to "what went wrong".
+    const activityType = activityTypeForStatus(status, current.status as string | null);
+    if (activityType) {
+      const isVoid = activityType === "return" || activityType === "cancellation";
+      void recordCustomerActivity({
+        customerId: (current.customer_id as string | null) ?? null,
+        phone: current.phone as string,
+        orderId,
+        activityType,
+        title: isVoid
+          ? `Order ${orderId} ${status.toLowerCase()}`
+          : `Order ${orderId}: ${status}`,
+        detail: note ?? null,
+        // Voiding an order reverses revenue, so the amount is signed
+        // negative; every other transition leaves the value untouched.
+        amount: isVoid ? -Number(current.total ?? 0) : null,
+        statusFrom: current.status as string | null,
+        statusTo: status,
+        actorId: (req as any).user?.id ?? null,
+        actorName: (req as any).user?.username ?? "system",
+      });
+    }
 
     log.info("Order status updated", { orderId, status });
     res.json({ success: true, data: { id: orderId, status } });

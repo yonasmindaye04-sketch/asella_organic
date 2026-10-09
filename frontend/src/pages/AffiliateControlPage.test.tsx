@@ -162,19 +162,21 @@ describe('AffiliateControlPage', () => {
     // Item 3 — roster + delete button. The affiliate name appears in both the
     // roster row and the commission ledger row, so match non-exclusively.
     await waitFor(() => expect(screen.getAllByText('Biruk Alemu').length).toBeGreaterThan(0));
-    expect(screen.getByText('Delete')).toBeTruthy();
-    expect(screen.getByText('Deactivate')).toBeTruthy();
-    expect(screen.getByText('Portal Login')).toBeTruthy();
+    // Delete/Deactivate render once in the desktop table and once in the
+    // mobile card view for the same affiliate.
+    expect(screen.getAllByText('Delete')).toHaveLength(2);
+    expect(screen.getAllByText('Deactivate')).toHaveLength(2);
+    expect(screen.getAllByText('Portal Login')).toHaveLength(2);
 
     // Item 5 — reports
     expect(screen.getByText('Sales & Engagement Reports')).toBeTruthy();
     expect(screen.getByText('Send to')).toBeTruthy();
 
-    // Commission ledger
+    // Commission ledger — also rendered as a table plus a mobile card list.
     expect(screen.getByText('Commission Movement')).toBeTruthy();
-    await waitFor(() => expect(screen.getByText('Mark Paid')).toBeTruthy());
-    expect(screen.getByText('Reverse')).toBeTruthy();
-    expect(screen.getByText('ORD-20260101-AAAAAA')).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText('Mark Paid').length).toBe(2));
+    expect(screen.getAllByText('Reverse')).toHaveLength(2);
+    expect(screen.getAllByText('ORD-20260101-AAAAAA')).toHaveLength(2);
   });
 
   it('renders even when the recipients payload uses the OLD flat array shape', async () => {

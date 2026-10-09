@@ -269,6 +269,72 @@ export const CreateAppointmentSchema = z.object({
 });
 
 
+// ─── SMS ─────────────────────────────────────────────────────────────────
+//
+// Destinations are accepted in any format the UI collects and normalized in
+// src/lib/smsNormalize.ts. The regex here is a shape check that rejects
+// obvious junk early; normalizeEthiopianMSISDN remains the authority, so a
+// value passing this schema can still fail normalization (a landline
+// range, say) and is then recorded as `skipped_invalid`, not silently sent.
+const phoneShape = z
+  .string()
+  .trim()
+  .regex(/^\+?[0-9\s\-().]{9,20}$/, "Invalid phone number");
+
+export const SendSmsSchema = z.object({
+  to: phoneShape,
+  text: z.string().trim().min(1, "Message text is required").max(1000),
+});
+
+export const PreviewSmsCampaignSchema = z.object({
+  // Whichever the operator supplies: a targeting predicate against
+  // vw_customer_insights, or an explicit pasted/uploaded list.
+  segment: z
+    .enum(["VIP", "Loyal", "Promising", "At Risk", "Dormant"])
+    .optional(),
+  city: z.string().trim().max(120).optional(),
+  min_orders: z.coerce.number().int().min(0).optional(),
+  max_days_idle: z.coerce.number().int().min(0).optional(),
+  recipients: z
+    .array(
+      z.object({
+        phone: phoneShape,
+        name: z.string().trim().max(120).optional(),
+      }),
+    )
+    .max(20_000, "Too many recipients in one upload")
+    .optional(),
+  text: z.string().trim().min(1, "Message text is required").max(1000),
+});
+
+export const CreateSmsCampaignSchema = PreviewSmsCampaignSchema.extend({
+  name: z.string().trim().min(3, "Campaign name is required").max(160),
+  category: z.enum(["broadcast", "marketing"]).default("broadcast"),
+  template_id: z.string().uuid().optional().or(z.literal("")),
+  scheduled_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/, "Invalid schedule timestamp")
+    .optional()
+    .or(z.literal("")),
+  max_cost_etb: z.coerce.number().positive().max(100_000).optional(),
+});
+
+export const DispatchSmsCampaignSchema = z.object({
+  // Staff retype the campaign name to confirm they read the dry-run numbers.
+  confirm_phrase: z.string().trim().min(1).max(160),
+  // Set only when the draft exceeds its own cost ceiling. The daily ceiling
+  // has no override and is not part of this schema.
+  cost_override: z.coerce.boolean().optional().default(false),
+});
+
+export const SmsConsentSchema = z.object({
+  to: phoneShape,
+  // 'opt-in' clears sms_marketing_opt_in; 'hard-opt-out' sets sms_opt_out_at
+  // and suppresses transactional sends too. 'opt-out' matches the consent
+  // log enum and leaves transactional sends permitted.
+  action: z.enum(["opt-in", "opt-out", "hard-opt-out"]),
+});
+
 // ─── Type exports (inferred from schemas) ────────────────────────────────
 
 export type LoginInput           = z.infer<typeof LoginSchema>;
@@ -279,3 +345,8 @@ export type AdjustStockInput     = z.infer<typeof AdjustStockSchema>;
 export type CreatePaymentInput   = z.infer<typeof CreatePaymentSchema>;
 export type SendTelegramInput    = z.infer<typeof SendTelegramSchema>;
 export type CreateAppointmentInput = z.infer<typeof CreateAppointmentSchema>;
+export type SendSmsInput          = z.infer<typeof SendSmsSchema>;
+export type PreviewSmsCampaignInput = z.infer<typeof PreviewSmsCampaignSchema>;
+export type CreateSmsCampaignInput  = z.infer<typeof CreateSmsCampaignSchema>;
+export type DispatchSmsCampaignInput = z.infer<typeof DispatchSmsCampaignSchema>;
+export type SmsConsentInput       = z.infer<typeof SmsConsentSchema>;

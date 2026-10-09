@@ -126,7 +126,15 @@ Because Telegram cannot send incoming webhooks directly to `localhost`, run the 
 cd backend
 npm run telegram:poll
 ```
-This utility polls Telegram for updates and forwards them directly to your local backend endpoint (`http://localhost:3001/api/telegram/webhook`).
+This utility polls Telegram for updates and forwards them directly to your local backend endpoint (`http://localhost:3001/api/telegram/webhook`, using `PORT` from `backend/.env`).
+
+By default it does **not** touch your webhook. Telegram allows a webhook *or* long polling, never both, so if the bot is not receiving your messages locally, re-run with the explicit flag:
+
+```bash
+npm run telegram:poll -- --delete-webhook
+```
+
+> **Warning:** `--delete-webhook` removes the live webhook and does **not** restore it on exit. Never pass it against a production bot token. Restore afterwards with `POST /api/telegram/set-webhook`.
 
 ---
 

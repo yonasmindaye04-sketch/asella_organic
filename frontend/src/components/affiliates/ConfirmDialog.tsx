@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as t from './theme';
 
 interface Props {
   open: boolean;
@@ -9,7 +10,8 @@ interface Props {
   confirmLabel: string;
   danger?: boolean;
   busy?: boolean;
-  onConfirm: () => void;
+  /** Receives the 2FA code the user typed, to be sent as the x-2fa-token header. */
+  onConfirm: (twoFaToken: string) => void;
   onCancel: () => void;
 }
 
@@ -48,39 +50,39 @@ const ConfirmDialog: React.FC<Props> = ({
 
   const confirm = () => {
     if (!canConfirm) return;
-    onConfirm();
+    onConfirm(twoFaToken.trim());
     setTyped('');
     setTwoFaToken('');
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--fg)]/40 p-4 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-        <h3 className={`text-base font-black ${danger ? 'text-red-700' : 'text-slate-900'}`}>
+      <div className={`w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--bg-card)] p-5 shadow-[var(--sh2)]`}>
+        <h3 className={`${t.h2} text-base ${danger ? 'text-[var(--rose)]' : t.fg}`}>
           {title}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p>
+        <p className={`mt-2 text-sm leading-relaxed ${t.fgSecondary}`}>{description}</p>
 
         {confirmPhrase && (
           <div className="mt-4">
-            <label className="text-xs font-bold text-slate-600">
-              Type <span className="font-mono text-red-700">{confirmPhrase}</span> to confirm
+            <label className={`text-xs font-bold ${t.fgSecondary}`}>
+              Type <span className={`font-mono text-[var(--rose)]`}>{confirmPhrase}</span> to confirm
               <input
                 value={typed}
                 onChange={e => setTyped(e.target.value)}
                 autoComplete="off"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm"
+                className={`mt-1 w-full rounded-md border-[1.5px] border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 font-mono text-sm text-[var(--fg)] outline-none transition-colors focus:border-[var(--accent)]`}
               />
             </label>
           </div>
         )}
 
         <div className="mt-4">
-          <label className="text-xs font-bold text-slate-600">
+          <label className={`text-xs font-bold ${t.fgSecondary}`}>
             2FA code
             <input
               value={twoFaToken}
@@ -88,7 +90,7 @@ const ConfirmDialog: React.FC<Props> = ({
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder="6-digit code from your authenticator"
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className={`mt-1 ${t.input}`}
             />
           </label>
         </div>
@@ -97,7 +99,7 @@ const ConfirmDialog: React.FC<Props> = ({
           <button
             onClick={close}
             disabled={busy}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className={`${t.btnBase} border-[1.5px] border-[var(--border)] px-4 py-2 text-sm text-[var(--fg-secondary)] hover:border-[var(--border-light)] hover:text-[var(--fg)] disabled:opacity-40`}
           >
             Cancel
           </button>
@@ -105,7 +107,7 @@ const ConfirmDialog: React.FC<Props> = ({
             onClick={confirm}
             disabled={!canConfirm}
             className={`rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50 ${
-              danger ? 'bg-red-600 hover:bg-red-700' : 'bg-[#2e7d32] hover:bg-[#1b3d1e]'
+              danger ? 'bg-[var(--rose)] hover:brightness-95' : 'bg-[var(--accent)] hover:bg-[var(--g800)]'
             }`}
           >
             {busy ? 'Working...' : confirmLabel}

@@ -7,10 +7,12 @@ import React, { useMemo } from 'react';
 import type { GroupedProduct, Variant } from '../../hooks/useProducts';
 import { resolveProductImage } from '../../utils/image';
 import { formatEtb, type CartItem } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 
 export interface CategoryDefinition {
   id: string;
-  label: string;
+  /** Kept for reference/tests only; the UI renders `cat.<id>` so it can be translated. */
+  label?: string;
   icon: React.ReactNode;
   matches: (product: GroupedProduct) => boolean;
 }
@@ -18,13 +20,11 @@ export interface CategoryDefinition {
 export const STORE_CATEGORIES: CategoryDefinition[] = [
   {
     id: 'all',
-    label: 'All products',
     icon: <i className="fa-solid fa-grip" aria-hidden="true" />,
     matches: () => true,
   },
   {
     id: 'bestsellers',
-    label: 'Best Sellers',
     icon: <i className="fa-solid fa-star" aria-hidden="true" />,
     matches: (product) => Boolean(product.featured),
   },
@@ -56,12 +56,15 @@ export const STORE_CATEGORIES: CategoryDefinition[] = [
 
 export type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'name';
 
-const SORT_LABELS: Record<SortKey, string> = {
-  recommended: 'Recommended',
-  'price-asc': 'Price: low to high',
-  'price-desc': 'Price: high to low',
-  name: 'Name A-Z',
+/** Sort option id -> i18n key, so the labels are translated at render time. */
+const SORT_KEYS: Record<SortKey, string> = {
+  recommended: 'store.sort.recommended',
+  'price-asc': 'store.sort.priceAsc',
+  'price-desc': 'store.sort.priceDesc',
+  name: 'store.sort.name',
 };
+
+const SORT_VALUES = Object.keys(SORT_KEYS) as SortKey[];
 
 export function selectDefaultVariant(product: GroupedProduct): Variant | undefined {
   return (
@@ -98,6 +101,8 @@ export function ProductGrid({
   onAddToCart,
   onIncrement,
 }: ProductGridProps) {
+  const { t } = useMiniAppI18n();
+
   return (
     <ul className="grid grid-cols-2 gap-3">
       {products.map((product) => {
@@ -115,7 +120,7 @@ export function ProductGrid({
           >
             {isPopular && (
               <span className="absolute right-0 top-3 z-10 rounded-l bg-rose-600 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
-                Popular
+                {t('store.popular')}
               </span>
             )}
 
@@ -123,7 +128,7 @@ export function ProductGrid({
               type="button"
               onClick={() => onOpenProduct(product)}
               className="relative block h-32 w-full bg-brand-50"
-              aria-label={`View ${product.name}`}
+              aria-label={t('store.view', { name: product.name })}
             >
               {imageUrl ? (
                 <img
@@ -158,7 +163,7 @@ export function ProductGrid({
                 <select
                   value={variantId ?? ''}
                   onChange={(event) => onSelectVariant(product.name, event.target.value)}
-                  aria-label={`Package size for ${product.name}`}
+                  aria-label={t('store.packageSize', { name: product.name })}
                   className="mt-1.5 w-full rounded-md border border-line bg-cream px-1.5 py-1 text-xs text-ink2 focus:border-brand-700 focus:outline-none"
                 >
                   {product.variants.map((variant) => (
@@ -184,7 +189,7 @@ export function ProductGrid({
                       : 'cursor-not-allowed bg-line text-muted'
                   }`}
                 >
-                  {inStock ? 'Add to Cart' : 'Unavailable'}
+                  {inStock ? t('store.addToCart') : t('store.unavailable')}
                 </button>
 
                 {cartItem && (
@@ -193,7 +198,7 @@ export function ProductGrid({
                     onClick={() => activeVariant && onIncrement(activeVariant.id)}
                     className="mt-1.5 w-full rounded-lg border border-brand-200 bg-brand-50 py-1.5 text-xs font-semibold text-brand-800"
                   >
-                    {cartItem.quantity} in cart
+                    {t('store.inCart', { count: cartItem.quantity })}
                   </button>
                 )}
               </div>
@@ -226,6 +231,8 @@ function CategoryCircles({
   onCategoryChange: (id: string) => void;
   onHapticSelection?: () => void;
 }) {
+  const { t } = useMiniAppI18n();
+
   return (
     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
       {STORE_CATEGORIES.map((category) => {
@@ -258,7 +265,7 @@ function CategoryCircles({
                 isActive ? 'font-bold text-brand-800' : 'font-semibold text-ink2'
               }`}
             >
-              {category.label}
+              {t(`cat.${category.id}`)}
             </span>
           </button>
         );
@@ -281,12 +288,13 @@ export function StoreTab({
   ...gridProps
 }: StoreTabProps & { onHapticSelection?: () => void }) {
   const [showFilters, setShowFilters] = React.useState(false);
+  const { t } = useMiniAppI18n();
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-heading text-2xl font-extrabold tracking-tight text-ink">For you</h1>
-        <p className="mt-0.5 text-xs text-muted">{totalProducts} products</p>
+        <h1 className="font-heading text-2xl font-extrabold tracking-tight text-ink">{t('store.title')}</h1>
+        <p className="mt-0.5 text-xs text-muted">{t('store.count', { count: totalProducts })}</p>
       </div>
 
       <div className="relative">
@@ -295,15 +303,15 @@ export function StoreTab({
           type="search"
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search Moringa, Shilajit, Black Seed..."
-          aria-label="Search organic products"
+          placeholder={t('store.search')}
+          aria-label={t('store.searchLabel')}
           className="w-full rounded-full border border-line bg-panel py-2.5 pl-9 pr-9 text-sm text-ink placeholder:text-muted focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
         />
         {searchQuery && (
           <button
             type="button"
             onClick={() => onSearchChange('')}
-            aria-label="Clear search"
+            aria-label={t('store.empty')}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink2"
           >
             <i className="fa-solid fa-xmark text-[13px]" aria-hidden="true" />
@@ -325,12 +333,12 @@ export function StoreTab({
           <select
             value={sortKey}
             onChange={(event) => onSortChange(event.target.value as SortKey)}
-            aria-label="Sort products"
+            aria-label={t('store.sort')}
             className="h-5 cursor-pointer appearance-none rounded-none border-0 bg-transparent p-0 font-semibold leading-none text-ink2 focus:border-0 focus:outline-none focus:ring-0"
           >
-            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+            {SORT_VALUES.map((key) => (
               <option key={key} value={key}>
-                {SORT_LABELS[key]}
+                {t(SORT_KEYS[key])}
               </option>
             ))}
           </select>
@@ -344,14 +352,14 @@ export function StoreTab({
           className="flex h-7 items-center gap-1.5 rounded-full border border-line bg-panel px-3 text-xs font-semibold text-ink2"
         >
           <i className="fa-solid fa-sliders text-[13px]" aria-hidden="true" />
-          Filters
+          {t('store.filters')}
         </button>
       </div>
 
       {showFilters && (
         <div className="rounded-xl border border-line bg-panel p-3">
           <label className="flex items-center justify-between text-xs font-semibold text-ink2">
-            In-stock items only
+            {t('store.inStockOnly')}
             <input
               type="checkbox"
               checked={inStockOnly}

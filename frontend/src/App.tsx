@@ -31,6 +31,7 @@ const CustomerOrderTracking = lazy(() => import('./pages/CustomerOrderTracking')
 const ExpensesPage         = lazy(() => import('./pages/ExpensesPage'));
 const VideoManagementPage  = lazy(() => import('./pages/VideoManagementPage'));
 const AuditLogPage         = lazy(() => import('./pages/AuditLogPage'));
+const CustomersPage        = lazy(() => import('./pages/CustomersPage'));
 const PrivacyPolicy        = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService       = lazy(() => import('./pages/TermsOfService'));
 
@@ -79,6 +80,7 @@ function App() {
                 <Route path="/dashboard/expenses"     element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
                 <Route path="/dashboard/analytics"    element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
                 <Route path="/dashboard/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+                <Route path="/dashboard/customers"    element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
                 <Route path="/dashboard/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
                 <Route path="/dashboard/users"        element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
                 <Route path="/dashboard/affiliates"   element={<ProtectedRoute><AffiliateControlPage /></ProtectedRoute>} />

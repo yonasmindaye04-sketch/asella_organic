@@ -38,6 +38,44 @@ const EnvSchema = z.object({
     try { JSON.parse(s); return true; } catch { return false; }
   }, "GOOGLE_SERVICE_ACCOUNT_JSON must be valid JSON").optional(),
   GOOGLE_SERVICE_ACCOUNT_PATH: z.string().optional(),
+
+  // ── SMSEthiopia (outbound SMS) ──────────────────────────────────
+  // Self-service: signup at smsethiopia.com, then Console -> API Keys.
+  // 100 free test SMS are granted on signup, no credit card.
+  //
+  // NOTE: the provider authenticates with a `KEY` request header. There is
+  // no username/password variant and no Bearer token — smsethiopia.com
+  // publishes a note specifically warning that models guess this wrong.
+  SMSETHIOPIA_API_KEY: z.string().min(8).optional().or(z.literal("")),
+
+  // Display label only. The v1 API accepts just { msisdn, text } — there is
+  // no sender field in the body. Alphanumeric sender IDs are a dashboard
+  // account setting and must be registered there.
+  SMS_SENDER_LABEL: z.string().max(11).optional().or(z.literal("")),
+
+  // Set "false" to hold sends in the queue on a box that holds a credential
+  // but must not dispatch (staging, a demo tenant).
+  SMS_DISPATCH_ENABLED: z
+    .enum(["true", "false"])
+    .optional()
+    .or(z.literal(""))
+    .default("true"),
+
+  // Dispatcher tuning.
+  SMS_SEND_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
+  SMS_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(500).max(60_000).default(2000),
+  SMS_DISPATCH_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(25),
+
+  // Ceilings in ETB. Per-campaign has an operator override; per-day does not.
+  // At the published 0.10-0.45 ETB/segment band, 2000 ETB is roughly
+  // 4,400-20,000 segments — sized to catch catastrophe, not routine sends.
+  SMS_MAX_CAMPAIGN_COST_ETB: z.coerce.number().positive().default(2000),
+  SMS_MAX_DAILY_COST_ETB: z.coerce.number().positive().default(3000),
+
+  // Suppress a repeat of the same status for the same order inside this
+  // window. Status churn is the main way transactional SMS turns into spam.
+  SMS_STATUS_COOLDOWN_MINUTES: z.coerce.number().int().min(0).max(1440).default(120),
+  SMS_MAX_PER_ORDER: z.coerce.number().int().min(1).max(20).default(4),
 });
 
 const result = EnvSchema.safeParse(process.env);

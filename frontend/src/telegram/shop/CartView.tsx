@@ -5,6 +5,7 @@
 
 import type { CartItem } from './types';
 import { formatEtb } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 
 export interface CartViewProps {
   cart: CartItem[];
@@ -29,16 +30,18 @@ export function CartView({
   onBrowse,
   onCheckout,
 }: CartViewProps) {
+  const { t } = useMiniAppI18n();
+
   if (cart.length === 0) {
     return (
       <div className="py-16 text-center">
-        <p className="mb-4 text-sm text-muted">Your cart is empty.</p>
+        <p className="mb-4 text-sm text-muted">{t('cart.empty')}</p>
         <button
           type="button"
           onClick={onBrowse}
           className="rounded-lg bg-brand-solid px-4 py-2 text-xs font-semibold text-white"
         >
-          Browse products
+          {t('cart.browse')}
         </button>
       </div>
     );
@@ -47,9 +50,9 @@ export function CartView({
   return (
     <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between border-b border-brand-50 pb-3">
-        <h1 className="font-heading text-base font-bold text-ink">Shopping Cart</h1>
+        <h1 className="font-heading text-base font-bold text-ink">{t('cart.title')}</h1>
         <span className="font-mono text-xs text-muted">
-          {cart.reduce((sum, item) => sum + item.quantity, 0)} item(s)
+          {t('cart.items', { count: cart.reduce((sum, item) => sum + item.quantity, 0) })}
         </span>
       </div>
 
@@ -74,20 +77,22 @@ export function CartView({
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5">
-              <div className="flex items-center gap-1 rounded-md border border-line bg-brand-50 p-0.5">
+              <div className="flex items-center gap-1 rounded-md border border-line bg-brand-50 pl-0.5">
                 <button
                   type="button"
                   onClick={() => onDecrement(item.productId)}
-                  aria-label={`Decrease ${item.name} quantity`}
+                  aria-label={t('cart.decrease', { name: item.name })}
                   className="flex h-6 w-6 items-center justify-center rounded bg-panel text-xs font-bold text-ink2"
                 >
                   -
                 </button>
-                <span className="px-1 font-mono text-xs font-semibold">{item.quantity}</span>
+                <span className="px-1 font-mono text-xs font-semibold">
+                  {t('cart.items', { count: item.quantity })}
+                </span>
                 <button
                   type="button"
                   onClick={() => onIncrement(item.productId)}
-                  aria-label={`Increase ${item.name} quantity`}
+                  aria-label={t('cart.increase', { name: item.name })}
                   className="flex h-6 w-6 items-center justify-center rounded bg-panel text-xs font-bold text-ink2"
                 >
                   +
@@ -96,7 +101,7 @@ export function CartView({
               <button
                 type="button"
                 onClick={() => onRemove(item.productId)}
-                aria-label={`Remove ${item.name}`}
+                aria-label={t('cart.remove', { name: item.name })}
                 className="p-1 text-muted hover:text-red-600"
               >
                 <i className="fa-solid fa-trash-can text-[13px]" aria-hidden="true" />
@@ -108,29 +113,29 @@ export function CartView({
 
       <div className="mt-4 border-t border-brand-50 pt-3">
         <label htmlFor="tma-referral" className="mb-1 block text-xs font-semibold text-ink2">
-          Referral or Affiliate Code (Optional)
+          {t('cart.referral')}
         </label>
         <input
           id="tma-referral"
           type="text"
           value={referralCode}
           onChange={(event) => onReferralCodeChange(event.target.value.toUpperCase())}
-          placeholder="e.g. ASL-789"
+          placeholder={t('cart.referralPlaceholder')}
           className="w-full rounded-lg border border-line bg-cream px-3 py-1.5 font-mono text-xs uppercase focus:border-brand-700 focus:outline-none"
         />
       </div>
 
       <dl className="mt-4 space-y-1.5 border-t border-line pt-3 text-xs">
         <div className="flex justify-between text-ink2">
-          <dt>Subtotal</dt>
+          <dt>{t('cart.subtotal')}</dt>
           <dd className="font-mono">{formatEtb(total)}</dd>
         </div>
         <div className="flex justify-between text-ink2">
-          <dt>Delivery</dt>
-          <dd className="font-medium text-brand-700">Calculated upon dispatch</dd>
+          <dt>{t('cart.delivery')}</dt>
+          <dd className="font-medium text-brand-700">{t('cart.deliveryValue')}</dd>
         </div>
         <div className="flex justify-between border-t border-brand-50 pt-1 text-sm font-bold text-ink">
-          <dt>Total</dt>
+          <dt>{t('cart.total')}</dt>
           <dd className="font-mono text-brand-900">{formatEtb(total)}</dd>
         </div>
       </dl>
@@ -140,7 +145,7 @@ export function CartView({
         onClick={onCheckout}
         className="mt-5 w-full rounded-lg bg-brand-solid py-2.5 text-xs font-semibold text-white shadow-sm hover:brightness-95"
       >
-        Proceed to Checkout
+        {t('cart.checkout')}
       </button>
     </div>
   );

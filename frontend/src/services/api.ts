@@ -186,6 +186,12 @@ export interface AffiliateRuleState {
   global_rule: AffiliateRule | null;
 }
 
+/** One-time credentials returned when an affiliate portal login is provisioned. */
+export interface PortalCredentials {
+  username: string;
+  temporary_password: string;
+}
+
 export interface AdminCommission {
   id: string;
   order_id: string | null;
@@ -212,6 +218,9 @@ export const referrals = {
   saveConfig:(body: Omit<AffiliateRule, 'id' | 'affiliate_id'>) =>
                            api.post<AffiliateRule>('/api/referrals/config', body),
 
+  /** Whether the signed-in admin has 2FA enabled — gates the guarded actions. */
+  twoFactorStatus: ()    => api.get<{ two_factor_enabled: boolean }>('/api/auth/me'),
+
   list:      (params: { active?: boolean; rule_type?: AffiliateRuleType } = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
@@ -231,7 +240,7 @@ export const referrals = {
                            api.delete(`/api/referrals/affiliates/${id}`, { 'x-2fa-token': twoFaToken }),
   /** Item 2 — provision a portal login for an external affiliate. */
   grantPortalAccess: (id: string, twoFaToken: string) =>
-                           api.post(`/api/referrals/affiliates/${id}/portal-access`, {},
+                           api.post<PortalCredentials>(`/api/referrals/affiliates/${id}/portal-access`, {},
                                     { 'x-2fa-token': twoFaToken }),
 
   commissions: (params: { status?: CommissionStatus; page?: number; limit?: number } = {}) => {
@@ -264,6 +273,8 @@ export interface AffiliateMe {
   rule_type: AffiliateRuleType;
   member_since: string | null;
   share_link: string;
+  /** True until the affiliate replaces the admin-issued temporary password. */
+  must_change_password: boolean;
   total_earnings: number;
   total_customers: number;
   clawback_pending: number;
@@ -331,7 +342,7 @@ export const affiliatePortal = {
   },
   activity:   () => api.get('/api/affiliate/me/activity'),
   changePassword: (current_password: string, new_password: string) =>
-                           api.post('/api/affiliate/me/change-password', { current_password, new_password }),
+                           api.post<{ message: string }>('/api/affiliate/me/change-password', { current_password, new_password }),
   trackClick: (code: string, path?: string, source?: string) =>
                            api.post('/api/affiliate/track-click', { code, path, source }),
 };
@@ -423,6 +434,159 @@ export const orders = {
   updateItems:   (id: string, items: Array<{ name: string; package_size: string; quantity: number; unit_price: number }>) =>
     api.patch(`/api/orders/${id}/items`, { items }),
   delete:        (id: string, twoFaToken: string)     => api.delete(`/api/orders/${id}`, { "x-2fa-token": twoFaToken }),
+};
+
+// ─── Customers helpers (admin surface) ────────────────────────────────────────
+
+export type CustomerSegment = 'VIP' | 'Loyal' | 'Promising' | 'At Risk' | 'Dormant';
+export type CustomerActivityType =
+  | 'sale' | 'status_change' | 'return' | 'cancellation'
+  | 'payment' | 'note' | 'rating' | 'profile_update';
+
+export interface CustomerListItem {
+  customer_id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  city: string | null;
+  location: string | null;
+  gender: string | null;
+  age_group: string | null;
+  customer_since: string;
+  order_count: number;
+  delivered_count: number;
+  cancelled_count: number;
+  returned_count: number;
+  open_count: number;
+  lifetime_value: number;
+  refunded_value: number;
+  net_value: number;
+  distinct_products: number;
+  total_units: number;
+  last_order_at: string | null;
+  last_delivered_at: string | null;
+  days_since_last_order: number | null;
+  value_score: number;
+  segment: CustomerSegment;
+  recency_score: number;
+  frequency_score: number;
+  monetary_score: number;
+  penalty_score: number;
+  avg_stars: number;
+  rating_count: number;
+  is_telegram: number;
+  affiliate_name: string | null;
+}
+
+export interface CustomerActivity {
+  id: string;
+  order_id: string | null;
+  activity_type: CustomerActivityType;
+  title: string;
+  detail: string | null;
+  amount: number | null;
+  status_from: string | null;
+  status_to: string | null;
+  actor_name: string | null;
+  created_at: string;
+}
+
+export interface CustomerRating {
+  id: string;
+  stars: number;
+  comment: string | null;
+  rated_by_name: string | null;
+  created_at: string;
+}
+
+export interface CustomerDetail extends CustomerListItem {
+  order_count: number;
+  affiliate_code: string | null;
+  orders: Array<{
+    id: string;
+    status: string;
+    payment_status: string;
+    total: number;
+    source: string;
+    order_type: string | null;
+    city: string | null;
+    item_count: number;
+    unit_count: number;
+    created_at: string;
+    delivery_date: string | null;
+  }>;
+  products: Array<{
+    item_name: string;
+    package_size: string;
+    units_bought: number;
+    amount_spent: number;
+  }>;
+  ratings: CustomerRating[];
+  activity: CustomerActivity[];
+}
+
+export interface CustomerSummary {
+  total_customers: number;
+  total_orders: number;
+  delivered_orders: number;
+  returned_orders: number;
+  cancelled_orders: number;
+  total_net_value: number;
+  avg_score: number;
+  churning: number;
+  never_ordered: number;
+  segments: Array<{
+    segment: CustomerSegment;
+    customers: number;
+    net_value: number;
+    avg_score: number;
+  }>;
+  top_customers: Array<{
+    customer_id: string;
+    name: string;
+    phone: string;
+    city: string | null;
+    net_value: number;
+    order_count: number;
+    value_score: number;
+    segment: CustomerSegment;
+  }>;
+}
+
+export const customers = {
+  list: (params: {
+    page?: number; limit?: number; search?: string; city?: string;
+    segment?: CustomerSegment; source?: string;
+    min_score?: number; max_score?: number; returned_only?: boolean;
+    sort?: string; dir?: 'asc' | 'desc';
+  } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get<CustomerListItem[]>(`/api/customers?${qs}`);
+  },
+
+  summary: () => api.get<CustomerSummary>('/api/customers/summary'),
+
+  /** Cross-customer movement feed for the Activity tab. */
+  activity: (params: { type?: CustomerActivityType; customer_id?: string; page?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get<Array<CustomerActivity & { customer_name: string; customer_phone: string }>>(
+      `/api/customers/activity?${qs}`);
+  },
+
+  get: (id: string) => api.get<CustomerDetail>(`/api/customers/${id}`),
+
+  rate: (id: string, body: { stars: number; comment?: string }) =>
+    api.post<{ id: string; stars: number }>(`/api/customers/${id}/rating`, body),
+
+  addNote: (id: string, note: string) =>
+    api.post<{ id: string }>(`/api/customers/${id}/note`, { note }),
+
+  update: (id: string, body: {
+    name?: string; email?: string | null; city?: string;
+    location?: string; gender?: string | null; age_group?: string | null;
+  }) => api.patch<{ id: string; updated: string[] }>(`/api/customers/${id}`, body),
 };
 
 // ─── Staff helpers ────────────────────────────────────────────────────────────

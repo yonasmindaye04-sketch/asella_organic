@@ -38,12 +38,28 @@ import adminRoutes          from "./routes/admin.js";
 import expenseRoutes        from "./routes/expenses.js";
 import videoRoutes          from "./routes/videos.js";
 import reportRoutes         from "./routes/reports.js";
+import customerRoutes       from "./routes/customers.js";
 import affiliatePortalRoutes, { publicAffiliateRouter } from "./routes/affiliatePortal.js";
 
 const app = express();
 
 // @ts-expect-error: csp-config is a commonjs file without types
 import cspConfig from "../../csp-config.js";
+
+// ── 0. Trust proxy ────────────────────────────────────────────────────────────
+// Behind Cloudflare (and any reverse proxy) the client IP is in
+// x-forwarded-for. Without this, req.ip is the proxy's address and the rate
+// limiter collapses every customer into a single bucket.
+// TRUST_PROXY accepts a hop count ("1") or "true". Defaults to 1 hop, which is
+// correct for Cloudflare -> origin. Set to "false"/"0" when running with no
+// proxy so a spoofed header cannot influence the key.
+const trustProxyRaw = (process.env.TRUST_PROXY ?? "1").trim().toLowerCase();
+const trustProxy =
+  trustProxyRaw === "false" || trustProxyRaw === "0" ? false
+  : trustProxyRaw === "true" ? true
+  : Number.isNaN(Number(trustProxyRaw)) ? false
+  : Number(trustProxyRaw);
+app.set("trust proxy", trustProxy);
 
 // ── 1. Security headers (helmet) — must be first ──────────────────────────────
 app.use(helmet({
@@ -259,6 +275,7 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/expenses",     expenseRoutes],
   ["/videos",       videoRoutes],
   ["/reports",      reportRoutes],
+  ["/customers",    customerRoutes],
 ];
 
 // ── Public affiliate click tracking ────────────────────────────────────────

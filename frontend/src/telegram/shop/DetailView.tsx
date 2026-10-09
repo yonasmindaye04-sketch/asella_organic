@@ -6,6 +6,7 @@
 import type { GroupedProduct } from '../../hooks/useProducts';
 import { resolveProductImage } from '../../utils/image';
 import { formatEtb } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 
 export interface DetailViewProps {
   product: GroupedProduct;
@@ -27,6 +28,7 @@ export function DetailView({
   const imageUrl = resolveProductImage(product.image_url, product.name);
   const inStock = (activeVariant?.inventory_quantity ?? 0) > 0;
 
+  const { t } = useMiniAppI18n(); 
   return (
     <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
       <button
@@ -48,7 +50,7 @@ export function DetailView({
       </div>
 
       <span className="mb-1 inline-block rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-brand-800">
-        {product.tag || 'Organic Supplement'}
+        {product.tag || t('detail.genericTag')}
       </span>
       <h1 className="font-heading text-lg font-bold text-ink">{product.name}</h1>
 
@@ -59,7 +61,7 @@ export function DetailView({
 
       <div className="mt-4">
         <span className="mb-1.5 block text-xs font-semibold text-ink2">
-          Select Package Size:
+          {t('detail.packageSize')}
         </span>
         <div className="grid grid-cols-2 gap-2">
           {product.variants.map((variant) => {
@@ -91,7 +93,7 @@ export function DetailView({
 
       <div className="mt-6 flex items-center justify-between border-t border-brand-50 pt-4">
         <div>
-          <span className="block text-xs text-muted">Unit Price</span>
+          <span className="block text-xs text-muted">{t('detail.unitPrice')}</span>
           <span className="block font-mono font-heading text-base font-bold text-brand-900">
             {formatEtb(activeVariant?.price ?? 0)}
           </span>
@@ -103,7 +105,7 @@ export function DetailView({
           onClick={onAddToCart}
           className="rounded-lg bg-brand-solid px-4 py-2 text-xs font-semibold text-white shadow-sm hover:brightness-95 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
         >
-          {inStock ? 'Add to Cart & Checkout' : 'Unavailable'}
+          {inStock ? t('detail.addCheckout') : t('store.unavailable')}
         </button>
       </div>
     </div>

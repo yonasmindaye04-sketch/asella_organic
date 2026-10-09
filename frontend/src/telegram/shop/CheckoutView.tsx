@@ -4,6 +4,7 @@
  */
 
 import { formatEtb } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 
 export interface CheckoutFormState {
   customerName: string;
@@ -22,7 +23,13 @@ export interface CheckoutViewProps {
   onSubmit: () => void;
 }
 
-const CITIES = ['Addis Ababa', 'Other Regions', 'Abroad'];
+/** City <option> labels are translated, but the persisted/submitted value stays
+ * the plain English string so stored profiles keep matching the backend. */
+const CITY_OPTIONS = [
+  { key: 'city.addisAbaba', value: 'Addis Ababa' },
+  { key: 'city.otherRegions', value: 'Other Regions' },
+  { key: 'city.abroad', value: 'Abroad' },
+] as const;
 
 export function CheckoutView({
   form,
@@ -32,9 +39,10 @@ export function CheckoutView({
   error,
   onSubmit,
 }: CheckoutViewProps) {
+  const { t } = useMiniAppI18n(); 
   return (
     <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
-      <h1 className="mb-1 font-heading text-base font-bold text-ink">Delivery Details</h1>
+      <h1 className="mb-1 font-heading text-base font-bold text-ink">{t('checkout.title')}</h1>
       <p className="mb-4 text-xs text-muted">
         Enter your details. Payment is confirmed upon delivery via Telebirr, CBE, or Cash.
       </p>
@@ -63,7 +71,7 @@ export function CheckoutView({
             minLength={2}
             value={form.customerName}
             onChange={(event) => onChange({ ...form, customerName: event.target.value })}
-            placeholder="e.g. Abebe Balcha"
+            placeholder={t('checkout.namePlaceholder')}
             className="w-full rounded-lg border border-line bg-cream px-3 py-2 text-xs focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
           />
         </div>
@@ -78,7 +86,7 @@ export function CheckoutView({
             required
             value={form.phone}
             onChange={(event) => onChange({ ...form, phone: event.target.value })}
-            placeholder="+251 900 000 000"
+            placeholder={t('checkout.phonePlaceholder')}
             className="w-full rounded-lg border border-line bg-cream px-3 py-2 font-mono text-xs focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
           />
         </div>
@@ -94,17 +102,17 @@ export function CheckoutView({
               onChange={(event) => onChange({ ...form, city: event.target.value })}
               className="w-full rounded-lg border border-line bg-cream px-2.5 py-2 text-xs focus:border-brand-700 focus:outline-none"
             >
-              {CITIES.map((city) => (
-                <option key={city} value={city}>
-                  {city}
+              {CITY_OPTIONS.map((city) => (
+                <option key={city.key} value={city.value}>
+                  {t(city.key)}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <span className="mb-1 block text-xs font-semibold text-ink2">Order Type</span>
-            <div className="py-2 text-xs font-medium text-ink">Direct Delivery</div>
+            <span className="mb-1 block text-xs font-semibold text-ink2">{t('checkout.orderType')}</span>
+            <div className="py-2 text-xs font-medium text-ink">{t('checkout.orderTypeValue')}</div>
           </div>
         </div>
 
@@ -119,7 +127,7 @@ export function CheckoutView({
             minLength={2}
             value={form.location}
             onChange={(event) => onChange({ ...form, location: event.target.value })}
-            placeholder="e.g. Bole, Medhanialem, next to..."
+            placeholder={t('checkout.locationPlaceholder')}
             className="w-full rounded-lg border border-line bg-cream px-3 py-2 text-xs focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
           />
         </div>
@@ -134,14 +142,14 @@ export function CheckoutView({
             maxLength={500}
             value={form.notes}
             onChange={(event) => onChange({ ...form, notes: event.target.value })}
-            placeholder="Special instructions or delivery timing..."
+            placeholder={t('checkout.notesPlaceholder')}
             className="w-full rounded-lg border border-line bg-cream px-3 py-1.5 text-xs focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
           />
         </div>
 
         <div className="space-y-1 rounded-lg border border-line bg-cream p-3 text-xs">
           <div className="flex justify-between font-semibold text-ink">
-            <span>Order Total:</span>
+            <span>{t('checkout.total')}</span>
             <span className="font-mono text-brand-900">{formatEtb(total)}</span>
           </div>
           <p className="text-xs text-muted">
@@ -154,7 +162,7 @@ export function CheckoutView({
           disabled={submitting}
           className="w-full rounded-lg bg-brand-solid py-2.5 text-xs font-semibold text-white shadow-sm hover:brightness-95 disabled:opacity-50"
         >
-          {submitting ? 'Submitting Order...' : `Confirm Order — ${formatEtb(total)}`}
+          {submitting ? t('checkout.submitting') : t('checkout.submit', { total: formatEtb(total) })}
         </button>
       </form>
     </div>

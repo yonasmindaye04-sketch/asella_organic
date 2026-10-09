@@ -34,18 +34,20 @@ const AffiliateRoute: React.FC<Props> = ({ children }) => {
 
 export default AffiliateRoute;
 
-/** Shown to staff who land on /affiliate — points them at the real thing. */
+/** Shown to staff who land on /affiliate — points them at the real thing.
+ *  Uses the same brand tokens as AffiliateDashboard's dark chrome so the two
+ *  read as one surface. */
 export const AffiliateOnlyNotice: React.FC = () => (
-  <div className="min-h-screen flex items-center justify-center bg-[#081d0b] px-6">
-    <div className="w-full max-w-md rounded-2xl border-2 border-[#3e6b45] bg-[#0a2410] p-8 text-center">
+  <div className="min-h-screen flex items-center justify-center bg-[var(--g900)] px-6">
+    <div className="w-full max-w-md rounded-2xl border-2 border-[var(--g600)] bg-[var(--g800)] p-8 text-center">
       <h1 className="text-2xl font-bold text-white">Affiliate area</h1>
-      <p className="mt-2 text-sm text-[#8ff59c]">
+      <p className="mt-2 text-sm text-[var(--g200)]">
         You are signed in with a staff account. The affiliate portal shows only that person's
         own commissions and referrals.
       </p>
       <Link
         to="/dashboard"
-        className="mt-6 inline-block rounded-xl bg-[#d5ad6d] px-6 py-3 font-extrabold text-[#081d0b]"
+        className="mt-6 inline-block rounded-lg bg-[var(--highland-gold-light)] px-6 py-3 font-extrabold text-[var(--g900)]"
       >
         Back to dashboard
       </Link>

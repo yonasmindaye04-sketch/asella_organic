@@ -183,6 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badge={notifCount}
                   badgeColor="bg-red-500"
                 />
+                <NavItem to="/dashboard/customers" icon="groups" label="Customers" />
                 {role === 'admin' && (
                   <NavItem to="/dashboard/expenses" icon="payments" label="Expenses" />
                 )}

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { referrals } from '../../services/api';
 import type { AffiliateRow } from '../../pages/AffiliateControlPage';
+import * as t from './theme';
 
 interface Props {
   affiliates: AffiliateRow[];
@@ -136,30 +137,30 @@ const AffiliateReportPanel: React.FC<Props> = ({ affiliates, onMessage, onError 
     : null;
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className={`${t.panel} ${t.panelShadow} p-4`}>
       <div className="flex items-start justify-between gap-2">
-        <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">
+        <h2 className={t.label}>
           Sales & Engagement Reports
         </h2>
-        <span className="text-[10px] font-extrabold text-slate-400">
+        <span className={`text-[10px] font-extrabold ${t.muted}`}>
           Weekly auto-send: Mon 08:00
         </span>
       </div>
 
       {!mailConfigured && (
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-800">
+        <div className={`mt-3 rounded-md border border-[var(--amber)] bg-[rgba(245,158,11,0.10)] px-3 py-2 text-[11px] font-semibold leading-relaxed text-[var(--warn-text)]`}>
           Email is not configured. Set <code className="font-mono">SMTP_USER</code> and{' '}
           <code className="font-mono">SMTP_PASS</code> to enable sending. Preview still works.
         </div>
       )}
 
       <div className="mt-4 grid gap-3">
-        <label className="text-xs font-bold text-slate-600">
+        <label className={`text-xs font-bold ${t.fgSecondary}`}>
           Send to
           <select
             value={selected}
             onChange={e => setSelected(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className={`mt-1 ${t.input}`}
           >
             <option value="">All affiliates with portal access ({recipients.length})</option>
             {recipients.map(r => (
@@ -171,27 +172,27 @@ const AffiliateReportPanel: React.FC<Props> = ({ affiliates, onMessage, onError 
         </label>
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-xs font-bold text-slate-600">
+          <label className={`text-xs font-bold ${t.fgSecondary}`}>
             From
             <input
               type="date"
               value={range.from}
               onChange={e => setRange(r => ({ ...r, from: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className={`mt-1 ${t.input}`}
             />
           </label>
-          <label className="text-xs font-bold text-slate-600">
+          <label className={`text-xs font-bold ${t.fgSecondary}`}>
             To
             <input
               type="date"
               value={range.to}
               onChange={e => setRange(r => ({ ...r, to: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className={`mt-1 ${t.input}`}
             />
           </label>
         </div>
 
-        <p className="text-[10px] italic leading-relaxed text-slate-500">
+        <p className={`text-[10px] italic leading-relaxed ${t.muted}`}>
           Reports contain aggregate figures and order references only — never the names or
           contact details of referred customers.
         </p>
@@ -201,13 +202,13 @@ const AffiliateReportPanel: React.FC<Props> = ({ affiliates, onMessage, onError 
             href={previewUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-bold text-slate-700 hover:bg-slate-50"
+            className={`${t.btnBase} border-[1.5px] border-[var(--border)] px-4 py-2 text-sm text-[var(--fg-secondary)] hover:border-[var(--border-light)] hover:text-[var(--fg)] disabled:opacity-40`}
           >
             Preview report
           </a>
         )}
 
-        <label className="text-xs font-bold text-slate-600">
+        <label className={`text-xs font-bold ${t.fgSecondary}`}>
           2FA code
           <input
             value={twoFaToken}
@@ -215,32 +216,32 @@ const AffiliateReportPanel: React.FC<Props> = ({ affiliates, onMessage, onError 
             inputMode="numeric"
             autoComplete="one-time-code"
             placeholder="Required to send"
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className={`mt-1 ${t.input}`}
           />
         </label>
 
         <button
           onClick={send}
           disabled={busy || loading || !mailConfigured || recipients.length === 0}
-          className="rounded-lg bg-[#1b3d1e] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          className={`${t.btnBase} bg-[var(--accent)] px-4 py-2 text-sm text-white hover:bg-[var(--g800)] disabled:opacity-50`}
         >
           {busy ? 'Sending...' : selected ? 'Send Report' : 'Send to All'}
         </button>
       </div>
 
       {/* Send history */}
-      <div className="mt-5 border-t border-slate-200 pt-4">
-        <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+      <div className="mt-5 border-t border-[var(--border)] pt-4">
+        <h3 className={t.label}>
           Recent sends
         </h3>
         <div className="mt-2 max-h-56 overflow-y-auto">
           {history.length === 0 ? (
-            <p className="py-4 text-center text-xs text-slate-400">
+            <p className={`py-4 text-center text-xs ${t.muted}`}>
               {loading ? 'Loading...' : 'No reports sent yet.'}
             </p>
           ) : (
             <table className="w-full text-left text-xs">
-              <thead className="text-[10px] uppercase tracking-wider text-slate-400">
+              <thead className={t.label}>
                 <tr>
                   <th className="py-1.5">Affiliate</th>
                   <th className="py-1.5">Period</th>
@@ -250,11 +251,11 @@ const AffiliateReportPanel: React.FC<Props> = ({ affiliates, onMessage, onError 
               </thead>
               <tbody>
                 {history.map(run => (
-                  <tr key={run.id} className="border-t border-slate-100">
+                  <tr key={run.id} className="border-t border-[var(--border)]">
                     <td className="py-1.5 font-mono text-[11px]">
                       {run.referral_code ?? '—'}
                       {run.error && (
-                        <div className="font-sans text-[10px] text-red-600">{run.error}</div>
+                        <div className={`font-sans text-[10px] text-[var(--rose)]`}>{run.error}</div>
                       )}
                     </td>
                     <td className="py-1.5 text-[11px]">
@@ -265,10 +266,10 @@ const AffiliateReportPanel: React.FC<Props> = ({ affiliates, onMessage, onError 
                       <span
                         className={`rounded-full px-1.5 py-0.5 text-[10px] font-extrabold ${
                           run.status === 'sent'
-                            ? 'bg-emerald-50 text-emerald-700'
+                            ? ''
                             : run.status === 'failed'
-                              ? 'bg-red-50 text-red-700'
-                              : 'bg-slate-100 text-slate-600'
+                              ? ''
+                              : ''
                         }`}
                       >
                         {run.status}
@@ -283,7 +284,7 @@ const AffiliateReportPanel: React.FC<Props> = ({ affiliates, onMessage, onError 
       </div>
 
       {affiliates.length > 0 && recipients.length === 0 && (
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+        <p className={`mt-3 text-[11px] leading-relaxed ${t.muted}`}>
           No affiliates can receive reports yet. Use <strong>Portal Login</strong> on an
           external affiliate to create their login — reports are sent to the address on that
           account.

@@ -221,7 +221,7 @@ const translations: Record<Language, Record<string, string>> = {
     'tracking.statusCancelled': 'Cancelled',
   },
   am: {
-    'nav.home': 'ዋና ገጸ',
+    'nav.home': 'ዋና ገጽ',
     'nav.products': 'ምርቶች',
     'nav.about': 'ስለ እኛ',
     'nav.contact': 'አግኙን',
@@ -238,7 +238,7 @@ const translations: Record<Language, Record<string, string>> = {
     'common.sending': 'በመላክ ላይ...',
 
     // Hero Section
-    'hero.title1': "የተፈጥሮ ንጹ ግብአት፣",
+    'hero.title1': "የተፈጥሮ ንፁህ ግብዓት፣",
     'hero.title2': "ለእርስዎ ታሽጎ ቀርቧል።",
     'hero.subtitle': "ፕሪሚየም ኦርጋኒክ ተጨማሪዎች፣ ከኢትዮጵያ እርሻዎች በጥራት የተገኙ እና በጥንቃቄ ወደ እርሶ የሚደርሱ።",
     'hero.btn.order': "ትዕዛዝ ያስገቡ",
@@ -587,7 +587,7 @@ const translations: Record<Language, Record<string, string>> = {
     'tracking.itemsTitle': 'Meeshaalee Ajajaman',
     'tracking.noItemsMsg': 'Ibsi meeshaa hin jiru.',
     'tracking.timelineTitle': 'Yeroo Gabatee',
-    'tracking.orderPlacedTitle': 'Ajajni galera',
+    'tracking.orderPlacedTitle': 'Ajajni galeera',
     'tracking.orderPlacedDesc': 'Ajajni kee nu dhaqqabeera.',
     'tracking.statusPending': 'Ajajameera',
     'tracking.statusConfirmed': 'Mirkanaa\'eera',

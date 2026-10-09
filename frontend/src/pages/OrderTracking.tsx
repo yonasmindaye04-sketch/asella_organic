@@ -620,6 +620,14 @@ const OrderTracking: React.FC = () => {
               <option value="">Set status...</option>
               {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            <button
+              onClick={() => void handleBulkApply()}
+              disabled={!bulkStatus || loading}
+              className="px-2 py-1 bg-[#2e7d32] text-white rounded-md text-[11px] font-extrabold ml-1 hover:bg-[#1b5e20] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+              aria-label="Apply status to selected orders"
+            >
+              Apply
+            </button>
             <button onClick={clearSelection} className="px-2 py-1 bg-red-500 text-white rounded-md text-[11px] font-extrabold ml-1 hover:bg-red-600 flex items-center justify-center" aria-label="Clear selection">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />

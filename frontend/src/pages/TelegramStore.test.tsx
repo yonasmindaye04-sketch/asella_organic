@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { TelegramStore } from './TelegramStore';
 import { TelegramProvider } from '../context/TelegramContext';
-import { LanguageProvider } from '../LanguageContext';
+import { MiniAppI18nProvider } from '../telegram/shop/MiniAppI18n';
 
 // Mock useGroupedProducts hook
 vi.mock('../hooks/useProducts', () => ({
@@ -176,11 +176,11 @@ beforeEach(() => {
 
 function renderStore() {
   return render(
-    <LanguageProvider>
-      <TelegramProvider>
+    <TelegramProvider>
+      <MiniAppI18nProvider>
         <TelegramStore />
-      </TelegramProvider>
-    </LanguageProvider>
+      </MiniAppI18nProvider>
+    </TelegramProvider>
   );
 }
 
@@ -188,6 +188,25 @@ async function renderStoreAsync() {
   let result!: ReturnType<typeof renderStore>;
   await act(async () => {
     result = renderStore();
+  });
+  return result;
+}
+
+/** Renders the Mini App with a specific starting language. */
+function renderStoreIn(language: 'en' | 'am' | 'or') {
+  return render(
+    <TelegramProvider>
+      <MiniAppI18nProvider forceLanguage={language}>
+        <TelegramStore />
+      </MiniAppI18nProvider>
+    </TelegramProvider>
+  );
+}
+
+async function renderStoreInAsync(language: 'en' | 'am' | 'or') {
+  let result!: ReturnType<typeof renderStoreIn>;
+  await act(async () => {
+    result = renderStoreIn(language);
   });
   return result;
 }
@@ -249,10 +268,55 @@ describe('TelegramStore Store tab', () => {
 
     await user.click(screen.getByText('Add to Cart'));
 
-    await user.click(screen.getByRole('button', { name: /open cart, 1 items/i }));
+    await user.click(screen.getByRole('button', { name: /open cart/i }));
 
     expect(await screen.findByText('Shopping Cart')).toBeInTheDocument();
     expect(screen.getByText('Moringa Powder')).toBeInTheDocument();
+  });
+});
+
+describe('TelegramStore language selection', () => {
+  // The expected copy below is pinned on purpose: it is what proves a
+  // translation correction landed. Values track src/telegram/shop/i18n.ts.
+  it('renders the store shell, tabs and categories in Amharic', async () => {
+    await renderStoreInAsync('am');
+
+    expect(screen.getByText('ለእርስዎ')).toBeInTheDocument();
+    // store.searchLabel — a descriptive accessible name, not a bare "search".
+    expect(screen.getByRole('searchbox', { name: 'የተፈጥሮ ምርት ይፈልጉ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ትዕዛዞች' })).toBeInTheDocument();
+    expect(screen.getByText('ሁሉም ምርቶች')).toBeInTheDocument();
+  });
+
+  it('renders the store shell, tabs and categories in Oromo', async () => {
+    await renderStoreInAsync('or');
+
+    expect(screen.getByText('Siif')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Barbaadi' })).toBeInTheDocument();
+    expect(screen.getByText('Oomishaalee hunda')).toBeInTheDocument();
+  });
+
+  it('translates the cart flow and keeps product data untranslated', async () => {
+    const user = userEvent.setup();
+    await renderStoreInAsync('am');
+
+    await user.click(screen.getByRole('button', { name: /ወደ ቅርጫት ጨምር/i }));
+    await user.click(screen.getByRole('button', { name: /ቅርጫት ክፈት/i }));
+
+    expect(await screen.findByText('የግዢ ቅርጫት')).toBeInTheDocument();
+    expect(screen.getByText('ወደ ክፍያ ይቀጥሉ')).toBeInTheDocument();
+    // Product names come from the catalogue and must not be translated.
+    expect(screen.getByText('Moringa Powder')).toBeInTheDocument();
+  });
+
+  it('persists the chosen language and reflects it in the document lang', async () => {
+    const user = userEvent.setup();
+    await renderStoreAsync();
+
+    await user.selectOptions(screen.getByLabelText('Language'), 'am');
+
+    await waitFor(() => expect(document.documentElement.lang).toBe('am'));
+    expect(localStorage.getItem('asella_tma_language')).toBe('am');
   });
 });
 

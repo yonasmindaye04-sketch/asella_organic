@@ -4,6 +4,7 @@
  */
 
 import type { CustomerOrder, OrderConfirmation } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 import { formatEtb, formatOrderDate, orderStatusTone } from './types';
 
 export interface ConfirmationViewProps {
@@ -17,27 +18,28 @@ export function ConfirmationView({
   onTrackOrder,
   onContinueShopping,
 }: ConfirmationViewProps) {
+  const { t } = useMiniAppI18n(); 
   return (
     <div className="rounded-xl border border-line bg-panel p-5 text-center shadow-sm">
       <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 font-heading text-lg font-bold text-brand-800">
         OK
       </div>
-      <h1 className="font-heading text-base font-bold text-ink">Order Received</h1>
+      <h1 className="font-heading text-base font-bold text-ink">{t('confirm.title')}</h1>
       <p className="mb-4 mt-1 text-xs text-ink2">
         Thank you {confirmation.customerName}. Your order has been placed and registered.
       </p>
 
       <dl className="mb-4 space-y-1 rounded-lg border border-line bg-cream p-3 text-left text-xs">
         <div className="flex justify-between">
-          <dt className="text-muted">Order ID:</dt>
+          <dt className="text-muted">{t('confirm.orderId')}</dt>
           <dd className="font-mono font-bold text-ink">{confirmation.orderId}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-muted">Total:</dt>
+          <dt className="text-muted">{t('confirm.total')}</dt>
           <dd className="font-mono font-bold text-brand-900">{formatEtb(confirmation.total)}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-muted">Destination:</dt>
+          <dt className="text-muted">{t('confirm.destination')}</dt>
           <dd className="text-ink">
             {confirmation.location}, {confirmation.city}
           </dd>
@@ -55,14 +57,14 @@ export function ConfirmationView({
           onClick={onTrackOrder}
           className="w-full rounded-lg bg-ink py-2 text-xs font-semibold text-white hover:bg-ink"
         >
-          Track Order Status
+          {t('confirm.track')}
         </button>
         <button
           type="button"
           onClick={onContinueShopping}
           className="w-full rounded-lg border border-line py-2 text-xs font-semibold text-ink2 hover:bg-cream"
         >
-          Continue Shopping
+          {t('confirm.continue')}
         </button>
       </div>
     </div>
@@ -77,6 +79,7 @@ export interface OrderDetailViewProps {
 export function OrderDetailView({ order, onBack }: OrderDetailViewProps) {
   const tone = orderStatusTone(order.status);
 
+  const { t } = useMiniAppI18n(); 
   return (
     <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
       <button
@@ -112,19 +115,19 @@ export function OrderDetailView({ order, onBack }: OrderDetailViewProps) {
       </ul>
 
       <div className="mt-2 flex justify-between text-sm font-bold text-ink">
-        <span>Total</span>
+        <span>{t('confirm.total')}</span>
         <span className="font-mono text-brand-900">{formatEtb(order.total)}</span>
       </div>
 
       <dl className="mt-3 space-y-1 rounded-lg border border-line bg-cream p-3 text-xs">
         <div className="flex justify-between">
-          <dt className="text-muted">Destination:</dt>
+          <dt className="text-muted">{t('confirm.destination')}</dt>
           <dd className="text-right text-ink">
             {order.location}, {order.city}
           </dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-muted">Payment:</dt>
+          <dt className="text-muted">{t('confirm.payment')}</dt>
           <dd className="text-ink">{order.payment_status ?? 'Pending'}</dd>
         </div>
       </dl>

@@ -8,6 +8,7 @@ import type { GroupedProduct } from '../../hooks/useProducts';
 import { resolveProductImage } from '../../utils/image';
 import { STORE_CATEGORIES, selectDefaultVariant } from './StoreTab';
 import { formatEtb } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 
 export interface DiscoverTabProps {
   products: GroupedProduct[];
@@ -15,22 +16,15 @@ export interface DiscoverTabProps {
   onBrowseCategory: (categoryId: string) => void;
 }
 
-const CARE_TIPS = [
-  {
-    title: 'Start with one product',
-    body: 'Add a single supplement to your routine for two weeks before stacking another.',
-  },
-  {
-    title: 'Steep your tea',
-    body: 'Allow 5 to 8 minutes in hot water. Longer steeping pulls bitterness out of dried leaves.',
-  },
-  {
-    title: 'Store it sealed',
-    body: 'Keep powders and oils away from direct sunlight to protect their active compounds.',
-  },
-];
+/** Care tips are editorial copy, so they are translated through i18n keys. */
+const CARE_TIPS = ['tip.start', 'tip.steep', 'tip.store'] as const;
 
-const PAYMENT_METHODS = ['Telebirr', 'CBE Birr', 'Cash on delivery'];
+/** Brand names (Telebirr, CBE Birr) stay as-is; only the generic option is translated. */
+const PAYMENT_METHODS = [
+  { label: 'Telebirr', key: null },
+  { label: 'CBE Birr', key: null },
+  { label: null, key: 'payment.cashOnDelivery' },
+] as const;
 
 export function DiscoverTab({ products, onOpenProduct, onBrowseCategory }: DiscoverTabProps) {
   const bestSellers = useMemo(
@@ -50,17 +44,18 @@ export function DiscoverTab({ products, onOpenProduct, onBrowseCategory }: Disco
     [products]
   );
 
+  const { t } = useMiniAppI18n(); 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-heading text-2xl font-extrabold tracking-tight text-ink">Discover</h1>
+        <h1 className="font-heading text-2xl font-extrabold tracking-tight text-ink">{t('discover.title')}</h1>
         <p className="mt-0.5 text-sm text-ink2">
           Learn what fits your routine, sourced from the Ethiopian highlands.
         </p>
       </div>
 
       <section>
-        <h2 className="mb-2 font-heading text-base font-bold text-ink">Shop by category</h2>
+        <h2 className="mb-2 font-heading text-base font-bold text-ink">{t('discover.shopByCategory')}</h2>
         <ul className="grid grid-cols-3 gap-2">
           {STORE_CATEGORIES.filter((category) => category.id !== 'all').map((category) => (
             <li key={category.id}>
@@ -77,7 +72,7 @@ export function DiscoverTab({ products, onOpenProduct, onBrowseCategory }: Disco
                   {category.icon}
                 </span>
                 <span className="text-xs font-semibold leading-tight text-ink2">
-                  {category.label}
+                  {t(`cat.${category.id}`)}
                 </span>
               </button>
             </li>
@@ -87,7 +82,7 @@ export function DiscoverTab({ products, onOpenProduct, onBrowseCategory }: Disco
 
       {bestSellers.length > 0 && (
         <section>
-          <h2 className="mb-2 font-heading text-base font-bold text-ink">Best sellers</h2>
+          <h2 className="mb-2 font-heading text-base font-bold text-ink">{t('discover.bestSellers')}</h2>
           <ul className="flex gap-3 overflow-x-auto pb-1">
             {bestSellers.map((product) => {
               const variant = selectDefaultVariant(product);
@@ -128,7 +123,7 @@ export function DiscoverTab({ products, onOpenProduct, onBrowseCategory }: Disco
 
       {popularByStock.length > 0 && (
         <section>
-          <h2 className="mb-2 font-heading text-base font-bold text-ink">In high demand</h2>
+          <h2 className="mb-2 font-heading text-base font-bold text-ink">{t('discover.highDemand')}</h2>
           <ul className="space-y-2">
             {popularByStock.map((product) => {
               const variant = selectDefaultVariant(product);
@@ -170,29 +165,29 @@ export function DiscoverTab({ products, onOpenProduct, onBrowseCategory }: Disco
       )}
 
       <section>
-        <h2 className="mb-2 font-heading text-base font-bold text-ink">How to use them</h2>
+        <h2 className="mb-2 font-heading text-base font-bold text-ink">{t('discover.howToUse')}</h2>
         <ul className="space-y-2">
           {CARE_TIPS.map((tip) => (
-            <li key={tip.title} className="rounded-xl border border-line bg-panel p-3">
-              <p className="text-sm font-bold text-ink">{tip.title}</p>
-              <p className="mt-1 text-sm leading-relaxed text-ink2">{tip.body}</p>
+            <li key={tip} className="rounded-xl border border-line bg-panel p-3">
+              <p className="text-sm font-bold text-ink">{t(`${tip}.title`)}</p>
+              <p className="mt-1 text-sm leading-relaxed text-ink2">{t(`${tip}.body`)}</p>
             </li>
           ))}
         </ul>
       </section>
 
       <section className="rounded-xl border border-line bg-panel p-3">
-        <p className="text-sm font-bold text-ink">Payment on delivery</p>
+        <p className="text-sm font-bold text-ink">{t('discover.payment')}</p>
         <p className="mt-0.5 text-sm text-ink2">
-          Pay our delivery rider when your order arrives.
+          {t('discover.rider')}
         </p>
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {PAYMENT_METHODS.map((method) => (
             <li
-              key={method}
+              key={method.key ?? method.label}
               className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-ink2"
             >
-              {method}
+              {method.key ? t(method.key) : method.label}
             </li>
           ))}
         </ul>

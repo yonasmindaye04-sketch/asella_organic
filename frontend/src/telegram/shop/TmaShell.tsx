@@ -6,51 +6,44 @@
 
 import React from 'react';
 import { BottomNav } from './BottomNav';
+import { LANGUAGES, type Language } from './i18n';
+import { useMiniAppI18n } from './MiniAppI18n';
 import type { Theme } from './useTelegramTheme';
 import type { TmaTab } from './types';
-
-type LanguageCode = 'en' | 'am' | 'or';
 
 export interface TmaShellProps {
   activeTab: TmaTab;
   onSelectTab: (tab: TmaTab) => void;
   cartCount: number;
-  headerTitle: string;
   onCartPress: () => void;
-  language: LanguageCode;
-  onLanguageChange: (language: LanguageCode) => void;
   /** True whenever there is somewhere to go back to. Drives the back button. */
   canGoBack: boolean;
   onBack: () => void;
   theme: Theme;
   onToggleTheme: () => void;
+  unreadCount: number;
+  onOpenNotifications: () => void;
   /** Full-screen overlay content. When absent the active tab is rendered. */
   overlay?: React.ReactNode;
   children: React.ReactNode;
 }
 
-const LANGUAGES: Array<{ id: LanguageCode; label: string }> = [
-  { id: 'en', label: 'EN' },
-  { id: 'am', label: 'አማ' },
-  { id: 'or', label: 'OR' },
-];
-
 export function TmaShell({
   activeTab,
   onSelectTab,
   cartCount,
-  headerTitle,
   onCartPress,
-  language,
-  onLanguageChange,
   canGoBack,
   onBack,
   theme,
   onToggleTheme,
+  unreadCount,
+  onOpenNotifications,
   overlay,
   children,
 }: TmaShellProps) {
   const isDark = theme === 'dark';
+  const { t, language, setLanguage } = useMiniAppI18n();
 
   return (
     <div className="telegram-mini-app-shell flex min-h-screen flex-col bg-cream text-ink">
@@ -60,7 +53,7 @@ export function TmaShell({
             <button
               type="button"
               onClick={onBack}
-              aria-label="Go back"
+              aria-label={t('header.back')}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-panel text-ink"
             >
               <i className="fa-solid fa-chevron-left text-[14px]" aria-hidden="true" />
@@ -75,40 +68,54 @@ export function TmaShell({
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <span className="min-w-0">
               <span className="font-heading block truncate text-base font-bold leading-tight">
-                {headerTitle}
+                {t('header.brand')}
               </span>
             </span>
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
-            <div
-              className="flex rounded-lg border border-line bg-brand-50 p-0.5 text-[10px] font-semibold"
-              role="group"
-              aria-label="Language"
-            >
-              {LANGUAGES.map((item) => {
-                const isActive = language === item.id;
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onLanguageChange(item.id)}
-                    aria-pressed={isActive}
-                    className={`rounded-md px-1.5 py-0.5 transition-colors ${
-                      isActive ? 'bg-brand-solid font-semibold text-white' : 'text-ink2'
-                    }`}
-                  >
+            <label className="relative flex items-center">
+              <span className="sr-only">{t('header.language')}</span>
+              <select
+                value={language}
+                onChange={(event) => setLanguage(event.target.value as Language)}
+                aria-label={t('header.language')}
+                className="h-9 cursor-pointer appearance-none rounded-lg border border-line bg-brand-50 py-0 pl-2.5 pr-7 text-[11px] font-semibold text-ink focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              >
+                {LANGUAGES.map((item) => (
+                  <option key={item.id} value={item.id}>
                     {item.label}
-                  </button>
-                );
-              })}
-            </div>
+                  </option>
+                ))}
+              </select>
+              <i
+                className="fa-solid fa-chevron-down pointer-events-none absolute right-2 text-[9px] text-ink2"
+                aria-hidden="true"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={onOpenNotifications}
+              aria-label={
+                unreadCount > 0
+                  ? `${t('header.notifications')}, ${unreadCount} unread`
+                  : t('header.notifications')
+              }
+              className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-panel text-ink2"
+            >
+              <i className="fa-solid fa-bell text-[14px]" aria-hidden="true" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-panel">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
 
             <button
               type="button"
               onClick={onToggleTheme}
-              aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+              aria-label={isDark ? t('header.theme.light') : t('header.theme.dark')}
               aria-pressed={isDark}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-panel text-ink2"
             >
@@ -122,7 +129,7 @@ export function TmaShell({
             <button
               type="button"
               onClick={onCartPress}
-              aria-label={`Open cart, ${cartCount} items`}
+              aria-label={`${t('header.cart')}, ${cartCount}`}
               className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-panel text-ink2"
             >
               <i className="fa-solid fa-cart-shopping text-[14px]" aria-hidden="true" />

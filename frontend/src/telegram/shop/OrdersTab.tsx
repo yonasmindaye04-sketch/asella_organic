@@ -4,6 +4,7 @@
  */
 
 import type { CustomerOrder, OrderStatusFilter } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 import { formatEtb, formatOrderDate, orderStatusTone } from './types';
 
 const STATUS_FILTERS: Array<{ id: OrderStatusFilter; label: string }> = [
@@ -38,6 +39,7 @@ export function OrderCard({
   const firstItem = order.items[0];
   const extraItems = Math.max(0, order.items.length - 1);
 
+  const { t } = useMiniAppI18n(); 
   return (
     <li className="overflow-hidden rounded-xl border border-line bg-panel shadow-sm">
       <div className="flex items-center justify-between gap-2 border-b border-brand-50 px-3 py-2">
@@ -66,7 +68,7 @@ export function OrderCard({
           <p className="text-xs text-muted">
             Asella Organic
             {firstItem ? ` · Qty ${firstItem.quantity}` : ''}
-            {extraItems > 0 ? ` · +${extraItems} more` : ''}
+            {extraItems > 0 ? t('orders.moreItems', { count: extraItems }) : ''}
           </p>
           <p className="mt-1 font-mono font-heading text-base font-bold text-brand-700">
             {formatEtb(order.total)}
@@ -81,7 +83,7 @@ export function OrderCard({
           onClick={() => onViewDetails(order)}
           className="flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-ink"
         >
-          View my items
+          {t('orders.viewItems')}
           <i className="fa-solid fa-check text-[10px]" aria-hidden="true" />
         </button>
       </div>
@@ -102,11 +104,12 @@ export function OrdersTab({
   onKeepShopping,
   onViewDetails,
 }: OrdersTabProps) {
+  const { t } = useMiniAppI18n(); 
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-extrabold tracking-tight text-ink">My orders</h1>
+          <h1 className="font-heading text-2xl font-extrabold tracking-tight text-ink">{t('orders.title')}</h1>
           <p className="mt-0.5 text-xs text-muted">
             Your organic finds, all in one place.
           </p>
@@ -116,7 +119,7 @@ export function OrdersTab({
           onClick={onKeepShopping}
           className="shrink-0 rounded-full border border-line bg-panel px-3 py-1.5 text-xs font-semibold text-ink"
         >
-          Keep shopping
+          {t('orders.keepShopping')}
         </button>
       </div>
 
@@ -126,8 +129,8 @@ export function OrdersTab({
           type="search"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search your purchases or order ID"
-          aria-label="Search orders"
+          placeholder={t('orders.search')}
+          aria-label={t('orders.searchLabel')}
           className="w-full rounded-full border border-line bg-panel py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-muted focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
         />
       </div>
@@ -148,7 +151,7 @@ export function OrdersTab({
                   : 'border border-line bg-panel text-ink2'
               }`}
             >
-              {filter.label}
+              {t(`orders.filter.${filter.id}`)}
             </button>
           );
         })}
@@ -168,7 +171,7 @@ export function OrdersTab({
       )}
 
       <p className="text-xs text-muted">
-        {loading ? 'Loading orders...' : `${total} order${total === 1 ? '' : 's'}`}
+        {loading ? t('orders.loading') : t('orders.count', { count: total })}
       </p>
 
       {loading ? (
@@ -179,13 +182,13 @@ export function OrdersTab({
         </div>
       ) : orders.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-sm text-muted">No orders found for this filter.</p>
+          <p className="text-sm text-muted">{t('orders.empty')}</p>
           <button
             type="button"
             onClick={onKeepShopping}
             className="mt-3 rounded-lg bg-brand-solid px-4 py-2 text-xs font-semibold text-white"
           >
-            Browse the store
+            {t('orders.browse')}
           </button>
         </div>
       ) : (

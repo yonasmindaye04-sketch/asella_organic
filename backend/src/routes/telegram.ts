@@ -26,6 +26,8 @@ import {
 } from "../lib/telegram.js";
 import { mirrorDeliveryAssignmentToSheets, mirrorOrderStatusToSheets } from "../lib/sheets.js";
 import { validateTelegramInitData } from "../lib/telegram-auth.js";
+import { authenticate, authorise } from "../middleware/auth.js";
+import { orderRateLimit } from "../middleware/rateLimit.js";
 
 const router = Router();
 
@@ -62,8 +64,10 @@ type MiniAppAuth =
   | { ok: false; status: number; error: string };
 
 function readInitData(req: Request): string {
+  // Deliberately NOT accepted from the query string. initData is a 24h bearer
+  // credential, and query strings are captured by proxy and CDN access logs —
+  // including Cloudflare's. Body and header keep it out of logs.
   const candidate =
-    (typeof req.query.initData === "string" && req.query.initData) ||
     (typeof req.body?.initData === "string" && req.body.initData) ||
     req.headers["x-telegram-init-data"];
   return typeof candidate === "string" ? candidate : "";
@@ -521,7 +525,13 @@ async function upsertTelegramUser(message: any): Promise<void> {
   );
 }
 
-type LinkOutcome = "linked" | "already_linked_to_you" | "taken_by_another_chat" | "not_found";
+type LinkOutcome =
+  | "linked"
+  | "already_linked_to_you"
+  | "taken_by_another_chat"
+  | "not_found"
+  | "bad_proof"
+  | "proof_required";
 
 function describeLinkOutcome(outcome: LinkOutcome, phone: string): string {
   switch (outcome) {
@@ -533,6 +543,10 @@ function describeLinkOutcome(outcome: LinkOutcome, phone: string): string {
       return "That phone number is already linked to another Telegram account. If that is a mistake, contact support to have it unlinked.";
     case "not_found":
       return `We could not find any customer record for ${phone}. Place an order first, then link it.`;
+    case "proof_required":
+      return "To protect your order history, linking requires proof. Send the most recent order ID for that phone number, for example: /link +251911234567 ORD-20261008-AB12CD34";
+    case "bad_proof":
+      return "That order ID does not match this phone number, so the account was not linked. Check the ID from your confirmation message, or contact support.";
   }
 }
 
@@ -546,7 +560,8 @@ function describeLinkOutcome(outcome: LinkOutcome, phone: string): string {
 async function linkCustomerChat(
   phone: string,
   chatId: string | number,
-  fallbackName: string
+  fallbackName: string,
+  proofOrderId?: string
 ): Promise<LinkOutcome> {
   const normalizedPhone = normalizePhone(phone);
 
@@ -563,12 +578,38 @@ async function linkCustomerChat(
     return "taken_by_another_chat";
   }
 
+  // Ownership proof: the claimant must produce an order id that exists for
+  // this phone number. Without this, anyone who knew a customer's phone
+  // number could claim their entire order history.
+  if (proofOrderId) {
+    const trimmed = proofOrderId.trim().toUpperCase();
+    const [proofRows] = await pool.query(
+      `SELECT id FROM orders
+       WHERE UPPER(id) = ? AND phone = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [trimmed, normalizedPhone]
+    ) as [any[], any];
+
+    if (!proofRows[0]) return "bad_proof";
+  }
+
   await pool.query(
     `UPDATE customers
      SET telegram_chat_id = ?, name = COALESCE(NULLIF(name, ''), ?), updated_at = NOW()
      WHERE phone = ?`,
     [chatId, fallbackName, normalizedPhone]
   );
+
+  // Backfill the order rows so the customer's existing history is visible
+  // through the authoritative chat_id lookup immediately.
+  await pool.query(
+    `UPDATE orders
+     SET telegram_chat_id = ?
+     WHERE phone = ? AND telegram_chat_id IS NULL`,
+    [chatId, normalizedPhone]
+  ).catch(() => {
+    // Non-fatal: the customers join still resolves legacy rows.
+  });
 
   return "linked";
 }
@@ -1298,13 +1339,17 @@ async function handleMessage(message: any): Promise<void> {
       }
 
       if (state.step === "awaiting_link_phone") {
-        const phone = text.trim();
+        const parts = text.trim().split(/\s+/);
+        const phone = parts[0] ?? "";
+        // The claimant may append the order ID proving the phone is theirs.
+        const proofOrderId = parts[1];
+
         if (!phone) {
           await sendSimpleMessage(chatId, "Please send your phone number (e.g., +251911234567).");
           return;
         }
         const fallbackName = [from?.first_name, from?.last_name].filter(Boolean).join(" ") || "Telegram Customer";
-        const outcome = await linkCustomerChat(phone, chatId, fallbackName);
+        const outcome = await linkCustomerChat(phone, chatId, fallbackName, proofOrderId);
         userState.delete(chatId);
         await sendSimpleMessage(chatId, describeLinkOutcome(outcome, phone));
         return;
@@ -1352,7 +1397,11 @@ async function handleMessage(message: any): Promise<void> {
     }
 
     if (text.startsWith("/link")) {
-      const phone = text.replace("/link", "").trim();
+      const rest = text.replace("/link", "").trim();
+      // Accept "/link +251911234567" or "/link +251911234567 ORD-2026...-ABCD".
+      const phone = rest.split(/\s+/)[0] ?? "";
+      const proofOrderId = rest.split(/\s+/)[1];
+
       if (!phone) {
         userState.set(chatId, { step: "awaiting_link_phone", data: {} });
         await sendSimpleMessage(chatId, "Send me your *phone number* to link (e.g., +251911234567).");
@@ -1360,7 +1409,7 @@ async function handleMessage(message: any): Promise<void> {
       }
 
       const fallbackName = [from?.first_name, from?.last_name].filter(Boolean).join(" ") || "Telegram Customer";
-      const outcome = await linkCustomerChat(phone, chatId, fallbackName);
+      const outcome = await linkCustomerChat(phone, chatId, fallbackName, proofOrderId);
       await sendSimpleMessage(chatId, describeLinkOutcome(outcome, phone));
       return;
     }
@@ -1498,7 +1547,10 @@ router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
 });
 
 // ─── Webhook registration endpoint (admin) ────────────────────────────
-router.get("/set-webhook", async (_req: Request, res: Response): Promise<void> => {
+// Gated: this registers the bot's delivery URL and derives it from the request
+// Host header when PUBLIC_URL is unset, so leaving it open let anyone repoint
+// the live bot at a host they control.
+router.get("/set-webhook", authenticate, authorise("admin"), async (req: Request, res: Response): Promise<void> => {
   try {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -1507,7 +1559,7 @@ router.get("/set-webhook", async (_req: Request, res: Response): Promise<void> =
       return;
     }
     // Determine public URL from the request or env
-    const baseUrl = process.env.PUBLIC_URL || `${_req.protocol}://${_req.get("host")}`;
+    const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get("host")}`;
     const webhookUrl = `${baseUrl}/api/telegram/webhook`;
 
     const result = await fetch(
@@ -1584,18 +1636,15 @@ router.post("/validate-init-data", async (req: Request, res: Response): Promise<
 });
 
 // POST /api/telegram/app-order — Mini App order placement
-router.post("/app-order", async (req: Request, res: Response): Promise<void> => {
+router.post("/app-order", orderRateLimit, async (req: Request, res: Response): Promise<void> => {
   try {
-    const initData = (req.body?.initData || req.headers["x-telegram-init-data"]) as string;
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    let verifiedChatId: number | null = null;
-
-    if (initData && token) {
-      const validation = validateTelegramInitData(initData, token);
-      if (validation.valid && validation.user) {
-        verifiedChatId = validation.user.id;
-      }
-    }
+    // Checkout requires a signed initData payload. It previously accepted
+    // orders with no (or an unverifiable) chat id, which produced orders that
+    // no customer could ever see in their Orders tab and could not be linked
+    // to a Telegram account.
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+    const verifiedChatId: number = auth.chatId;
 
     const parsed = CreateOrderSchema.safeParse({
       ...req.body,
@@ -1650,8 +1699,9 @@ router.post("/app-order", async (req: Request, res: Response): Promise<void> => 
       await connection.query(
         `INSERT INTO orders
            (id, source, customer_name, phone, location, city, gender, age_group,
-            order_type, status, total, notes, customer_id, delivery_date, payment_status)
-         VALUES (?, 'telegram', ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, 'Pending')`,
+            order_type, status, total, notes, customer_id, delivery_date, payment_status,
+            telegram_chat_id)
+         VALUES (?, 'telegram', ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, 'Pending', ?)`,
         [
           orderId,
           fields.customer_name,
@@ -1665,6 +1715,7 @@ router.post("/app-order", async (req: Request, res: Response): Promise<void> => 
           fields.notes ?? null,
           custRows[0].id,
           fields.delivery_date ?? null,
+          verifiedChatId,
         ]
       );
 
@@ -1702,8 +1753,17 @@ router.post("/app-order", async (req: Request, res: Response): Promise<void> => 
       void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
     }
 
+    // In-app notification for the bell in the Mini App header.
+    void recordCustomerNotification({
+      chatId: verifiedChatId,
+      orderId,
+      type: "order_created",
+      title: "Order received",
+      body: `Order ${orderId} for ETB ${total.toLocaleString()} is being prepared.`,
+    });
+
     // Direct Telegram Receipt Message to Customer
-    if (verifiedChatId) {
+    {
       const itemsText = items
         .map((i, idx) => `${idx + 1}. ${i.name} [${i.package_size}] x ${i.quantity} - ETB ${(i.quantity * i.unit_price).toLocaleString()}`)
         .join("\n");
@@ -1755,8 +1815,14 @@ router.get("/my-orders", async (req: Request, res: Response): Promise<void> => {
     const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 100) : "";
     const statusFilter = typeof req.query.status === "string" ? req.query.status.trim() : "";
 
-    const conditions: string[] = ["o.deleted_at IS NULL", "c.telegram_chat_id = ?"];
-    const params: any[] = [chatId];
+    // Match on the order's own verified chat id first. The customers join is
+    // retained as a fallback for legacy rows created before the column existed,
+    // so a phone mismatch on a new order no longer empties this tab.
+    const conditions: string[] = [
+      "o.deleted_at IS NULL",
+      "(o.telegram_chat_id = ? OR o.telegram_chat_id IS NULL AND c.telegram_chat_id = ?)",
+    ];
+    const params: any[] = [chatId, chatId];
 
     if (statusFilter && statusFilter !== "all") {
       const statuses = resolveStatusFilter(statusFilter);
@@ -1970,8 +2036,238 @@ router.put("/profile", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ── Persisted Mini App state ────────────────────────────────────────
+// The cart and UI preferences used to live in localStorage, which meant a
+// basket belonged to a browser rather than a customer: two Telegram accounts
+// on one device shared a basket, and switching devices lost it. These
+// endpoints key that state to the verified chat id instead.
+
+const MAX_CART_ITEMS = 50;
+
+// GET /api/telegram/state — Hydrate the cart and preferences on open
+router.get("/state", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+
+    const [rows] = await pool.query(
+      `SELECT cart, preferences, updated_at FROM telegram_user_state WHERE chat_id = ? LIMIT 1`,
+      [auth.chatId]
+    ) as [any[], any];
+
+    const row = rows[0];
+
+    res.json({
+      success: true,
+      data: {
+        chat_id: auth.chatId,
+        cart: row?.cart ?? [],
+        preferences: row?.preferences ?? {},
+        updated_at: row?.updated_at ?? null,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to load state" });
+  }
+});
+
+// PUT /api/telegram/state — Persist the cart and preferences
+router.put("/state", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+    const chatId = auth.chatId;
+
+    const cart = Array.isArray(req.body?.cart) ? req.body.cart : [];
+    if (cart.length > MAX_CART_ITEMS) {
+      res.status(422).json({ success: false, error: `Cart is limited to ${MAX_CART_ITEMS} items` });
+      return;
+    }
+
+    // Prices are re-read from the catalogue at checkout, but guard the shape
+    // so a malformed client payload cannot be stored verbatim.
+    const safeCart = cart.slice(0, MAX_CART_ITEMS).map((item: any) => ({
+      productId: String(item?.productId ?? "").slice(0, 64),
+      name: String(item?.name ?? "").slice(0, 255),
+      packageSize: String(item?.packageSize ?? "").slice(0, 100),
+      unitPrice: Number(item?.unitPrice) || 0,
+      quantity: Math.max(1, Math.min(999, Math.floor(Number(item?.quantity) || 1))),
+      imageUrl: typeof item?.imageUrl === "string" ? item.imageUrl.slice(0, 500) : undefined,
+    }));
+
+    const preferences = (req.body?.preferences && typeof req.body.preferences === "object")
+      ? {
+          theme: ["light", "dark", "system"].includes(req.body.preferences.theme)
+            ? req.body.preferences.theme
+            : "system",
+          language: ["en", "am", "or"].includes(req.body.preferences.language)
+            ? req.body.preferences.language
+            : "en",
+          referralCode: String(req.body.preferences.referralCode ?? "").slice(0, 20),
+          category: String(req.body.preferences.category ?? "all").slice(0, 40),
+          sort: ["recommended", "price-asc", "price-desc", "name"].includes(req.body.preferences.sort)
+            ? req.body.preferences.sort
+            : "recommended",
+        }
+      : {};
+
+    await pool.query(
+      `INSERT INTO telegram_user_state (chat_id, cart, preferences, updated_at)
+       VALUES (?, CAST(? AS JSON), CAST(? AS JSON), NOW())
+       ON DUPLICATE KEY UPDATE
+         cart = VALUES(cart),
+         preferences = VALUES(preferences),
+         updated_at = NOW()`,
+      [chatId, JSON.stringify(safeCart), JSON.stringify(preferences)]
+    );
+
+    res.json({
+      success: true,
+      data: { chat_id: chatId, cart: safeCart, preferences },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to save state" });
+  }
+});
+
+// DELETE /api/telegram/state — Clear the stored cart (e.g. after checkout)
+router.delete("/state", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+
+    await pool.query(
+      `UPDATE telegram_user_state SET cart = JSON_ARRAY(), updated_at = NOW() WHERE chat_id = ?`,
+      [auth.chatId]
+    );
+
+    res.json({ success: true, data: { chat_id: auth.chatId, cart: [] } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to clear state" });
+  }
+});
+
+// ── Customer notifications ──────────────────────────────────────────
+
+/**
+ * Records an in-app notification for a customer. Safe to call with a null
+ * chat id — customers who were never linked simply do not get one.
+ */
+async function recordCustomerNotification(params: {
+  chatId: number | null;
+  orderId?: string | null;
+  type: string;
+  title: string;
+  body?: string | null;
+}): Promise<void> {
+  if (!params.chatId) return;
+
+  try {
+    await pool.query(
+      `INSERT INTO customer_notifications (chat_id, order_id, type, title, body)
+       VALUES (?, ?, ?, ?, ?)`,
+      [params.chatId, params.orderId ?? null, params.type, params.title, params.body ?? null]
+    );
+  } catch (err: any) {
+    // Never let a failed notification break the order flow that triggered it.
+    console.warn(`[telegram] Failed to record notification: ${err?.message || err}`);
+  }
+}
+
+// GET /api/telegram/notifications — Bell feed for the signed-in customer
+router.get("/notifications", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+    const chatId = auth.chatId;
+
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit ?? "20"), 10) || 20));
+
+    const [rows] = await pool.query(
+      `SELECT id, order_id, type, title, body, read_at, created_at
+       FROM customer_notifications
+       WHERE chat_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?`,
+      [chatId, limit]
+    ) as [any[], any];
+
+    const [unreadRows] = await pool.query(
+      `SELECT COUNT(*) AS unread FROM customer_notifications WHERE chat_id = ? AND read_at IS NULL`,
+      [chatId]
+    ) as [any[], any];
+
+    res.json({
+      success: true,
+      data: {
+        notifications: rows.map((row: any) => ({
+          id: row.id,
+          order_id: row.order_id,
+          type: row.type,
+          title: row.title,
+          body: row.body,
+          read: row.read_at !== null,
+          created_at: row.created_at,
+        })),
+        unread: Number(unreadRows[0]?.unread ?? 0),
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to load notifications" });
+  }
+});
+
+// POST /api/telegram/notifications/read — Mark notifications as read
+router.post("/notifications/read", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+    const chatId = auth.chatId;
+
+    // An id list scopes the mark-read to specific notifications; omitting it
+    // clears the whole unread backlog.
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 100) : null;
+
+    if (ids && ids.length > 0) {
+      const placeholders = ids.map(() => "?").join(", ");
+      await pool.query(
+        `UPDATE customer_notifications SET read_at = NOW()
+         WHERE chat_id = ? AND read_at IS NULL AND id IN (${placeholders})`,
+        [chatId, ...ids.map((id: unknown) => String(id).slice(0, 64))]
+      );
+    } else {
+      await pool.query(
+        `UPDATE customer_notifications SET read_at = NOW() WHERE chat_id = ? AND read_at IS NULL`,
+        [chatId]
+      );
+    }
+
+    res.json({ success: true, data: { chat_id: chatId, unread: 0 } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to update notifications" });
+  }
+});
+
+// GET /api/telegram/notifications/unread-count — Cheap poll for the header badge
+router.get("/notifications/unread-count", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const auth = authenticateMiniApp(req, res);
+    if (!auth || !auth.ok) return;
+
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS unread FROM customer_notifications WHERE chat_id = ? AND read_at IS NULL`,
+      [auth.chatId]
+    ) as [any[], any];
+
+    res.json({ success: true, data: { unread: Number(rows[0]?.unread ?? 0) } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Failed to load unread count" });
+  }
+});
+
 // POST /api/telegram/set-menu-button — Sets the chat menu button in Telegram
-router.post("/set-menu-button", async (_req: Request, res: Response): Promise<void> => {
+// Gated: repoints every customer's Store button at an attacker-chosen URL.
+router.post("/set-menu-button", authenticate, authorise("admin"), async (_req: Request, res: Response): Promise<void> => {
   try {
     const storeUrl = getStoreUrl();
     const result = await setChatMenuButton(storeUrl, "Store");
@@ -2031,7 +2327,8 @@ router.get("/info", async (_req: Request, res: Response): Promise<void> => {
 });
 
 // POST /api/telegram/set-webhook — Sets the production webhook URL
-router.post("/set-webhook", async (req: Request, res: Response): Promise<void> => {
+// Gated: registers an arbitrary webhook URL, and drops pending updates.
+router.post("/set-webhook", authenticate, authorise("admin"), async (req: Request, res: Response): Promise<void> => {
   try {
     const webhookUrl = req.body?.url || `${(process.env.PUBLIC_URL || "https://asellaorganic.com").replace(/\/$/, "")}/api/telegram/webhook`;
     const secret = req.body?.secretToken || process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -2048,7 +2345,8 @@ router.post("/set-webhook", async (req: Request, res: Response): Promise<void> =
 });
 
 // POST /api/telegram/delete-webhook — Deletes webhook
-router.post("/delete-webhook", async (req: Request, res: Response): Promise<void> => {
+// Gated: unauthenticated callers could take the bot offline entirely.
+router.post("/delete-webhook", authenticate, authorise("admin"), async (req: Request, res: Response): Promise<void> => {
   try {
     const dropPending = req.body?.dropPendingUpdates !== false;
     const result = await deleteWebhook(dropPending);
@@ -2063,7 +2361,8 @@ router.post("/delete-webhook", async (req: Request, res: Response): Promise<void
 });
 
 // POST /api/telegram/configure-bot — Triggers full bot synchronization
-router.post("/configure-bot", async (_req: Request, res: Response): Promise<void> => {
+// Gated: mutates bot-global state (commands, description, menu button).
+router.post("/configure-bot", authenticate, authorise("admin"), async (_req: Request, res: Response): Promise<void> => {
   try {
     const success = await initBotConfiguration();
     if (success) {
@@ -2077,7 +2376,9 @@ router.post("/configure-bot", async (_req: Request, res: Response): Promise<void
 });
 
 // POST /api/telegram/send-push — Pushes notification to chat
-router.post("/send-push", async (req: Request, res: Response): Promise<void> => {
+// Gated: this accepts an arbitrary chatId, so while open it was an open relay
+// that could message any Telegram user from your bot.
+router.post("/send-push", authenticate, authorise("admin"), async (req: Request, res: Response): Promise<void> => {
   try {
     const { chatId, message } = req.body || {};
     if (!chatId || !message) {

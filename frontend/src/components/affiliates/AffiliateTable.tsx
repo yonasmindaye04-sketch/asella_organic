@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { referrals } from '../../services/api';
 import type { AffiliateRow } from '../../pages/AffiliateControlPage';
 import ConfirmDialog from './ConfirmDialog';
+import * as t from './theme';
 
 interface Props {
   affiliates: AffiliateRow[];
@@ -133,80 +134,120 @@ const AffiliateTable: React.FC<Props> = ({
     }
   };
 
+  /**
+   * Row actions, shared by the desktop table and the mobile card view so the
+   * two can never drift apart.
+   */
+  const renderActions = (affiliate: AffiliateRow) => (
+    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+      <button onClick={() => copyLink(affiliate)} className={t.btnGhost}>
+        Copy Link
+      </button>
+
+      {affiliate.affiliate_type === 'external' && affiliate.identifier && (
+        <button
+          onClick={() => setGrantTarget(affiliate)}
+          className={t.btnSecondary}
+          title="Create a login so this affiliate can view their own dashboard"
+        >
+          Portal Login
+        </button>
+      )}
+
+      <button
+        onClick={() => toggleAffiliate(affiliate)}
+        disabled={saving === affiliate.id}
+        className={`${t.btnBase} border-[1.5px] px-2.5 py-1.5 text-xs disabled:opacity-50 ${
+          affiliate.is_active
+            ? 'border-[var(--rose)] text-[var(--rose)] hover:bg-[var(--rose-dim)]'
+            : 'border-[var(--border)] text-[var(--muted-ink)] hover:border-[var(--border-light)] hover:text-[var(--fg)]'
+        }`}
+      >
+        {affiliate.is_active ? 'Deactivate' : 'Activate'}
+      </button>
+
+      <button
+        onClick={() => setDeleteTarget(affiliate)}
+        disabled={saving === affiliate.id}
+        className={`${t.btnBase} border-[1.5px] px-2.5 py-1.5 text-xs disabled:opacity-50 ${
+          affiliate.is_active
+            ? 'border-[var(--border)] text-[var(--muted-ink)] hover:border-[var(--rose)] hover:text-[var(--rose)]'
+            : 'border-[var(--border)] text-[var(--muted-ink)] hover:border-[var(--rose)] hover:text-[var(--rose)]'
+        }`}
+        title="Permanently remove this affiliate (commission history is retained)"
+      >
+        Delete
+      </button>
+    </div>
+  );
+
   return (
     <>
       {/* Create affiliate */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <section className={`${t.panel} ${t.panelShadow} p-4`}>
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">
-            Create Affiliate
-          </h2>
-          <button
-            onClick={() => setShowCreate(v => !v)}
-            className="text-xs font-extrabold text-emerald-700 hover:text-emerald-800"
-          >
+          <h2 className={t.label}>Create Affiliate</h2>
+          <button onClick={() => setShowCreate(v => !v)} className={t.btnGhost}>
             {showCreate ? 'Hide' : 'New'}
           </button>
         </div>
 
         {showCreate && (
           <div className="mt-4 grid gap-3">
-            <label className="text-xs font-bold text-slate-600">
+            <label className={t.inputLabel}>
               Link to Staff Account (Optional UUID)
               <input
                 value={newAffiliate.staff_id}
                 onChange={e => setNewAffiliate(v => ({ ...v, staff_id: e.target.value }))}
                 placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className={t.input}
               />
             </label>
 
             <div className="flex items-center gap-2">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                OR EXTERNAL AFFILIATE
-              </span>
-              <div className="h-px flex-1 bg-slate-200" />
+              <div className="h-px flex-1 bg-[var(--border)]" />
+              <span className={`${t.label} text-[var(--muted-ink)]`}>OR EXTERNAL AFFILIATE</span>
+              <div className="h-px flex-1 bg-[var(--border)]" />
             </div>
 
-            <label className="text-xs font-bold text-slate-600">
+            <label className={t.inputLabel}>
               Full Name
               <input
                 value={newAffiliate.full_name}
                 onChange={e => setNewAffiliate(v => ({ ...v, full_name: e.target.value }))}
                 placeholder="External affiliate name"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className={t.input}
               />
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className={t.inputLabel}>
               Email
               <input
                 type="email"
                 value={newAffiliate.email}
                 onChange={e => setNewAffiliate(v => ({ ...v, email: e.target.value }))}
                 placeholder="Required for portal access"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className={t.input}
               />
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className={t.inputLabel}>
               Phone
               <input
                 value={newAffiliate.phone}
                 onChange={e => setNewAffiliate(v => ({ ...v, phone: e.target.value }))}
                 placeholder="Phone"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className={t.input}
               />
             </label>
 
-            <p className="text-[10px] italic leading-relaxed text-slate-500">
-              The referral code is generated automatically. Portal access is granted
-              separately so creating a profile never creates a login on its own.
+            <p className={`${t.label} normal-case tracking-normal italic leading-relaxed`}>
+              The referral code is generated automatically. Portal access is granted separately so
+              creating a profile never creates a login on its own.
             </p>
 
             <button
               onClick={createAffiliate}
               disabled={saving === 'create' || (!newAffiliate.staff_id.trim() && !newAffiliate.full_name.trim())}
-              className="mt-2 rounded-lg bg-[#1b3d1e] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className={`${t.btnPrimary} mt-2 px-4 py-2`}
             >
               {saving === 'create' ? 'Creating...' : 'Create Affiliate'}
             </button>
@@ -214,107 +255,124 @@ const AffiliateTable: React.FC<Props> = ({
         )}
       </section>
 
-      {/* Roster */}
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
-          <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Affiliates</h2>
-          <span className="text-xs text-slate-500">
-            {loading ? 'Loading...' : `${affiliates.length} records`}
+      {/* Roster — full width.
+          Wide screens get the table; narrow screens get stacked cards, because
+          an 8-column table either overflows or squeezes every cell unreadable. */}
+      <section className={`${t.panel} ${t.panelShadow} overflow-hidden`}>
+        <div
+          className={`flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-strong)] p-4`}
+        >
+          <h2 className={t.label}>Affiliates</h2>
+          <span className={`${t.label} normal-case tracking-normal`}>
+            {loading ? 'Loading...' : `${affiliates.length} record${affiliates.length === 1 ? '' : 's'}`}
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+        {/* ── Table: lg and up ── */}
+        <div className="hidden overflow-x-auto lg:block">
+          <table className={t.table}>
+            <thead>
               <tr>
-                <th className="px-4 py-3">Affiliate</th>
-                <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Rule</th>
-                <th className="px-4 py-3">Customers</th>
-                <th className="px-4 py-3">Pending</th>
-                <th className="px-4 py-3">Paid</th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className={t.th}>Affiliate</th>
+                <th className={t.th}>Code</th>
+                <th className={t.th}>Type</th>
+                <th className={t.th}>Rule</th>
+                <th className={`${t.th} text-right`}>Customers</th>
+                <th className={`${t.th} text-right`}>Pending</th>
+                <th className={`${t.th} text-right`}>Paid</th>
+                <th className={`${t.th} text-right`}>Action</th>
               </tr>
             </thead>
             <tbody>
               {affiliates.map(affiliate => (
-                <tr key={affiliate.id} className="border-t border-slate-100">
+                <tr key={affiliate.id} className={t.tr}>
                   <td className="px-4 py-3">
-                    <div className="font-bold text-slate-900">{affiliate.full_name}</div>
-                    <div className="text-xs text-slate-500">{affiliate.identifier || 'No identifier'}</div>
-                  </td>
-                  <td className="px-4 py-3 font-mono font-bold text-emerald-700">
-                    {affiliate.referral_code}
-                  </td>
-                  <td className="px-4 py-3 capitalize">{affiliate.affiliate_type}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                        affiliate.rule_type === 'custom'
-                          ? 'bg-violet-100 text-violet-700'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {affiliate.rule_type === 'custom' ? 'Individual' : 'Standard'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono">{affiliate.total_customers || 0}</td>
-                  <td className="px-4 py-3 font-mono">{affiliate.pending_count || 0}</td>
-                  <td className="px-4 py-3 font-mono">{affiliate.paid_count || 0}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <button
-                        onClick={() => copyLink(affiliate)}
-                        className="rounded-md px-2 py-1.5 text-xs font-extrabold text-blue-700 hover:text-blue-800"
-                      >
-                        Copy Link
-                      </button>
-
-                      {affiliate.affiliate_type === 'external' && affiliate.identifier && (
-                        <button
-                          onClick={() => setGrantTarget(affiliate)}
-                          className="rounded-md px-2 py-1.5 text-xs font-extrabold text-amber-700 hover:text-amber-800"
-                          title="Create a login so this affiliate can view their own dashboard"
-                        >
-                          Portal Login
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => toggleAffiliate(affiliate)}
-                        disabled={saving === affiliate.id}
-                        className={`rounded-md px-2 py-1.5 text-xs font-extrabold disabled:opacity-50 ${
-                          affiliate.is_active
-                            ? 'text-red-700 hover:text-red-800'
-                            : 'text-emerald-700 hover:text-emerald-800'
-                        }`}
-                      >
-                        {affiliate.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-
-                      <button
-                        onClick={() => setDeleteTarget(affiliate)}
-                        disabled={saving === affiliate.id}
-                        className="rounded-md px-2 py-1.5 text-xs font-extrabold text-red-800 hover:bg-red-50 disabled:opacity-50"
-                        title="Permanently remove this affiliate (commission history is retained)"
-                      >
-                        Delete
-                      </button>
+                    <div className={`font-bold ${t.fg}`}>{affiliate.full_name}</div>
+                    <div className={`text-xs ${t.muted}`}>
+                      {affiliate.identifier || 'No identifier'}
                     </div>
                   </td>
+                  <td className="whitespace-nowrap px-3 py-3 font-mono font-bold text-[var(--accent)]">
+                    {affiliate.referral_code}
+                  </td>
+                  <td className="px-3 py-3 capitalize">{affiliate.affiliate_type}</td>
+                  <td className="px-3 py-3">
+                    <t.StatusPill
+                      tone={affiliate.rule_type === 'custom' ? 'custom' : 'neutral'}
+                      label={affiliate.rule_type === 'custom' ? 'Individual' : 'Standard'}
+                    />
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono tabular-nums">{affiliate.total_customers || 0}</td>
+                  <td className="px-3 py-3 text-right font-mono tabular-nums">{affiliate.pending_count || 0}</td>
+                  <td className="px-3 py-3 text-right font-mono tabular-nums">{affiliate.paid_count || 0}</td>
+                  <td className="px-3 py-3">{renderActions(affiliate)}</td>
                 </tr>
               ))}
 
               {!loading && affiliates.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-3 py-10 text-center text-sm text-[var(--muted-ink)]">
                     No affiliates yet.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ── Cards: below lg ── */}
+        <div className="divide-y divide-[var(--border)] lg:hidden">
+          {affiliates.map(affiliate => (
+            <article key={affiliate.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className={`truncate font-bold ${t.fg}`}>{affiliate.full_name}</div>
+                  <div className={`truncate text-xs ${t.muted}`}>
+                    {affiliate.identifier || 'No identifier'}
+                  </div>
+                </div>
+                <t.StatusPill
+                  tone={affiliate.rule_type === 'custom' ? 'custom' : 'neutral'}
+                  label={affiliate.rule_type === 'custom' ? 'Individual' : 'Standard'}
+                />
+              </div>
+
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
+                <div>
+                  <dt className={t.label}>
+                    Code
+                  </dt>
+                  <dd className={`font-mono font-bold text-[var(--accent)]`}>{affiliate.referral_code}</dd>
+                </div>
+                <div>
+                  <dt className={t.label}>
+                    Type
+                  </dt>
+                  <dd className={`capitalize ${t.fgSecondary}`}>{affiliate.affiliate_type}</dd>
+                </div>
+                <div>
+                  <dt className={t.label}>
+                    Customers
+                  </dt>
+                  <dd className={`font-mono font-bold ${t.fgSecondary}`}>{affiliate.total_customers || 0}</dd>
+                </div>
+                <div>
+                  <dt className={t.label}>
+                    Pending / Paid
+                  </dt>
+                  <dd className={`font-mono font-bold ${t.fgSecondary}`}>
+                    {affiliate.pending_count || 0} / {affiliate.paid_count || 0}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-3 border-t border-[var(--border-strong)] pt-3">{renderActions(affiliate)}</div>
+            </article>
+          ))}
+
+          {!loading && affiliates.length === 0 && (
+            <p className={`px-3 py-10 text-center text-sm ${t.muted}`}>No affiliates yet.</p>
+          )}
         </div>
       </section>
 
@@ -352,26 +410,26 @@ const AffiliateTable: React.FC<Props> = ({
 
       {/* Credentials handoff — shown exactly once */}
       {grantResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-            <h3 className="text-base font-black text-slate-900">Portal login created</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--fg)]/40 p-4 backdrop-blur-[2px]">
+          <div className={`w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--bg-card)] p-5 shadow-[var(--sh2)]`}>
+            <h3 className={`${t.h2} text-base`}>Portal login created</h3>
+            <p className={`mt-2 text-sm leading-relaxed ${t.fgSecondary}`}>
               Send these to the affiliate. This is the only time the password will be shown.
             </p>
-            <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 font-mono text-sm">
+            <dl className="mt-4 grid gap-2 rounded-lg bg-[var(--bg-deep)] p-3 font-mono text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="font-sans text-xs font-bold uppercase text-slate-500">Username</dt>
-                <dd className="font-bold">{grantResult.username}</dd>
+                <dt className={`${t.label} font-sans`}>Username</dt>
+                <dd className={`font-bold ${t.fg}`}>{grantResult.username}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="font-sans text-xs font-bold uppercase text-slate-500">Password</dt>
-                <dd className="font-bold break-all text-right">{grantResult.temporary_password}</dd>
+                <dt className={`${t.label} font-sans`}>Password</dt>
+                <dd className="break-all text-right font-bold">{grantResult.temporary_password}</dd>
               </div>
             </dl>
             <div className="mt-5 flex justify-end">
               <button
                 onClick={() => setGrantResult(null)}
-                className="rounded-lg bg-[#2e7d32] px-4 py-2 text-sm font-bold text-white"
+                className={`${t.btnPrimary} px-4 py-2`}
               >
                 Done
               </button>

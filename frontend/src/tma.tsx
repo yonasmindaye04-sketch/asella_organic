@@ -13,8 +13,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-import { LanguageProvider } from './LanguageContext';
 import { TelegramProvider } from './context/TelegramContext';
+import { MiniAppI18nProvider } from './telegram/shop/MiniAppI18n';
 import { TelegramStore } from './pages/TelegramStore';
 
 // miniApp.css first, then tma.css: the brand surface override in tma.css is
@@ -34,16 +34,12 @@ if (!container) {
   throw new Error('Mini App root element (#root) is missing from tma.html');
 }
 
-// The brand surface comes from the CSS tokens in tma.css. Do not set --cream
-// (or any token) inline here: an inline style on <html> outranks the `.dark`
-// override and would pin the Mini App to the light palette in dark mode.
-
 ReactDOM.createRoot(container).render(
   <React.StrictMode>
-    <LanguageProvider>
-      <TelegramProvider>
+    <TelegramProvider>
+      <MiniAppI18nProvider initialLanguage={window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code}>
         <TelegramStore />
-      </TelegramProvider>
-    </LanguageProvider>
+      </MiniAppI18nProvider>
+    </TelegramProvider>
   </React.StrictMode>
 );

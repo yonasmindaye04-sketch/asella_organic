@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ProfileResponse, ProfileUpdate } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 import { formatEtb } from './types';
 import type { UseMiniAppProfileReturn } from './useMiniAppProfile';
 
@@ -82,7 +83,13 @@ function StatCard({
   );
 }
 
-const CITIES = ['Addis Ababa', 'Other Regions', 'Abroad'];
+/** City <option> labels are translated, but the persisted/submitted value stays
+ * the plain English string so stored profiles keep matching the backend. */
+const CITY_OPTIONS = [
+  { key: 'city.addisAbaba', value: 'Addis Ababa' },
+  { key: 'city.otherRegions', value: 'Other Regions' },
+  { key: 'city.abroad', value: 'Abroad' },
+] as const;
 
 export function AccountTab({
   telegramUser,
@@ -149,11 +156,13 @@ export function AccountTab({
     }
   };
 
+  const { t } = useMiniAppI18n();
+
   const displayName =
     form.display_name ||
     data?.telegram.first_name ||
     [telegramUser?.first_name, telegramUser?.last_name].filter(Boolean).join(' ') ||
-    'Asella customer';
+    t('account.customer');
 
   const isSaving = profile.status === 'saving';
   const isLoading = profile.status === 'loading' || profile.status === 'idle';
@@ -164,7 +173,7 @@ export function AccountTab({
         <Avatar name={displayName} photoUrl={data?.telegram.photo_url} />
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wider text-muted">
-            Your space on Asella Organic
+            {t('account.space')}
           </p>
           <h1 className="truncate font-heading text-lg font-bold text-ink">{displayName}</h1>
           {data?.telegram.username && (
@@ -176,31 +185,31 @@ export function AccountTab({
       <section className="flex gap-3">
         <StatCard
           icon={<i className="fa-solid fa-box" aria-hidden="true" />}
-          title="Your orders"
+          title={t('account.orders')}
           value={String(data?.stats.order_count ?? 0)}
-          caption="Purchases & delivery"
+          caption={t('account.ordersCaption')}
           onClick={onViewOrders}
         />
         <StatCard
           icon={<i className="fa-solid fa-wallet" aria-hidden="true" />}
           title={formatEtb(data?.stats.total_spent ?? 0)}
           value={`${data?.stats.active_count ?? 0} active`}
-          caption="Balance & payment history"
+          caption={t('account.spentCaption')}
           onClick={onViewOrders}
         />
         <StatCard
           icon={<i className="fa-solid fa-store" aria-hidden="true" />}
-          title="Shop now"
+          title={t('account.shopNow')}
           value={`${data?.stats.delivered_count ?? 0} done`}
-          caption="Reorder your essentials"
+          caption={t('account.shopNowCaption')}
           onClick={onBrowseStore}
         />
       </section>
 
       <section className="rounded-2xl border border-line bg-panel p-4 shadow-sm">
-        <h2 className="font-heading text-lg font-bold text-ink">Your profile</h2>
+        <h2 className="font-heading text-lg font-bold text-ink">{t('account.profile')}</h2>
         <p className="mt-0.5 text-xs text-muted">
-          Saved details speed up checkout on your next order.
+          {t('account.profileSub')}
         </p>
 
         {profile.error && (
@@ -212,7 +221,7 @@ export function AccountTab({
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           <div>
             <label htmlFor="tma-display-name" className="mb-1 block text-xs font-semibold text-ink2">
-              Display name
+              {t('account.displayName')}
             </label>
             <input
               id="tma-display-name"
@@ -222,14 +231,14 @@ export function AccountTab({
               maxLength={100}
               value={form.display_name}
               onChange={(event) => setForm({ ...form, display_name: event.target.value })}
-              placeholder="Abebe Balcha"
+              placeholder={t('account.namePlaceholder')}
               className="w-full rounded-lg border border-line bg-cream px-3 py-2.5 text-sm text-ink focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
             />
           </div>
 
           <div>
             <label htmlFor="tma-phone" className="mb-1 block text-xs font-semibold text-ink2">
-              Phone number
+              {t('account.phone')}
             </label>
             <input
               id="tma-phone"
@@ -237,7 +246,7 @@ export function AccountTab({
               required
               value={form.phone}
               onChange={(event) => setForm({ ...form, phone: event.target.value })}
-              placeholder="+251 900 000 000"
+              placeholder={t('account.phonePlaceholder')}
               className="w-full rounded-lg border border-line bg-cream px-3 py-2.5 font-mono text-sm text-ink focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
             />
           </div>
@@ -245,7 +254,7 @@ export function AccountTab({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label htmlFor="tma-city" className="mb-1 block text-xs font-semibold text-ink2">
-                City
+                {t('account.city')}
               </label>
               <select
                 id="tma-city"
@@ -253,9 +262,9 @@ export function AccountTab({
                 onChange={(event) => setForm({ ...form, city: event.target.value })}
                 className="w-full rounded-lg border border-line bg-cream px-2.5 py-2.5 text-sm text-ink focus:border-brand-700 focus:outline-none"
               >
-                {CITIES.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
+                {CITY_OPTIONS.map((city) => (
+                  <option key={city.key} value={city.value}>
+                    {t(city.key)}
                   </option>
                 ))}
               </select>
@@ -263,7 +272,7 @@ export function AccountTab({
 
             <div>
               <label htmlFor="tma-location" className="mb-1 block text-xs font-semibold text-ink2">
-                Delivery area
+                {t('account.deliveryArea')}
               </label>
               <input
                 id="tma-location"
@@ -271,7 +280,7 @@ export function AccountTab({
                 maxLength={255}
                 value={form.location}
                 onChange={(event) => setForm({ ...form, location: event.target.value })}
-                placeholder="Bole"
+                placeholder={t('account.areaPlaceholder')}
                 className="w-full rounded-lg border border-line bg-cream px-3 py-2.5 text-sm text-ink focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
               />
             </div>
@@ -282,7 +291,7 @@ export function AccountTab({
             disabled={isSaving || isLoading}
             className="w-full rounded-full bg-brand-solid py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-95 disabled:opacity-50"
           >
-            {isSaving ? 'Saving...' : 'Save profile'}
+            {isSaving ? t('account.saving') : t('account.save')}
           </button>
 
           {savedAt && (

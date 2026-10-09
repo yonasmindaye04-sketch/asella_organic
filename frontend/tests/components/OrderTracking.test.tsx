@@ -3,7 +3,7 @@
  * Tests source filter labels and badge rendering
  */
 
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent, renderWithProviders } from "../utils/renderWithProviders";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import OrderTracking from "../../src/pages/OrderTracking";
@@ -26,7 +26,7 @@ const MOCK_ORDERS = [
 ];
 
 function renderOrderTracking() {
-  return render(
+  return renderWithProviders(
     <MemoryRouter>
       <OrderTracking />
     </MemoryRouter>

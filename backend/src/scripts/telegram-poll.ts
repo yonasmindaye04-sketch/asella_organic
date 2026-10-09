@@ -11,7 +11,15 @@ import "dotenv/config";
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
-const TARGET_URL = `http://127.0.0.1:${process.env.PORT || 5000}/api/telegram/webhook`;
+// Must default to the same port the backend listens on (backend/src/config/env.ts).
+// Defaulting to 5000 here silently sent every update to a dead port.
+const TARGET_URL = `http://127.0.0.1:${process.env.PORT || 3001}/api/telegram/webhook`;
+
+// Telegram allows either a webhook OR long polling, never both. Starting this
+// script therefore requires deleting the webhook — but doing that
+// unconditionally means running this against a production token takes the live
+// bot offline, with no way to restore it on exit. Make it explicit instead.
+const DELETE_WEBHOOK = process.argv.includes("--delete-webhook");
 
 if (!TOKEN) {
   console.error("Missing TELEGRAM_BOT_TOKEN in .env");
@@ -75,13 +83,25 @@ async function poll() {
   }
 }
 
-// Ensure the bot isn't trying to use a webhook at the same time
+// Ensure the bot isn't trying to use a webhook at the same time.
+// Opt-in: pass --delete-webhook, or the webhook is left untouched and the
+// bot will keep delivering updates to production instead of this process.
 async function deleteWebhook() {
+  if (!DELETE_WEBHOOK) {
+    console.log(
+      "Webhook left untouched (Telegram allows a webhook OR polling, not both).\n" +
+      "If this bot is not receiving your messages, re-run with --delete-webhook.\n" +
+      "WARNING: that removes the live webhook and it is NOT restored on exit.\n",
+    );
+    poll();
+    return;
+  }
   try {
     const res = await fetch(`https://api.telegram.org/bot${TOKEN}/deleteWebhook`);
     const data = await res.json();
     if (data.ok) {
       console.log("Deleted any existing Telegram webhook.");
+      console.log("Restore it when done: POST /api/telegram/set-webhook");
       poll();
     } else {
       console.error("Failed to delete webhook:", data);

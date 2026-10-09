@@ -82,14 +82,25 @@
   </FilesMatch>
 </IfModule>
 
-# ── 4. Security headers (as fallback if backend is unreachable) ────
+# ── 4. Security headers ─────────────────────────────────────
+# CSP is NOT set here. postbuild.js appends it from csp-config.js, which is the
+# single source of truth shared with the Express backend. Declaring it here too
+# produced two conflicting headers in dist/.htaccess; browsers enforce the
+# intersection of multiple policies, so the stricter one won and broke YouTube
+# embeds. See MINIAPP_CLOUDFLARE_RUNBOOK.md §11.2.
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
-  Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
   Header always set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
-  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' https://telegram.org https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://api.asellaorganic.com https://i.ytimg.com https://lh3.googleusercontent.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; object-src 'none'; frame-src https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com; frame-ancestors 'self' https://web.telegram.org https://*.telegram.org; upgrade-insecure-requests"
+
+  # X-Frame-Options must NOT be DENY. The Telegram Mini App renders inside
+  # Telegram's webview and is explicitly allowed by the CSP `frame-ancestors`
+  # directive. Older webviews still honour X-Frame-Options over frame-ancestors,
+  # so DENY produced a blank Mini App on some clients while working fine on
+  # others. SAMEORIGIN keeps clickjacking protection for the website itself.
+  # See MINIAPP_CLOUDFLARE_RUNBOOK.md §9.11.
+  Header always set X-Frame-Options "SAMEORIGIN"
 </IfModule>
 
 # ── 5. Block access to dotfiles ───────────────────────────────────

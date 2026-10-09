@@ -3,7 +3,7 @@
  * Tests the dashboard KPI cards with mocked API responses
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, renderWithProviders } from "../utils/renderWithProviders";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import KPICards from "../../src/components/dashboard/KPICards";
 
@@ -22,6 +22,13 @@ const MOCK_EXPENSES_SUMMARY = {
   categories: [],
   monthly: [],
 };
+
+/** KPICards picks its KPI set from state.auth.user.role, so tests must seed one. */
+const asRole = (role: string) => ({
+  preloadedState: {
+    auth: { user: { id: "u1", email: "t@example.com", role }, isAuthenticated: true },
+  },
+});
 
 describe("KPICards", () => {
   beforeEach(() => {
@@ -53,18 +60,30 @@ describe("KPICards", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders all 4 KPI cards", async () => {
-    render(<KPICards />);
+  it("renders the 4 admin KPI cards for an admin role", async () => {
+    renderWithProviders(<KPICards />, asRole("admin"));
     await waitFor(() => {
       expect(screen.getByText("Total Revenue")).toBeInTheDocument();
       expect(screen.getByText("Total Expenses")).toBeInTheDocument();
       expect(screen.getByText("Net Profit")).toBeInTheDocument();
+      expect(screen.getByText("Inventory Value")).toBeInTheDocument();
+    });
+  });
+
+  it("renders the 4 order KPI cards instead for a staff role", async () => {
+    // KPICards renders adminKpis OR staffKpis, never both (see isStaff).
+    renderWithProviders(<KPICards />, asRole("staff"));
+    await waitFor(() => {
       expect(screen.getByText("Total Orders")).toBeInTheDocument();
+      expect(screen.getByText("Pending Orders")).toBeInTheDocument();
+      expect(screen.getByText("In Progress")).toBeInTheDocument();
+      expect(screen.getByText("Completed Orders")).toBeInTheDocument();
+      expect(screen.queryByText("Net Profit")).not.toBeInTheDocument();
     });
   });
 
   it("shows correct total order count excluding cancelled", async () => {
-    render(<KPICards />);
+    renderWithProviders(<KPICards />, asRole("staff"));
     await waitFor(() => {
       // 2 valid orders (ORD-001, ORD-002). ORD-003 is Cancelled.
       expect(screen.getByText("2")).toBeInTheDocument();
@@ -72,7 +91,7 @@ describe("KPICards", () => {
   });
 
   it("calculates total revenue correctly excluding cancelled", async () => {
-    render(<KPICards />);
+    renderWithProviders(<KPICards />);
     // 650 + 420 = 1070
     await waitFor(() => {
       expect(screen.getByText(/1,070/)).toBeInTheDocument();
@@ -80,7 +99,7 @@ describe("KPICards", () => {
   });
 
   it("shows correct total expenses", async () => {
-    render(<KPICards />);
+    renderWithProviders(<KPICards />);
     // MOCK_EXPENSES_SUMMARY has total_expenses: 350
     await waitFor(() => {
       expect(screen.getByText(/350/)).toBeInTheDocument();
@@ -88,7 +107,7 @@ describe("KPICards", () => {
   });
 
   it("shows correct net profit", async () => {
-    render(<KPICards />);
+    renderWithProviders(<KPICards />);
     // 1070 (revenue) - 350 (expenses) = 720
     await waitFor(() => {
       expect(screen.getByText(/720/)).toBeInTheDocument();
@@ -99,7 +118,7 @@ describe("KPICards", () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new Error("Network error");
     }));
-    render(<KPICards />);
+    renderWithProviders(<KPICards />, asRole("staff"));
     // Should still render cards (with 0s or fallback), not crash
     await waitFor(() => {
       expect(screen.getByText("Total Orders")).toBeInTheDocument();
@@ -107,7 +126,7 @@ describe("KPICards", () => {
   });
 
   it("does not show NaN or undefined in any card", async () => {
-    render(<KPICards />);
+    renderWithProviders(<KPICards />);
     await waitFor(() => {
       const container = document.body.textContent ?? "";
       expect(container).not.toContain("NaN");

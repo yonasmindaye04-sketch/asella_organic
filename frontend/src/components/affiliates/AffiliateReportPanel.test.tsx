@@ -10,7 +10,6 @@
  * response is cast at the call site, so this test asserts the render survives
  * the real envelope — and survives a malformed one too.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import AffiliateReportPanel from './AffiliateReportPanel';

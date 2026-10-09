@@ -4,6 +4,7 @@
  */
 
 import type { TmaTab } from './types';
+import { useMiniAppI18n } from './MiniAppI18n';
 
 export interface TabDefinition {
   id: TmaTab;
@@ -25,11 +26,12 @@ export interface BottomNavProps {
 }
 
 export function BottomNav({ activeTab, onSelect, cartCount = 0 }: BottomNavProps) {
+  const { t } = useMiniAppI18n(); 
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-40 border-t border-line bg-panel backdrop-blur"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      aria-label="Store sections"
+      aria-label={t('common.storeSections')}
     >
       <ul className="mx-auto flex max-w-md items-stretch justify-between px-2">
         {TMA_TABS.map((tab) => {
@@ -66,7 +68,7 @@ export function BottomNav({ activeTab, onSelect, cartCount = 0 }: BottomNavProps
                     isActive ? 'font-bold' : 'font-semibold'
                   }`}
                 >
-                  {tab.label}
+                  {t(`tab.${tab.id}`)}
                 </span>
               </button>
             </li>

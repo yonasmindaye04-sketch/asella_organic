@@ -136,3 +136,77 @@ export async function placeOrder(
     body: JSON.stringify({ ...payload, initData }),
   });
 }
+
+// ── Persisted per-customer state ──────────────────────────────────────
+
+export interface PersistedPreferences {
+  theme: 'light' | 'dark' | 'system';
+  language: 'en' | 'am' | 'or';
+  referralCode: string;
+  category: string;
+  sort: string;
+}
+
+export interface MiniAppState {
+  cart: Array<{
+    productId: string;
+    name: string;
+    packageSize: string;
+    unitPrice: number;
+    quantity: number;
+    imageUrl?: string;
+  }>;
+  preferences: Partial<PersistedPreferences>;
+  updated_at: string | null;
+}
+
+export async function fetchState(initData: string): Promise<MiniAppState> {
+  return request<MiniAppState>('/state', initData);
+}
+
+export async function saveState(
+  initData: string,
+  payload: { cart: unknown[]; preferences: Partial<PersistedPreferences> }
+): Promise<MiniAppState> {
+  return request<MiniAppState>('/state', initData, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function clearState(initData: string): Promise<MiniAppState> {
+  return request<MiniAppState>('/state', initData, { method: 'DELETE' });
+}
+
+// ── Notifications ─────────────────────────────────────────────────────
+
+export interface CustomerNotification {
+  id: string;
+  order_id: string | null;
+  type: string;
+  title: string;
+  body: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+export async function fetchNotifications(
+  initData: string
+): Promise<{ notifications: CustomerNotification[]; unread: number }> {
+  return request('/notifications', initData);
+}
+
+export async function fetchUnreadCount(initData: string): Promise<number> {
+  const data = await request<{ unread: number }>('/notifications/unread-count', initData);
+  return data.unread;
+}
+
+export async function markNotificationsRead(
+  initData: string,
+  ids?: string[]
+): Promise<void> {
+  await request('/notifications/read', initData, {
+    method: 'POST',
+    body: JSON.stringify(ids ? { ids } : {}),
+  });
+}

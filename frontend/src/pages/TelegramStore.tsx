@@ -13,7 +13,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTelegram } from '../context/TelegramContext';
 import { useGroupedProducts, type GroupedProduct } from '../hooks/useProducts';
-import { useLanguage } from '../LanguageContext';
 
 import { AccountTab } from '../telegram/shop/AccountTab';
 import { CartView } from '../telegram/shop/CartView';
@@ -21,11 +20,15 @@ import { CheckoutView, type CheckoutFormState } from '../telegram/shop/CheckoutV
 import { ConfirmationView, OrderDetailView } from '../telegram/shop/ConfirmationView';
 import { DetailView } from '../telegram/shop/DetailView';
 import { DiscoverTab } from '../telegram/shop/DiscoverTab';
+import { NotificationsOverlay } from '../telegram/shop/NotificationsOverlay';
 import { OrdersTab } from '../telegram/shop/OrdersTab';
 import { StoreTab, selectDefaultVariant, useFilteredProducts, type SortKey } from '../telegram/shop/StoreTab';
 import { TmaShell } from '../telegram/shop/TmaShell';
+import { useMiniAppI18n } from '../telegram/shop/MiniAppI18n';
 import { useTelegramTheme } from '../telegram/shop/useTelegramTheme';
-import { fetchMyOrders, placeOrder } from '../telegram/shop/api';
+import { useNotifications } from '../telegram/shop/useNotifications';
+import { usePersistedState } from '../telegram/shop/usePersistedState';
+import { fetchMyOrders, fetchState, placeOrder } from '../telegram/shop/api';
 import { useCart } from '../telegram/shop/useCart';
 import { useMiniAppProfile } from '../telegram/shop/useMiniAppProfile';
 import {
@@ -37,7 +40,14 @@ import {
   type TmaTab,
 } from '../telegram/shop/types';
 
-type Overlay = 'cart' | 'checkout' | 'details' | 'confirmation' | 'orderDetail' | null;
+type Overlay =
+  | 'cart'
+  | 'checkout'
+  | 'details'
+  | 'confirmation'
+  | 'orderDetail'
+  | 'notifications'
+  | null;
 
 export const TelegramStore: React.FC = () => {
   const {
@@ -53,12 +63,20 @@ export const TelegramStore: React.FC = () => {
   } = useTelegram();
 
   const theme = useTelegramTheme(colorScheme);
+  const notifications = useNotifications(initData);
+  const { language } = useMiniAppI18n();
+
+  // Read inside the persisted-state callbacks without making them depend on
+  // the language value, which would re-queue a write on every switch.
+  const languageRef = useRef(language);
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
 
   useEffect(() => {
     disableVerticalSwipes();
   }, [disableVerticalSwipes]);
 
-  const { language, setLanguage } = useLanguage();
   const { groupedProducts, loading: productsLoading, error: productsError } = useGroupedProducts();
 
   const [activeTab, setActiveTab] = useState<TmaTab>('store');
@@ -165,6 +183,82 @@ export const TelegramStore: React.FC = () => {
   });
 
   const profile = useMiniAppProfile(initData);
+
+  // Mirror the cart and preferences to the server, keyed by the customer's
+  // verified chat id, so a basket follows the customer rather than the browser.
+  const chatId = user?.id ?? null;
+  const persisted = usePersistedState(
+    initData,
+    chatId,
+    () => cart.cart,
+    () => ({
+      theme: theme.preference,
+      language: languageRef.current,
+      referralCode,
+      category: activeCategory,
+      sort: sortKey,
+    })
+  );
+
+  const cartHydratedRef = useRef(false);
+
+  // Apply the server copy once, without clobbering a basket the customer has
+  // already started in this session.
+  useEffect(() => {
+    if (cartHydratedRef.current) return;
+    if (!initData || chatId === null) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const state = await fetchState(initData);
+        if (cancelled || cartHydratedRef.current) return;
+        cartHydratedRef.current = true;
+
+        if (state.cart?.length) {
+          cart.replace(state.cart as never[]);
+        }
+        if (state.preferences?.referralCode) {
+          setReferralCode(state.preferences.referralCode);
+        }
+        if (state.preferences?.category) {
+          setActiveCategory(state.preferences.category);
+        }
+        if (state.preferences?.sort) {
+          setSortKey(state.preferences.sort as SortKey);
+        }
+        if (state.preferences?.theme) {
+          theme.setPreference(state.preferences.theme);
+        }
+      } catch {
+        // Offline or unauthenticated: keep whatever is already in memory.
+        cartHydratedRef.current = true;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally run once per session; persisted owns its own re-sync.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initData, chatId]);
+
+  // Push local changes back to the server.
+  useEffect(() => {
+    if (!cartHydratedRef.current) return;
+    persisted.scheduleCartSync(cart.cart);
+  }, [cart.cart]);
+
+  useEffect(() => {
+    if (!cartHydratedRef.current) return;
+    persisted.schedulePrefsSync({
+      theme: theme.preference,
+      language: languageRef.current,
+      referralCode,
+      category: activeCategory,
+      sort: sortKey,
+    });
+  }, [theme.preference, referralCode, activeCategory, sortKey]);
 
   // Warn before discarding a basket when closing the Mini App.
   useEffect(() => {
@@ -449,6 +543,20 @@ export const TelegramStore: React.FC = () => {
           <OrderDetailView order={selectedOrder} onBack={goBack} />
         ) : null;
 
+      case 'notifications':
+        return (
+          <NotificationsOverlay
+            initData={initData}
+            onClose={goBack}
+            onViewOrder={(orderId) => {
+              void loadOrders();
+              setStatusFilter('all');
+              setOrderSearch(orderId);
+              navigate('orders', null);
+            }}
+          />
+        );
+
       default:
         return null;
     }
@@ -594,14 +702,17 @@ export const TelegramStore: React.FC = () => {
         navigate(tab, null);
       }}
       cartCount={cart.totalCartCount}
-      headerTitle="Asella Organic"
       onCartPress={() => navigate(activeTab, 'cart')}
-      language={language}
-      onLanguageChange={setLanguage}
       canGoBack={canGoBack}
       onBack={goBack}
       theme={theme.theme}
       onToggleTheme={theme.toggle}
+      unreadCount={notifications.unread}
+      onOpenNotifications={() => {
+        haptic.selection();
+        setOverlay('notifications');
+        notifications.reset();
+      }}
       overlay={overlayContent}
     >
       {tabContent}

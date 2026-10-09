@@ -41,6 +41,18 @@
     --parchment: #FAF9F6;
     --parchment-mid: #E8F5E9;
     --clay: #8B4513;
+    /* amber darkened for text on the amber tint - see affiliates/theme.ts */
+    --warn-text: #8a5a00;
+    /* ── Accessible text + surface tokens (affiliates/theme.ts) ──────────────
+       --muted (#6b8f6e) only reaches 3.6:1 on a white card, which fails
+       WCAG AA for body text. These are the darkened counterparts used
+       wherever colour carries text rather than decoration.
+       --border (#d4ecd4) against a white card is 1.25:1 - effectively
+       invisible - so cards use --border-strong to actually read as cards. */
+    --muted-ink: #4a734d;      /* 5.0:1 on card / page / table header */
+    --amber-ink: #9a5b00;      /* 5.0:1 - --amber (#f59e0b) is only 2.2:1 */
+    --border-strong: #b5d4b5;  /* 1.6:1 against a white card */
+    --page-tint: #eaf4ea;      /* 1.13:1 against a white card */
   }
   /* Proper Dark Mode Palette */
   .dark {

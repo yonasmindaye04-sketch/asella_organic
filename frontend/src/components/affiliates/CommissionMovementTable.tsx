@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { referrals, type CommissionStatus } from '../../services/api';
 import type { AdminCommission } from '../../services/api';
 import ConfirmDialog from './ConfirmDialog';
+import * as t from './theme';
 
 interface Props {
   onMessage: (m: string) => void;
@@ -11,10 +12,16 @@ interface Props {
 
 const money = (v: unknown) => Number(v || 0).toLocaleString('en-US');
 
-const statusChip: Record<CommissionStatus, string> = {
-  pending:  'text-amber-700 bg-amber-50',
-  paid:     'text-emerald-700 bg-emerald-50',
-  reversed: 'text-slate-500 bg-slate-100 line-through',
+/**
+ * Status colour follows the platform convention (OrderTracking, CustomersPage):
+ * a solid colour dot plus bold saturated text on the plain surface. No tinted
+ * chip fill — the background stays neutral so the colour carries the signal.
+ * `reversed` also gets a line-through because it is struck from the totals.
+ */
+const statusTone: Record<CommissionStatus, t.StatusTone> = {
+  pending: 'pending',
+  paid: 'paid',
+  reversed: 'reversed',
 };
 
 /**
@@ -107,15 +114,50 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
     }
   };
 
+  /**
+   * Row actions, shared by the desktop table and the mobile card view so the
+   * two cannot drift apart.
+   */
+  const renderActions = (commission: AdminCommission) => {
+    if (commission.status !== 'pending') {
+      return (
+        <span className={`text-xs ${t.muted}`}>
+          {commission.status === 'paid'
+            ? (commission.paid_at ? new Date(commission.paid_at).toLocaleDateString('en-GB') : 'Paid')
+            : (commission.reversed_at ? new Date(commission.reversed_at).toLocaleDateString('en-GB') : 'Reversed')}
+        </span>
+      );
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <button
+          onClick={() => setReverseTarget(commission)}
+          disabled={busyId === commission.id}
+          className={`${t.btnSecondary} disabled:opacity-50`}
+        >
+          Reverse
+        </button>
+        <button
+          onClick={() => setPayTarget(commission)}
+          disabled={busyId === commission.id}
+          className={`${t.btnBase} bg-[var(--accent)] px-3 py-1.5 text-xs text-white hover:bg-[var(--g800)] disabled:opacity-50`}
+        >
+          Mark Paid
+        </button>
+      </div>
+    );
+  };
+
   return (
     <>
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
+      <section className={`${t.panel} ${t.panelShadow} p-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-strong)] p-4">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">
+            <h2 className={t.label}>
               Commission Movement
             </h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className={`mt-0.5 text-[11px] ${t.muted}`}>
               Commissions are credited when an order is delivered. Cancelling or returning
               that order reverses the commission automatically.
             </p>
@@ -123,7 +165,7 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className={t.input}
           >
             <option value="pending">Pending</option>
             <option value="paid">Paid</option>
@@ -132,15 +174,15 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
           </select>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-left text-sm">
-            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+        <div className="hidden overflow-x-auto lg:block">
+          <table className="w-full text-left text-sm">
+            <thead className={t.label}>
               <tr>
                 <th className="px-4 py-3">Affiliate</th>
                 <th className="px-4 py-3">Order</th>
                 <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Order Total</th>
-                <th className="px-4 py-3">Commission</th>
+                <th className="px-4 py-3 text-right">Order Total</th>
+                <th className="px-4 py-3 text-right">Commission</th>
                 <th className="px-4 py-3">Rule</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Action</th>
@@ -148,78 +190,52 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
             </thead>
             <tbody>
               {commissions.map(commission => (
-                <tr key={commission.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3">
-                    <div className="font-bold text-slate-900">{commission.affiliate_name}</div>
-                    <div className="font-mono text-xs text-emerald-700">{commission.referral_code}</div>
+                <tr key={commission.id} className={t.tr}>
+                  <td className="px-3 py-3">
+                    <div className={`${t.fg} font-bold`}>{commission.affiliate_name}</div>
+                    <div className={`font-mono text-xs text-[var(--accent)]`}>{commission.referral_code}</div>
                   </td>
-                  <td className="px-4 py-3 font-mono">{commission.order_id || '—'}</td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
+                    {commission.order_id || '—'}
+                  </td>
+                  <td className="px-3 py-3">
                     <div>{commission.customer_name || 'Unknown'}</div>
-                    <div className="text-xs text-slate-500">{commission.customer_phone || ''}</div>
+                    <div className={`text-xs ${t.muted}`}>{commission.customer_phone || ''}</div>
                   </td>
-                  <td className="px-4 py-3 font-mono">{money(commission.order_total)}</td>
-                  <td className="px-4 py-3 font-mono font-bold text-slate-900">
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-mono">
+                    {money(commission.order_total)}
+                  </td>
+                  <td className={`whitespace-nowrap px-3 py-3 text-right font-mono font-bold tabular-nums ${t.fg}`}>
                     {money(commission.commission_amount)}
                   </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                        commission.rule_source === 'individual'
-                          ? 'bg-violet-100 text-violet-700'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {commission.rule_source === 'individual' ? 'Individual' : 'Standard'}
-                    </span>
+                  <td className="px-3 py-3">
+                    <t.StatusPill
+                      tone={commission.rule_source === 'individual' ? 'custom' : 'neutral'}
+                      label={commission.rule_source === 'individual' ? 'Individual' : 'Standard'}
+                    />
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-1 text-xs font-extrabold ${statusChip[commission.status]}`}>
-                      {commission.status}
-                    </span>
+                  <td className="px-3 py-3">
+                    <t.StatusPill
+                      tone={statusTone[commission.status]}
+                      label={commission.status}
+                      strike={commission.status === 'reversed'}
+                    />
                     {Number(commission.clawback_settled) === 1 && commission.status === 'paid' && (
-                      <div className="mt-1 text-[10px] font-bold text-red-700">clawback</div>
+                      <div className="mt-1 text-[11px] font-extrabold uppercase tracking-wider text-[var(--rose)]">clawback</div>
                     )}
                     {commission.reversal_reason && (
-                      <div className="mt-1 max-w-[180px] text-[10px] leading-snug text-slate-500">
+                      <div className={`mt-1 max-w-[180px] text-[10px] leading-snug ${t.muted}`}>
                         {commission.reversal_reason}
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {commission.status === 'pending' ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setReverseTarget(commission)}
-                          disabled={busyId === commission.id}
-                          className="rounded-md px-2 py-1.5 text-xs font-extrabold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                        >
-                          Reverse
-                        </button>
-                        <button
-                          onClick={() => setPayTarget(commission)}
-                          disabled={busyId === commission.id}
-                          className="rounded-md bg-[#2e7d32] px-3 py-1.5 text-xs font-extrabold text-white disabled:opacity-50"
-                        >
-                          Mark Paid
-                        </button>
-                      </div>
-                    ) : commission.status === 'paid' ? (
-                      <span className="text-xs text-slate-500">
-                        {commission.paid_at ? new Date(commission.paid_at).toLocaleDateString('en-GB') : 'Paid'}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-400">
-                        {commission.reversed_at ? new Date(commission.reversed_at).toLocaleDateString('en-GB') : 'Reversed'}
-                      </span>
-                    )}
-                  </td>
+                  <td className="px-3 py-3 text-right">{renderActions(commission)}</td>
                 </tr>
               ))}
 
               {!loading && commissions.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                  <td colSpan={8} className={`px-3 py-10 text-center text-sm ${t.muted}`}>
                     No commission records match this filter.
                   </td>
                 </tr>
@@ -227,30 +243,106 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
             </tbody>
           </table>
         </div>
+
+        {/* ── Cards: below lg ── */}
+        <div className="divide-y divide-[var(--border)] lg:hidden">
+          {commissions.map(commission => (
+            <article key={commission.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className={`truncate font-bold ${t.fg}`}>{commission.affiliate_name}</div>
+                  <div className={`truncate font-mono text-xs text-[var(--accent)]`}>
+                    {commission.referral_code}
+                  </div>
+                </div>
+                <t.StatusPill
+                  tone={statusTone[commission.status]}
+                  label={commission.status}
+                  strike={commission.status === 'reversed'}
+                />
+              </div>
+
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
+                <div className="col-span-2 sm:col-span-1">
+                  <dt className={t.label}>
+                    Order
+                  </dt>
+                  <dd className={`truncate font-mono text-[11px] ${t.fgSecondary}`}>
+                    {commission.order_id || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className={t.label}>
+                    Order total
+                  </dt>
+                  <dd className={`font-mono font-bold ${t.fgSecondary}`}>
+                    {money(commission.order_total)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className={t.label}>
+                    Commission
+                  </dt>
+                  <dd className={`font-mono font-bold ${t.fg}`}>
+                    {money(commission.commission_amount)}
+                  </dd>
+                </div>
+              </dl>
+
+              {commission.customer_name && (
+                <p className={`mt-2 text-xs ${t.muted}`}>
+                  Customer: {commission.customer_name}
+                  {commission.customer_phone ? ` · ${commission.customer_phone}` : ''}
+                </p>
+              )}
+
+              {(commission.reversal_reason || Number(commission.clawback_settled) === 1) && (
+                <div className="mt-2 space-y-1">
+                  {Number(commission.clawback_settled) === 1 && commission.status === 'paid' && (
+                    <div className={`text-[10px] font-bold text-[var(--rose)]`}>clawback</div>
+                  )}
+                  {commission.reversal_reason && (
+                    <div className={`text-[10px] leading-snug ${t.muted}`}>
+                      {commission.reversal_reason}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 border-t border-[var(--border-strong)] pt-3">{renderActions(commission)}</div>
+            </article>
+          ))}
+
+          {!loading && commissions.length === 0 && (
+            <p className={`px-3 py-10 text-center text-sm ${t.muted}`}>
+              No commission records match this filter.
+            </p>
+          )}
+        </div>
       </section>
 
       {/* Manual reversal — voids a pending commission that must not be paid */}
       {reverseTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-            <h3 className="text-base font-black text-slate-900">Reverse commission</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--fg)]/40 p-4 backdrop-blur-[2px]">
+          <div className={`w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--bg-card)] p-5 shadow-[var(--sh2)]`}>
+            <h3 className={`${t.h2} text-base`}>Reverse commission</h3>
+            <p className={`mt-2 text-sm leading-relaxed ${t.fgSecondary}`}>
               This voids the pending {money(reverseTarget.commission_amount)} ETB commission for{' '}
               {reverseTarget.affiliate_name} on order {reverseTarget.order_id}. It stays in the
               ledger for your records and leaves the pending totals.
             </p>
 
-            <label className="mt-4 block text-xs font-bold text-slate-600">
+            <label className={`mt-4 block text-xs font-bold ${t.fgSecondary}`}>
               Reason
               <input
                 value={reverseReason}
                 onChange={e => setReverseReason(e.target.value)}
                 placeholder="e.g. duplicate referral, order not delivered"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className={`mt-1 ${t.input}`}
               />
             </label>
 
-            <label className="mt-3 block text-xs font-bold text-slate-600">
+            <label className={`mt-3 block text-xs font-bold ${t.fgSecondary}`}>
               2FA code
               <input
                 value={twoFaToken}
@@ -258,7 +350,7 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="6-digit code from your authenticator"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className={`mt-1 ${t.input}`}
               />
             </label>
 
@@ -269,7 +361,7 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
                   setReverseReason('');
                   setTwoFaToken('');
                 }}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className={`${t.btnBase} border-[1.5px] border-[var(--border)] px-4 py-2 text-sm text-[var(--fg-secondary)] hover:border-[var(--border-light)] hover:text-[var(--fg)] disabled:opacity-40`}
               >
                 Cancel
               </button>
@@ -280,7 +372,7 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
                   setTwoFaToken('');
                 }}
                 disabled={!twoFaToken.trim() || busyId === reverseTarget.id}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                className={`${t.btnBase} bg-[var(--rose)] px-4 py-2 text-sm text-white hover:brightness-95 disabled:opacity-50`}
               >
                 Reverse commission
               </button>
@@ -301,7 +393,7 @@ const CommissionMovementTable: React.FC<Props> = ({ onMessage, onError, onChange
         confirmLabel="Mark paid"
         busy={busyId === payTarget?.id}
         onCancel={() => setPayTarget(null)}
-        onConfirm={token => {
+        onConfirm={(token: string) => {
           if (payTarget) void pay(payTarget, token);
           setPayTarget(null);
         }}

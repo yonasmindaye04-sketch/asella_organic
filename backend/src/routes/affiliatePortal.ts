@@ -22,7 +22,7 @@
  *     are rate limited.
  */
 
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import type { RowDataPacket } from "mysql2/promise";
 import crypto from "crypto";
 import pool from "../config/db.js";
@@ -107,6 +107,28 @@ router.use(authenticate, affiliateOnly);
 const num = (v: unknown): number => Number(v ?? 0);
 
 /**
+ * Blocks portal data routes while the account still holds an admin-issued
+ * temporary password. Without this an affiliate could keep using the password
+ * that was emailed to them indefinitely, because nothing ever forced a change.
+ * /me and /me/change-password stay reachable so they can actually resolve it.
+ */
+const requirePasswordChanged = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  if (req.affiliate?.mustChangePassword) {
+    res.status(403).json({
+      success: false,
+      error: "You must change your temporary password before continuing.",
+      code: "MUST_CHANGE_PASSWORD",
+    });
+    return;
+  }
+  next();
+};
+
+/**
  * GET /api/affiliate/me
  * Profile and lifetime totals. Exposes the referral code and share link only.
  */
@@ -135,7 +157,8 @@ router.get("/me", async (req, res) => {
       is_active: Boolean(profile?.is_active),
       rule_type: profile?.rule_type ?? "global",
       member_since: profile?.created_at ?? null,
-      share_link: `/storefront?ref=${encodeURIComponent(affiliate.referralCode)}`,
+      share_link: `/?ref=${encodeURIComponent(affiliate.referralCode)}`,
+      must_change_password: affiliate.mustChangePassword,
       total_earnings: num(profile?.total_earnings),
       total_customers: num(profile?.total_referrals),
       clawback_pending: num(profile?.clawback_pending),
@@ -147,7 +170,7 @@ router.get("/me", async (req, res) => {
  * GET /api/affiliate/me/summary?from=&to=
  * Period + lifetime sales and engagement figures for the caller only.
  */
-router.get("/me/summary", async (req, res) => {
+router.get("/me/summary", requirePasswordChanged, async (req, res) => {
   const affiliate = requireAffiliate(req);
   const { from, to } = req.query as Record<string, string | undefined>;
   const period = from && to ? { start: from, end: to } : currentWeekPeriod();
@@ -164,7 +187,7 @@ router.get("/me/summary", async (req, res) => {
  * GET /api/affiliate/me/commissions?status=&page=&limit=
  * The caller's ledger. Order references and totals only — no customer PII.
  */
-router.get("/me/commissions", async (req, res) => {
+router.get("/me/commissions", requirePasswordChanged, async (req, res) => {
   const affiliate = requireAffiliate(req);
   const { status } = req.query as Record<string, string | undefined>;
 
@@ -227,7 +250,7 @@ router.get("/me/commissions", async (req, res) => {
  * Engagement only: link clicks and conversion. Referred individuals are
  * counted, never listed.
  */
-router.get("/me/referrals", async (req, res) => {
+router.get("/me/referrals", requirePasswordChanged, async (req, res) => {
   const affiliate = requireAffiliate(req);
   const { from, to } = req.query as Record<string, string | undefined>;
   const period = from && to ? { start: from, end: to } : currentWeekPeriod();
@@ -332,7 +355,7 @@ router.post("/me/change-password", generalRateLimit, async (req, res) => {
  * GET /api/affiliate/me/activity
  * Recent state changes on the caller's commissions, for the portal timeline.
  */
-router.get("/me/activity", async (req, res) => {
+router.get("/me/activity", requirePasswordChanged, async (req, res) => {
   const affiliate = requireAffiliate(req);
 
   const [rows] = await pool.query(
