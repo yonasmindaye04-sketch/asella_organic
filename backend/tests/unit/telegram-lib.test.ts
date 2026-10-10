@@ -96,10 +96,10 @@ describe("formatGroupDeliveryMessage", () => {
       created_at: "2026-06-01T10:00:00Z",
     };
     const text = formatGroupDeliveryMessage(order);
-    expect(text).toContain("📦 *New Delivery Order*");
-    expect(text).toContain("🆔 *Order:* ORD-1");
-    expect(text).toContain("🏙 *City:* Addis Ababa");
-    expect(text).toContain("📍 *Location:* Bole");
+    expect(text).toContain("*New Delivery Order*");
+    expect(text).toContain("*Order:* ORD-1");
+    expect(text).toContain("*City:* Addis Ababa");
+    expect(text).toContain("*Location:* Bole");
     expect(text).toContain("Moringa");
     expect(text).toContain("[250g] × 2");
     expect(text).toContain("Turmeric");
@@ -123,9 +123,9 @@ describe("formatGroupDeliveryMessage", () => {
 
   it("uses 'N/A' for missing order id, city, location", () => {
     const text = formatGroupDeliveryMessage({});
-    expect(text).toContain("🆔 *Order:* N/A");
-    expect(text).toContain("🏙 *City:* Addis Ababa");
-    expect(text).toContain("📍 *Location:* N/A");
+    expect(text).toContain("*Order:* N/A");
+    expect(text).toContain("*City:* Addis Ababa");
+    expect(text).toContain("*Location:* N/A");
   });
 });
 
@@ -143,21 +143,21 @@ describe("formatPrivateDeliveryMessage", () => {
       notes: "Leave at door",
       items: [{ name: "Honey", package_size: "500g", quantity: 1 }],
     });
-    expect(text).toContain("🚗 *DELIVERY ORDER");
-    expect(text).toContain("🆔 *Order ID:* `ORD-99`");
-    expect(text).toContain("👤 *Customer:* Yonas T.");
-    expect(text).toContain("📞 *Phone:* +251911223344");
-    expect(text).toContain("📍 *Address:* Bole, Addis Ababa");
-    expect(text).toContain("📋 *Order Type:* Online");
-    expect(text).toContain("💰 *Total:* ETB 1750");
-    expect(text).toContain("💳 *Payment:* Cash");
-    expect(text).toContain("📝 *Notes:* Leave at door");
+    expect(text).toContain("*DELIVERY ORDER");
+    expect(text).toContain("*Order ID:* `ORD-99`");
+    expect(text).toContain("*Customer:* Yonas T.");
+    expect(text).toContain("*Phone:* +251911223344");
+    expect(text).toContain("*Address:* Bole, Addis Ababa");
+    expect(text).toContain("*Order Type:* Online");
+    expect(text).toContain("*Total:* ETB 1750");
+    expect(text).toContain("*Payment:* Cash");
+    expect(text).toContain("*Notes:* Leave at door");
     expect(text).toContain("Honey");
   });
 
   it("uses 'None' for missing notes", () => {
     const text = formatPrivateDeliveryMessage({ id: "X" });
-    expect(text).toContain("📝 *Notes:* None");
+    expect(text).toContain("*Notes:* None");
   });
 });
 
@@ -288,7 +288,7 @@ describe("sendDetailsToAssignedDriver", () => {
     await sendDetailsToAssignedDriver(777, { id: "ORD-1", items: [] });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.chat_id).toBe(777);
-    expect(body.text).toContain("🚗 *DELIVERY ORDER");
+    expect(body.text).toContain("*DELIVERY ORDER");
   });
 });
 
@@ -342,7 +342,7 @@ describe("sendLowStockAlert", () => {
     await sendLowStockAlert({ name: "Moringa", size: "250g", current: 2, threshold: 10 });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.chat_id).toBe("111");
-    expect(body.text).toContain("⚠️ *Low Stock Alert*");
+    expect(body.text).toContain("*Low Stock Alert*");
     expect(body.text).toContain("Moringa");
     expect(body.text).toMatch(/Current:\s*`?2`?/);
     expect(body.text).toMatch(/Threshold:\s*`?10`?/);
@@ -357,7 +357,7 @@ describe("sendStockRequestAlert", () => {
       deliveryDate: "2026-06-10", requestedBy: "Yonas",
     });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.text).toContain("📝 *Stock Request*");
+    expect(body.text).toContain("*Stock Request*");
     expect(body.text).toContain("Honey");
     expect(body.text).toContain("Remaining: *1*");
     expect(body.text).toContain("Need: *5*");
@@ -416,7 +416,7 @@ describe("sendVendorPO", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     const adminBody = JSON.parse(mockFetch.mock.calls[1][1].body);
-    expect(adminBody.text).toContain("⚠️ *Vendor Not Registered*");
+    expect(adminBody.text).toContain("*Vendor Not Registered*");
 
     await pool.query(`DELETE FROM pending_vendor_messages WHERE order_id = ?`, [orderId]);
   });
@@ -446,10 +446,22 @@ describe("sendMorningBriefing", () => {
 
   it("sends a briefing with yesterday stats and pending count", async () => {
     process.env.TELEGRAM_ADMIN_CHAT_ID = "111";
+    
+    const mockQuery = jest.spyOn(pool, "query").mockImplementation(async (sql: any) => {
+      if (typeof sql === 'string') {
+        if (sql.includes("INSERT INTO briefing_claims")) return [{}];
+        if (sql.includes("status = 'Pending'")) return [[{ total: 5 }]];
+        if (sql.includes("created_at >= ? AND created_at < ?")) return [[{ total: 10, revenue: 5000 }]];
+      }
+      return [[]];
+    });
+
     await sendMorningBriefing();
+    mockQuery.mockRestore();
+
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.chat_id).toBe("111");
-    expect(body.text).toContain("☀️ *Morning Briefing");
+    expect(body.text).toContain("*Morning Briefing");
     expect(body.text).toContain("Yesterday (");
     expect(body.text).toContain("Pending now:");
     expect(body.reply_markup.inline_keyboard[0][0].callback_data).toBe("pending_orders");
