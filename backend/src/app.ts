@@ -97,47 +97,10 @@ app.use(express.static(path.join(process.cwd(), "public")));
 // credentials:true is required for HttpOnly cookies to work cross-origin.
 // NOTE: When credentials:true, origin cannot be "*" — must be explicit.
 // In development, allow http://localhost:5173. In production, restrict to ALLOWED_ORIGINS.
-const isProduction = process.env.NODE_ENV === "production";
+import { allowedOrigins, isAllowedOrigin, isProduction } from "./lib/origins.js";
 
-let allowedOriginsString = process.env.ALLOWED_ORIGINS;
-if (isProduction && !allowedOriginsString) {
-  if (process.env.FRONTEND_URL) {
-    logger.warn("ALLOWED_ORIGINS is unset, falling back to FRONTEND_URL");
-    allowedOriginsString = process.env.FRONTEND_URL;
-  } else {
-    allowedOriginsString = "https://www.asellaorganic.com,https://asellaorganic.com";
-  }
-}
-
-const allowedOrigins = isProduction
-  ? allowedOriginsString!.split(",").map(s => s.trim())
-  : ["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"];
-
-// Vite takes the next free port when 5173 is already taken — which happens
-// whenever a previous `npm run dev` was left running — and the browser then
-// sends that port as the Origin. A fixed list of three dev ports made every
-// POST fail with "CSRF protection: Origin mismatch", including login.
-//
-// In development only, any http://localhost / 127.0.0.1 port is accepted.
-// Nothing outside the loopback interface is reachable from a browser on this
-// machine, so this cannot widen the attack surface. Production keeps the
-// exact ALLOWED_ORIGINS list.
-const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-
-/**
- * Exact match in production. The previous implementation used
- * `origin.startsWith(allowed)`, which would accept
- * "https://asellaorganic.com.evil.example" as a match for
- * "https://asellaorganic.com" — a real origin-spoofing hole on the
- * deployment that mattered.
- */
-export function isAllowedOrigin(origin: string): boolean {
-  if (!isProduction && devOriginPattern.test(origin)) return true;
-  return allowedOrigins.some((allowed) => origin === allowed);
-}
-
-if (!allowedOrigins.includes("https://web.telegram.org")) {
-  allowedOrigins.push("https://web.telegram.org");
+if (isProduction && !process.env.ALLOWED_ORIGINS && process.env.FRONTEND_URL) {
+  logger.warn("ALLOWED_ORIGINS is unset, falling back to FRONTEND_URL");
 }
 
 logger.info("CORS allowed origins resolved to:", { allowedOrigins });

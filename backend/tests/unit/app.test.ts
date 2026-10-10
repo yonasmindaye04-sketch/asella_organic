@@ -1,3 +1,5 @@
+import { jest, expect, describe, beforeEach, afterAll, it } from "@jest/globals";
+
 describe("CORS Origin Validation", () => {
   const ORIGINAL_ENV = { ...process.env };
 
@@ -14,7 +16,7 @@ describe("CORS Origin Validation", () => {
     process.env.NODE_ENV = "production";
     process.env.ALLOWED_ORIGINS = "https://asellaorganic.com,https://www.asellaorganic.com";
     
-    const { isAllowedOrigin } = await import("../../src/app.js");
+    const { isAllowedOrigin } = await import("../../src/lib/origins.js");
     
     // Exact origins accepted
     expect(isAllowedOrigin("https://asellaorganic.com")).toBe(true);
