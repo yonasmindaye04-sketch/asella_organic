@@ -15,6 +15,7 @@ const config = {
   },
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^@exodus/bytes/encoding-lite\\.js$": "<rootDir>/tests/setup/encoding-lite-shim.cjs",
   },
 
   transformIgnorePatterns: [
