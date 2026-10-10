@@ -5,7 +5,8 @@ const noDbConfig = {
   globalSetup: undefined,
   globalTeardown: undefined,
   testMatch: [
-    "<rootDir>/tests/unit/app.test.ts"
+    "<rootDir>/tests/unit/app.test.ts",
+    "<rootDir>/tests/unit/products-mocked.test.ts"
   ]
 };
 

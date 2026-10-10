@@ -461,7 +461,7 @@ router.patch(
     try {
       const fields  = req.body as Record<string, unknown>;
 
-      const [existingRows] = await pool.query(`SELECT name, image_url, package_size FROM products WHERE id = ?`, [req.params.id]) as [any[], any];
+      const [existingRows] = await pool.query(`SELECT name, image_url, package_size, active FROM products WHERE id = ?`, [req.params.id]) as [any[], any];
       if (!existingRows[0]) {
         res.status(404).json({ success: false, error: "Product not found" });
         return;
@@ -470,6 +470,7 @@ router.patch(
       const mergedName = fields.name !== undefined ? (fields.name as string) : existingRows[0].name;
       const mergedImage = fields.image_url !== undefined ? (fields.image_url as string) : existingRows[0].image_url;
       const mergedSize = fields.package_size !== undefined ? (fields.package_size as string) : existingRows[0].package_size;
+      const mergedActive = fields.active !== undefined ? Boolean(fields.active) : Boolean(existingRows[0].active);
 
       const validationError = validateProductData(mergedName, mergedImage);
       if (validationError) {
@@ -477,7 +478,7 @@ router.patch(
         return;
       }
 
-      if (await isDuplicate(pool, mergedName, mergedSize, req.params.id)) {
+      if (mergedActive && await isDuplicate(pool, mergedName, mergedSize, req.params.id)) {
         res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
@@ -677,8 +678,12 @@ router.get(
 // All-or-nothing transaction: if any single product fails (duplicate
 // name, invalid data, FK violation), the entire batch rolls back.
 // Useful for catalog import from a CSV or a new supplier feed.
+const ALLOWED_TAGS = ["Traditional", "Herbs", "Oils", "Superfood", "Other"];
 const BulkCreateProductsSchema = z.object({
   products: z.array(CreateProductSchema).min(1).max(100),
+}).refine(data => data.products.every(p => !p.tag || ALLOWED_TAGS.includes(p.tag)), {
+  message: "Invalid tag in bulk products",
+  path: ["products"],
 });
 
 router.post(
