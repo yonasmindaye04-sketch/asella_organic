@@ -32,12 +32,47 @@ export function registerServiceWorker(): void {
       });
   });
 
+  const hadController = !!navigator.serviceWorker.controller;
   let refreshing = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
-    if (window.confirm("New version available. Reload now?")) {
+    if (!hadController) return;
+
+    // Create a non-blocking in-page banner
+    const banner = document.createElement("div");
+    banner.style.position = "fixed";
+    banner.style.bottom = "20px";
+    banner.style.right = "20px";
+    banner.style.backgroundColor = "#333";
+    banner.style.color = "#fff";
+    banner.style.padding = "16px";
+    banner.style.borderRadius = "8px";
+    banner.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
+    banner.style.zIndex = "9999";
+    banner.style.display = "flex";
+    banner.style.alignItems = "center";
+    banner.style.gap = "12px";
+    banner.style.fontFamily = "sans-serif";
+
+    const text = document.createElement("span");
+    text.textContent = "New version available.";
+    banner.appendChild(text);
+
+    const reloadBtn = document.createElement("button");
+    reloadBtn.textContent = "Reload";
+    reloadBtn.style.backgroundColor = "#4CAF50";
+    reloadBtn.style.color = "white";
+    reloadBtn.style.border = "none";
+    reloadBtn.style.padding = "8px 16px";
+    reloadBtn.style.borderRadius = "4px";
+    reloadBtn.style.cursor = "pointer";
+    
+    reloadBtn.addEventListener("click", () => {
       refreshing = true;
       window.location.reload();
-    }
+    });
+    
+    banner.appendChild(reloadBtn);
+    document.body.appendChild(banner);
   });
 }
