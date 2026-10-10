@@ -30,4 +30,16 @@ describe("CORS Origin Validation", () => {
     expect(isAllowedOrigin("http://asellaorganic.com")).toBe(false); // HTTP instead of HTTPS
     expect(isAllowedOrigin("https://subdomain.asellaorganic.com")).toBe(false);
   });
+
+  it("handles trailing commas, spaces, and slashes gracefully", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.ALLOWED_ORIGINS = "https://asellaorganic.com/ , https://www.asellaorganic.com/, , ";
+    
+    const { isAllowedOrigin } = await import("../../src/lib/origins.js");
+    
+    expect(isAllowedOrigin("https://asellaorganic.com")).toBe(true);
+    expect(isAllowedOrigin("https://www.asellaorganic.com")).toBe(true);
+    // Shouldn't match with slash because we stripped the slash from allowedOrigins
+    expect(isAllowedOrigin("https://asellaorganic.com/")).toBe(false);
+  });
 });

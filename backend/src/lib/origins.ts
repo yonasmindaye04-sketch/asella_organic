@@ -9,9 +9,10 @@ if (isProduction && !allowedOriginsString) {
   }
 }
 
-export const allowedOrigins = isProduction
-  ? allowedOriginsString!.split(",").map(s => s.trim())
-  : ["http://localhost:5173", "http://localhost:3000", "http://localhost:3001"];
+export const allowedOrigins = (isProduction ? allowedOriginsString! : "http://localhost:5173,http://localhost:3000,http://localhost:3001")
+  .split(",")
+  .map(s => s.trim().replace(/\/+$/, ""))
+  .filter(s => s.length > 0);
 
 const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
@@ -23,3 +24,5 @@ export function isAllowedOrigin(origin: string): boolean {
 if (!allowedOrigins.includes("https://web.telegram.org")) {
   allowedOrigins.push("https://web.telegram.org");
 }
+
+console.log("Allowed CORS origins:", allowedOrigins);
