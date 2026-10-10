@@ -10,10 +10,10 @@
 -- ============================================================
 
 -- 1. Soft-delete ALL existing products to clear duplicates/wrong data
--- (Removed for migration safety)
+UPDATE products SET active = false WHERE id LIKE 'pr0000%';
 
 -- 2. Wipe stock_snapshots (will rebuild from new products)
--- (Removed for migration safety)
+DELETE FROM stock_snapshots WHERE product_id LIKE 'pr0000%';
 
 -- 3. Insert the canonical 29 products (INSERT IGNORE to skip if UUID already exists)
 
