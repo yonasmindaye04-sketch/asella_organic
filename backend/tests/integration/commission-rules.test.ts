@@ -104,7 +104,7 @@ beforeAll(async () => {
 
   // Standard rule: 10%.
   await pool.query(
-    `UPDATE referral_configs SET is_active = FALSE WHERE is_active = TRUE`
+    `UPDATE referral_configs SET is_active = FALSE WHERE commission_value = 10 AND commission_type = 'percentage'`
   );
   await pool.query(
     `INSERT INTO referral_configs

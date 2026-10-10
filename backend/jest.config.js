@@ -51,6 +51,7 @@ const config = {
   forceExit:         true,
   detectOpenHandles: true,
 
+  setupFiles: ["<rootDir>/tests/setup/dbGuard.ts"],
   globalSetup:    "<rootDir>/tests/setup/globalSetup.ts",
   globalTeardown: "<rootDir>/tests/setup/globalTeardown.ts",
 

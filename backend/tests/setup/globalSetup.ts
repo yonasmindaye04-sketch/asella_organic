@@ -1,6 +1,6 @@
 /**
  * backend/tests/setup/globalSetup.ts
- * Creates a separate test database schema before the test suite runs.
+ * Verifies the test database connection before the test suite runs.
  */
 
 import mysql from "mysql2/promise";
