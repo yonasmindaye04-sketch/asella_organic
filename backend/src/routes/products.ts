@@ -373,6 +373,18 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+async function isDuplicate(conn: any, name: string, size: string, excludeId?: string): Promise<boolean> {
+  const normName = name.toLowerCase().replace(/\s+/g, '');
+  const normSize = size.toLowerCase().replace(/\s+/g, '');
+  const [rows] = await conn.query(`SELECT id, name, package_size FROM products WHERE active = true` + (excludeId ? ` AND id != ?` : ``), excludeId ? [excludeId] : []) as [any[], any];
+  for (const row of rows) {
+    if (row.name.toLowerCase().replace(/\s+/g, '') === normName && row.package_size.toLowerCase().replace(/\s+/g, '') === normSize) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/products
 // ─────────────────────────────────────────────────────────────────────────────
@@ -389,6 +401,11 @@ router.post(
       const validationError = validateProductData(d.name, d.image_url);
       if (validationError) {
         res.status(400).json({ success: false, error: validationError });
+        return;
+      }
+
+      if (await isDuplicate(pool, d.name, d.package_size)) {
+        res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
 
@@ -420,7 +437,11 @@ router.post(
 
       log.info("Product created", { productId: newId, name: d.name });
       res.status(201).json({ success: true, data: newRows[0] });
-    } catch (err) {
+    } catch (err: any) {
+      if (err.code === "ER_DUP_ENTRY") {
+        res.status(409).json({ success: false, error: "Duplicate entry." });
+        return;
+      }
       log.error("Failed to create product", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
@@ -440,9 +461,24 @@ router.patch(
     try {
       const fields  = req.body as Record<string, unknown>;
 
-      const validationError = validateProductData(fields.name as string, fields.image_url as string);
+      const [existingRows] = await pool.query(`SELECT name, image_url, package_size FROM products WHERE id = ?`, [req.params.id]) as [any[], any];
+      if (!existingRows[0]) {
+        res.status(404).json({ success: false, error: "Product not found" });
+        return;
+      }
+      
+      const mergedName = fields.name !== undefined ? (fields.name as string) : existingRows[0].name;
+      const mergedImage = fields.image_url !== undefined ? (fields.image_url as string) : existingRows[0].image_url;
+      const mergedSize = fields.package_size !== undefined ? (fields.package_size as string) : existingRows[0].package_size;
+
+      const validationError = validateProductData(mergedName, mergedImage);
       if (validationError) {
         res.status(400).json({ success: false, error: validationError });
+        return;
+      }
+
+      if (await isDuplicate(pool, mergedName, mergedSize, req.params.id)) {
+        res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
 
@@ -474,11 +510,6 @@ router.patch(
         values
       ) as [any, any];
 
-      if (result.affectedRows === 0) {
-        res.status(404).json({ success: false, error: "Product not found" });
-        return;
-      }
-
       await pool.query(
         `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
          VALUES ('products', ?, ?, 'UPDATE', ?)`,
@@ -487,7 +518,11 @@ router.patch(
 
       log.info("Product updated", { productId: req.params.id });
       res.json({ success: true, data: { message: "Product updated." } });
-    } catch (err) {
+    } catch (err: any) {
+      if (err.code === "ER_DUP_ENTRY") {
+        res.status(409).json({ success: false, error: "Duplicate entry." });
+        return;
+      }
       log.error("Failed to update product", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
@@ -662,6 +697,19 @@ router.post(
 
       const created: any[] = [];
       for (const product of products) {
+        const validationError = validateProductData(product.name, product.image_url);
+        if (validationError) {
+          await connection.rollback();
+          res.status(400).json({ success: false, error: validationError });
+          return;
+        }
+        
+        if (await isDuplicate(connection, product.name, product.package_size)) {
+          await connection.rollback();
+          res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
+          return;
+        }
+
         const id = crypto.randomUUID();
         await connection.query(
           `INSERT INTO products
@@ -692,8 +740,12 @@ router.post(
         success: true,
         data: { created, count: created.length },
       });
-    } catch (err) {
+    } catch (err: any) {
       await connection.rollback();
+      if (err.code === "ER_DUP_ENTRY") {
+        res.status(409).json({ success: false, error: "Duplicate entry in bulk." });
+        return;
+      }
       log.error("Bulk product creation failed", err);
       res.status(500).json({
         success: false,
