@@ -123,8 +123,10 @@ async function runMigrations() {
       console.error("Refusing --reset in production without --allow-dangerous");
       process.exit(1);
     }
-    if (pendingFiles.includes("004_dummy_data.sql") && !allowDangerous) {
-      console.error("Refusing 004_dummy_data.sql in production without --allow-dangerous");
+    const dangerousFiles = pendingFiles.filter(f => /seed|dummy|verify_seed|rebuild_inventory/i.test(f));
+    if (dangerousFiles.length > 0 && !allowDangerous) {
+      console.error("Refusing dangerous migrations in production without --allow-dangerous:");
+      dangerousFiles.forEach(f => console.error("  " + f));
       process.exit(1);
     }
     if (pendingFiles.length > 0 && !isYes) {
