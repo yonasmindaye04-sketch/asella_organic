@@ -4,6 +4,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { jest } from "@jest/globals";
 
 import request from "supertest";
 import app from "../../src/app.js";
@@ -217,5 +218,77 @@ describe("POST /api/products/:id/stock (adjustment)", () => {
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ change_amount: 5 }); // no reason
     expect(res.status).toBe(422);
+  });
+});
+
+// ── MOCKED-DB TESTS (Item 5) ────────────────────────────────────────────────
+describe("Mocked-DB Edge Cases", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("PATCH excludes its own id from duplicate check", async () => {
+    const querySpy = jest.spyOn(pool, "query").mockImplementation(async (query: any, values: any) => {
+      if (typeof query === "string" && query.includes("FROM products WHERE id = ?")) {
+        return [[{ name: "Existing", package_size: "100g", active: 1 }], []] as any;
+      }
+      if (typeof query === "string" && query.includes("FROM products WHERE active = true")) {
+        // Return empty so isDuplicate passes
+        return [[], []] as any;
+      }
+      if (typeof query === "string" && query.includes("UPDATE products SET")) {
+        return [{ affectedRows: 1 }, []] as any;
+      }
+      return [[], []] as any;
+    });
+
+    const res = await request(app)
+      .patch(`/api/products/${testProductId || "00000000-0000-0000-0000-000000000001"}`)
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Updated Name" });
+
+    expect(res.status).toBe(200);
+    // Find the call to isDuplicate query
+    const dupCall = querySpy.mock.calls.find(c => typeof c[0] === "string" && c[0].includes("AND id != ?"));
+    expect(dupCall).toBeDefined();
+  });
+
+  it("bulk rejects an invalid tag", async () => {
+    const res = await request(app)
+      .post("/api/products/bulk")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        products: [
+          { name: "Valid", package_size: "100g", price: 10, tag: "Traditional" },
+          { name: "Invalid", package_size: "100g", price: 10, tag: "InvalidTag" }
+        ]
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Invalid tag");
+  });
+
+  it("PATCH of an inactive product is not blocked by an active twin", async () => {
+    const querySpy = jest.spyOn(pool, "query").mockImplementation(async (query: any, values: any) => {
+      if (typeof query === "string" && query.includes("FROM products WHERE id = ?")) {
+        // Mock existing product as inactive
+        return [[{ name: "Twin", package_size: "100g", active: 0 }], []] as any;
+      }
+      if (typeof query === "string" && query.includes("UPDATE products SET")) {
+        return [{ affectedRows: 1 }, []] as any;
+      }
+      return [[], []] as any;
+    });
+
+    const res = await request(app)
+      .patch(`/api/products/${testProductId || "00000000-0000-0000-0000-000000000001"}`)
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Twin Updated" });
+
+    expect(res.status).toBe(200);
+    
+    // Ensure we did NOT query for duplicates
+    const dupCall = querySpy.mock.calls.find(c => typeof c[0] === "string" && c[0].includes("FROM products WHERE active = true"));
+    expect(dupCall).toBeUndefined();
   });
 });
