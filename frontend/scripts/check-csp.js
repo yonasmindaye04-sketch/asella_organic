@@ -25,8 +25,13 @@ if (!fs.existsSync(htaccessPath)) {
 }
 
 const htaccessContent = fs.readFileSync(htaccessPath, 'utf8');
-const headerMatch = htaccessContent.match(/Header set Content-Security-Policy\s+"([^"]+)"/);
+const cspMatches = htaccessContent.match(/Header (?:always )?set Content-Security-Policy/g);
+if (!cspMatches || cspMatches.length !== 1) {
+  console.error(`❌ Expected exactly one Content-Security-Policy line in dist/.htaccess, found ${cspMatches ? cspMatches.length : 0}`);
+  process.exit(1);
+}
 
+const headerMatch = htaccessContent.match(/Header (?:always )?set Content-Security-Policy\s+"([^"]+)"/);
 if (!headerMatch) {
   console.error('❌ Content-Security-Policy header not found in dist/.htaccess');
   process.exit(1);
@@ -38,6 +43,13 @@ if (expectedCspString !== actualCspString) {
   console.error('❌ CSP Mismatch!');
   console.error('Expected:', expectedCspString);
   console.error('Actual:  ', actualCspString);
+  process.exit(1);
+}
+
+const redirectIndex = htaccessContent.indexOf('RewriteRule ^(.*)$ "https\\:\\/\\/www\\.asellaorganic\\.com\\/$1" [R=301,L]');
+const spaIndex = htaccessContent.indexOf('RewriteRule . /index.html');
+if (redirectIndex === -1 || spaIndex === -1 || redirectIndex > spaIndex) {
+  console.error('❌ Redirect RewriteRule must appear before SPA RewriteRule . /index.html in dist/.htaccess');
   process.exit(1);
 }
 

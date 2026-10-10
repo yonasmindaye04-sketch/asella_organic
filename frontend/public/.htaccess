@@ -6,7 +6,21 @@
 # Asella Organic — Cache Headers & Security
 # ═══════════════════════════════════════════════════════════════════
 
-# ── 0. Telegram Mini App — standalone document ────────────────────
+# ── 0. HTTPS/www Redirects ────────────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-SSL} !on
+  RewriteCond %{HTTP_HOST} ^asellaorganic\.com$ [OR]
+  RewriteCond %{HTTP_HOST} ^www\.asellaorganic\.com$
+  RewriteRule ^(.*)$ "https\:\/\/www\.asellaorganic\.com\/$1" [R=301,L]
+</IfModule>
+<IfModule mod_rewrite.c>
+  RewriteCond %{HTTP_HOST} ^asellaorganic\.com$ [NC]
+  RewriteRule ^(.*)$ https://www.asellaorganic.com/$1 [L,R=301]
+</IfModule>
+
+# ── 1. Telegram Mini App — standalone document ────────────────────
 # Must run BEFORE the SPA fallback below, otherwise /tma would be rewritten
 # to index.html and customers would land on the full website instead of the
 # Mini App. This is the Apache equivalent of the Vite dev middleware.
@@ -15,15 +29,16 @@
   RewriteRule ^telegram-store/?$ /tma.html [END]
 </IfModule>
 
-# ── 1. SPA fallback — serve index.html for client-side routes ─────
+# ── 2. SPA fallback — serve index.html for client-side routes ─────
 <IfModule mod_rewrite.c>
-  RewriteEngine On
   RewriteBase /
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
   RewriteRule . /index.html [L]
 </IfModule>
+
+ErrorDocument 404 /offline.html
 
 # ── 2. Enable compression ─────────────────────────────────────────
 <IfModule mod_deflate.c>
@@ -107,8 +122,3 @@
 <FilesMatch "^\.(?!htaccess)">
   Require all denied
 </FilesMatch>
-RewriteCond %{HTTPS} off
-RewriteCond %{HTTP:X-Forwarded-SSL} !on
-RewriteCond %{HTTP_HOST} ^asellaorganic\.com$ [OR]
-RewriteCond %{HTTP_HOST} ^www\.asellaorganic\.com$
-RewriteRule ^(.*)$ "https\:\/\/www\.asellaorganic\.com\/$1" [R=301,L]
