@@ -21,9 +21,23 @@ export function registerServiceWorker(): void {
       .register("/sw.js", { scope: "/" })
       .then((reg) => {
         console.log("[PWA] service worker registered:", reg.scope);
+
+        // Update when tab regains focus
+        window.addEventListener("focus", () => {
+          reg.update();
+        });
       })
       .catch((err) => {
         console.warn("[PWA] service worker registration failed:", err);
       });
+  });
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    if (window.confirm("New version available. Reload now?")) {
+      refreshing = true;
+      window.location.reload();
+    }
   });
 }

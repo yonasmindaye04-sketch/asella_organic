@@ -4,7 +4,6 @@
  * Service worker for the PWA. Caches:
  *   - Static assets (JS, CSS, fonts, icons) for offline app shell
  *   - Product images for offline catalog browsing
- *   - The last 50 successful API responses (read-only)
  *
  * Strategy: stale-while-revalidate for static assets (fast), and
  * network-first for API calls (always fresh when online).
@@ -16,7 +15,6 @@
 const CACHE_VERSION    = '__VERSION__';
 const STATIC_CACHE     = `asella-static-${CACHE_VERSION}`;
 const IMAGE_CACHE      = `asella-images-${CACHE_VERSION}`;
-const API_CACHE        = `asella-api-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',
@@ -29,7 +27,16 @@ const STATIC_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(STATIC_CACHE).then(async (cache) => {
+      // Precache each asset individually and ignore single failures
+      for (const asset of STATIC_ASSETS) {
+        try {
+          await cache.add(asset);
+        } catch (err) {
+          console.warn(`[SW] Failed to precache ${asset}:`, err);
+        }
+      }
+    })
   );
   self.skipWaiting();
 });
@@ -46,7 +53,6 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Updated fetch handling with network-first for navigation requests
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -64,6 +70,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Navigation requests: network-first (no cache), must be BEFORE same-origin branch
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('/offline.html'))
+    );
+    return;
+  }
+
   // Images: cache-first (offline catalog)
   if (request.destination === 'image') {
     event.respondWith(
@@ -77,7 +91,13 @@ self.addEventListener('fetch', (event) => {
             );
           }
           return res;
-        }).catch(() => caches.match('/offline.html'))
+        }).catch(() => {
+          // Return a small SVG or 404 instead of HTML fallback
+          return new Response(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+            { status: 200, headers: { 'Content-Type': 'image/svg+xml' } }
+          );
+        });
       })
     );
     return;
@@ -98,14 +118,6 @@ self.addEventListener('fetch', (event) => {
         }).catch(() => cached);
         return cached || fetchPromise;
       })
-    );
-    return;
-  }
-
-  // Navigation requests: network-first (no cache)
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/offline.html'))
     );
     return;
   }
