@@ -110,6 +110,31 @@ async function runMigrations() {
   const [appliedRows]  = await connection.query("SELECT filename FROM migrations_log");
   const appliedFiles   = new Set(appliedRows.map(r => r.filename));
 
+  const pendingFiles = files.filter(f => !appliedFiles.has(f));
+
+  const args = process.argv.slice(2);
+  const isProduction = process.env.NODE_ENV === "production";
+  const allowDangerous = args.includes("--allow-dangerous");
+  const isYes = args.includes("--yes");
+  const isReset = args.includes("--reset");
+
+  if (isProduction) {
+    if (isReset && !allowDangerous) {
+      console.error("Refusing --reset in production without --allow-dangerous");
+      process.exit(1);
+    }
+    if (pendingFiles.includes("004_dummy_data.sql") && !allowDangerous) {
+      console.error("Refusing 004_dummy_data.sql in production without --allow-dangerous");
+      process.exit(1);
+    }
+    if (pendingFiles.length > 0 && !isYes) {
+      console.log("Pending migrations:");
+      pendingFiles.forEach(f => console.log("  " + f));
+      console.error("Production requires --yes to apply pending migrations.");
+      process.exit(1);
+    }
+  }
+
   for (const file of files) {
     if (appliedFiles.has(file)) {
       console.log(`Skipping (already applied): ${file}`);

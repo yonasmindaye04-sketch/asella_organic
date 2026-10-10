@@ -10,10 +10,10 @@
 -- ============================================================
 
 -- 1. Soft-delete ALL existing products to clear duplicates/wrong data
-UPDATE products SET active = false WHERE 1=1;
+-- (Removed for migration safety)
 
 -- 2. Wipe stock_snapshots (will rebuild from new products)
-DELETE FROM stock_snapshots WHERE 1=1;
+-- (Removed for migration safety)
 
 -- 3. Insert the canonical 29 products (INSERT IGNORE to skip if UUID already exists)
 
