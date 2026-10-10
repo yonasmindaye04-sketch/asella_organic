@@ -25,6 +25,7 @@ import {
 import { sendLowStockAlert } from "../lib/telegram.js";
 import { createLogger }      from "../lib/logger.js";
 import { apiCache }          from "../middleware/apiCache.js";
+import { ALLOWED_TAGS, isDuplicate, mergedActive } from "../lib/productRules.js";
 
 // Helper for application-level data quality validation
 function validateProductData(name?: string, image_url?: string | null) {
@@ -373,17 +374,6 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-async function isDuplicate(conn: any, name: string, size: string, excludeId?: string): Promise<boolean> {
-  const normName = name.toLowerCase().replace(/\s+/g, '');
-  const normSize = size.toLowerCase().replace(/\s+/g, '');
-  const [rows] = await conn.query(`SELECT id, name, package_size FROM products WHERE active = true` + (excludeId ? ` AND id != ?` : ``), excludeId ? [excludeId] : []) as [any[], any];
-  for (const row of rows) {
-    if (row.name.toLowerCase().replace(/\s+/g, '') === normName && row.package_size.toLowerCase().replace(/\s+/g, '') === normSize) {
-      return true;
-    }
-  }
-  return false;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/products
@@ -404,7 +394,7 @@ router.post(
         return;
       }
 
-      if (await isDuplicate(pool, d.name, d.package_size)) {
+      if (await isDuplicate((sql, params) => pool.query(sql, params) as any, d.name, d.package_size)) {
         res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
@@ -470,15 +460,14 @@ router.patch(
       const mergedName = fields.name !== undefined ? (fields.name as string) : existingRows[0].name;
       const mergedImage = fields.image_url !== undefined ? (fields.image_url as string) : existingRows[0].image_url;
       const mergedSize = fields.package_size !== undefined ? (fields.package_size as string) : existingRows[0].package_size;
-      const mergedActive = fields.active !== undefined ? Boolean(fields.active) : Boolean(existingRows[0].active);
-
       const validationError = validateProductData(mergedName, mergedImage);
       if (validationError) {
         res.status(400).json({ success: false, error: validationError });
         return;
       }
 
-      if (mergedActive && await isDuplicate(pool, mergedName, mergedSize, req.params.id)) {
+      const isActive = mergedActive(fields.active, existingRows[0].active);
+      if (isActive && await isDuplicate((sql, params) => pool.query(sql, params) as any, mergedName, mergedSize, req.params.id)) {
         res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
@@ -678,7 +667,6 @@ router.get(
 // All-or-nothing transaction: if any single product fails (duplicate
 // name, invalid data, FK violation), the entire batch rolls back.
 // Useful for catalog import from a CSV or a new supplier feed.
-const ALLOWED_TAGS = ["Traditional", "Herbs", "Oils", "Superfood", "Other"];
 const BulkCreateProductsSchema = z.object({
   products: z.array(CreateProductSchema).min(1).max(100),
 }).refine(data => data.products.every(p => !p.tag || ALLOWED_TAGS.includes(p.tag)), {
@@ -709,7 +697,7 @@ router.post(
           return;
         }
         
-        if (await isDuplicate(connection, product.name, product.package_size)) {
+        if (await isDuplicate((sql, params) => connection.query(sql, params) as any, product.name, product.package_size)) {
           await connection.rollback();
           res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
           return;
