@@ -123,10 +123,34 @@ async function runMigrations() {
       console.error("Refusing --reset in production without --allow-dangerous");
       process.exit(1);
     }
-    const dangerousFiles = pendingFiles.filter(f => /seed|dummy|verify_seed|rebuild_inventory/i.test(f));
+
+    // Fixtures and data-repair scripts, not schema changes.
+    //
+    // `seed` / `dummy` cover the bulk fixtures (004_dummy_data, 027-030).
+    // `verify_seed` and `rebuild_inventory` name their own risk: 032 aborts
+    // the run on invariants that only hold for the fixture dataset, and 031
+    // deletes and rebuilds inventory_movements from scratch.
+    //
+    // `repair` is here for the same reason and is NOT a stylistic addition.
+    // 026_repair_catalog.sql looked safe because it has no DROP/DELETE and no
+    // unguarded mass UPDATE, but it rewrites production money data:
+    //   :219  products.unit_cost      <- price * 0.55 for every zero-cost product
+    //   :222  order_items.unit_cost   <- overwrites the historical COGS snapshot
+    //   :234  orders.total            <- recomputed from line items
+    //   :243+ historical unit_price   <- rewritten where the export smeared them
+    //   :169-210 stock levels        <- hardcoded for the 31 seeded SKUs
+    // Those rewrites are correct against the legacy export this file was
+    // written for and wrong against a live database, so the file has to be
+    // opted into explicitly like any other fixture.
+    const DANGEROUS_MIGRATION = /seed|dummy|verify_seed|rebuild_inventory|repair/i;
+
+    const dangerousFiles = pendingFiles.filter(f => DANGEROUS_MIGRATION.test(f));
     if (dangerousFiles.length > 0 && !allowDangerous) {
       console.error("Refusing dangerous migrations in production without --allow-dangerous:");
       dangerousFiles.forEach(f => console.error("  " + f));
+      console.error("\nThese are demo fixtures or legacy-data repairs. They are correct");
+      console.error("against a seeded dataset and destructive against real orders. Pass");
+      console.error("--allow-dangerous only if that is genuinely what you want.");
       process.exit(1);
     }
     if (pendingFiles.length > 0 && !isYes) {

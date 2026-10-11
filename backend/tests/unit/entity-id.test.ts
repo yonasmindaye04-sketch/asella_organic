@@ -51,7 +51,7 @@ describe("isEntityId", () => {
       "a".repeat(65),                          // over the length bound
       "cu\n000034",                            // control char
     ]) {
-      expect(isEntityId(bad), `expected ${JSON.stringify(bad)} to be rejected`).toBe(false);
+      expect(isEntityId(bad)).toBe(false);
     }
   });
 

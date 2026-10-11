@@ -467,7 +467,7 @@ router.patch(
       }
 
       const isActive = mergedActive(fields.active, existingRows[0].active);
-      if (isActive && await isDuplicate((sql, params) => pool.query(sql, params) as any, mergedName, mergedSize, req.params.id)) {
+      if (isActive && await isDuplicate((sql, params) => pool.query(sql, params) as any, mergedName, mergedSize, req.params.id as string)) {
         res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
