@@ -37,6 +37,12 @@ This document outlines the operational principles, codebase architecture, and ex
 - Moving Average Cost (MAC) changes must only update `products.unit_cost` upon vendor inventory receipt.
 - Use transactions (`connection.beginTransaction()`, `commit()`, `rollback()`) for all order creation and inventory deduction logic.
 
+### 5. Local Development Ports
+- The backend listens on **3001** and the Vite dev server on **5173**. The frontend proxies `/api` to 3001, so run both for any feature work.
+- Vite runs with `strictPort: true`. If it prints a port-in-use error, a previous `npm run dev` is still running — find it with `Get-NetTCPConnection -State Listen -LocalPort 5173,5174` and stop it. Do not "fix" the symptom by using the shifted port.
+- In development the backend's CSRF check accepts any loopback origin (any `localhost`/`127.0.0.1` port) so a port shift cannot cause a misleading failure. In production the `ALLOWED_ORIGINS` list is matched **exactly** — never by `startsWith`, which would accept `asellaorganic.com.attacker.io`.
+- A **403 "CSRF protection: Origin mismatch"** on any POST (including login) means the frontend is running on a port the backend does not expect. Check for stale dev servers before suspecting auth or route code.
+
 ---
 
 ## Workflow for New Features & Changes

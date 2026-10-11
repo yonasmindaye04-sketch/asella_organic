@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-
+import path from 'path'
 /**
  * Serves the standalone Telegram Mini App at clean URLs during development.
  *
@@ -28,9 +28,23 @@ function miniAppEntryPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), miniAppEntryPlugin()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   server: {
     host: true,
     port: 5173,
+    // Fail loudly instead of silently moving to 5174, 5175, ...
+    //
+    // Without this, a leftover `npm run dev` on 5173 makes Vite pick the
+    // next free port. The browser then sends that port as the Origin, and
+    // the backend CSRF check rejects every POST including login — a 403
+    // that looks like an auth bug and sends you hunting through the wrong
+    // codebase entirely. Failing at startup names the real problem in one
+    // line.
+    strictPort: true,
     allowedHosts: true,
     headers: {
       'Access-Control-Allow-Origin': '*',
@@ -59,3 +73,4 @@ export default defineConfig({
     },
   },
 })
+// trigger restart

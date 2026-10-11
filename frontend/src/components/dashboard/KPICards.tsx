@@ -20,6 +20,8 @@ interface KPIConfig {
   subtitle: string;
 }
 
+import { Card, CardContent } from "@/components/ui/card";
+
 function AnimatedNumber({ target, prefix = "", suffix = "" }: { target: number; prefix?: string; suffix?: string }) {
   const [display, setDisplay] = useState(0);
   const hasAnimated = useRef(false);
@@ -52,29 +54,31 @@ function AnimatedNumber({ target, prefix = "", suffix = "" }: { target: number; 
 
 function KPICard({ kpi, index }: { kpi: KPIConfig; index: number }) {
   return (
-    <div
-      className="card p-4 animate-in h-full flex flex-col justify-center"
+    <Card
+      className="animate-in h-full flex flex-col justify-center border-none shadow-sm bg-surface transition-all hover:shadow-md"
       style={{ animationDelay: `${0.06 * index}s` }}
     >
-      <div className="flex items-center gap-2.5 mb-2 relative z-[2]">
-        <div 
-          className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 hover:scale-110 shadow-sm" 
-          style={{ background: kpi.color, color: 'white' }}
-        >
-          <span className="material-symbols-outlined text-[16px]">{kpi.icon}</span>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2.5 mb-2 relative z-[2]">
+          <div 
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 hover:scale-110 shadow-sm" 
+            style={{ background: kpi.color, color: 'white' }}
+          >
+            <span className="material-symbols-outlined text-[16px]">{kpi.icon}</span>
+          </div>
+          <span className="text-[11px] font-extrabold text-[var(--accent)] uppercase tracking-wider">
+            {kpi.label}
+          </span>
         </div>
-        <span className="text-[11px] font-extrabold text-[var(--accent)] uppercase tracking-wider">
-          {kpi.label}
-        </span>
-      </div>
-      <p className="text-2xl font-extrabold text-[var(--fg)] relative z-[2]">
-        {kpi.value === -1 ? (
-          <span className="font-bold tabular-nums">...</span>
-        ) : (
-          <AnimatedNumber target={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} />
-        )}
-      </p>
-    </div>
+        <p className="text-2xl font-extrabold text-[var(--fg)] relative z-[2]">
+          {kpi.value === -1 ? (
+            <span className="font-bold tabular-nums">...</span>
+          ) : (
+            <AnimatedNumber target={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} />
+          )}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

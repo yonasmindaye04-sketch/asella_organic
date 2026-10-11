@@ -23,9 +23,7 @@ import { randomId } from "../lib/security.js";
 import { buildAffiliateReport, currentWeekPeriod, renderAffiliateReportHtml, sendAffiliateReport } from "../lib/affiliateReport.js";
 import { isMailConfigured } from "../lib/mailer.js";
 import { z } from "zod";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isValidUUID = (s: string) => UUID_RE.test(s);
+import { entityIdParam } from "../lib/ids.js";
 
 const router = Router();
 
@@ -35,10 +33,7 @@ router.use(authenticate, authorise("admin"));
 
 const num = (v: unknown): number => Number(v ?? 0);
 
-function paramId(value: unknown): string | null {
-  const id = Array.isArray(value) ? value[0] : value;
-  return typeof id === "string" && isValidUUID(id) ? id : null;
-}
+const paramId = entityIdParam;
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 

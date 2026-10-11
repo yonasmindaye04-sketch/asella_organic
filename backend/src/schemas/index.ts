@@ -335,6 +335,41 @@ export const SmsConsentSchema = z.object({
   action: z.enum(["opt-in", "opt-out", "hard-opt-out"]),
 });
 
+// ─── Site Media ──────────────────────────────────────────────────────────
+
+/** Dotted lowercase slug, e.g. "category.oils" or "hero.banner". */
+const assetKeyShape = z
+  .string()
+  .trim()
+  .min(3, "Asset key is required")
+  .max(191)
+  .regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/, "Invalid asset key format");
+
+/**
+ * An asset can point at a Cloudinary https URL, a first-party path under
+ * /image/, or a pasted external URL. Cloud drive share links are rejected for
+ * the same reason products reject them (see validateProductData in
+ * routes/products.ts): they are not directly renderable in <img src>.
+ */
+const assetUrlShape = z
+  .string()
+  .trim()
+  .min(1, "Image URL is required")
+  .max(2048)
+  .refine(
+    (v) => v.startsWith("https://") || v.startsWith("http://") || v.startsWith("/image/") || v.startsWith("/uploads/"),
+    "URL must be an http(s) address or a /image/ path",
+  )
+  .refine(
+    (v) => !/drive\.google\.com|dropbox\.com/i.test(v),
+    "Direct image URL required, not a cloud drive share link",
+  );
+
+export const UpdateAssetSchema = z.object({
+  url: assetUrlShape,
+  alt_text: z.string().trim().max(255).optional().nullable(),
+});
+
 // ─── Type exports (inferred from schemas) ────────────────────────────────
 
 export type LoginInput           = z.infer<typeof LoginSchema>;
@@ -350,3 +385,5 @@ export type PreviewSmsCampaignInput = z.infer<typeof PreviewSmsCampaignSchema>;
 export type CreateSmsCampaignInput  = z.infer<typeof CreateSmsCampaignSchema>;
 export type DispatchSmsCampaignInput = z.infer<typeof DispatchSmsCampaignSchema>;
 export type SmsConsentInput       = z.infer<typeof SmsConsentSchema>;
+export type UpdateAssetInput      = z.infer<typeof UpdateAssetSchema>;
+export { assetKeyShape };

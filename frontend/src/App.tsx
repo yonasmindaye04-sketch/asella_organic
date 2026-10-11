@@ -4,6 +4,7 @@ import ProtectedRoute       from './components/ui/ProtectedRoute';
 import { ToastProvider }    from './components/ui/ToastProvider';
 import { LanguageProvider } from './LanguageContext';
 import { TelegramProvider } from './context/TelegramContext';
+import { SiteAssetsProvider } from './context/SiteAssetsContext';
 import LoadingSpinner       from './components/ui/LoadingSpinner';
 import TopProgressBar       from './components/ui/TopProgressBar';
 import './telegram/miniApp.css';
@@ -30,10 +31,12 @@ const NewOrderPage         = lazy(() => import('./pages/NewOrderPage'));
 const CustomerOrderTracking = lazy(() => import('./pages/CustomerOrderTracking'));
 const ExpensesPage         = lazy(() => import('./pages/ExpensesPage'));
 const VideoManagementPage  = lazy(() => import('./pages/VideoManagementPage'));
+const MediaLibraryPage     = lazy(() => import('./pages/MediaLibraryPage'));
 const AuditLogPage         = lazy(() => import('./pages/AuditLogPage'));
 const CustomersPage        = lazy(() => import('./pages/CustomersPage'));
 const PrivacyPolicy        = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService       = lazy(() => import('./pages/TermsOfService'));
+const SmsDashboard         = lazy(() => import('./pages/SmsDashboard'));
 
 
 function App() {
@@ -47,6 +50,7 @@ function App() {
       <main className="min-h-screen bg-[var(--cream)]">
         <LanguageProvider>
           <TelegramProvider>
+            <SiteAssetsProvider>
             <ToastProvider>
               <TopProgressBar />
               <Suspense fallback={<LoadingSpinner />}>
@@ -85,15 +89,18 @@ function App() {
                 <Route path="/dashboard/users"        element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
                 <Route path="/dashboard/affiliates"   element={<ProtectedRoute><AffiliateControlPage /></ProtectedRoute>} />
                 <Route path="/dashboard/videos"        element={<ProtectedRoute><VideoManagementPage /></ProtectedRoute>} />
+                <Route path="/dashboard/media"         element={<ProtectedRoute><MediaLibraryPage /></ProtectedRoute>} />
 
                 {/* Combined Products page — replaces /dashboard/catalog and /dashboard/inventory */}
                 <Route path="/dashboard/products"     element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
                 <Route path="/dashboard/audit-log"    element={<ProtectedRoute><AuditLogPage /></ProtectedRoute>} />
+                <Route path="/dashboard/sms"          element={<ProtectedRoute><SmsDashboard /></ProtectedRoute>} />
               </Routes>
             </Suspense>
-          </ToastProvider>
-        </TelegramProvider>
-      </LanguageProvider>
+</ToastProvider>
+            </SiteAssetsProvider>
+          </TelegramProvider>
+        </LanguageProvider>
       </main>
     </BrowserRouter>
   );

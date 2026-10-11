@@ -244,7 +244,7 @@ const AffiliateDashboard: React.FC = () => {
           <div className="flex items-center gap-3">
             {me && (
               <div className="rounded-lg border border-[var(--g600)] bg-[var(--g800)] px-3 py-2">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--g300)]">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--g300)]">
                   Your code
                 </div>
                 <div className="font-mono text-sm font-bold text-[var(--g200)]">{me.referral_code}</div>

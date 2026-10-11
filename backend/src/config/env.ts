@@ -48,9 +48,56 @@ const EnvSchema = z.object({
   // publishes a note specifically warning that models guess this wrong.
   SMSETHIOPIA_API_KEY: z.string().min(8).optional().or(z.literal("")),
 
+  // ── SMS provider selection ────────────────────────────────────
+  // Which transport sends. Defaults to smsethiopia, so an existing
+  // deployment that sets none of the new variables behaves exactly as it
+  // did before the split.
+  //
+  //   smsethiopia — HTTP API. Per-message billing, carrier throughput,
+  //                 alphanumeric sender ID. The default for campaigns.
+  //   textbee     — sends from a physical Android handset. No per-message
+  //                 cost and no account approval, but the sender is the SIM
+  //                 number and throughput is radio-bound to roughly one
+  //                 message every 5s. Suited to low volume and testing.
+  //
+  // An unrecognised value falls back to smsethiopia rather than failing
+  // boot: this is read on every send, and a typo in a staging .env should
+  // not take the dispatcher down from inside a queue tick.
+  SMS_PROVIDER: z
+    .enum(["smsethiopia", "textbee"])
+    .optional()
+    .or(z.literal(""))
+    .default("smsethiopia"),
+
+  // ── TextBee (outbound SMS, handset gateway) ────────────────────
+  // Both are required for the transport to report itself configured; a key
+  // without a device has nothing to send from.
+  //
+  // From textbee.dev/dashboard: register the device, then generate an API
+  // key. On a self-hosted instance, scan the QR in the Android app or enter
+  // the key by hand.
+  TEXTBEE_API_KEY: z.string().min(8).optional().or(z.literal("")),
+  TEXTBEE_DEVICE_ID: z.string().min(1).optional().or(z.literal("")),
+
+  // Only for self-hosted TextBee. Leave unset to use the textbee.dev cloud
+  // API. Self-hosting needs its own domain serving the NestJS API, e.g.
+  // https://sms.example.com — note this is the API base, not the dashboard.
+  TEXTBEE_BASE_URL: z.string().url().optional().or(z.literal("")),
+
+  // The handset path is slower than an HTTP provider's: the request has to
+  // reach a phone that may be waking up. Higher default than
+  // SMS_SEND_TIMEOUT_MS, and a phone that is merely asleep should retry
+  // rather than be recorded as a hard failure.
+  TEXTBEE_SEND_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(20_000),
+
   // Display label only. The v1 API accepts just { msisdn, text } — there is
   // no sender field in the body. Alphanumeric sender IDs are a dashboard
   // account setting and must be registered there.
+  //
+  // TextBee has no sender field either, and there the limitation is real
+  // rather than cosmetic: recipients see the raw SIM number. This label is
+  // shown in the admin UI so staff are not surprised by what a customer
+  // actually receives.
   SMS_SENDER_LABEL: z.string().max(11).optional().or(z.literal("")),
 
   // Set "false" to hold sends in the queue on a box that holds a credential
@@ -62,6 +109,17 @@ const EnvSchema = z.object({
     .default("true"),
 
   // Dispatcher tuning.
+  //
+  // These are CEILINGS for a fast provider, not absolutes. The active
+  // transport imposes a floor on the interval and a ceiling on the batch,
+  // and smsQueue clamps to whichever is more conservative — see the pacing
+  // fields in lib/smsTypes.ts. Setting these lower than a handset can
+  // sustain does not increase real throughput, it only produces provider
+  // errors, so the clamp is not optional.
+  //
+  // Under TextBee the effective pacing is 1 message per 5s regardless of
+  // what is set here (~720/hour). Under SMSEthiopia these values apply as
+  // written.
   SMS_SEND_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
   SMS_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(500).max(60_000).default(2000),
   SMS_DISPATCH_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(25),

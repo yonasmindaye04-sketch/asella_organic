@@ -116,19 +116,24 @@ const AffiliateControlPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-5 pb-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className={t.h1}>Affiliate Control</h1>
-            <p className={t.sub}>
-              Manage referral codes, commission rules, payouts, and affiliate movement.
-            </p>
+      <div className="flex flex-col h-full bg-[#f7faf7] font-sans overflow-hidden">
+        {/* Dark Green Header */}
+        <header className="flex items-center justify-between px-5 py-3 bg-[#1b3d1e] shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.3)] z-30">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-[#2e7d32] flex items-center justify-center text-white">
+              <span className="material-symbols-outlined text-[16px]">handshake</span>
+            </div>
+            <h1 className="text-white font-black text-[15px] tracking-wide">Asella — Affiliate Control</h1>
+            <span className="text-white/50 text-[11px] font-mono ml-2 hidden sm:inline">Manage referral codes, commission rules, payouts</span>
           </div>
-          <button onClick={load} className={t.btnPrimary}>
-            <span className="material-symbols-outlined text-[18px]">refresh</span>
-            Refresh
-          </button>
-        </div>
+          <div className="flex items-center gap-2">
+            <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-[1.5px] border-white/20 text-white rounded-md text-[12px] font-bold hover:bg-white/10 hover:border-white/50 transition whitespace-nowrap">
+              <span className="material-symbols-outlined text-[14px]">refresh</span> Refresh
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 md:p-6 space-y-5">
 
         {error && <div className={t.alertError}>{error}</div>}
         {message && <div className={t.alertSuccess}>{message}</div>}
@@ -228,6 +233,7 @@ const AffiliateControlPage: React.FC = () => {
             onChanged={load}
           />
         </PanelErrorBoundary>
+        </div>
       </div>
     </DashboardLayout>
   );

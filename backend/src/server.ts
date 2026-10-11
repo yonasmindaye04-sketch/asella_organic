@@ -8,6 +8,7 @@ import app from "./app.js";
 import cron from "node-cron";
 import { sendMorningBriefing, initBotConfiguration } from "./lib/telegram.js";
 import { sendWeeklyAffiliateReports } from "./scripts/affiliate-report-cron.js";
+import { startSmsDispatcher, stopSmsDispatcher } from "./lib/smsQueue.js";
 
 const PORT = process.env.PORT ?? "3001";
 
@@ -23,6 +24,9 @@ const server = app.listen(PORT as any, () => {
 
 async function shutdown(signal: string): Promise<void> {
   console.log(`\n[server] ${signal} received — shutting down gracefully...`);
+  // Stop accepting new SMS work before closing the pool, so an in-flight
+  // tick cannot try to write to a closed connection.
+  stopSmsDispatcher();
   server.close(async () => {
     const pool = (await import("./config/db.js")).default;
     await pool.end(); // Compatible with mysql2/promise
@@ -47,6 +51,11 @@ cron.schedule("0 8 * * 1", () => {
 }, {
   timezone: "Africa/Addis_Ababa",
 });
+
+// ── SMS dispatcher ─────────────────────────────────────────────────────
+// No-ops unless the ACTIVE transport is configured, so a machine without
+// outbound SMS credentials starts normally with SMS simply inert.
+startSmsDispatcher();
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT",  () => shutdown("SIGINT"));

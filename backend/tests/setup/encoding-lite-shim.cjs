@@ -1,4 +1,14 @@
+const util = require("util");
+
 module.exports = {
-  encode: (text) => Buffer.from(text),
-  decode: (buffer) => buffer.toString(),
+  TextDecoder: util.TextDecoder,
+  TextEncoder: util.TextEncoder,
+  TextDecoderStream: globalThis.TextDecoderStream,
+  TextEncoderStream: globalThis.TextEncoderStream,
+  normalizeEncoding: (enc) => enc,
+  getBOMEncoding: () => null,
+  labelToName: (label) => label,
+  legacyHookDecode: () => null,
+  isomorphicDecode: (input) => Buffer.from(input).toString("binary"),
+  isomorphicEncode: (input) => Buffer.from(input, "binary"),
 };

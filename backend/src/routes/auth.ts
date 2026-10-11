@@ -25,15 +25,13 @@ import {
 } from "../schemas/index.js";
 import { generateResetToken, verifyResetToken, sanitizeInput } from "../lib/security.js";
 import { createLogger } from "../lib/logger.js";
+import { entityIdParam } from "../lib/ids.js";
 
 const router = Router();
 
 const DUMMY_HASH   = "$2b$12$invalidhashpadding00000000000000000000000000";
 const usedResetTokens = new Set<string>();
 setInterval(() => usedResetTokens.clear(), 20 * 60 * 1_000);
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function isValidUUID(s: string): boolean { return UUID_RE.test(s); }
 
 // ── Cookie config ─────────────────────────────────────────────────────────────
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -443,8 +441,8 @@ router.get("/staff", authenticate, authorise("admin", "manager"),
 
 router.patch("/staff/:id", authenticate, authorise("admin"),
   async (req: Request, res: Response): Promise<void> => {
-    const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    if (!staffId || !isValidUUID(staffId)) {
+    const staffId = entityIdParam(req.params.id);
+    if (!staffId) {
       res.status(400).json({ success: false, error: "Invalid staff ID" });
       return;
     }
@@ -479,8 +477,8 @@ router.patch("/staff/:id", authenticate, authorise("admin"),
 
 router.delete("/staff/:id", authenticate, authorise("admin"),
   async (req: Request, res: Response): Promise<void> => {
-    const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    if (!staffId || !isValidUUID(staffId)) {
+    const staffId = entityIdParam(req.params.id);
+    if (!staffId) {
       res.status(400).json({ success: false, error: "Invalid staff ID" });
       return;
     }

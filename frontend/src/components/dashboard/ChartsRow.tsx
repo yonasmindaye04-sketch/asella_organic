@@ -13,6 +13,8 @@ import {
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
 import { useToast } from "./DashboardToastProvider";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, LineElement, PointElement, Tooltip, Legend, Filler);
 ChartJS.defaults.color = "#5c6280";
@@ -118,11 +120,11 @@ export function RevenueChart({ orders, expenses = [] }: { orders: any[]; expense
   }, [rangeMonths]);
 
   return (
-    <div className="card p-5 h-full animate-in" style={{ animationDelay: "0.15s" }}>
-      <div className="flex items-center justify-between mb-4 relative z-[2]">
+    <Card className="h-full animate-in border-none shadow-sm bg-surface" style={{ animationDelay: "0.15s" }}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
-          <h3 className="text-sm font-bold text-[var(--fg)]">Revenue & Profit Overview</h3>
-          <p className="text-[11px] text-[var(--muted)] mt-0.5">Revenue and Profit in ETB</p>
+          <CardTitle className="text-sm font-bold text-[var(--fg)]">Revenue & Profit Overview</CardTitle>
+          <CardDescription className="text-[11px] text-[var(--muted)] mt-0.5">Revenue and Profit in ETB</CardDescription>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 text-[11px] mr-3">
@@ -136,9 +138,10 @@ export function RevenueChart({ orders, expenses = [] }: { orders: any[]; expense
             <button className={`tab-btn ${rangeMonths === 12 ? "active" : ""}`} onClick={() => { setRangeMonths(12); showToast("Switched to 12M view", "info"); }}>12M</button>
           </div>
         </div>
-      </div>
-      <div style={{ height: 260 }}>
-        <Line
+      </CardHeader>
+      <CardContent>
+        <div style={{ height: 260 }}>
+          <Line
           key={rangeMonths}
           ref={chartRef}
           data={{
@@ -184,8 +187,9 @@ export function RevenueChart({ orders, expenses = [] }: { orders: any[]; expense
             },
           }}
         />
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -23,12 +23,11 @@ import pool           from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { require2FA }  from "../middleware/2fa.js";
 import { createLogger } from "../lib/logger.js";
+import { entityIdParam } from "../lib/ids.js";
 
 const router = Router();
 
 const BCRYPT_ROUNDS = 12;
-const UUID_RE       = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isValidUUID   = (s: string) => UUID_RE.test(s);
 
 const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver"] as const;
 type StaffRole    = typeof VALID_ROLES[number];
@@ -113,8 +112,8 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      if (!staffId || !isValidUUID(staffId)) {
+      const staffId = entityIdParam(req.params.id);
+      if (!staffId) {
         res.status(400).json({ success: false, error: "Invalid staff ID" });
         return;
       }
@@ -285,8 +284,8 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      if (!staffId || !isValidUUID(staffId)) {
+      const staffId = entityIdParam(req.params.id);
+      if (!staffId) {
         res.status(400).json({ success: false, error: "Invalid staff ID" });
         return;
       }
@@ -381,8 +380,8 @@ router.patch(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      if (!staffId || !isValidUUID(staffId)) {
+      const staffId = entityIdParam(req.params.id);
+      if (!staffId) {
         res.status(400).json({ success: false, error: "Invalid staff ID" });
         return;
       }
@@ -473,8 +472,8 @@ router.delete(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      if (!staffId || !isValidUUID(staffId)) {
+      const staffId = entityIdParam(req.params.id);
+      if (!staffId) {
         res.status(400).json({ success: false, error: "Invalid staff ID" });
         return;
       }
@@ -523,8 +522,8 @@ router.patch(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const staffId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      if (!staffId || !isValidUUID(staffId)) {
+      const staffId = entityIdParam(req.params.id);
+      if (!staffId) {
         res.status(400).json({ success: false, error: "Invalid staff ID" });
         return;
       }

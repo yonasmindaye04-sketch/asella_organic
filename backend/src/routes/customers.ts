@@ -28,6 +28,7 @@ import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { createLogger } from "../lib/logger.js";
+import { entityIdParam } from "../lib/ids.js";
 import { sanitizeObject } from "../lib/security.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,20 +80,15 @@ const AddNoteSchema = z.object({
 
 const router = Router();
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * Resolve the :id route param to a customer id.
  *
- * Rejects anything that is not a UUID before it reaches the query so a
- * malformed id is a 404 rather than a database error. Accepting the
- * phone number as an alternative would be ambiguous here: phone is
- * unique but staff type it with spaces, dashes and +251 prefixes, and
+ * Accepting the phone number as an alternative would be ambiguous here: phone
+ * is unique but staff type it with spaces, dashes and +251 prefixes, and
  * normalising all of that is a bigger surface than the feature needs.
  */
 function customerIdFrom(value: unknown): string | null {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return typeof raw === "string" && UUID_RE.test(raw) ? raw : null;
+  return entityIdParam(value);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

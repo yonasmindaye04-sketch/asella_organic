@@ -195,6 +195,12 @@ const Sidebar: React.FC = () => {
                     Audit Log
                   </Link>
                 </li>
+                <li>
+                  <Link to="/dashboard/sms" className={link('/dashboard/sms')}>
+                    <span className={icon('/dashboard/sms')}>sms</span>
+                    SMS Broadcasts
+                  </Link>
+                </li>
               </ul>
             </div>
           )}

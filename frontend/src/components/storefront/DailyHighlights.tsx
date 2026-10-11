@@ -5,42 +5,51 @@ import { openOrderModal } from '../../store/slices/uiSlice';
 import ProductCarousel from './ProductCarousel';
 import type { CarouselProduct } from './ProductCarousel/carouselData';
 import { useLanguage } from '../../LanguageContext';
-import { optimizeLocalUrl } from '../../utils/image';
+import { useSiteAssets } from '../../context/SiteAssetsContext';
 
 const Reviews = React.lazy(() => import('./Reviews'));
 
-
+/**
+ * Image slots are referenced by key, not by path. The path lives in
+ * constants/siteAssets.ts and the rendered URL comes from useSiteAssets(),
+ * which returns an admin override when one exists. Adding a new card here
+ * automatically makes it editable at /dashboard/media.
+ */
 const categoryCards = [
-  { key: 'powders',       image: optimizeLocalUrl('/image/products/Moringa 200g,500g and 1kg.png', 224, 78) },
-  { key: 'oils',          image: optimizeLocalUrl('/image/products/Blackseed Oil ( 30ml ).JPG',    224, 78) },
-  { key: 'seeds',         image: optimizeLocalUrl('/image/products/Chiaseed 250g and 1kg.png',     224, 78) },
-  { key: 'supplements',   image: optimizeLocalUrl('/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png', 224, 78) },
-  { key: 'herbsSpices',   image: optimizeLocalUrl('/image/products/Erid Turmeric ( 220g ).png',   224, 78) },
-  { key: 'essentialOils', image: optimizeLocalUrl('/image/products/Frankincense Oil  30ml and 60 ml.jpeg', 224, 78) },
-  { key: 'naturalBeauty', image: optimizeLocalUrl('/image/products/Qasil Powder ( 200g ).png',    224, 78) },
-  { key: 'wellness',      image: optimizeLocalUrl('/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png', 224, 78) },
+  { key: 'powders',       assetKey: 'category.powders' },
+  { key: 'oils',          assetKey: 'category.oils' },
+  { key: 'seeds',         assetKey: 'category.seeds' },
+  { key: 'supplements',   assetKey: 'category.supplements' },
+  { key: 'herbsSpices',   assetKey: 'category.herbsSpices' },
+  { key: 'essentialOils', assetKey: 'category.essentialOils' },
+  { key: 'naturalBeauty', assetKey: 'category.naturalBeauty' },
+  { key: 'wellness',      assetKey: 'category.wellness' },
 ];
 
 
 const highlightsMapping = [
-  { image: optimizeLocalUrl('/image/dailyimages/Moringa Powder.png',        600, 75), searchKey: 'Moringa',                    tagKey: 'trending' },
-  { image: optimizeLocalUrl('/image/dailyimages/Shilajit.png',              600, 75), searchKey: 'Shilajit Gel',               tagKey: 'bestseller' },
-  { image: optimizeLocalUrl('/image/dailyimages/Ashwegenda powder.png',     600, 75), searchKey: 'Ashewagenda powder',         tagKey: 'organic' },
-  { image: optimizeLocalUrl('/image/dailyimages/Aswhwegnda Tablet.png',     600, 75), searchKey: 'Ashewagenda (Himalya) Tablet', tagKey: 'supplement' },
-  { image: optimizeLocalUrl('/image/dailyimages/Black seed  oil.png',       600, 75), searchKey: 'Blackseed Oil',              tagKey: 'pure' },
-  { image: optimizeLocalUrl('/image/dailyimages/Chiaseed.png',              600, 75), searchKey: 'Chia Seed',                  tagKey: 'superfood' },
-  { image: optimizeLocalUrl('/image/dailyimages/Franchinses Oil.png',       600, 75), searchKey: 'Frankincense Oil',           tagKey: 'essential' },
-  { image: optimizeLocalUrl('/image/dailyimages/Hibscus.png',               600, 75), searchKey: 'Hibiscus',                   tagKey: 'herbal' },
-  { image: optimizeLocalUrl('/image/dailyimages/Kerbe Oil.png',             600, 75), searchKey: 'Kerebe',                     tagKey: 'aromatic' },
-  { image: optimizeLocalUrl('/image/dailyimages/Kesil Powder.png',          600, 75), searchKey: 'Kesil Powder',               tagKey: 'natural' },
-  { image: optimizeLocalUrl('/image/dailyimages/Turemic Erid.png',          600, 75), searchKey: 'Turmeric',                   tagKey: 'spice' },
+  { assetKey: 'highlight.moringa',          searchKey: 'Moringa',                    tagKey: 'trending' },
+  { assetKey: 'highlight.shilajitGel',      searchKey: 'Shilajit Gel',               tagKey: 'bestseller' },
+  { assetKey: 'highlight.ashwagandhaPowder',searchKey: 'Ashewagenda powder',         tagKey: 'organic' },
+  { assetKey: 'highlight.ashwagandhaTablet',searchKey: 'Ashewagenda (Himalya) Tablet', tagKey: 'supplement' },
+  { assetKey: 'highlight.blackseedOil',     searchKey: 'Blackseed Oil',              tagKey: 'pure' },
+  { assetKey: 'highlight.chiaSeed',         searchKey: 'Chia Seed',                  tagKey: 'superfood' },
+  { assetKey: 'highlight.frankincense',     searchKey: 'Frankincense Oil',           tagKey: 'essential' },
+  { assetKey: 'highlight.hibiscus',         searchKey: 'Hibiscus',                   tagKey: 'herbal' },
+  { assetKey: 'highlight.kerebeOil',        searchKey: 'Kerebe',                     tagKey: 'aromatic' },
+  { assetKey: 'highlight.kesilPowder',      searchKey: 'Kesil Powder',               tagKey: 'natural' },
+  { assetKey: 'highlight.turmeric',         searchKey: 'Turmeric',                   tagKey: 'spice' },
 ];
+
+
+type HighlightItem = Omit<CarouselProduct, 'image'> & { assetKey: string; tagKey: string };
 
 
 const DailyHighlights: React.FC = () => {
   const dispatch = useDispatch();
-  const [products, setProducts] = useState<CarouselProduct[]>([]);
+  const [products, setProducts] = useState<HighlightItem[]>([]);
   const { t } = useLanguage();
+  const { resolve } = useSiteAssets();
 
   useEffect(() => {
     api.get<any[]>('/api/products?limit=200').then(res => {
@@ -58,11 +67,13 @@ const DailyHighlights: React.FC = () => {
             icon: "",
             bgFrom: "#c8960a",
             bgTo: "#6b3a08",
-            image: m.image,
+            // Resolved at render time, not here: overrides load asynchronously
+            // and this effect only runs once.
+            assetKey: m.assetKey,
             slug: product.id.toString(),
             price: product.price,
           };
-        }).filter(Boolean) as (CarouselProduct & { tagKey: string })[];
+        }).filter(Boolean) as HighlightItem[];
 
         setProducts(matched);
       }
@@ -70,8 +81,9 @@ const DailyHighlights: React.FC = () => {
   }, []); // Note: re-running this isn't strictly necessary for language change if we map tagKey later
 
   // Translate products before passing to Carousel
-  const translatedProducts = products.map((p: any) => ({
+  const translatedProducts = products.map((p: HighlightItem) => ({
     ...p,
+    image: resolve(p.assetKey),
     tag: t(`tags.${p.tagKey}`),
     desc: p.desc === "default_desc" ? t('dailyHighlights.defaultDesc') : p.desc
   }));
@@ -98,7 +110,7 @@ const DailyHighlights: React.FC = () => {
                 className="shrink-0 flex flex-col items-center justify-center w-36 md:w-44 cursor-pointer bg-white dark:bg-obsidian p-4 rounded-2xl border border-border shadow-sm hover:shadow-md transition-all duration-300 hover:border-highland-gold hover:-translate-y-1"
               >
                 <div className="w-24 h-24 md:w-28 md:h-28 mb-3 rounded-xl overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm border border-gray-100">
-                   <img src={cat.image} alt={t(`categories.${cat.key}`)} width="112" height="112" className="w-full h-full object-contain" loading="lazy" decoding="async" />
+                   <img src={resolve(cat.assetKey)} alt={t(`categories.${cat.key}`)} width="112" height="112" className="w-full h-full object-contain" loading="lazy" decoding="async" />
                 </div>
                 <span className="font-bold text-sm md:text-base text-obsidian dark:text-white tracking-wider uppercase whitespace-normal text-center leading-tight">
                   {t(`categories.${cat.key}`)}

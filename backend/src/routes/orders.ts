@@ -19,6 +19,9 @@ import { require2FA }   from "../middleware/2fa.js";
 import { validate }     from "../middleware/validate.js";
 import { recordMovement } from "../lib/inventory.js";
 import { recordCustomerActivity, activityTypeForStatus } from "../lib/customerActivity.js";
+import { enqueueSms } from "../lib/smsQueue.js";
+import { formatOrderStatus, isNotifiableOrderStatus } from "../lib/smsTemplates.js";
+import type { OrderStatus } from "../types/index.js";
 import {
   CreateOrderSchema,
   UpdateStatusSchema,
@@ -81,6 +84,78 @@ async function notifyCustomerOfStatusChange(params: {
     );
   } catch (err: any) {
     console.warn(`[orders] Failed to record customer notification: ${err?.message || err}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMS order-status notification
+//
+// Runs alongside the Telegram notification above, never inside the order
+// transaction. Both are fire-and-forget for the same reason: a failed
+// notification must never fail an order update.
+//
+// Two suppression rules keep this from becoming spam:
+//   - Only Confirmed / In Transit / Delivered / Cancelled notify. Pending
+//     is dropped (the customer just placed it) and Processing always
+//     follows Confirmed, so texting both is noise.
+//   - A cooldown plus a per-order lifetime cap, because staff flipping a
+//     status back and forth would otherwise text the customer repeatedly.
+// ─────────────────────────────────────────────────────────────────────────────
+async function notifyCustomerBySms(params: {
+  orderId: string;
+  phone: string;
+  status: string;
+  customerName: string;
+}): Promise<void> {
+  try {
+    if (!isNotifiableOrderStatus(params.status)) return;
+
+    const [customerRows] = await pool.query(
+      `SELECT id FROM customers WHERE phone = ? LIMIT 1`,
+      [params.phone.replace(/\s+/g, "")]
+    ) as [any[], any];
+    const customerId: string | null = customerRows[0]?.id ?? null;
+
+    // Cooldown: the same status for the same order inside the window is
+    // already on its way; a repeat is churn, not news.
+    const cooldownMinutes = Number(process.env.SMS_STATUS_COOLDOWN_MINUTES ?? 120);
+    if (cooldownMinutes > 0) {
+      const [recent] = await pool.query(
+        `SELECT id FROM sms_messages
+          WHERE order_id = ?
+            AND status IN ('queued','sending','submitted')
+            AND error_message LIKE 'status:%'
+            AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)
+          LIMIT 1`,
+        [params.orderId, cooldownMinutes]
+      ) as [any[], any];
+      if (recent.length > 0) return;
+    }
+
+    // Lifetime cap per order.
+    const maxPerOrder = Number(process.env.SMS_MAX_PER_ORDER ?? 4);
+    const [counted] = await pool.query(
+      `SELECT COUNT(*) AS n FROM sms_messages
+        WHERE order_id = ? AND status IN ('queued','sending','submitted')`,
+      [params.orderId]
+    ) as [any[], any];
+    if (Number(counted[0]?.n ?? 0) >= maxPerOrder) return;
+
+    const body = formatOrderStatus(params.status as OrderStatus, {
+      orderId: params.orderId,
+      name: params.customerName,
+    });
+
+    await enqueueSms({
+      category: "transactional",
+      to: params.phone,
+      body,
+      customerId,
+      customerName: params.customerName,
+      orderId: params.orderId,
+    });
+  } catch (err: any) {
+    console.warn(`[orders] Failed to queue SMS notification: ${err?.message || err}`);
   }
 }
 
@@ -591,6 +666,15 @@ router.patch(
       status,
       customerName: current.customer_name as string,
       chatIdHint: (current.telegram_chat_id as number | null) ?? null,
+    });
+
+    // SMS for customers without Telegram. Same fire-and-forget contract:
+    // a send failure must never fail the status change.
+    void notifyCustomerBySms({
+      orderId,
+      phone: current.phone as string,
+      status,
+      customerName: current.customer_name as string,
     });
 
     // Customer timeline: the status change itself. Returns and

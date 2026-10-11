@@ -1,4 +1,4 @@
-﻿/**
+/**
  * frontend/src/pages/CustomersPage.tsx
  * Customer insights — value score, segments, and a per-customer
  * movement timeline.
@@ -610,16 +610,21 @@ const CustomersPage: React.FC = () => {
     <DashboardLayout>
       <div className="flex flex-col h-full bg-[#f7faf7]">
 
-        {/* Page header */}
-        <div className="shrink-0 px-5 pt-4 pb-3 flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-[#141c15]">Customers</h1>
-            <p className="text-sm text-[#607d66] mt-1">Every customer movement and how valuable each one is.</p>
+        {/* Dark Green Header */}
+        <header className="flex items-center justify-between px-5 py-3 bg-[#1b3d1e] shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.3)] z-30">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-[#2e7d32] flex items-center justify-center text-white">
+              <span className="material-symbols-outlined text-[16px]">groups</span>
+            </div>
+            <h1 className="text-white font-black text-[15px] tracking-wide">Asella — Customers</h1>
+            <span className="text-white/50 text-[11px] font-mono ml-2 hidden sm:inline">Every customer movement and value score</span>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-[#e8f5e9] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[20px] text-[#2e7d32]">groups</span>
+          <div className="flex items-center gap-2">
+            <button onClick={fetchList} className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-[1.5px] border-white/20 text-white rounded-md text-[12px] font-bold hover:bg-white/10 hover:border-white/50 transition whitespace-nowrap">
+              <span className="material-symbols-outlined text-[14px]">refresh</span> Refresh
+            </button>
           </div>
-        </div>
+        </header>
 
         {/* KPI row */}
         <div className="shrink-0 px-5 pb-3 grid grid-cols-2 lg:grid-cols-4 gap-2.5">

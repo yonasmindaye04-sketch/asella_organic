@@ -607,3 +607,147 @@ export const staff = {
   verify2FA:  (token: string) => api.post("/api/staff/2fa/verify", { token }),
   disable2FA: (token: string) => api.delete("/api/staff/2fa/disable", { "x-2fa-token": token }),
 };
+
+// ─── SMS ────────────────────────────────────────────────────────────────────
+// Outbound messaging via SMSEthiopia. The provider authenticates with a KEY
+// header server-side and never reaches the browser, so no CSP change applies.
+
+export type SmsMessageStatus =
+  | 'queued' | 'sending' | 'submitted' | 'rejected' | 'failed' | 'skipped';
+export type SmsEncoding = 'GSM-7' | 'UNICODE';
+
+export interface SmsStatus {
+  configured: boolean;
+  byStatus: Record<string, number>;
+  queueDepth: number;
+  today: {
+    messages: number; segments: number;
+    costMin: number; costMax: number; blocked: boolean;
+  } | null;
+  limits: {
+    maxCampaignCostEtb: number; maxDailyCostEtb: number; maxSegments: number;
+    statusCooldownMinutes: number; maxPerOrder: number;
+  };
+}
+
+export interface SmsMessage {
+  id: string;
+  category: 'transactional' | 'marketing' | 'broadcast';
+  order_id: string | null;
+  campaign_id: string | null;
+  to_msisdn: string;
+  customer_name: string | null;
+  body: string;
+  status: SmsMessageStatus;
+  skip_reason: string | null;
+  http_status: number | null;
+  segment_count: number;
+  encoding: SmsEncoding;
+  cost_min_etb: number;
+  cost_max_etb: number;
+  attempt_count: number;
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface SmsPreview {
+  valid: number;
+  optedOut: number;
+  noPhone: number;
+  invalid: number;
+  deduped: number;
+  encoding: SmsEncoding;
+  segmentCount: number;
+  totalSegments: number;
+  costMinEtb: number;
+  costMaxEtb: number;
+  body: string;
+  hasOptOutFooter: boolean;
+  exceedsCampaignLimit: boolean;
+  maxCampaignCostEtb: number;
+  samples: Array<{ phone: string; name?: string; reason?: string }>;
+}
+
+export interface SmsCampaign {
+  id: string;
+  name: string;
+  category: 'broadcast' | 'marketing';
+  body: string;
+  status: 'draft' | 'scheduled' | 'sending' | 'completed' | 'cancelled';
+  scheduled_at: string | null;
+  recipient_count: number;
+  estimated_segments: number;
+  estimated_cost_min: number;
+  estimated_cost_max: number;
+  max_cost_etb: number;
+  created_at: string;
+  dispatched_at: string | null;
+  created_by_name: string | null;
+  submitted_count: number;
+  failed_count: number;
+}
+
+export interface SmsTemplate {
+  id: string;
+  template_key: string;
+  name: string;
+  body: string;
+  locale: string;
+  is_transactional: number;
+  requires_optout_footer: number;
+  is_active: number;
+}
+
+export interface SmsRecipient {
+  phone: string;
+  name?: string;
+}
+
+export const sms = {
+  status:   () => api.get<SmsStatus>('/api/sms/status'),
+
+  messages: (params: { page?: number; limit?: number; status?: string; category?: string; order_id?: string } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get<SmsMessage[]>(`/api/sms/messages?${qs}`);
+  },
+
+  /** Free — makes no provider calls and writes nothing. */
+  preview: (body: {
+    text: string;
+    segment?: CustomerSegment;
+    city?: string;
+    min_orders?: number;
+    max_days_idle?: number;
+    recipients?: SmsRecipient[];
+  }) => api.post<SmsPreview>('/api/sms/preview', body),
+
+  campaigns: (params: { page?: number; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get<SmsCampaign[]>(`/api/sms/campaigns?${qs}`);
+  },
+
+  createCampaign: (body: Record<string, unknown>) =>
+    api.post<{ id: string; recipientCount: number; estimatedSegments: number; costMinEtb: number; costMaxEtb: number }>(
+      '/api/sms/campaigns', body,
+    ),
+
+  /** Spends money. Requires 2FA and the campaign name typed back. */
+  dispatch: (campaignId: string, confirmPhrase: string, twoFaToken: string, costOverride = false) =>
+    api.post<{ campaignId: string; enqueued: number; skipped: number; status: string }>(
+      '/api/sms/dispatch',
+      { campaign_id: campaignId, confirm_phrase: confirmPhrase, cost_override: costOverride },
+      { 'x-2fa-token': twoFaToken },
+    ),
+
+  cancelCampaign: (id: string) => api.post(`/api/sms/campaigns/${id}/cancel`, {}),
+
+  templates: () => api.get<SmsTemplate[]>('/api/sms/templates'),
+  saveTemplate: (body: Record<string, unknown>) => api.post<{ id: string }>('/api/sms/templates', body),
+
+  sendTest: (to: string, text: string) => api.post('/api/sms/send-test', { to, text }),
+  setConsent: (to: string, action: 'opt-in' | 'opt-out' | 'hard-opt-out') =>
+    api.post('/api/sms/consent', { to, action }),
+};

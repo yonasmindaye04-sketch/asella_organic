@@ -25,6 +25,7 @@ import { recordMovement } from "../lib/inventory.js";
 import { sendStockRequestAlert } from "../lib/telegram.js";
 import { z } from "zod";
 import { createLogger } from "../lib/logger.js";
+import { entityIdParam } from "../lib/ids.js";
 
 
 const router = Router();
@@ -596,9 +597,9 @@ router.patch(
   validate(UpdateStockRequestStatusSchema),
   async (req: Request, res: Response): Promise<void> => {
     const { status, notes, qty_needed } = req.body as { status: string; notes?: string; qty_needed?: number };
-    const requestId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const requestId = entityIdParam(req.params.id);
     if (!requestId) {
-      res.status(400).json({ success: false, error: "Stock request ID is required." });
+      res.status(400).json({ success: false, error: "Invalid stock request ID" });
       return;
     }
 
