@@ -15,7 +15,7 @@ const config = {
   },
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
-    "^@exodus/bytes/encoding-lite\\.js$": "<rootDir>/tests/setup/encoding-lite-shim.cjs",
+    "^isomorphic-dompurify$": "<rootDir>/tests/setup/dompurify-shim.cjs",
   },
 
   transformIgnorePatterns: [
@@ -52,7 +52,7 @@ const config = {
   forceExit:         true,
   detectOpenHandles: true,
 
-  setupFiles: ["<rootDir>/tests/setup/dbGuard.ts"],
+  setupFiles: ["<rootDir>/tests/setup/dbGuard.cjs"],
   globalSetup:    "<rootDir>/tests/setup/globalSetup.ts",
   globalTeardown: "<rootDir>/tests/setup/globalTeardown.ts",
 

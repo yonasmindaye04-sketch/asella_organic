@@ -1,4 +1,4 @@
-import { URL } from "url";
+const { URL } = require("url");
 
 let host = "localhost";
 let dbName = "asella_organic";

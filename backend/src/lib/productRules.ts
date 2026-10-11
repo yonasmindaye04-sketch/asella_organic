@@ -24,9 +24,13 @@ export async function isDuplicate(
     params.push(excludeId);
   }
   
-  const rows = await queryFn(sql, params);
+  const res = await queryFn(sql, params);
+  const rows = Array.isArray(res) && Array.isArray(res[0]) ? res[0] : (Array.isArray(res) ? res : []);
   for (const row of rows) {
     if (
+      row &&
+      row.name &&
+      row.package_size &&
       row.name.toLowerCase().replace(/\s+/g, '') === normName &&
       row.package_size.toLowerCase().replace(/\s+/g, '') === normSize
     ) {
