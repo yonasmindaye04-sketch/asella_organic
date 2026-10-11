@@ -118,6 +118,27 @@ async function runMigrations() {
   const isYes = args.includes("--yes");
   const isReset = args.includes("--reset");
 
+  // Fixtures and data-repair scripts, not schema changes. Declared at function
+  // scope because the blocked-set below is built from it too.
+  //
+  // `seed` / `dummy` cover the bulk fixtures (004_dummy_data, 027-030).
+  // `verify_seed` and `rebuild_inventory` name their own risk: 032 aborts the
+  // run on invariants that only hold for the fixture dataset, and 031 deletes
+  // and rebuilds inventory_movements from scratch.
+  //
+  // `repair` is here for the same reason and is NOT a stylistic addition.
+  // 026_repair_catalog.sql looked safe because it has no DROP/DELETE and no
+  // unguarded mass UPDATE, but it rewrites production money data:
+  //   :219  products.unit_cost      <- price * 0.55 for every zero-cost product
+  //   :222  order_items.unit_cost   <- overwrites the historical COGS snapshot
+  //   :234  orders.total            <- recomputed from line items
+  //   :243+ historical unit_price   <- rewritten where the export smeared them
+  //   :169-210 stock levels        <- hardcoded for the 31 seeded SKUs
+  // Those rewrites are correct against the legacy export this file was
+  // written for and wrong against a live database, so the file has to be
+  // opted into explicitly like any other fixture.
+  const DANGEROUS_MIGRATION = /seed|dummy|verify_seed|rebuild_inventory|repair/i;
+
   if (isProduction) {
     if (isReset && !allowDangerous) {
       console.error("Refusing --reset in production without --allow-dangerous");
@@ -142,17 +163,38 @@ async function runMigrations() {
     // Those rewrites are correct against the legacy export this file was
     // written for and wrong against a live database, so the file has to be
     // opted into explicitly like any other fixture.
-    const DANGEROUS_MIGRATION = /seed|dummy|verify_seed|rebuild_inventory|repair/i;
-
     const dangerousFiles = pendingFiles.filter(f => DANGEROUS_MIGRATION.test(f));
+    const safeFiles       = pendingFiles.filter(f => !DANGEROUS_MIGRATION.test(f));
+
     if (dangerousFiles.length > 0 && !allowDangerous) {
-      console.error("Refusing dangerous migrations in production without --allow-dangerous:");
-      dangerousFiles.forEach(f => console.error("  " + f));
-      console.error("\nThese are demo fixtures or legacy-data repairs. They are correct");
-      console.error("against a seeded dataset and destructive against real orders. Pass");
-      console.error("--allow-dangerous only if that is genuinely what you want.");
-      process.exit(1);
+      // SKIP, do not abort.
+      //
+      // The first version of this guard called process.exit(1) instead, on
+      // the reasoning that refusing loudly is safer than proceeding. That was
+      // wrong in the one situation that matters: a production box whose queue
+      // holds BOTH a fixture and a real schema change. Every fixture ships
+      // permanently pending, because they must never be recorded as applied,
+      // so the abort fired on every run and blocked the safe migrations
+      // sitting behind them — including 025_sms.sql. Verified: with 026
+      // pending, 025 and 033 were refused along with it.
+      //
+      // Skipping keeps the destructive files out while still letting the
+      // schema catch up. --allow-dangerous remains the explicit opt-in.
+      console.warn("\n=== SKIPPING DANGEROUS MIGRATIONS (production) ===");
+      dangerousFiles.forEach(f => console.warn(`  skipped: ${f}`));
+      console.warn(
+        "These are demo fixtures or legacy-data repairs. They are correct\n" +
+        "against a seeded dataset and destructive against real orders, so\n" +
+        "they are not recorded as applied and will be skipped again on every\n" +
+        "run. Pass --allow-dangerous only if that is genuinely what you want.\n"
+      );
+      if (safeFiles.length === 0) {
+        console.error("No safe migrations pending — nothing to do.");
+        process.exit(0);
+      }
+      console.warn(`Continuing with ${safeFiles.length} safe migration(s).\n`);
     }
+
     if (pendingFiles.length > 0 && !isYes) {
       console.log("Pending migrations:");
       pendingFiles.forEach(f => console.log("  " + f));
@@ -161,9 +203,22 @@ async function runMigrations() {
     }
   }
 
+  // Files to deliberately not run this pass. Empty unless production declined
+  // the dangerous set above.
+  const blockedFiles = new Set(
+    isProduction && !allowDangerous
+      ? pendingFiles.filter(f => DANGEROUS_MIGRATION.test(f))
+      : []
+  );
+
   for (const file of files) {
     if (appliedFiles.has(file)) {
       console.log(`Skipping (already applied): ${file}`);
+      continue;
+    }
+
+    if (blockedFiles.has(file)) {
+      console.log(`Skipping (blocked in production): ${file}`);
       continue;
     }
 
