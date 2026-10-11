@@ -4,6 +4,13 @@
 -- this table to dedupe duplicate requests.
 --
 -- 007_idempotency_keys.sql
+--
+-- No DEFAULT CHARSET here on purpose. Naming a charset without a collation
+-- pins the table to that charset's own default (utf8mb4_0900_ai_ci on MySQL
+-- 8), while every other table in this schema declares nothing and inherits
+-- the server default. The two then disagree, and any statement that unions
+-- this table with another — as 032_verify_seed.sql does — fails with
+-- "Illegal mix of collations for operation 'UNION'".
 CREATE TABLE IF NOT EXISTS idempotency_keys (
     id              CHAR(36)        PRIMARY KEY DEFAULT (UUID()),
     idem_key        VARCHAR(128)    NOT NULL,
@@ -18,4 +25,4 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
     expires_at      DATETIME        NOT NULL,
     UNIQUE KEY uq_user_key (user_id, idem_key),
     KEY idx_expires (expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB;

@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS sms_templates (
 
     CONSTRAINT uq_sms_template_key UNIQUE (template_key),
     INDEX idx_sms_templates_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB;
 
 
 -- ── 2. Campaigns ───────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS sms_campaigns (
         REFERENCES sms_templates(id) ON DELETE SET NULL,
     INDEX idx_sms_campaigns_status (status),
     INDEX idx_sms_campaigns_created (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB;
 
 
 -- ── 3. Per-message ledger ──────────────────────────────────────────────
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS sms_messages (
     INDEX idx_sms_messages_customer (customer_id, created_at),
     INDEX idx_sms_messages_msisdn (to_msisdn, created_at),
     INDEX idx_sms_messages_order (order_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB;
 
 
 -- ── 4. Consent, as three layers ────────────────────────────────────────
@@ -225,11 +225,56 @@ CREATE TABLE IF NOT EXISTS sms_messages (
 --     permanently muting anyone.
 --
 -- So: two columns on customers plus a campaign-scoped exclusion table.
-ALTER TABLE customers
-    ADD COLUMN IF NOT EXISTS sms_marketing_opt_in TINYINT  NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS sms_opt_out_at        DATETIME NULL,
-    ADD COLUMN IF NOT EXISTS sms_consent_source    VARCHAR(32) NULL,
-    ADD COLUMN IF NOT EXISTS sms_consent_at        DATETIME NULL;
+--
+-- ADD COLUMN IF NOT EXISTS is MariaDB-only; MySQL 8 rejects it. The
+-- information_schema guard below runs on both engines and keeps this file
+-- re-runnable, which is what the IF NOT EXISTS was there to provide.
+DROP PROCEDURE IF EXISTS add_sms_consent_columns;
+
+DELIMITER $$
+CREATE PROCEDURE add_sms_consent_columns()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'customers'
+          AND COLUMN_NAME  = 'sms_marketing_opt_in'
+    ) THEN
+        ALTER TABLE customers
+            ADD COLUMN sms_marketing_opt_in TINYINT NOT NULL DEFAULT 0;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'customers'
+          AND COLUMN_NAME  = 'sms_opt_out_at'
+    ) THEN
+        ALTER TABLE customers ADD COLUMN sms_opt_out_at DATETIME NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'customers'
+          AND COLUMN_NAME  = 'sms_consent_source'
+    ) THEN
+        ALTER TABLE customers ADD COLUMN sms_consent_source VARCHAR(32) NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'customers'
+          AND COLUMN_NAME  = 'sms_consent_at'
+    ) THEN
+        ALTER TABLE customers ADD COLUMN sms_consent_at DATETIME NULL;
+    END IF;
+END$$
+DELIMITER ;
+
+CALL add_sms_consent_columns();
+DROP PROCEDURE IF EXISTS add_sms_consent_columns;
 
 -- Campaign-scoped suppression. Created by staff during a dry run when a
 -- specific recipient should be dropped from one send and no other.
@@ -250,7 +295,7 @@ CREATE TABLE IF NOT EXISTS sms_campaign_exclusions (
     -- One exclusion per number per campaign.
     CONSTRAINT uq_sms_exclusion UNIQUE (campaign_id, to_msisdn),
     INDEX idx_sms_exclusion_campaign (campaign_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB;
 
 
 -- ── 5. Consent audit trail ─────────────────────────────────────────────
@@ -278,7 +323,7 @@ CREATE TABLE IF NOT EXISTS sms_consent_log (
         REFERENCES customers(id) ON DELETE SET NULL,
     INDEX idx_sms_consent_msisdn (to_msisdn, created_at),
     INDEX idx_sms_consent_customer (customer_id, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB;
 
 
 -- ── 6. Daily spend ledger ──────────────────────────────────────────────
@@ -294,7 +339,7 @@ CREATE TABLE IF NOT EXISTS sms_daily_spend (
     cost_max_etb   DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     blocked_at     DATETIME      NULL,
     updated_at     DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB;
 
 -- Self-register so this migration is idempotent even if the runner is
 -- re-invoked directly rather than through migrate.cjs.

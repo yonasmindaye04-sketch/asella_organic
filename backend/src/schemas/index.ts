@@ -10,16 +10,42 @@ import { z } from "zod";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────
 
-export const LoginSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(3, "Username/Email must be at least 3 characters"),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(128),
-});
+// The field is named `username` but the value may be either identifier, which
+// is what the error message has always promised and what the query actually
+// does: routes/auth.ts:82 looks up `WHERE (email = ? OR username = ?)`.
+//
+// Requiring the literal key `username` while the route accepts an email made
+// that query unreachable — a client sending `{ email, password }` got a 422
+// naming `username`, which reads as a contradiction rather than a hint.
+//
+// Both keys are optional at the object level and resolved in the transform
+// below. Making `username` required here instead would fail the object parse
+// before the transform ever ran, which is the version that did not work.
+export const LoginSchema = z
+  .object({
+    username: z.string().trim().optional(),
+    email: z.string().trim().optional(),
+    password: z
+      .string()
+      .min(6, "Password must be at least 6 characters")
+      .max(128),
+  })
+  .transform((v, ctx): { username: string; password: string } => {
+    // `username` wins when both are present, so a caller cannot present one
+    // identity in the form field and authenticate as another.
+    const candidate = v.username ?? v.email;
+
+    if (typeof candidate !== "string" || candidate.length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["username"],
+        message: "Username/Email must be at least 3 characters",
+      });
+      return z.NEVER;
+    }
+
+    return { username: candidate, password: v.password };
+  });
 
 export const ResetRequestSchema = z.object({
   username: z.string().trim().min(3).max(50),

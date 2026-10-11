@@ -320,4 +320,24 @@ WHERE o.deleted_at IS NULL
 -- ── 5. Index supporting the customer list ────────────────────────
 -- The view joins orders on customer_id. Without this index MySQL
 -- scans the whole orders table to build the list.
-CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
+-- CREATE INDEX IF NOT EXISTS is MariaDB-only; MySQL 8 rejects it. The
+-- information_schema guard runs on both engines and keeps the file
+-- re-runnable, which is what the IF NOT EXISTS was there to provide.
+DROP PROCEDURE IF EXISTS add_orders_customer_id_index;
+
+DELIMITER $$
+CREATE PROCEDURE add_orders_customer_id_index()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'orders'
+          AND INDEX_NAME   = 'idx_orders_customer_id'
+    ) THEN
+        CREATE INDEX idx_orders_customer_id ON orders(customer_id);
+    END IF;
+END$$
+DELIMITER ;
+
+CALL add_orders_customer_id_index();
+DROP PROCEDURE IF EXISTS add_orders_customer_id_index;
