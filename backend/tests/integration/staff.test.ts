@@ -131,11 +131,17 @@ describe("GET /api/staff/:id", () => {
     expect(res.body.data.password_hash).toBeUndefined();
   });
 
-  it("returns 400 for invalid UUID", async () => {
+  it("returns 404 for a malformed id, not 400", async () => {
+    // Deliberate, and documented on entityIdParam in src/lib/ids.ts: a
+    // malformed id returns null "so callers can respond with 404 rather than
+    // forwarding junk into a query". Answering 400 instead would confirm the
+    // route exists and tell a prober their id was well-formed-but-unknown,
+    // which 404 does not. 404 is also what makes path-traversal and
+    // LIKE-wildcard probes indistinguishable from an absent record.
     const res = await request(app)
       .get("/api/staff/not-a-uuid")
       .set("Authorization", `Bearer ${adminToken}`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   it("returns 404 for non-existent staff", async () => {

@@ -566,7 +566,7 @@ describe("affiliate deletion (item 3)", () => {
       const retry = await request(app)
         .delete(`/api/referrals/affiliates/${throwaway}`)
         .set("Authorization", `Bearer ${adminToken}`)
-        .set("x-2fa-token", generateSync({ secret: cfg[0].two_factor_secret }).token);
+        .set("x-2fa-token", generateSync({ secret: cfg[0].two_factor_secret }));
 
       expect(retry.status).toBe(200);
 

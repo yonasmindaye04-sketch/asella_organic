@@ -66,7 +66,9 @@ beforeAll(async () => {
      WHERE id = ?`,
     [TWO_FA_SECRET, adminId]
   );
-  testTwoFa = generateSync({ secret: TWO_FA_SECRET }).token;
+  // otplib v13's functional API returns the 6-digit token as a plain string;
+  // there is no .token property. tests/unit/2fa.test.ts already does this.
+  testTwoFa = generateSync({ secret: TWO_FA_SECRET });
 
   const [adminRes, empRes] = await Promise.all([
     request(app).post("/api/auth/login").send({ email: "ref_admin@test.com", password: "RefTest123!" }),
@@ -266,12 +268,16 @@ describe("PATCH /api/referrals/affiliates/:id", () => {
     expect(res.status).toBe(200);
   });
 
-  it("rejects invalid affiliate UUID", async () => {
+  it("rejects a malformed affiliate id with 404, not 400", async () => {
+    // Same contract as the staff route, and for the same documented reason
+    // (entityIdParam in src/lib/ids.ts): a malformed id is answered 404 so
+    // junk never reaches a query and cannot be distinguished from an absent
+    // record.
     const res = await request(app)
       .patch("/api/referrals/affiliates/not-a-uuid")
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ full_name: "test" });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   it("returns 404 for non-existent affiliate", async () => {

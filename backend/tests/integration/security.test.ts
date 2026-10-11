@@ -188,9 +188,33 @@ describe("A05 — Security Misconfiguration", () => {
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
   });
 
-  it("x-frame-options header is set to DENY", async () => {
+  it("sets x-frame-options and a frame-ancestors policy that admits only Telegram", async () => {
     const res = await request(app).get("/api/health");
-    expect(res.headers["x-frame-options"]).toBe("DENY");
+
+    // NOT "DENY". The Telegram Mini App is framed by web.telegram.org, and
+    // csp-config.js:34 lists it in frame-ancestors on purpose. Helmet's
+    // default SAMEORIGIN is left in place as the legacy fallback layer;
+    // browsers that honour CSP frame-ancestors ignore X-Frame-Options
+    // entirely, and browsers that do not will correctly refuse same-origin
+    // framing only. Writing DENY would break the Mini App on exactly those
+    // older browsers while adding nothing — modern ones already ignore it.
+    expect(res.headers["x-frame-options"]).toBe("SAMEORIGIN");
+
+    // The property that actually matters is the ancestor allowlist: it must
+    // name Telegram, and must not be open to arbitrary origins.
+    const csp = String(res.headers["content-security-policy"]);
+    const frameAncestors = /frame-ancestors([^;]*)/.exec(csp)?.[1] ?? "";
+
+    expect(frameAncestors).toContain("https://web.telegram.org");
+    // A scoped subdomain wildcard (https://*.telegram.org) is deliberate and
+    // safe — it is still confined to one registrable domain. What must not
+    // appear is a bare `*` source, or a bare scheme, either of which would let
+    // any site on the internet frame the API.
+    const sources = frameAncestors.trim().split(/\s+/);
+    expect(sources).not.toContain("*");
+    expect(sources).not.toContain("'none'");
+    expect(sources).not.toContain("https:");
+    expect(sources).not.toContain("http:");
   });
 
   it("returns 404 (not stack trace) on unknown routes", async () => {

@@ -85,7 +85,11 @@ describe("generalRateLimit", () => {
 });
 
 describe("loginRateLimit (direct)", () => {
-  it("returns 429 after the login attempt cap is exceeded", () => {
+  // Awaited: all three limiters are async, because check() consults Redis
+  // when REDIS_URL is set. Calling them without awaiting asserted on a promise
+  // that had not settled, so res.status had not been called and next() had
+  // not run yet.
+  it("returns 429 after the login attempt cap is exceeded", async () => {
     // Direct middleware call — avoids the 5-minute wait of an integration
     // burst test. The rate limit uses an LRU cache keyed by IP; rapid
     // calls from 127.0.0.1 will hit the cap.
@@ -94,7 +98,7 @@ describe("loginRateLimit (direct)", () => {
       const req  = makeReq();
       const res  = makeRes();
       const n    = jest.fn();
-      loginRateLimit(req, res, n);
+      await loginRateLimit(req, res, n);
       const status = (res as any).status.mock.calls[0]?.[0];
       if (status === 429) { saw429 = true; break; }
     }
@@ -103,13 +107,13 @@ describe("loginRateLimit (direct)", () => {
 });
 
 describe("orderRateLimit (direct)", () => {
-  it("returns 429 after the order cap is exceeded", () => {
+  it("returns 429 after the order cap is exceeded", async () => {
     let saw429 = false;
     for (let i = 0; i < 15; i++) {
       const req = makeReq();
       const res = makeRes();
       const n   = jest.fn();
-      orderRateLimit(req, res, n);
+      await orderRateLimit(req, res, n);
       const status = (res as any).status.mock.calls[0]?.[0];
       if (status === 429) { saw429 = true; break; }
     }
@@ -118,11 +122,11 @@ describe("orderRateLimit (direct)", () => {
 });
 
 describe("generalRateLimit (direct)", () => {
-  it("calls next() on first call (under limit)", () => {
+  it("calls next() on first call (under limit)", async () => {
     const req = makeReq();
     const res = makeRes();
     const n   = jest.fn() as any;
-    generalRateLimit(req, res, n);
+    await generalRateLimit(req, res, n);
     expect(n).toHaveBeenCalledTimes(1);
   });
 });
