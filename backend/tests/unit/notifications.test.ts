@@ -335,7 +335,7 @@ describe("PATCH /api/vendor-orders/:id/status", () => {
     expect(res.status).toBe(422);
   });
 
-  it("updates status to 'confirmed' on a valid PATCH", async () => {
+  it("updates status to 'approved' on a valid PATCH", async () => {
     if (!vendorOrderId) {
       console.warn("Skipping PATCH test — no vendor order created in POST test");
       return;
@@ -344,7 +344,7 @@ describe("PATCH /api/vendor-orders/:id/status", () => {
     const res = await request(app)
       .patch(`/api/vendor-orders/${vendorOrderId}/status`)
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ status: "confirmed" });
+      .send({ status: "approved" });
 
     expect([200, 204]).toContain(res.status);
   });
@@ -353,7 +353,7 @@ describe("PATCH /api/vendor-orders/:id/status", () => {
     const res = await request(app)
       .patch("/api/vendor-orders/00000000-0000-0000-0000-000000000000/status")
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ status: "confirmed" });
+      .send({ status: "approved" });
 
     expect(res.status).toBe(404);
   });

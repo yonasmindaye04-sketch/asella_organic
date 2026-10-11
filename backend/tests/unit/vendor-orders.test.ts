@@ -222,37 +222,51 @@ describe("PATCH /api/vendor-orders/:id/status", () => {
     expect(res.status).toBe(422);
   });
 
-  it("updates status to 'confirmed' on a valid PATCH", async () => {
+  it("updates status to 'approved' on a valid PATCH", async () => {
     const res = await request(app)
       .patch(`/api/vendor-orders/${createdId}/status`)
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ status: "confirmed" });
+      .send({ status: "approved" });
     expect([200, 204]).toContain(res.status);
 
     const [rows] = await pool.query(
       `SELECT status FROM vendor_orders WHERE id = ?`, [createdId]
     ) as [any[], any];
-    expect(rows[0].status).toBe("confirmed");
+    expect(rows[0].status).toBe("approved");
   });
 
-  it("updates status to 'declined' on a valid PATCH", async () => {
+  it("updates status to 'cancelled' on a valid PATCH", async () => {
     const res = await request(app)
       .patch(`/api/vendor-orders/${createdId}/status`)
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ status: "declined" });
+      .send({ status: "cancelled" });
     expect([200, 204]).toContain(res.status);
+  });
+
+  it("rejects a legacy status that 009 removed from the enum", async () => {
+    // 009_vendor_expenses.sql narrowed the enum to
+    // ('pending','approved','received','cancelled') after migrating
+    // confirmed/declined/completed away, and routes/vendor-orders.ts:77
+    // matches that. The old vocabulary must not silently come back.
+    for (const status of ["confirmed", "declined", "completed"]) {
+      const res = await request(app)
+        .patch(`/api/vendor-orders/${createdId}/status`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ status });
+      expect(res.status).toBe(422);
+    }
   });
 
   it("returns 404 for a non-existent vendor order ID", async () => {
     const res = await request(app)
       .patch("/api/vendor-orders/00000000-0000-0000-0000-000000000000/status")
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ status: "confirmed" });
+      .send({ status: "approved" });
     expect(res.status).toBe(404);
   });
 
   it("accepts all four valid status values", async () => {
-    for (const status of ["pending", "confirmed", "declined", "completed"]) {
+    for (const status of ["pending", "approved", "received", "cancelled"]) {
       const res = await request(app)
         .patch(`/api/vendor-orders/${createdId}/status`)
         .set("Authorization", `Bearer ${adminToken}`)

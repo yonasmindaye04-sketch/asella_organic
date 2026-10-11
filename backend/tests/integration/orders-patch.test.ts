@@ -1,19 +1,49 @@
 /**
  * backend/tests/integration/orders-patch.test.ts
- * Asella Organic — Tests for resolveOrderItem helper (orders.patch.ts)
+ * Asella Organic - Tests for resolveOrderItem helper (orders.patch.ts)
  *
- * We test the resolveOrderItem function directly since the full handler
- * in orders.patch.ts depends on a DB schema column (orders.affiliate_id)
- * that doesn't exist yet. The unit-level function is still testable.
+ * SKIPPED - the module under test does not exist.
+ *
+ * This suite was written against src/routes/orders.patch.ts, a placeholder
+ * for a feature that was never built: its own header said the handler
+ * "depends on a DB schema column (orders.affiliate_id) that doesn't exist
+ * yet". The file was later removed as dead code (it duplicated routes/orders.ts
+ * with different auth), and resolveOrderItem does not exist anywhere in src.
+ *
+ * The import is therefore lazy rather than static, and the suite is skipped,
+ * so the module still loads and these assertions are kept intact as the spec
+ * for the feature. To re-enable: implement resolveOrderItem, point
+ * IMPLEMENTATION_PATH at wherever it lands, and drop the .skip.
+ *
+ * The behaviour worth keeping: resolve product_id by name + package_size,
+ * case-insensitively and whitespace-trimmed; fall back to the catalogue price
+ * when the submitted unit_price is 0; allow a positive submitted price to
+ * override; return a null product_id and the submitted price for an unknown
+ * product.
  */
 
 import pool from "../../src/config/db.js";
 import crypto from "crypto";
-import { resolveOrderItem } from "../../src/routes/orders.patch.js";
+
+const IMPLEMENTATION_PATH = "../../src/routes/orders.patch.js";
+
+// Resolved in beforeAll so a missing module cannot fail the whole suite at
+// import time, which is what used to turn one dead file into a red build.
+let resolveOrderItem: (
+  conn: unknown,
+  name: string,
+  size: string,
+  submittedPrice: number,
+) => Promise<{ product_id: string | null; unit_price: number }>;
 
 const productId = crypto.randomUUID();
 
 beforeAll(async () => {
+  const mod = (await import(IMPLEMENTATION_PATH)) as {
+    resolveOrderItem: typeof resolveOrderItem;
+  };
+  resolveOrderItem = mod.resolveOrderItem;
+
   // Product for resolution tests
   await pool.query(
     `INSERT INTO products (id, name, package_size, price, inventory_quantity, low_stock_threshold, active)
@@ -28,7 +58,7 @@ afterAll(async () => {
   await pool.end();
 });
 
-describe("resolveOrderItem()", () => {
+describe.skip("resolveOrderItem()", () => {
   it("resolves product_id and unit_price for a known product", async () => {
     const conn = await pool.getConnection();
     try {

@@ -43,8 +43,8 @@ beforeAll(async () => {
 
   // 3. Insert Low Stock Movement
   await pool.query(
-    `INSERT INTO inventory_movements (id, product_id, movement_type, change_amount, quantity_after, reference_type, created_at)
-     VALUES (?, ?, 'sale', -5, 5, 'order', NOW())`,
+    `INSERT INTO inventory_movements (id, product_id, movement_type, change_amount, quantity_after, reason, reference_type, created_at)
+     VALUES (?, ?, 'sale', -5, 5, 'Notif test movement', 'order', NOW())`,
     [testEntities.movement_id, testEntities.product_id]
   );
 
@@ -57,15 +57,15 @@ beforeAll(async () => {
 
   // 5. Insert New Order
   await pool.query(
-    `INSERT INTO orders (id, customer_name, phone, source, status, created_at)
-     VALUES (?, 'Notif Test Customer', '+251911111111', 'Website', 'Pending', NOW())`,
+    `INSERT INTO orders (id, customer_name, phone, source, status, total, created_at)
+     VALUES (?, 'Notif Test Customer', '+251911111111', 'Website', 'Pending', 0.00, NOW())`,
     [testEntities.order_id]
   );
 
   // 6. Insert Vendor Order
   await pool.query(
-    `INSERT INTO vendor_orders (id, order_id, vendor_name, item, amount, status, created_at)
-     VALUES (?, 'VO-123456', 'Test Vendor', 'Bulk Product', '100 units', 'pending', NOW())`,
+    `INSERT INTO vendor_orders (id, order_id, vendor_name, item, amount, price, status, created_at)
+     VALUES (?, 'VO-123456', 'Test Vendor', 'Bulk Product', '100 units', 2500, 'pending', NOW())`,
     [testEntities.vendor_order_id]
   );
 });

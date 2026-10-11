@@ -20,8 +20,8 @@ function nextUpdateId() {
 beforeAll(async () => {
   // Insert a test order for delivery acceptance
   await pool.query(
-    `INSERT INTO orders (id, customer_name, phone, city, source, status, created_at)
-     VALUES (?, 'Telegram Test Customer', '+251900TG001', 'Addis Ababa', 'Website', 'Confirmed', NOW())`,
+    `INSERT INTO orders (id, customer_name, phone, city, source, status, total, created_at)
+     VALUES (?, 'Telegram Test Customer', '+251900TG001', 'Addis Ababa', 'Website', 'Confirmed', 0.00, NOW())`,
     [testOrderId]
   );
 
@@ -34,8 +34,8 @@ beforeAll(async () => {
 
   // Insert a vendor order for PO accept test
   await pool.query(
-    `INSERT INTO vendor_orders (id, order_id, vendor_name, item, amount, status)
-     VALUES (UUID(), ?, 'Test Vendor', 'Test Item', '50 units', 'pending')`,
+    `INSERT INTO vendor_orders (id, order_id, vendor_name, item, amount, price, status)
+     VALUES (UUID(), ?, 'Test Vendor', 'Test Item', '50 units', 1000, 'pending')`,
     [testVendorOrderId]
   );
 });
@@ -213,7 +213,7 @@ describe("POST /api/telegram/webhook — PO callbacks", () => {
       `SELECT status FROM vendor_orders WHERE order_id = ?`,
       [testVendorOrderId]
     ) as [any[], any];
-    expect(rows[0]?.status).toBe("confirmed");
+    expect(rows[0]?.status).toBe("approved");
   });
 
   it("handles po_decline callback", async () => {
@@ -235,7 +235,7 @@ describe("POST /api/telegram/webhook — PO callbacks", () => {
       `SELECT status FROM vendor_orders WHERE order_id = ?`,
       [testVendorOrderId]
     ) as [any[], any];
-    expect(rows[0]?.status).toBe("declined");
+    expect(rows[0]?.status).toBe("cancelled");
   });
 
   it("handles unknown callback data gracefully", async () => {

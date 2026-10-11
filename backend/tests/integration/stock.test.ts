@@ -59,8 +59,8 @@ beforeAll(async () => {
 
   // Vendor order for receive test
   await pool.query(
-    `INSERT INTO vendor_orders (id, order_id, vendor_name, item, amount, product_id, status, created_at)
-     VALUES (?, 'VO-STOCK-TEST', 'Test Vendor', 'Stock Test Product A', '25 units', ?, 'confirmed', NOW())
+    `INSERT INTO vendor_orders (id, order_id, vendor_name, item, amount, price, product_id, status, created_at)
+     VALUES (?, 'VO-STOCK-TEST', 'Test Vendor', 'Stock Test Product A', '25 units', 5000, ?, 'approved', NOW())
      ON DUPLICATE KEY UPDATE status = VALUES(status)`,
     [vendorOrderId, productId]
   );

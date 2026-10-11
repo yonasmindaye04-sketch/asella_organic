@@ -19,7 +19,7 @@ import pool from "../../src/config/db.js";
 import { calculateCommission, resolveRule, round2 } from "../../src/lib/commission.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { authenticator } from "otplib";
+import { generateSync } from "otplib";
 
 const PASSWORD = "CommissionTest123!";
 
@@ -566,7 +566,7 @@ describe("affiliate deletion (item 3)", () => {
       const retry = await request(app)
         .delete(`/api/referrals/affiliates/${throwaway}`)
         .set("Authorization", `Bearer ${adminToken}`)
-        .set("x-2fa-token", authenticator.generate(cfg[0].two_factor_secret));
+        .set("x-2fa-token", generateSync({ secret: cfg[0].two_factor_secret }).token);
 
       expect(retry.status).toBe(200);
 

@@ -8,7 +8,7 @@ import app from "../../src/app.js";
 import pool from "../../src/config/db.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { authenticator } from "otplib";
+import { generateSecret, generateSync } from "otplib";
 
 let adminToken: string;
 let employeeToken: string;
@@ -17,7 +17,14 @@ const employeeId = crypto.randomUUID();
 const staffForAffiliateId = crypto.randomUUID();
 
 // A real TOTP secret so require2FA can be exercised without mocking otplib.
-const TWO_FA_SECRET = "JBSWY3DPEHPK3PXP";
+//
+// Generated rather than hardcoded. The previous literal, "JBSWY3DPEHPK3PXP",
+// is 10 bytes, and otplib v13 enforces a 16-byte (128-bit) minimum — both
+// generateSync and verifySync reject it with "Secret must be at least 16
+// bytes". generateSecret() produces one that satisfies the same check
+// middleware/2fa.ts applies in production, so a secret that works here is a
+// secret the real 2FA path would accept.
+const TWO_FA_SECRET = generateSecret();
 let testTwoFa: string;
 
 // Track created entities for cleanup
@@ -59,7 +66,7 @@ beforeAll(async () => {
      WHERE id = ?`,
     [TWO_FA_SECRET, adminId]
   );
-  testTwoFa = authenticator.generate(TWO_FA_SECRET);
+  testTwoFa = generateSync({ secret: TWO_FA_SECRET }).token;
 
   const [adminRes, empRes] = await Promise.all([
     request(app).post("/api/auth/login").send({ email: "ref_admin@test.com", password: "RefTest123!" }),

@@ -396,7 +396,10 @@ router.post(
         res.status(404).json({ success: false, error: "Vendor order not found." });
         return;
       }
-      if (vo.status === "completed") {
+      // 'received', not 'completed'. 009_vendor_expenses.sql narrowed the enum
+      // to ('pending','approved','received','cancelled') after migrating the
+      // legacy values away, so a 'completed' comparison can never be true.
+      if (vo.status === "received") {
         await conn.rollback();
         res.status(400).json({ success: false, error: "Vendor order already received." });
         return;
@@ -452,7 +455,7 @@ router.post(
 
       // Mark vendor_order as completed
       await conn.query(
-        `UPDATE vendor_orders SET status = 'completed', updated_at = NOW() WHERE id = ?`,
+        `UPDATE vendor_orders SET status = 'received', updated_at = NOW() WHERE id = ?`,
         [vendorOrderId]
       );
 
