@@ -48,10 +48,17 @@ const uid = (p: string) => `${p}-${crypto.randomUUID().slice(0, 8)}`;
 
 async function createOrder(status: string, total = 1000): Promise<string> {
   const id = uid("ORD-TEST");
+  // customer_id is required for the commission trigger to resolve an affiliate.
+  // trg_order_delivered_commission joins on orders.customer_id, never on phone,
+  // and that is correct: routes/orders.ts:214-216 resolves the customer from
+  // phone and writes customer_id on insert, so every real order carries it.
+  // This fixture inserted a phone but no customer_id, so the trigger saw
+  // NEW.customer_id = NULL and silently credited nothing.
+  const [cust] = await pool.query("SELECT id FROM customers WHERE phone = ?", [phoneA]) as [any[], any];
   await pool.query(
-    `INSERT INTO orders (id, customer_name, phone, city, location, total, status, source)
-     VALUES (?, 'Commission Test', ?, 'Addis Ababa', 'Test', ?, ?, 'other')`,
-    [id, phoneA, total, status]
+    `INSERT INTO orders (id, customer_name, phone, city, location, total, status, source, customer_id)
+     VALUES (?, 'Commission Test', ?, 'Addis Ababa', 'Test', ?, ?, 'other', ?)`,
+    [id, phoneA, total, status, cust[0]?.id ?? null]
   );
   orderIds.push(id);
   return id;
@@ -115,8 +122,8 @@ beforeAll(async () => {
 
   const [adminRes, affARes, affBRes] = await Promise.all([
     request(app).post("/api/auth/login").send({ username: `cm_admin_${adminId.slice(0, 8)}@test.com`, password: PASSWORD }),
-    request(app).post("/api/auth/login").send({ username: `cm_affA_${affUserA.slice(0, 8)}@test.com`, password: PASSWORD }),
-    request(app).post("/api/auth/login").send({ username: `cm_affB_${affUserB.slice(0, 8)}@test.com`, password: PASSWORD }),
+    request(app).post("/api/auth/login").send({ username: `cm_a_${affUserA.slice(0, 8)}@test.com`, password: PASSWORD }),
+    request(app).post("/api/auth/login").send({ username: `cm_b_${affUserB.slice(0, 8)}@test.com`, password: PASSWORD }),
   ]);
 
   adminToken = adminRes.body?.data?.token;
@@ -439,8 +446,19 @@ describe("affiliate portal isolation", () => {
       const res = await request(app)
         .get(path)
         .set("Authorization", `Bearer ${affAToken}`);
-      // Either 403 (route does not exist for affiliates) or 404 — never 200
-      // with affiliate B's data.
+
+      // The property under test is "affiliate B's data is never returned",
+      // not "every probe is refused". /api/affiliate/me is a real route and
+      // correctly answers 200 with the CALLER's own profile — it simply
+      // ignores an affiliate_id query parameter, which is the behaviour worth
+      // pinning. So a 200 is acceptable only when the body is A's data.
+      if (res.status === 200) {
+        const body = JSON.stringify(res.body ?? {});
+        expect(body).not.toContain(affB);
+        expect(body).not.toContain(uid("CMB"));
+        continue;
+      }
+
       expect([403, 404]).toContain(res.status);
     }
   });

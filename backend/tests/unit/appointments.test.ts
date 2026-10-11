@@ -37,6 +37,38 @@ const VALID_PAYLOAD = {
   email:           "yonas@example.com",
 };
 
+// ── Transport mock, installed for the WHOLE file ──────────────────────────────
+//
+// This used to be scoped to the "SMTP path" describe only, which was too late.
+// lib/mailer.ts caches its transporter in a module-level `cached` variable, and
+// the first test in this file that reaches the mail path built and cached a
+// REAL one. Every later spy was then installed on nodemailer while the cached
+// value kept pointing at the genuine transport, so sendMailMock recorded zero
+// calls.
+//
+// Two details matter here, and the second was the one that bit:
+//   1. The spy has to exist before any test reaches the mail path.
+//   2. There must be ONE mock object for the whole file, not a fresh one per
+//      test. `cached` is set once and never cleared, so a new mock installed
+//      later is simply never adopted — the route keeps using the first one. A
+//      per-test mockClear() gives each test a clean call log without breaking
+//      the identity the cache holds onto.
+//
+// Installing it file-wide also means no test here opens a real SMTP connection.
+const sendMailMock = jest.fn() as unknown as jest.MockedFunction<(...args: any[]) => any>;
+
+beforeEach(() => {
+  sendMailMock.mockReset();
+  sendMailMock.mockResolvedValue({ messageId: "ok" });
+  jest.spyOn(nodemailer, "createTransport").mockReturnValue({
+    sendMail: sendMailMock,
+  } as any);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe("POST /api/appointments — validation", () => {
   it("returns 422 when full_name is missing", async () => {
     const { full_name, ...rest } = VALID_PAYLOAD;
@@ -118,7 +150,6 @@ describe("POST /api/appointments — Telegram fallback (no SMTP)", () => {
 describe("POST /api/appointments — SMTP path", () => {
   let originalSmtpUser: string | undefined;
   let originalSmtpPass: string | undefined;
-  let sendMailMock: jest.MockedFunction<(...args: any[]) => any>;
 
   beforeAll(() => {
     originalSmtpUser = process.env.SMTP_USER;
@@ -132,17 +163,9 @@ describe("POST /api/appointments — SMTP path", () => {
     process.env.SMTP_PASS = originalSmtpPass;
   });
 
-  beforeEach(() => {
-    sendMailMock = jest.fn() as unknown as jest.MockedFunction<(...args: any[]) => any>;
-    sendMailMock.mockResolvedValue({ messageId: "ok" });
-    jest.spyOn(nodemailer, "createTransport").mockReturnValue({
-      sendMail: sendMailMock,
-    } as any);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+  // sendMailMock and the nodemailer spy come from the file-level hooks above;
+  // installing them again here would race the cached transporter in
+  // lib/mailer.ts all over again.
 
   it("sends the business notification via SMTP", async () => {
     const res = await request(app).post("/api/appointments").send(VALID_PAYLOAD);
@@ -167,11 +190,37 @@ describe("POST /api/appointments — SMTP path", () => {
     expect(sendMailMock.mock.calls[0][0].to).toBe("asellamoringa@gmail.com");
   });
 
-  it("returns 500 when sendMail throws", async () => {
+  it("falls back to Telegram and still reports success when the business email fails", async () => {
+    // sendMail never throws — lib/mailer.ts documents that it "resolves to
+    // { sent: false, error }" — so a 500 here was never reachable. The route
+    // used to discard that result, log "emails sent", and answer 200 while
+    // nothing was delivered. Because there is no appointments table, that was
+    // silent data loss.
     sendMailMock.mockRejectedValueOnce(new Error("SMTP server down"));
+
     const res = await request(app).post("/api/appointments").send(VALID_PAYLOAD);
-    expect(res.status).toBe(500);
-    expect(res.body.success).toBe(false);
-    expect(res.body.error).toMatch(/try again later/);
+
+    // The request is NOT lost: it is retried on the Telegram channel.
+    expect(res.status).toBe(200);
+    expect(res.body.data.delivered_via).toBe("telegram");
+    expect(mockFetch).toHaveBeenCalled();
+  });
+
+  it("reports the failure honestly when both channels are unavailable", async () => {
+    const originalChat = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    process.env.TELEGRAM_ADMIN_CHAT_ID = "";
+    try {
+      sendMailMock.mockRejectedValueOnce(new Error("SMTP server down"));
+
+      const res = await request(app).post("/api/appointments").send(VALID_PAYLOAD);
+
+      // Still 200 — the customer did nothing wrong and re-submitting would
+      // only duplicate — but the payload says plainly that nothing was
+      // delivered, instead of claiming an email went out.
+      expect(res.status).toBe(200);
+      expect(res.body.data.delivered_via).toBe("email_failed");
+    } finally {
+      process.env.TELEGRAM_ADMIN_CHAT_ID = originalChat;
+    }
   });
 });
