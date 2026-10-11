@@ -265,13 +265,59 @@ describe("PATCH /api/vendor-orders/:id/status", () => {
     expect(res.status).toBe(404);
   });
 
-  it("accepts all four valid status values", async () => {
-    for (const status of ["pending", "approved", "received", "cancelled"]) {
+  it("enforces the documented transition matrix", async () => {
+    // Replaces "accepts all four valid status values", which looped all four
+    // values against ONE order and so asked for pending->pending and
+    // received->cancelled. Both are correctly refused:
+    //
+    //   VALID_TRANSITIONS, routes/vendor-orders.ts:83
+    //     pending   -> approved | cancelled
+    //     approved  -> received | cancelled
+    //     received  -> terminal
+    //     cancelled -> terminal
+    //
+    // "All four are valid values" and "all four are reachable from here" are
+    // different claims, and only the second one is false. A fresh order is
+    // created per case so each transition starts from a known state.
+    // A newly created order is already 'pending', so `from` is the path taken
+    // to reach the state under test, not the starting state itself.
+    const cases: Array<{ from: string[]; to: string; expectOk: boolean }> = [
+      { from: [],                    to: "approved",  expectOk: true  },
+      { from: [],                    to: "cancelled", expectOk: true  },
+      { from: [],                    to: "pending",   expectOk: false },
+      { from: ["approved"],          to: "received",  expectOk: true  },
+      { from: ["approved"],          to: "approved",  expectOk: false },
+      { from: ["approved","received"], to: "cancelled", expectOk: false },
+      { from: ["cancelled"],         to: "approved",  expectOk: false },
+    ];
+
+    for (const c of cases) {
       const res = await request(app)
-        .patch(`/api/vendor-orders/${createdId}/status`)
+        .post("/api/vendor-orders")
         .set("Authorization", `Bearer ${adminToken}`)
-        .send({ status });
-      expect([200, 204]).toContain(res.status);
+        .send({ ...BASE_VALID, vendor_name: `${VENDOR_NAME} ${Math.random()}` });
+      expect(res.status).toBe(201);
+      const id = res.body?.data?.id;
+
+      for (const step of c.from) {
+        const stepRes = await request(app)
+          .patch(`/api/vendor-orders/${id}/status`)
+          .set("Authorization", `Bearer ${adminToken}`)
+          .send({ status: step });
+        expect([200, 204]).toContain(stepRes.status);
+      }
+
+      const final = await request(app)
+        .patch(`/api/vendor-orders/${id}/status`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ status: c.to });
+
+      if (c.expectOk) {
+        expect([200, 204]).toContain(final.status);
+      } else {
+        expect({ path: `${c.from.join(">")}>${c.to}`, status: final.status, error: final.body?.error })
+          .toEqual({ path: `${c.from.join(">")}>${c.to}`, status: 400, error: expect.stringMatching(/Cannot transition/) });
+      }
     }
   });
 });

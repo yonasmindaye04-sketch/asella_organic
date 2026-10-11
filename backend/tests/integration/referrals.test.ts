@@ -82,7 +82,8 @@ afterAll(async () => {
   // Cleanup in safe order
   if (createdCommissionId) {
     await pool.query(`DELETE FROM referral_commissions WHERE id = ?`, [createdCommissionId]).catch(() => {});
-    await pool.query(`DELETE FROM orders WHERE id = 'ORD-REF-TEST'`).catch(() => {});
+    await pool.query(`DELETE FROM orders WHERE id LIKE 'ORD-REF-%'`).catch(() => {});
+    await pool.query(`DELETE FROM referral_commissions WHERE order_id LIKE 'ORD-REF-%'`).catch(() => {});
   }
   if (createdAffiliateId) {
     await pool.query(`DELETE FROM affiliate_profiles WHERE id = ?`, [createdAffiliateId]).catch(() => {});
@@ -404,13 +405,28 @@ describe("PATCH /api/referrals/commissions/:id/pay", () => {
   });
 
   it("refuses to pay a reversed commission", async () => {
+    // Its own order id. 021_affiliate_hardening.sql:128 adds
+    // UNIQUE INDEX uq_commission_order_affiliate, so a second commission for
+    // the same (order_id, affiliate_id) is rejected by the database — which is
+    // the guard doing its job, not a defect. Sharing the literal
+    // 'ORD-REF-TEST' with another test in this file collided with it.
+    // referral_commissions.order_id is VARCHAR(50), so the prefix has to stay
+    // short enough to leave room for the 36-character UUID.
+    const orderId = `ORD-REF-REV-${crypto.randomUUID()}`;
     const commissionId = crypto.randomUUID();
+    // referral_commissions.order_id references orders(id), so the order has to
+    // exist before the commission row can point at it.
+    await pool.query(
+      `INSERT INTO orders (id, customer_name, phone, city, total, status, source)
+       VALUES (?, 'Ref Test', '125', 'City', 500, 'Delivered', 'other')`,
+      [orderId]
+    );
     await pool.query(
       `INSERT INTO referral_commissions
          (id, affiliate_id, order_id, commission_amount, commission_type,
           commission_value, order_total, status)
-       VALUES (?, ?, 'ORD-REF-TEST', 25, 'percentage', 10, 250, 'reversed')`,
-      [commissionId, createdAffiliateId]
+       VALUES (?, ?, ?, 25, 'percentage', 10, 250, 'reversed')`,
+      [commissionId, createdAffiliateId, orderId]
     );
 
     const res = await request(app)
@@ -420,6 +436,9 @@ describe("PATCH /api/referrals/commissions/:id/pay", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/reversed/i);
+
+    await pool.query(`DELETE FROM referral_commissions WHERE id = ?`, [commissionId]);
+    await pool.query(`DELETE FROM orders WHERE id = ?`, [orderId]);
 
     await pool.query(`DELETE FROM referral_commissions WHERE id = ?`, [commissionId]);
   });
