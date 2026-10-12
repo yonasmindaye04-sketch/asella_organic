@@ -564,7 +564,6 @@ router.post(
       name, category = "broadcast", body, template_id,
       segment, city, min_orders, max_days_idle, scheduled_at, max_cost_etb,
       recipients,
-      provider: providerInput,
     } = req.body as Record<string, any>;
 
     if (!name?.trim() || !body?.trim()) {

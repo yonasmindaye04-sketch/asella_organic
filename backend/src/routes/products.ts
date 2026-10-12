@@ -494,11 +494,11 @@ router.patch(
       }
 
       values.push(req.params.id);
-      const [result] = await pool.query(
+      await pool.query(
         `UPDATE products SET ${updates.join(", ")}, updated_at = NOW()
          WHERE id = ?`,
         values
-      ) as [any, any];
+      );
 
       await pool.query(
         `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
