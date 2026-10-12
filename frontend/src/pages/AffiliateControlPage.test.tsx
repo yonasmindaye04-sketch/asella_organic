@@ -146,7 +146,7 @@ describe('AffiliateControlPage', () => {
     const { default: Page } = await import('./AffiliateControlPage');
     render(<Page />);
 
-    await waitFor(() => expect(screen.getByText('Affiliate Control')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Affiliate Control/)).toBeTruthy());
 
     // Header + KPI cards. Note: the labels are uppercased via CSS, which does
     // not change textContent. "Affiliates" legitimately appears twice (the KPI
@@ -193,7 +193,7 @@ describe('AffiliateControlPage', () => {
     const { default: Page } = await import('./AffiliateControlPage');
     render(<Page />);
 
-    await waitFor(() => expect(screen.getByText('Affiliate Control')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Affiliate Control/)).toBeTruthy());
     // Falls back to zero rather than throwing on .length
     await waitFor(() =>
       expect(screen.getByText(/All affiliates with portal access \(0\)/)).toBeTruthy());
@@ -213,7 +213,7 @@ describe('AffiliateControlPage', () => {
     const { default: Page } = await import('./AffiliateControlPage');
     render(<Page />);
 
-    await waitFor(() => expect(screen.getByText('Affiliate Control')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Affiliate Control/)).toBeTruthy());
     // Commission ledger must still render — one panel's failure is contained
     await waitFor(() => expect(screen.getByText('Commission Movement')).toBeTruthy());
     expect(screen.getByText('Sales & Engagement Reports')).toBeTruthy();

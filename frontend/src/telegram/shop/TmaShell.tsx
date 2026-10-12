@@ -68,7 +68,7 @@ export function TmaShell({
             )}
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-black tracking-wide text-white">
-                Asella — {t('header.brand')}
+                {t('header.brand')}
               </span>
             </span>
           </div>
