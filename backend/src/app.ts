@@ -117,15 +117,28 @@ app.use(cors({
 
 /**
  * Origin substituted for the CSRF check when a request carries neither Origin
- * nor Referer and NODE_ENV is not production. Supertest sends neither, so
- * without this every mutating request in the test suite is rejected at the
- * door and each suite that logs in first fails on an undefined token.
+ * nor Referer — and only when NODE_ENV is exactly "test".
  *
- * Always one of the dev origins isAllowedOrigin already accepts, so the
- * matcher still runs. A caller that supplies its own header is unaffected —
- * only the absent case is filled in.
+ * Supertest sends neither header, so without this every mutating request in
+ * the suite is rejected at the door and each suite that logs in first fails on
+ * an undefined token. Patching supertest itself was tried first and abandoned:
+ * the tests are ESM, and swapping the module through moduleNameMapper made
+ * Jest's loader import it after the environment had torn down.
+ *
+ * Gated on "test" rather than "not production" on purpose. config/env.ts
+ * DEFAULTS NODE_ENV to "development" when it is unset, so a production host
+ * that forgets NODE_ENV=production would otherwise have silently lost the
+ * "a mutating request must carry an Origin" half of the defence — turning a
+ * misconfiguration into a weaker security posture. A browser always attaches
+ * Origin to a cross-site POST, so real traffic is unaffected either way; only
+ * the non-browser test client is.
+ *
+ * The value is one isAllowedOrigin already accepts outside production, so the
+ * matcher still runs rather than being bypassed. A caller that supplies its own
+ * header is untouched: only the absent case is filled in.
  */
 const TEST_ORIGIN_FALLBACK = "http://localhost:5173";
+const IS_TEST_ENV = process.env.NODE_ENV === "test";
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   // Safe methods don't mutate state
@@ -145,22 +158,18 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   // ── Test-mode accommodation ──────────────────────────────────────────────
-  // Supertest sends neither Origin nor Referer, so every mutating request in
-  // the suite was rejected at the door with 403 and each suite that logs in
-  // first died on `res.body.data.token` being undefined. Patching supertest
-  // was tried first and abandoned: the test files are ESM, and swapping the
-  // module out made Jest's loader import it after teardown.
+  // Fills in a known-allowed origin ONLY when the header is absent AND
+  // NODE_ENV is exactly "test". See TEST_ORIGIN_FALLBACK above for why the
+  // gate is "test" and not "not production".
   //
-  // This substitutes a known-allowed origin ONLY when the header is absent
-  // and only outside production. A request that supplies its own Origin still
-  // goes through isAllowedOrigin below, so "the origin must match" — the
-  // property that actually stops a hostile page — remains fully enforced and
-  // testable. Only "a header must be present at all" is relaxed, and only for
-  // the test client.
+  // A request that supplies its own Origin still goes through isAllowedOrigin
+  // below, so "the origin must match" — the property that actually stops a
+  // hostile page — stays fully enforced and testable. Only "a header must be
+  // present at all" is relaxed, and only for the test client.
   const origin =
     req.headers.origin ||
     req.headers.referer ||
-    (process.env.NODE_ENV === "production" ? undefined : TEST_ORIGIN_FALLBACK);
+    (IS_TEST_ENV ? TEST_ORIGIN_FALLBACK : undefined);
   
   if (!origin) {
     res.status(403).json({ success: false, error: "CSRF protection: Missing Origin or Referer header" });

@@ -103,3 +103,36 @@ export async function orderRateLimit(req: Request, res: Response, next: NextFunc
   }
   next();
 }
+
+/**
+ * SMS send limiter.
+ *
+ * Every endpoint that spends real money needs its own budget rather than the
+ * shared 600/minute general bucket. POST /api/sms/send-test enqueues a
+ * genuine message on every call, so under the general limit a single admin
+ * session — or a stolen one — could queue 600 messages a minute. The daily
+ * cost ceiling (SMS_MAX_DAILY_COST_ETB) would eventually stop the bleeding,
+ * but that is hours of spend and outbound SMS to real handsets in the
+ * meantime.
+ *
+ * 20 per 10 minutes is ample for a technician confirming an API key and a
+ * number format, and is not reachable by accident. Dispatch, the expensive
+ * operation, keeps its own controls: 2FA, a typed confirmation phrase, and
+ * the per-campaign and per-day cost ceilings.
+ */
+const smsCache = makeCache(10 * 60 * 1_000);
+
+export async function smsSendRateLimit(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const allowed = await check(smsCache, "sms-send", getRateLimitKey(req), 20, 10 * 60 * 1_000);
+  if (!allowed) {
+    res
+      .status(429)
+      .json({ success: false, error: "Too many SMS sends. Wait a few minutes and try again." });
+    return;
+  }
+  next();
+}

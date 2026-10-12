@@ -25,12 +25,16 @@ import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { require2FA } from "../middleware/2fa.js";
 import { validate } from "../middleware/validate.js";
+import { smsSendRateLimit } from "../middleware/rateLimit.js";
 import { createLogger } from "../lib/logger.js";
 import { entityIdParam } from "../lib/ids.js";
 import {
+  CreateSmsCampaignSchema,
   DispatchSmsCampaignSchema,
+  PreviewSmsCampaignSchema,
   SendSmsSchema,
   SmsConsentSchema,
+  SmsTemplateSchema,
 } from "../schemas/index.js";
 import {
   calculateSmsSegments,
@@ -206,7 +210,20 @@ interface PreviewInput {
  * number, duplicates — plus the segment total and the cost band. Staff read
  * those numbers and then confirm on the dispatch endpoint.
  */
-router.post("/preview", ...staffOnly, async (req: Request, res: Response): Promise<void> => {
+/**
+ * POST /api/sms/preview
+ *
+ * The dry run. Makes no provider calls and costs nothing; it returns the exact
+ * recipient counts, segment totals and cost band that dispatch would produce.
+ *
+ * `validate()` was missing here even though PreviewSmsCampaignSchema already
+ * existed. Without it the recipients array was unbounded, and the loop below
+ * awaits once per entry, so a body carrying a very large list turned a
+ * supposedly free endpoint into a long-running request that held a DB
+ * connection per recipient. The schema caps it at 20,000 and bounds every
+ * other field.
+ */
+router.post("/preview", ...staffOnly, validate(PreviewSmsCampaignSchema), async (req: Request, res: Response): Promise<void> => {
   try {
     const input = req.body as PreviewInput;
 
@@ -536,13 +553,18 @@ router.get("/campaigns", ...staffOnly, async (req: Request, res: Response): Prom
  * persisted row that a separate preview and dispatch act on, so the
  * numbers staff approve survive a page reload.
  */
-router.post("/campaigns", ...staffOnly, async (req: Request, res: Response): Promise<void> => {
+router.post(
+  "/campaigns",
+  ...staffOnly,
+  validate(CreateSmsCampaignSchema),
+  async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     const {
       name, category = "broadcast", body, template_id,
       segment, city, min_orders, max_days_idle, scheduled_at, max_cost_etb,
       recipients,
+      provider: providerInput,
     } = req.body as Record<string, any>;
 
     if (!name?.trim() || !body?.trim()) {
@@ -685,7 +707,15 @@ router.get("/templates", ...staffOnly, async (_req: Request, res: Response): Pro
   }
 });
 
-router.post("/templates", ...staffOnly, async (req: Request, res: Response): Promise<void> => {
+/**
+ * POST /api/sms/templates
+ *
+ * Upsert by template_key, so the dashboard can iterate on copy without
+ * accumulating near-duplicate rows. validate() was missing here: template_key
+ * lands in a UNIQUE column and locale is written straight to the row, so
+ * bounding both matters.
+ */
+router.post("/templates", ...staffOnly, validate(SmsTemplateSchema), async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     const { template_key, name, body, locale = "en", is_transactional = false, requires_optout_footer = true } =
@@ -727,8 +757,16 @@ router.post("/templates", ...staffOnly, async (req: Request, res: Response): Pro
  * admin/manager and only for one number — it deliberately has no batch
  * mode, because a "test" endpoint that accepts 500 recipients is a campaign
  * endpoint that will eventually be used by accident.
+ *
+ * It also carries its own rate limit, far tighter than the general /api one:
+ * each call spends real money on a real handset.
  */
-router.post("/send-test", ...staffOnly, validate(SendSmsSchema), async (req: Request, res: Response): Promise<void> => {
+router.post(
+  "/send-test",
+  ...staffOnly,
+  smsSendRateLimit,
+  validate(SendSmsSchema),
+  async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     if (!isSmsConfigured()) {

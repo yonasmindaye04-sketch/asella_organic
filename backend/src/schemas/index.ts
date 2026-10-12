@@ -232,6 +232,13 @@ export const AdjustStockSchema = z.object({
 // ─── Stock requests ───────────────────────────────────────────────────────
 
 export const CreateStockRequestSchema = z.object({
+  // Must be declared here or it never reaches the handler. validate() replaces
+  // req.body with the parsed result and a Zod object strips unknown keys, so an
+  // undeclared product_id arrived as undefined and was inserted as NULL — which
+  // then made routes/stock.ts:639 ("status === 'received' && sr.product_id")
+  // permanently false, so receiving a stock request never recorded the
+  // inventory movement and stock was never updated from one.
+  product_id:      z.string().uuid("product_id must be a UUID").optional().or(z.literal("")),
   item:            z.string().trim().min(1),
   package_size:    z.string().trim().optional(),
   stock_available: z.number().int().nonnegative().default(0),
@@ -246,6 +253,11 @@ export const CreateStockRequestSchema = z.object({
 export const UpdateStockRequestStatusSchema = z.object({
   status: z.enum(["pending", "ordered", "received", "cancelled"]),
   notes:  z.string().trim().max(500).optional(),
+  // routes/stock.ts:633 applies this with COALESCE(?, qty_needed), so the
+  // route always handled "only change it if supplied" correctly. It was never
+  // able to, though, because the field was undeclared and therefore stripped
+  // before the handler saw it — so revising the quantity silently did nothing.
+  qty_needed: z.number().int().positive().optional(),
 });
 
 // ─── Payments ─────────────────────────────────────────────────────────────
@@ -324,7 +336,14 @@ export const PreviewSmsCampaignSchema = z.object({
   recipients: z
     .array(
       z.object({
-        phone: phoneShape,
+        // Deliberately NOT phoneShape. This list is usually pasted or
+        // uploaded, and the route reports how many entries were not valid
+        // Ethiopian mobiles (with up to 25 samples) instead of refusing the
+        // whole request — which is the only workable behaviour for a 5,000-row
+        // paste. Requiring a valid shape here would make that reporting dead
+        // code and force the operator to hand-fix every bad row blind.
+        // Length is still bounded so a single entry cannot be abused.
+        phone: z.string().trim().min(1).max(40),
         name: z.string().trim().max(120).optional(),
       }),
     )
@@ -333,8 +352,15 @@ export const PreviewSmsCampaignSchema = z.object({
   text: z.string().trim().min(1, "Message text is required").max(1000),
 });
 
-export const CreateSmsCampaignSchema = PreviewSmsCampaignSchema.extend({
+export const CreateSmsCampaignSchema = PreviewSmsCampaignSchema.omit({ text: true }).extend({
   name: z.string().trim().min(3, "Campaign name is required").max(160),
+  // The campaign body arrives as `body`, not `text`. The dry run (preview) and
+  // the draft (create) genuinely use different field names and both the
+  // frontend (SmsComposerPanel) and the route agree on `body` here, so the
+  // schema follows the client rather than the reverse. Inheriting `text` from
+  // the preview schema instead would have stripped `body` before the handler
+  // saw it — the same silent-undefined failure as a missing campaign_id.
+  body: z.string().trim().min(1, "Message text is required").max(1000),
   category: z.enum(["broadcast", "marketing"]).default("broadcast"),
   template_id: z.string().uuid().optional().or(z.literal("")),
   scheduled_at: z
@@ -345,7 +371,28 @@ export const CreateSmsCampaignSchema = PreviewSmsCampaignSchema.extend({
   max_cost_etb: z.coerce.number().positive().max(100_000).optional(),
 });
 
+export const SmsTemplateSchema = z.object({
+  template_key: z
+    .string()
+    .trim()
+    .min(3)
+    .max(60)
+    .regex(/^[a-z0-9._-]+$/i, "template_key may contain letters, digits, dot, dash and underscore"),
+  name: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(1000),
+  locale: z.string().trim().regex(/^[a-z]{2}(-[A-Za-z]{2,4})?$/, "locale must look like en or am").default("en"),
+  is_transactional: z.coerce.boolean().optional().default(false),
+  requires_optout_footer: z.coerce.boolean().optional().default(true),
+});
+
 export const DispatchSmsCampaignSchema = z.object({
+  // MUST be part of this object. validate() replaces req.body with the parsed
+  // result (middleware/validate.ts:43) and a Zod object strips unknown keys, so
+  // a schema that omits campaign_id silently deletes it before the handler ever
+  // reads it. The symptom was `SELECT ... WHERE id = undefined`, which matches
+  // no row, so every dispatch answered 404 and no campaign could ever be sent —
+  // while the endpoint looked complete and had no test covering it.
+  campaign_id: z.string().uuid("campaign_id must be a UUID"),
   // Staff retype the campaign name to confirm they read the dry-run numbers.
   confirm_phrase: z.string().trim().min(1).max(160),
   // Set only when the draft exceeds its own cost ceiling. The daily ceiling
