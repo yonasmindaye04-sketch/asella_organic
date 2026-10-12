@@ -1,6 +1,32 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+
+/**
+ * Per-build id appended to the service worker URL as a query string.
+ *
+ * Cloudflare fronts production, and the server's .htaccess sends
+ * `ExpiresByType text/javascript "access plus 1 month"`. That rule
+ * matches /sw.js -- it is not fingerprinted, so it never reaches the
+ * `<FilesMatch>` immutable rules -- giving the worker a 30-day edge TTL.
+ * Measured on the live site: `CF-Cache-Status: HIT`, `Age: 58251`,
+ * `Last-Modified: 2026-09-02`, while index.html and tma.html are both
+ * DYNAMIC and always fresh.
+ *
+ * The consequence is that a newly deployed sw.js is never fetched:
+ * returning PWA visitors keep the previous worker, and with it the old
+ * app shell, for up to 30 days. That is exactly the failure
+ * DEPLOYMENT_GOTCHAS.md section 1 describes, still live.
+ *
+ * A query string is a separate cache key at the edge, so a new id each
+ * build turns a guaranteed HIT into a guaranteed MISS. Every deploy then
+ * self-purges and no Cloudflare dashboard is required.
+ *
+ * The id is per-build rather than content-derived on purpose: sw.js
+ * embeds a build hash (CACHE_VERSION), so its content changes every
+ * build anyway, and a stable hash would only re-arm the 30-day cache.
+ */
+const swBuildId = Date.now().toString(36)
 /**
  * Serves the standalone Telegram Mini App at clean URLs during development.
  *
@@ -28,6 +54,10 @@ function miniAppEntryPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), miniAppEntryPlugin()],
+  define: {
+    // Injected into the bundle; see swBuildId above for why it exists.
+    __SW_BUILD_ID__: JSON.stringify(swBuildId),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
