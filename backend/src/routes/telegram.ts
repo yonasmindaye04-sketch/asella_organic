@@ -1090,7 +1090,7 @@ async function handleCallback(query: any): Promise<void> {
           const [rows] = await pool.query(`SELECT assigned_to FROM orders WHERE id = ?`, [orderId]) as [any[], any];
           const takenBy = rows[0]?.assigned_to;
           if (takenBy) {
-            await removeButtons(`${message?.text || "Order Details"}\n\nAccepted by: @${escapeMarkdown(takenBy)}`);
+            await removeButtons(`${message?.text || "Order Details"}\n\n✅ *Accepted by:* @${escapeMarkdown(takenBy)}`);
           }
           console.log(`[delivery_accept] Calling answerCallbackQuery (Already taken)`);
           await answerCallbackQuery(callbackQueryId, "This order has already been taken by another driver.", true);
@@ -1099,10 +1099,10 @@ async function handleCallback(query: any): Promise<void> {
 
         // Claim succeeded — update message in group and answer callback
         console.log(`[delivery_accept] Claim successful! Updating message...`);
-        await removeButtons(`${message?.text || "Order Details"}\n\nAccepted by: ${escapeMarkdown(driverDisplayName)} (@${escapeMarkdown(driverUsername)})`);
+        await removeButtons(`${message?.text || "Order Details"}\n\n✅ *Accepted by:* ${escapeMarkdown(driverDisplayName)} (@${escapeMarkdown(driverUsername)})`);
         
         console.log(`[delivery_accept] Calling answerCallbackQuery (Success)`);
-        await answerCallbackQuery(callbackQueryId, "Accepted! Sending you the details...", false);
+        await answerCallbackQuery(callbackQueryId, "✅ Accepted! Sending you the details...", false);
 
         // ── Non-critical post-claim steps ────────────────────────────
         try {
@@ -1176,7 +1176,29 @@ async function handleCallback(query: any): Promise<void> {
 
     if (data.startsWith("delivery_reject_")) {
       console.log(`[delivery_reject] Handling reject for data: ${data}`);
-      await answerCallbackQuery(callbackQueryId, "Order rejected. Thank you.", false);
+      // A rejection used to change nothing visible: the driver got a toast and
+      // the order card kept its live buttons, so the next driver to tap it
+      // saw a card that looked untouched. Mark it and strip the buttons, the
+      // same way accept does, so the group can see the order was declined.
+      const rejectMessageId = message?.message_id;
+      const rejectChatId = message?.chat?.id ?? process.env.TELEGRAM_DELIVERY_GROUP_ID;
+      if (rejectMessageId && rejectChatId) {
+        try {
+          const who = `${escapeMarkdown(from?.first_name || "Driver")} (@${escapeMarkdown(from?.username || "driver")})`;
+          const r = await editMessageText(
+            rejectChatId,
+            rejectMessageId,
+            `${message?.text || "Order Details"}\n\n❌ *Declined by:* ${who}`,
+            { inline_keyboard: [] }
+          );
+          if (!r || !r.ok) {
+            await editMessageReplyMarkup(rejectChatId, rejectMessageId, { inline_keyboard: [] });
+          }
+        } catch (err) {
+          console.error("[delivery_reject] could not update the group message:", err);
+        }
+      }
+      await answerCallbackQuery(callbackQueryId, "❌ Order rejected. Thank you.", false);
       return;
     }
 

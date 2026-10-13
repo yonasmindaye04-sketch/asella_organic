@@ -119,14 +119,14 @@ export function formatGroupDeliveryMessage(order: Record<string, any>): string {
         .replace(",", "");
 
   return [
-    ` *New Delivery Order*`,
+    `📦 *New Delivery Order*`,
     `━━━━━━━━━━━━━━━━━━`,
-    ` *Order:* ${order.id ?? "N/A"}`,
-    ` *City:* ${order.city ?? "Addis Ababa"}`,
-    ` *Location:* ${order.location ?? "N/A"}`,
-    ` *Items:*`,
+    `🆔 *Order:* ${order.id ?? "N/A"}`,
+    `🏙 *City:* ${order.city ?? "Addis Ababa"}`,
+    `📍 *Location:* ${order.location ?? "N/A"}`,
+    `🛒 *Items:*`,
     itemsSummary,
-    `\n ${dateStr}`,
+    `\n🕐 ${dateStr}`,
     `━━━━━━━━━━━━━━━━━━`,
     `_First to accept gets assigned. Full details sent privately._`,
   ].join("\n");
@@ -146,20 +146,20 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
     : "No items listed";
 
   return [
-    ` *DELIVERY ORDER — You're Assigned*`,
+    `🚗 *DELIVERY ORDER — You're Assigned*`,
     `━━━━━━━━━━━━━━━━━━`,
-    ` *Order ID:* \`${order.id ?? "N/A"}\``,
-    ` *Customer:* ${order.customer_name ?? "N/A"}`,
-    ` *Phone:* ${order.phone ?? "N/A"}`,
-    ` *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
-    ` *Order Type:* ${order.order_type ?? "N/A"}`,
+    `🆔 *Order ID:* \`${order.id ?? "N/A"}\``,
+    `👤 *Customer:* ${order.customer_name ?? "N/A"}`,
+    `📞 *Phone:* ${order.phone ?? "N/A"}`,
+    `📍 *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
+    `📋 *Order Type:* ${order.order_type ?? "N/A"}`,
     `━━━━━━━━━━━━━━━━━━`,
-    ` *Items:*`,
+    `🛒 *Items:*`,
     itemsSummary,
     `━━━━━━━━━━━━━━━━━━`,
-    ` *Total:* ETB ${order.total ?? 0}`,
-    ` *Payment:* ${order.payment_method ?? "N/A"}`,
-    ` *Notes:* ${order.notes ?? "None"}`,
+    `💰 *Total:* ETB ${order.total ?? 0}`,
+    `💳 *Payment:* ${order.payment_method ?? "N/A"}`,
+    `📝 *Notes:* ${order.notes ?? "None"}`,
     `━━━━━━━━━━━━━━━━━━`,
     `_Please deliver promptly and confirm on arrival._`,
   ].join("\n");
@@ -514,10 +514,10 @@ export async function sendLowStockAlert({
   await tg("sendMessage", {
     chat_id: chatId,
     text:
-      ` *Low Stock Alert*\n━━━━━━━━━━━━━━━━━━\n` +
-      ` *${name}* (${size})\n` +
+      `⚠️ *Low Stock Alert*\n━━━━━━━━━━━━━━━━━━\n` +
+      `📦 *${name}* (${size})\n` +
       `Current: \`${current}\` — Threshold: \`${threshold}\`\n` +
-      ` ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n` +
+      `📅 ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}\n` +
       `Please restock immediately.`,
     parse_mode: "Markdown",
   });
@@ -534,12 +534,12 @@ export async function sendStockRequestAlert({
   await tg("sendMessage", {
     chat_id: chatId,
     text:
-      ` *Stock Request*\n━━━━━━━━━━━━━━━━━━\n` +
-      ` *${item}* (${packageSize})\n` +
+      `📝 *Stock Request*\n━━━━━━━━━━━━━━━━━━\n` +
+      `🔹 *${item}* (${packageSize})\n` +
       `Remaining: *${current}* → Need: *${needed}*\n` +
       `Needed by: ${deliveryDate}\n` +
       `Requested by: ${requestedBy}\n` +
-      ` ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}`,
+      `📅 ${new Date().toLocaleString("en-ET", { timeZone: "Africa/Addis_Ababa" })}`,
     parse_mode: "Markdown",
   });
 }
