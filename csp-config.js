@@ -21,9 +21,16 @@ module.exports = {
   scriptSrc: ["'self'", "https://telegram.org", "https://static.cloudflareinsights.com"],
   styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
   imgSrc: ["'self'", "data:", "https:"],
+  // res.cloudinary.com is required by connect-src, not just img-src. The
+  // Media Library uploads via fetch/XHR to that host; img-src's "https:"
+  // lets the resulting image render but does nothing for the upload itself,
+  // so the browser blocks the request and the console reports
+  // "Fetch API cannot load ... violates connect-src". Verified in the
+  // production console on 2026-10-13.
   connectSrc: [
     "'self'",
     "https://api.asellaorganic.com",
+    "https://res.cloudinary.com",
     "https://i.ytimg.com",
     "https://lh3.googleusercontent.com",
   ],
