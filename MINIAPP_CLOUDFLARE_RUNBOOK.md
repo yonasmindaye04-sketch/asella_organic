@@ -154,6 +154,15 @@ node create-admin.js
 
 ### 3.5 Backend environment — `backend/.env`
 
+> ⚠️ **`tma.asellaorganic.com` does not currently exist.** It has no DNS record, and
+> the named tunnel behind it is gone — `cloudflared` fails with
+> `Unauthorized: Tunnel not found`. Everything below is the **local dev**
+> configuration for a named tunnel you would first have to create (§5.2).
+>
+> For **production** use the values in §10.3 instead:
+> `https://www.asellaorganic.com` and
+> `https://www.asellaorganic.com/telegram-store`.
+
 ```env
 # ── Server ────────────────────────────────────────────────
 PORT=3001
@@ -318,6 +327,12 @@ And if you registered a direct link or menu button manually via BotFather, **red
 
 Use this if you want `https://tma.asellaorganic.com` to keep working across restarts, and for anything beyond a quick smoke test.
 
+> **Status as of 2026-10-13: this tunnel does not exist.** No DNS record for
+> `tma.asellaorganic.com`, and `cloudflared` reports
+> `Unauthorized: Tunnel not found`. Run the three commands below to create it, or
+> skip this section and use a quick tunnel (§5.1) while developing locally.
+> Production does not use a tunnel at all — see §10.
+
 **One-time:**
 
 ```powershell
@@ -431,21 +446,38 @@ Gated routes: `POST /set-menu-button`, `POST /set-webhook`, `GET /set-webhook`, 
 
 ### 7.2 Menu button — via BotFather
 
+**Verified 2026-10-13:** `tma.asellaorganic.com` **does not resolve** — it has no A record. Do not use it. An earlier revision of this runbook used it here, and the button silently pointed at a dead host.
+
+Use the same origin the site is served from:
+
 ```
 @BotFather → /setmenubutton → select your bot
 → button text:  Store
-→ Web App URL:  https://tma.asellaorganic.com/telegram-store
+→ Web App URL:  https://www.asellaorganic.com/telegram-store
 ```
 
+Prefer `www`, not the apex: `.htaccess` 301-redirects `asellaorganic.com` to `www.asellaorganic.com`, and only the `www` form is on the CORS allowlist. Telegram follows redirects, but there is no reason to depend on one.
+
+You normally do **not** need this step — `initBotConfiguration()` sets the menu button on every boot. Use BotFather only when the backend cannot: no token, or the URL changed without a restart.
+
 ### 7.3 Direct link (`t.me/YourBot/store`)
+
+This is the one thing the backend **cannot** do for you — Telegram only accepts a Main Web App URL through BotFather. Confirmed live on 2026-10-13 as `has_main_web_app: false`, so the direct link does not work yet.
 
 ```
 @BotFather → /newapp → select your bot
 → Title:        Asella Organic Store
 → Description:  100% natural organic health products from Ethiopian highlands
-→ Icon:         640×360 image
+→ Icon:         640x360 image (must be a public HTTPS URL, not a local path)
 → Short name:   store
-→ Web App URL:  https://tma.asellaorganic.com/telegram-store
+→ Web App URL:  https://www.asellaorganic.com/telegram-store
+```
+
+Verify afterwards with the public endpoint, no auth needed:
+
+```powershell
+curl.exe https://api.asellaorganic.com/api/telegram/health
+# "has_main_web_app": true
 ```
 
 Yields `https://t.me/AsellaOrganicBot/store`.
@@ -464,13 +496,23 @@ Yields `https://t.me/AsellaOrganicBot/store`.
 
 ### 7.5 Set the webhook (production only)
 
+**Already correct on production as of 2026-10-13** — do not re-run this casually:
+
+```json
+"url": "https://api.asellaorganic.com/api/telegram/webhook"
+```
+
+The API is a **separate subdomain** from the site. Do not use `tma.asellaorganic.com` (dead) and do not use the website apex: `asellaorganic.com/api/*` is served by Apache and will not reach Express at all.
+
+If you ever do need to set it — a new host, a rotated secret, or a fresh deploy — the correct form is:
+
 ```powershell
 curl.exe -b cookies.txt -X POST http://localhost:3001/api/telegram/set-webhook `
   -H "Content-Type: application/json" `
-  -d "{\"url\":\"https://tma.asellaorganic.com/api/telegram/webhook\"}"
+  -d "{\"url\":\"https://api.asellaorganic.com/api/telegram/webhook\"}"
 ```
 
-⚠️ This **drops any pending Telegram updates** (`backend/src/lib/telegram.ts:217`). Don't re-run it casually.
+⚠️ This **drops any pending Telegram updates** (`backend/src/lib/telegram.ts:217`). Don't re-run it casually — that warning used to sit above an example URL that would have broken the integration outright.
 
 ⚠️ `POST /api/telegram/set-webhook` and `GET /api/telegram/set-webhook` are **two different implementations**. Prefer POST.
 
@@ -722,16 +764,47 @@ Also note messages older than **5 minutes** are recorded and skipped (`telegram.
 
 ### 10.1 Shape
 
+Verified against production on 2026-10-13. The two front doors are **different
+subdomains**, and confusing them is the most common mistake in this section.
+
 ```
-Internet ──► Cloudflare (proxy, orange cloud, TLS) ──► Origin server
-                                                       ├── Apache  → /var/www/frontend/dist  (static + .htaccess)
-                                                       └── Node/PM2 → 127.0.0.1:3001          (API)
-                                                            └── MySQL 127.0.0.1:3306
+                 Cloudflare  (orange cloud, TLS, DDoS, edge cache)
+                            |
+   www.asellaorganic.com --+--> Apache    ->  ~/public_html
+   asellaorganic.com        |    static + .htaccess
+   (301 -> www)             |    /telegram-store -> tma.html
+                            |
+   api.asellaorganic.com ---+--> Passenger ->  ~/asella-monorepo/backend/dist/server.js
+                                   Node 24, Express on :3001
+                            |
+                            +--> MySQL     ->  database `asellafs_organic`
 ```
 
-`.htaccess` handles the `/telegram-store` → `tma.html` rewrite, cache headers, HSTS, and CSP. Cloudflare provides TLS, DDoS protection, and caching in front.
+**PM2 is not used in production.** `ecosystem.config.cjs` exists at the repo root,
+but the live app is a cPanel "Setup Node.js App" Passenger application restarted
+from the cPanel UI. `backend/deployment guide.md` is the authoritative deploy
+document; this section only covers the Mini App specifics.
 
-**`.htaccess` requires `mod_rewrite` and `mod_headers`, and `AllowOverride All` on the document root.** If `mod_headers` is missing, the CSP header is silently absent.
+**The server keeps its own `.htaccess`.** `frontend/dist/.htaccess` is generated
+by `postbuild.js` but must be excluded from the upload, or the Mini App rewrites
+and the CSP are lost. Confirmed live 2026-10-13: `/tma`, `/telegram-store` and
+`/tma.html` all serve the Mini App document.
+
+`.htaccess` handles the `/telegram-store` -> `tma.html` rewrite, cache headers,
+HSTS, and CSP. Cloudflare provides TLS, DDoS protection, and caching in front.
+
+**`.htaccess` requires `mod_rewrite` and `mod_headers`, and `AllowOverride All` on
+the document root.** If `mod_headers` is missing, the CSP header is silently absent.
+
+**One Cloudflare trap.** The server sets `ExpiresByType text/javascript "access plus
+1 month"`, which also catches `/sw.js` because it is not fingerprinted. Measured
+live 2026-10-13: `/sw.js` was `CF-Cache-Status: HIT`, `Age: 58251`,
+`Last-Modified: 2026-09-02`, while `/index.html` and `/tma.html` were `DYNAMIC`.
+The worker is therefore now registered as `/sw.js?v=<per-build id>`
+(`frontend/src/lib/sw-register.ts`). A query string is a distinct edge cache key,
+so every deploy self-purges and **no Cloudflare dashboard is required**. Adding a
+`no-store` rule for `sw.js` to the server `.htaccess` is still worth doing as
+defense in depth.
 
 ### 10.2 Deploy
 
@@ -748,22 +821,34 @@ npm run build        # tsc -b && vite build && node scripts/postbuild.js
 npm run check-csp    # must print: CSP config matches dist/.htaccess
 ```
 
-Copy `frontend/dist` to the web root.
+Copy `frontend/dist` to the web root, **excluding `.htaccess`** (see §10.1).
+
+On the server there is no process manager to start. The app is a cPanel
+Passenger application:
 
 ```bash
-# on the server
-pm2 start ecosystem.config.cjs
-pm2 save
+pkill -9 -f "asella-monorepo/backend"
 ```
+
+then cPanel → Setup Node.js App → **Restart**. `pm2 start ecosystem.config.cjs`
+is the local/dev path only.
 
 ### 10.3 Production environment
 
 ```env
 NODE_ENV=production
-PUBLIC_URL=https://asellaorganic.com
-ALLOWED_ORIGINS=https://asellaorganic.com,https://www.asellaorganic.com
-TELEGRAM_MINIAPP_URL=https://asellaorganic.com/telegram-store
+PUBLIC_URL=https://www.asellaorganic.com
+ALLOWED_ORIGINS=https://www.asellaorganic.com,https://asellaorganic.com
+TELEGRAM_MINIAPP_URL=https://www.asellaorganic.com/telegram-store
 ```
+
+Use `www`, not the apex: the apex 301-redirects to `www`, and that is the host
+the site is actually served from. **The API host is separate** — it is
+`api.asellaorganic.com`, and it must be on `ALLOWED_ORIGINS` too or the Mini App
+cannot reach the API from the webview.
+
+Restart the backend after changing any of these: `initBotConfiguration()` reads
+`TELEGRAM_MINIAPP_URL` on boot and sets the menu button from it.
 
 All secrets from §3.5, with production values. **Never commit `.env`.**
 
@@ -772,12 +857,32 @@ There is an existing deployment helper at `backend/scripts/YEGARAHOST_DEPLOY_RUN
 ### 10.4 After deploying
 
 ```powershell
-curl.exe -X POST https://asellaorganic.com/api/telegram/set-webhook -H "Content-Type: application/json" -d '{"url":"https://asellaorganic.com/api/telegram/webhook"}'
-curl.exe https://asellaorganic.com/api/telegram/health
-curl.exe https://asellaorganic.com/api/health
+# api.* is the API host. The apex serves Apache and has no /api at all.
+curl.exe https://api.asellaorganic.com/api/health
+curl.exe https://api.asellaorganic.com/api/telegram/health
 ```
 
-Then hard-refresh the Mini App on your phone. The service worker (`frontend/public/sw.js`) caches HTML network-first and `__VERSION__` is rewritten per build (`frontend/scripts/postbuild.js:59-68`), so old content shouldn't stick — but `telegram.org`'s webview cache is outside your control.
+`/api/telegram/health` is public and is the fastest confirmation that the bot,
+the webhook and the Main Web App are all correct. Expect:
+
+```json
+"webhook": { "url": "https://api.asellaorganic.com/api/telegram/webhook" }
+```
+
+Only re-register the webhook if that URL is actually wrong —
+`POST /api/telegram/set-webhook` **drops pending updates** (§7.5).
+
+Then open the bot in Telegram and tap the **Store** button. The Mini App header
+should read "Asella Organic". If it reads "Asella - Asella Organic", the service
+worker is being replayed from Cloudflare's edge (§10.1).
+
+Then hard-refresh the Mini App on your phone. The service worker
+(`frontend/public/sw.js`) serves navigations network-first and its
+`CACHE_VERSION` is rewritten per build (`frontend/scripts/postbuild.js`), so a
+correctly delivered worker does update the app shell. The failure mode is
+*getting* that worker: Cloudflare was replaying a six-week-old `/sw.js` from
+its edge (§10.1), which is why it is now registered with a per-build query
+string. `telegram.org`'s own webview cache sits outside your control on top.
 
 ---
 
