@@ -279,17 +279,22 @@ async function sendCustomerMenu(chatId: number): Promise<void> {
 }
 
 async function sendVendorMenu(chatId: number): Promise<void> {
+  // vendor_orders has no `total` and no `telegram_chat_id`; the money column
+  // is `price` and the chat column is `vendor_chat_id`. Both mistakes were
+  // live at once -- MySQL only reports the first unknown column, so fixing
+  // `total` alone would have surfaced ER_BAD_FIELD_ERROR on telegram_chat_id
+  // next. `vendor_chat_id` is VARCHAR(100), hence the explicit String().
   const [rows] = await pool.query(
-    `SELECT order_id, status, total, created_at
-     FROM vendor_orders WHERE telegram_chat_id = ? ORDER BY created_at DESC LIMIT 5`,
-    [chatId]
+    `SELECT order_id, status, price, created_at
+     FROM vendor_orders WHERE vendor_chat_id = ? ORDER BY created_at DESC LIMIT 5`,
+    [String(chatId)]
   ) as [any[], any];
 
   let msg = "*Vendor Menu*\n\n";
   if (rows.length) {
     msg += "Your recent purchase orders:\n";
     msg += rows.map((r: any) =>
-      `• ${r.order_id} — ${r.status} — ETB ${Number(r.total ?? 0).toLocaleString()}`
+      `• ${r.order_id} — ${r.status} — ETB ${Number(r.price ?? 0).toLocaleString()}`
     ).join("\n");
   } else {
     msg += "No purchase orders yet.";

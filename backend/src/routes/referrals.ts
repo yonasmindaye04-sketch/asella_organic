@@ -502,7 +502,8 @@ router.post("/affiliates/:id/portal-access", require2FA, async (req, res) => {
   }
 
   const [rows] = await pool.query(
-    `SELECT ap.id, ap.user_id, ap.full_name, ap.email, ap.phone, ap.is_active, ap.deleted_at
+    `SELECT ap.id, ap.user_id, ap.full_name, ap.email, ap.phone, ap.is_active,
+            ap.deleted_at, ap.referral_code
      FROM   affiliate_profiles ap
      WHERE  ap.id = ?`,
     [affiliateId]
@@ -547,7 +548,20 @@ router.post("/affiliates/:id/portal-access", require2FA, async (req, res) => {
     await connection.beginTransaction();
 
     const userId = crypto.randomUUID();
-    const username = `aff_${(profile.referral_code ?? "").toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+    // `affiliate_profiles.referral_code` is NOT NULL UNIQUE, so a suffixed
+    // username derived from it is unique as well.
+    //
+    // referral_code has to be selected above for this to work: without it
+    // the expression collapsed every affiliate onto the literal username
+    // "aff_". staff_users.username is UNIQUE, so the first grant silently
+    // created a junk login and every later grant died on
+    //   ER_DUP_ENTRY Duplicate entry 'aff_' for key 'username'
+    // which the generic catch reported as a 500. The random fallback keeps
+    // a missing code from reproducing that.
+    const codePart = String(profile.referral_code ?? "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const username = `aff_${codePart || crypto.randomBytes(4).toString("hex")}`;
     // Temporary password — the affiliate must change it on first login.
     const tempPassword = `Asella!${crypto.randomBytes(6).toString("hex")}`;
 
