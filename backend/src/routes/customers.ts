@@ -124,7 +124,20 @@ router.get(
       values.push(like, like, like, like);
     }
     if (city)     { conditions.push("v.city LIKE ?");           values.push(`%${city}%`); }
-    if (segment)  { conditions.push("v.segment = ?");           values.push(segment); }
+    // COLLATE is required, not decoration.
+    //
+    // vw_customer_insights is internally inconsistent: `segment` comes from
+    // a CASE returning the literals 'VIP'/'Loyal'/... so it took the
+    // database default, utf8mb4_general_ci, while every other projected
+    // column is inherited from `customers` and is utf8mb3_unicode_ci.
+    // Comparing that column against a literal raises
+    //   ERROR 1267 Illegal mix of collations
+    // and surfaced as a 500 on GET /api/customers?segment=... once the pool
+    // was pinned to utf8mb4_unicode_ci. Pinning the pool cannot fix this
+    // one column -- the two spellings have to be reconciled at the
+    // comparison, and this is the only query in the codebase that
+    // compares `segment` to a literal.
+    if (segment)  { conditions.push("v.segment COLLATE utf8mb4_unicode_ci = ?"); values.push(segment); }
     if (min_score) { conditions.push("v.value_score >= ?");     values.push(Number(min_score) || 0); }
     if (max_score) { conditions.push("v.value_score <= ?");     values.push(Number(max_score) || 0); }
     if (returned_only === "true") { conditions.push("v.returned_count > 0"); }
