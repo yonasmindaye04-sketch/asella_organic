@@ -436,7 +436,13 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.get("/", authenticate, async (req: Request, res: Response) => {
+router.get("/", authenticate,
+  // Roles only. The list projects `o.*`, so without a role guard any
+  // authenticated principal could dump the whole customer book — name, phone,
+  // address, notes — by paging through it. Affiliates are excluded: they
+  // have their own scoped portal endpoints.
+  authorise("admin", "manager", "employee", "delivery"),
+  async (req: Request, res: Response) => {
   const log = createLogger(req);
   try {
     const {
@@ -560,6 +566,13 @@ router.get(
 router.patch(
   "/:id/status",
   authenticate,
+  // Roles only, and deliberately not `delivery`: this transition is the one
+  // that moves money and stock. Setting status='Delivered' fires
+  // trg_order_delivered_commission, which credits a real affiliate
+  // commission, and deducts inventory. Without a role guard any
+  // authenticated principal could mint commissions by driving orders to
+  // Delivered, then flip them to Cancelled to reverse it again.
+  authorise("admin", "manager", "employee"),
   validate(UpdateStatusSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);

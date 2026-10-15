@@ -76,6 +76,10 @@ function _stockStatus(qty: number, threshold: number): "ok" | "low" | "critical"
 router.get(
   "/",
   authenticate,
+  // Exposes stock_value = quantity × unit_cost for every SKU, i.e. a full
+  // COGS valuation. `authenticate` alone let any role (including affiliate)
+  // read it. Matches the guard already on /movements below.
+  authorise("admin", "manager", "employee"),
   async (req: Request, res: Response): Promise<void> => {
     const { search, status } = req.query as Record<string, string | undefined>;
 
@@ -151,6 +155,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
+  authorise("admin", "manager", "employee"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const [[summary]] = await pool.query(
@@ -282,6 +287,7 @@ router.get(
 router.get(
   "/low",
   authenticate,
+  authorise("admin", "manager", "employee"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const [rows] = await pool.query(
@@ -487,6 +493,8 @@ router.post(
 router.post(
   "/request",
   authenticate,
+  // This is a write, and it fires a Telegram alert to the admin group.
+  authorise("admin", "manager", "employee"),
   validate(CreateStockRequestSchema),
   async (req: Request, res: Response): Promise<void> => {
     const {

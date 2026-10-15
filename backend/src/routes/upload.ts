@@ -7,6 +7,7 @@ import { fileTypeFromBuffer } from "file-type";
 
 import cloudinary from "../lib/cloudinary.js";
 import { authenticate, authorise } from "../middleware/auth.js";
+import { uploadRateLimit } from "../middleware/rateLimit.js";
 
 const router = Router();
 
@@ -62,7 +63,10 @@ router.post("/image", authenticate, authorise("admin", "manager"), upload.single
   }
 });
 
-router.post("/receipt", upload.single("receipt"), async (req: Request, res: Response) => {
+// Public on purpose: this is the customer uploading proof of payment from
+// checkout (frontend OrderForm.tsx), before they have any account. Guarded by
+// a dedicated per-IP budget instead of a session — see uploadRateLimit.
+router.post("/receipt", uploadRateLimit, upload.single("receipt"), async (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ success: false, error: "No file uploaded" });
     return;

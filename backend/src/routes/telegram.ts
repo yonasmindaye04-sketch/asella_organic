@@ -583,10 +583,22 @@ async function linkCustomerChat(
     return "taken_by_another_chat";
   }
 
-  // Ownership proof: the claimant must produce an order id that exists for
-  // this phone number. Without this, anyone who knew a customer's phone
-  // number could claim their entire order history.
-  if (proofOrderId) {
+  // Ownership proof is MANDATORY, not optional.
+  //
+  // This was written as `if (proofOrderId)`, which meant anyone could type
+  // `/link +2519xxxxxxx` from any Telegram account and take over the customer
+  // row: their telegram_chat_id, their full order history (backfilled below),
+  // and all future order-status Telegram messages and SMS. The only guard
+  // that survived was `taken_by_another_chat`, which protects customers who
+  // were *already* linked — every website checkout has a NULL chat id and is
+  // therefore claimable by anyone who knows the phone number.
+  //
+  // The "proof_required" outcome and its user-facing message already existed;
+  // this guard was simply missing. The handler parses the second token, so
+  // `/link +251911234567 ORD-20261008-AB12CD34` already works.
+  if (!proofOrderId || !proofOrderId.trim()) return "proof_required";
+
+  {
     const trimmed = proofOrderId.trim().toUpperCase();
     const [proofRows] = await pool.query(
       `SELECT id FROM orders
@@ -723,7 +735,7 @@ async function sendCustomerOrders(chatId: string | number): Promise<void> {
   ) as [any[], any];
 
   if (!rows.length) {
-    await sendSimpleMessage(chatId, "No linked orders yet. Use /order to place one or /link +251... to connect your phone.");
+    await sendSimpleMessage(chatId, "No linked orders yet. Use /order to place one, or /link +251911234567 ORD-2026... to connect a phone you ordered with.");
     return;
   }
 
@@ -745,7 +757,7 @@ async function sendOrderStatus(chatId: string | number, orderId: string): Promis
 
   const order = rows[0];
   if (!order) {
-    await sendSimpleMessage(chatId, "I could not find that order for this Telegram account. Use /link +251... first if you ordered outside Telegram.");
+    await sendSimpleMessage(chatId, "I could not find that order for this Telegram account. If you ordered outside Telegram, send: /link +251911234567 ORD-2026...");
     return;
   }
 

@@ -242,6 +242,8 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
 router.get(
   "/low-stock",
   authenticate,
+  // Returns exact quantities against the threshold, per SKU. Staff-only.
+  authorise("admin", "manager", "employee"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {

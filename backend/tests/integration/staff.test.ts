@@ -21,6 +21,18 @@ let twoFASecret: string;
 // Track created staff for cleanup
 const createdStaffIds: string[] = [];
 
+/**
+ * Attaches a freshly generated TOTP for the admin under test.
+ *
+ * POST /api/staff, PATCH /api/staff/:id and PUT /api/staff/:id/password are
+ * all `require2FA` now: creating a user, changing a role and resetting a
+ * password are each a full account takeover. The token is generated per call
+ * rather than cached because otplib codes are only valid inside a ~30s
+ * window, and this file runs for minutes.
+ */
+const with2FA = (r: request.Test): request.Test =>
+  r.set("x-2fa-token", generateSync({ secret: twoFASecret }));
+
 beforeAll(async () => {
   const hash = await bcrypt.hash("StaffTest123!", 10);
 
@@ -156,16 +168,18 @@ describe("GET /api/staff/:id", () => {
 
 describe("POST /api/staff", () => {
   it("creates a new staff member", async () => {
-    const res = await request(app)
-      .post("/api/staff")
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({
-        username: "staff_new_test",
-        password: "NewStaff123!",
-        full_name: "New Test Staff",
-        role: "employee",
-        email: "new_staff@test.com",
-      });
+    const res = await with2FA(
+      request(app)
+        .post("/api/staff")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          username: "staff_new_test",
+          password: "NewStaff123!",
+          full_name: "New Test Staff",
+          role: "employee",
+          email: "new_staff@test.com",
+        })
+    );
     expect(res.status).toBe(201);
     expect(res.body.data.username).toBe("staff_new_test");
     expect(res.body.data.role).toBe("employee");
@@ -173,49 +187,57 @@ describe("POST /api/staff", () => {
   });
 
   it("rejects duplicate username", async () => {
-    const res = await request(app)
-      .post("/api/staff")
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({
-        username: "staff_new_test",
-        password: "Duplicate123!",
-        full_name: "Dup",
-        role: "employee",
-      });
+    const res = await with2FA(
+      request(app)
+        .post("/api/staff")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          username: "staff_new_test",
+          password: "Duplicate123!",
+          full_name: "Dup",
+          role: "employee",
+        })
+    );
     expect(res.status).toBe(409);
   });
 
   it("rejects missing required fields", async () => {
-    const res = await request(app)
-      .post("/api/staff")
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({ username: "missing_fields" });
+    const res = await with2FA(
+      request(app)
+        .post("/api/staff")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ username: "missing_fields" })
+    );
     expect(res.status).toBe(400);
   });
 
   it("rejects invalid role", async () => {
-    const res = await request(app)
-      .post("/api/staff")
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({
-        username: "bad_role_user",
-        password: "BadRole123!",
-        full_name: "Bad Role",
-        role: "superadmin",
-      });
+    const res = await with2FA(
+      request(app)
+        .post("/api/staff")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          username: "bad_role_user",
+          password: "BadRole123!",
+          full_name: "Bad Role",
+          role: "superadmin",
+        })
+    );
     expect(res.status).toBe(400);
   });
 
   it("rejects short password", async () => {
-    const res = await request(app)
-      .post("/api/staff")
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({
-        username: "short_pass",
-        password: "123",
-        full_name: "Short",
-        role: "employee",
-      });
+    const res = await with2FA(
+      request(app)
+        .post("/api/staff")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({
+          username: "short_pass",
+          password: "123",
+          full_name: "Short",
+          role: "employee",
+        })
+    );
     expect(res.status).toBe(400);
   });
 
@@ -238,45 +260,55 @@ describe("POST /api/staff", () => {
 describe("PATCH /api/staff/:id", () => {
   it("updates staff member full_name", async () => {
     if (createdStaffIds.length === 0) return;
-    const res = await request(app)
-      .patch(`/api/staff/${createdStaffIds[0]}`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({ full_name: "Updated Staff Name" });
+    const res = await with2FA(
+      request(app)
+        .patch(`/api/staff/${createdStaffIds[0]}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ full_name: "Updated Staff Name" })
+    );
     expect(res.status).toBe(200);
   });
 
   it("updates staff role", async () => {
     if (createdStaffIds.length === 0) return;
-    const res = await request(app)
-      .patch(`/api/staff/${createdStaffIds[0]}`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({ role: "manager" });
+    const res = await with2FA(
+      request(app)
+        .patch(`/api/staff/${createdStaffIds[0]}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ role: "manager" })
+    );
     expect(res.status).toBe(200);
   });
 
   it("rejects invalid role", async () => {
     if (createdStaffIds.length === 0) return;
-    const res = await request(app)
-      .patch(`/api/staff/${createdStaffIds[0]}`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({ role: "superuser" });
+    const res = await with2FA(
+      request(app)
+        .patch(`/api/staff/${createdStaffIds[0]}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ role: "superuser" })
+    );
     expect(res.status).toBe(400);
   });
 
   it("rejects empty update", async () => {
     if (createdStaffIds.length === 0) return;
-    const res = await request(app)
-      .patch(`/api/staff/${createdStaffIds[0]}`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({});
+    const res = await with2FA(
+      request(app)
+        .patch(`/api/staff/${createdStaffIds[0]}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({})
+    );
     expect(res.status).toBe(400);
   });
 
   it("returns 404 for non-existent staff", async () => {
-    const res = await request(app)
-      .patch(`/api/staff/${crypto.randomUUID()}`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({ full_name: "Ghost" });
+    const res = await with2FA(
+      request(app)
+        .patch(`/api/staff/${crypto.randomUUID()}`)
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ full_name: "Ghost" })
+    );
     expect(res.status).toBe(404);
   });
 });

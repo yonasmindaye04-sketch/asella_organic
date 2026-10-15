@@ -316,6 +316,10 @@ router.post(
   "/",
   authenticate,
   authorise("admin"),
+  // Creating a user is enough for permanent takeover — CreateStaffSchema
+  // accepts any role, including admin. DELETE and the password routes below
+  // already require 2FA; this one did not.
+  require2FA,
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -377,6 +381,9 @@ router.patch(
   "/:id",
   authenticate,
   authorise("admin"),
+  // `role` is in the updatable set, so this is an escalation primitive as
+  // well as an edit. Requires 2FA for the same reason DELETE does.
+  require2FA,
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -434,6 +441,10 @@ router.put(
   "/:id/password",
   authenticate,
   authorise("admin"),
+  // Resetting any user's password is a full account takeover. The sibling
+  // PATCH /:id/password below already required 2FA; this duplicate PUT did
+  // not, so the control was one endpoint away from being meaningless.
+  require2FA,
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {

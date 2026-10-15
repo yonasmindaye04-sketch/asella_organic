@@ -105,6 +105,32 @@ export async function orderRateLimit(req: Request, res: Response, next: NextFunc
 }
 
 /**
+ * Receipt-upload limiter.
+ *
+ * POST /api/upload/receipt is deliberately UNAUTHENTICATED — it is the
+ * customer uploading proof of payment during checkout, so it cannot require a
+ * session. That makes it an unauthenticated write of up to 5 MB into the
+ * account's web root, which the general 600/min bucket does not meaningfully
+ * constrain (~3 GB/min from one address).
+ *
+ * 10 per 5 minutes per IP leaves ample room for a customer retrying a receipt
+ * and for staff bulk-entry, and caps the abuse at ~10 MB per 5 minutes.
+ */
+const uploadCache = makeCache(5 * 60 * 1_000);
+
+export async function uploadRateLimit(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const allowed = await check(uploadCache, "upload", getRateLimitKey(req), 10, 5 * 60 * 1_000);
+  if (!allowed) {
+    res.status(429).json({
+      success: false,
+      error: "Too many uploads. Please wait a few minutes and try again.",
+    });
+    return;
+  }
+  next();
+}
+
+/**
  * SMS send limiter.
  *
  * Every endpoint that spends real money needs its own budget rather than the
