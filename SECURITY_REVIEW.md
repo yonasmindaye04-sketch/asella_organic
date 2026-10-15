@@ -133,8 +133,8 @@ Recommend it as its own change, with its own testing.
 `db/sql/004_dummy_data.sql` (279 KB) seeded 11 named accounts — `dawit.admin`,
 `mesay.manager`, `yonas.admin` and so on — all sharing **one** bcrypt hash. The
 same shared hash repeated in `027_seed_order_lifecycle.sql` and
-`028_seed_affiliates.sql`. Two scripts carried plaintext passwords
-(`[redacted]`, `[redacted]`).
+`028_seed_affiliates.sql`. Two scripts carried hardcoded plaintext
+passwords, one per admin account.
 
 Removed on 2026-10-15:
 
