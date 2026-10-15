@@ -519,6 +519,12 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
 router.get(
   "/:id",
   authenticate,
+  // Roles only. `authenticate` alone was an IDOR: an affiliate is a real
+  // staff_users session, so any partner could read any order in the system —
+  // this returns `o.*`, which includes customer name, phone and address —
+  // simply by iterating the order id. The portal has its own scoped endpoints
+  // for what an affiliate is allowed to see.
+  authorise("admin", "manager", "employee", "delivery"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {

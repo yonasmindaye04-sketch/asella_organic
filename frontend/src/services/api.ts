@@ -104,8 +104,18 @@ async function request<T>(
       // Retry the original request once with the new access token cookie
       return request<T>(method, path, body, false);
     } else {
-      // Refresh failed — session is truly gone, redirect to login
-      window.location.href = "/login";
+      // Session is genuinely gone.
+      //
+      // This used to do `window.location.href = "/login"`, which was a blunt
+      // instrument: it fired for ANY 401 from ANY page. A public customer who
+      // had just placed an order was bounced off their own receipt, because
+      // the receipt fetches GET /api/orders/:id and that route requires auth.
+      //
+      // Now the stored session is cleared and a guard-mounted listener (see
+      // ProtectedRoute) decides what to do. On a public page nothing happens;
+      // the caller sees `success: false` and already has a fallback.
+      localStorage.removeItem('user');
+      window.dispatchEvent(new Event('asella:session-expired'));
       return { success: false, error: "Session expired." };
     }
   }
