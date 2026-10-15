@@ -479,7 +479,7 @@ Helmet merges its defaults under these (`backend/node_modules/helmet/index.cjs`,
 | 1 | `001_complete_schema.sql` (18.8 KB) | 23 base tables + indexes (L11-334) |
 | 2 | `002_affiliate_commission_trigger.sql` | `DROP TRIGGER IF EXISTS trg_order_delivered_commission` (L11); creates that trigger (L15); `referral_commissions` table (L89) + 2 indexes (L105-106) |
 | 3 | `003_security_and_inventory.sql` | `staff_users.two_factor_secret` (L20), `two_factor_enabled` (L29); backfills `stock_snapshots` (L38) |
-| 4 | `004_dummy_data.sql` (285 KB) | Bulk dummy seed incl. `INSERT INTO stock_snapshots` (L133) — **runs in CI too** |
+| 4 | _(removed)_ | `004_dummy_data.sql` — bulk fixture, **deleted 2026-10-15**. Contained 11 named staff accounts sharing one bcrypt hash plus plaintext passwords.
 | 5 | `005_order_items_product_id.sql` | adds `order_items.product_id` (L19); `UPDATE order_items …` backfill (L31); index (L39) |
 | 6 | `006_clean_products.sql` | **`UPDATE products SET active = false WHERE 1=1` (L13)**; **`DELETE FROM stock_snapshots WHERE 1=1` (L16)**; inserts the canonical 29 products with `INSERT IGNORE` |
 | 7 | `007_idempotency_keys.sql` | `idempotency_keys` table (L7) |
@@ -554,12 +554,12 @@ Base definitions from `001_complete_schema.sql` unless noted. All PKs are `CHAR(
 
 | Script | Location | Behaviour |
 |---|---|---|
-| `004_dummy_data.sql` | `backend/db/sql/004_dummy_data.sql` | 285 KB of dummy rows. **Applied by CI** because `migrate.cjs` runs every `db/sql/*.sql`. |
-| `006_clean_products.sql` | `backend/db/sql/006_clean_products.sql` | Deactivates every product, wipes `stock_snapshots`, then `INSERT IGNORE` the canonical 29 SKUs. **The seed itself contains near-duplicates:** `Moringa Seed` **and** `Moringa powder` as separate names for the same product (L21-38). |
+| _(removed)_ | — | `004_dummy_data.sql`, `027`–`030`, `032_verify_seed.sql` — **deleted 2026-10-15**. They were bulk fixtures, not schema. `004` held real-looking staff accounts sharing one bcrypt hash; the seeds were already refused in production by the `DANGEROUS_MIGRATION` regex in `migrate.cjs`. |
+| `006_clean_products.sql` | `backend/db/sql/006_clean_products.sql` | Deactivates every product, wipes `stock_snapshots`, then `INSERT IGNORE` the canonical 29 SKUs. **Retained** — this is the production catalogue definition, not a fixture. **The seed itself contains near-duplicates:** `Moringa Seed` **and** `Moringa powder` as separate names for the same product (L21-38). |
 | `003_security_and_inventory.sql:L38` | migration | backfills `stock_snapshots` |
 | `add_products.ts` | `backend/add_products.ts` | 66 lines, 30 hardcoded products. Requires `--force` (L38-42). Normalises name and does a `SELECT … WHERE LOWER(TRIM(name)) = ? AND package_size = ?` pre-check (L46-50) then `INSERT IGNORE`. **It imports `./src/config/db` without the `.js` extension** (L1), which breaks under the repo's `"type": "module"` ESM setup. |
-| `create-admin.js` | `backend/create-admin.js` | Reads `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_FULL_NAME`, `ADMIN_ROLE`. |
-| `reset_pwd.js` | `backend/reset_pwd.js` | Resets a named admin to a **hardcoded plaintext password** against a **hardcoded connection string**. |
+| `create-admin.js` | `backend/create-admin.js` | **The only way to create the first admin** now that the seed is gone. Reads `INITIAL_ADMIN_PASSWORD`, `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_ROLE`; validates role and password strength. Fixed 2026-10-15 — it inserted into `name` (column is `full_name`) and omitted the `NOT NULL` `username`, so it could never have run. |
+| _(removed)_ | — | `reset_pwd.js`, `reset-dawit-password.js`, `fix_columns.js`, `fix_sql.js`, `fix_uuids.js` — **deleted 2026-10-15**. The first two reset a named admin to a **hardcoded plaintext password**; the other three existed only to repair `004`. |
 | `fix_cogs.ts` | `backend/scripts/fix_cogs.ts` | `UPDATE products SET unit_cost = price * 0.5` and `UPDATE order_items SET unit_cost = unit_price * 0.5` — global, un-guarded. |
 | `migrate_cogs.ts` | `backend/scripts/migrate_cogs.ts` | Backfills `unit_cost` from vendor orders; references `vendor_orders.product_id`, a column **not present** in the inferred schema. |
 | `migrate.ts` | `backend/scripts/migrate.ts` | Applies only `014_employee_tracking.sql`, splitting on `;`. |

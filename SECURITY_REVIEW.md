@@ -126,21 +126,39 @@ login would stop affiliates logging in *at all*, since there is nowhere else for
 them to go. Doing this properly means building a real affiliate login first.
 Recommend it as its own change, with its own testing.
 
-### B. Real credentials are committed in the repo
+### B. Real credentials were committed in the repo — files now removed
 
-`db/sql/004_dummy_data.sql:14-24` seeds 11 named accounts — `dawit.admin`,
-`mesay.manager`, `yonas.admin` and so on — all sharing **one** bcrypt hash.
-The same shared hash repeats in `027_seed_order_lifecycle.sql` and
-`028_seed_affiliates.sql`.
+**Status: the files are deleted as of `a1b2c3d`, but the exposure is not yet closed.**
 
-Two live scripts carry plaintext passwords:
-- `backend/reset-dawit-password.js:6-8` — `[redacted]`
-- `backend/scripts/reset_pwd.js:6-9` — `[redacted]`
+`db/sql/004_dummy_data.sql` (279 KB) seeded 11 named accounts — `dawit.admin`,
+`mesay.manager`, `yonas.admin` and so on — all sharing **one** bcrypt hash. The
+same shared hash repeated in `027_seed_order_lifecycle.sql` and
+`028_seed_affiliates.sql`. Two scripts carried plaintext passwords
+(`[redacted]`, `[redacted]`).
 
-**Please check whether these still work against production.** If they do, rotate
-first, then decide about history — they are in git, so removing the files alone
-does not remove them. `.env` files are correctly gitignored and no API keys or
-tokens are committed; this is the one real exposure in the repo.
+Removed on 2026-10-15:
+
+```
+004_dummy_data.sql  027_seed_order_lifecycle.sql  028_seed_affiliates.sql
+029_seed_engagement_telegram_sms.sql  030_seed_edge_cases.sql
+032_verify_seed.sql
+fix_columns.js  fix_sql.js  fix_uuids.js       (only existed to repair 004)
+reset-dawit-password.js  scripts/reset_pwd.js  (plaintext credentials)
+```
+
+**Two things still need doing, and the first is not optional:**
+
+1. **Check whether those passwords still work against production, and rotate if
+   they do.** Deleting a file does not change a password. This is the actual
+   risk — everything else here is hygiene.
+2. Decide about history. They remain in git commits even though they are gone
+   from the working tree. Rewriting history (`git filter-repo` / BFG) and
+   force-pushing would remove them from the log, but that rewrites every commit
+   hash for anyone who has cloned — only worth it if the repo is private and you
+   are confident nobody else depends on it.
+
+`.env` files were always correctly gitignored and no API keys or tokens were
+committed.
 
 ---
 

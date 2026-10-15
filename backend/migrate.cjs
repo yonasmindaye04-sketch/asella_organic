@@ -107,10 +107,19 @@ async function runMigrations() {
   }
 
   const files          = fs.readdirSync(sqlDir).filter(f => f.endsWith(".sql")).sort();
+
+  // `APPLY-*.sql` is a consolidated bundle for applying 021–033 by hand through
+  // phpMyAdmin, where running them one file at a time is impractical. It is not
+  // a migration in its own right: it re-runs the very same statements as
+  // 021…033, so letting this runner pick it up makes every database fail with
+  // "Duplicate column name" the moment the individual files have been applied.
+  // Excluded here; it stays on disk for the manual phpMyAdmin workflow.
+  const scanFiles      = files.filter(f => !f.startsWith("APPLY-"));
+
   const [appliedRows]  = await connection.query("SELECT filename FROM migrations_log");
   const appliedFiles   = new Set(appliedRows.map(r => r.filename));
 
-  const pendingFiles = files.filter(f => !appliedFiles.has(f));
+  const pendingFiles   = scanFiles.filter(f => !appliedFiles.has(f));
 
   const args = process.argv.slice(2);
   const isProduction = process.env.NODE_ENV === "production";
@@ -211,7 +220,10 @@ async function runMigrations() {
       : []
   );
 
-  for (const file of files) {
+  // Iterate scanFiles, not files — otherwise the APPLY-* bundle that was
+  // filtered out above is still executed, because the appliedFiles check only
+  // skips migrations this runner recorded itself.
+  for (const file of scanFiles) {
     if (appliedFiles.has(file)) {
       console.log(`Skipping (already applied): ${file}`);
       continue;

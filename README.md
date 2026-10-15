@@ -19,8 +19,13 @@ You must configure a production `.env` file for the backend. Never commit this f
 
 ### 2. 🗄️ Database Readiness
 - [ ] **MySQL Production Database**: Ensure you are connecting to a production-grade MySQL database (not local SQLite).
-- [ ] **Run Migrations**: Ensure `001_complete_schema.sql` and `004_dummy_data.sql` (if you need the default Admin user) are executed on the live database.
-- [ ] **Change Default Admin Password**: Immediately log in using the default admin credentials and **change the password**. Set up 2FA immediately.
+- [ ] **Run Migrations**: Ensure the schema files in `backend/db/sql/` are applied to the live database (see `backend/deployment guide.md`). The bulk fixture scripts (`004_dummy_data`, `027`–`030`, `032`) have been removed — there is no seeded admin and no dummy orders.
+- [ ] **Create the First Admin**: There is no default admin any more. Bootstrap one explicitly, with your own password:
+  ```bash
+  cd backend
+  INITIAL_ADMIN_PASSWORD='<strong-password>' ADMIN_USERNAME=your_admin ADMIN_EMAIL=you@example.com node create-admin.js
+  ```
+  It refuses weak passwords and an invalid role. **Set up 2FA immediately** after the first sign-in.
 - [ ] **Automated Backups**: Configure daily automated SQL dumps for your MySQL database. 
 
 ### 3. 🌐 Infrastructure & Security

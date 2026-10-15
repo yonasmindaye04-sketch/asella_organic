@@ -13,6 +13,7 @@ dotenv.config();
 // Configuration from environment variables (no hardcoded secrets)
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "asella_admin";
 const ADMIN_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD;
+const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || "";
 const ADMIN_FULL_NAME = process.env.ADMIN_FULL_NAME || "System Admin";
 const ADMIN_ROLE = process.env.ADMIN_ROLE || "admin";
 
@@ -72,8 +73,8 @@ async function main() {
         const hash = await bcrypt.hash(ADMIN_PASSWORD, saltRounds);
         const usernameTrimmed = ADMIN_USERNAME.trim();
 
-        // Check if user already exists (Replaces ON CONFLICT DO NOTHING)
-        const checkQuery = `SELECT id FROM staff_users WHERE email = ?`;
+        // Check if user already exists
+        const checkQuery = `SELECT id FROM staff_users WHERE username = ?`;
         const [existingUsers] = await pool.query(checkQuery, [usernameTrimmed]);
 
         if (existingUsers.length > 0) {
@@ -82,27 +83,32 @@ async function main() {
             // Generate a random UUID string for MySQL compatibility
             const userId = randomUUID();
 
-            // MySQL parameterized query using '?'
+            // staff_users requires `username` and `full_name`. Both are NOT NULL.
+            // `email` is unique but nullable, so it is only written when supplied.
             const insertQuery = `
-                INSERT INTO staff_users (id, email, password_hash, name, role)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO staff_users
+                    (id, username, password_hash, full_name, role, email, active)
+                VALUES (?, ?, ?, ?, ?, ?, TRUE)
             `;
 
             const values = [
                 userId,
-                usernameTrimmed, 
-                hash, 
-                ADMIN_FULL_NAME.trim(), 
-                ADMIN_ROLE
+                usernameTrimmed,
+                hash,
+                ADMIN_FULL_NAME.trim(),
+                ADMIN_ROLE,
+                ADMIN_EMAIL || null
             ];
 
             await pool.query(insertQuery, values);
 
             console.log("SUCCESS: Admin user created successfully.");
             console.log(`Username : ${usernameTrimmed}`);
+            console.log(`Email    : ${ADMIN_EMAIL || '(none)'}`);
             console.log(`Role     : ${ADMIN_ROLE}`);
             console.log(`ID       : ${userId}`);
             console.log("\nLogin available at the application login endpoint.");
+            console.log("Set up 2FA immediately after first sign-in.");
         }
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') {
