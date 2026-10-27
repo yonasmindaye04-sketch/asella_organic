@@ -40,7 +40,7 @@ router.get(
     const { category, from, to, page = "1", limit = "50" } = req.query as Record<string, string | undefined>;
 
     const PAGE   = Math.max(1, parseInt(page ?? "1", 10));
-    const LIMIT  = Math.min(100, parseInt(limit ?? "50", 10));
+    const LIMIT  = Math.min(2000, parseInt(limit ?? "50", 10));
     const OFFSET = (PAGE - 1) * LIMIT;
 
     const conditions: string[] = ["e.voided_at IS NULL"];

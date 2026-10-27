@@ -80,35 +80,55 @@
 }
 
 @layer utilities {
-  /* Dashboard design system — matches the website's organic green palette */
+  /* Dashboard design system — bundui/shadcn-ui-kit Zinc/Slate palette with subtle emerald accents */
   :root {
-    --bg-deep: #f0f7f0;
-    --bg: #f7fdf7;
+    --bg-deep: #f4f4f5;
+    --bg: #f8fafc;
     --bg-card: #ffffff;
-    --bg-card-hover: #f4faf4;
-    --border: #d4ecd4;
-    --border-light: #c8e6c9;
-    --fg: #1a2e1b;
-    --fg-secondary: #3a5c3a;
-    --muted: #6b8f6e;
-    --accent: #2e7d32;
-    --accent-light: #43a047;
-    --accent-dim: rgba(46, 125, 50, 0.08);
-    --accent-glow: rgba(46, 125, 50, 0.12);
-    --emerald: #2e7d32;
-    --emerald-dim: rgba(46, 125, 50, 0.08);
-    --sky: #1b6d24;
-    --sky-dim: rgba(27, 109, 36, 0.07);
-    --rose: #c62828;
-    --rose-dim: rgba(198, 40, 40, 0.07);
-    --violet: #388e3c;
-    --violet-dim: rgba(56, 142, 60, 0.08);
-    --radius: 14px;
-    --radius-sm: 10px;
-    --radius-xs: 7px;
-    --shadow-card: 0 1px 3px rgba(30,80,30,0.05), 0 4px 16px rgba(30,80,30,0.04);
-    --shadow-hover: 0 4px 12px rgba(30,80,30,0.08), 0 8px 28px rgba(30,80,30,0.06);
-    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --bg-card-hover: #fafafa;
+    --border: #e4e4e7;
+    --border-light: #d4d4d8;
+    --fg: #09090b;
+    --fg-secondary: #3f3f46;
+    --muted: #71717a;
+    --accent: #059669;
+    --accent-light: #10b981;
+    --accent-dim: rgba(16, 185, 129, 0.1);
+    --accent-glow: rgba(16, 185, 129, 0.15);
+    --emerald: #059669;
+    --emerald-dim: rgba(16, 185, 129, 0.1);
+    --sky: #0284c7;
+    --sky-dim: rgba(2, 132, 199, 0.1);
+    --rose: #e11d48;
+    --rose-dim: rgba(225, 29, 72, 0.1);
+    --violet: #7c3aed;
+    --violet-dim: rgba(124, 58, 237, 0.1);
+    --amber: #d97706;
+    --amber-dim: rgba(217, 119, 6, 0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --shadow-card: 0 1px 2px 0 rgba(9, 9, 11, 0.04);
+    --shadow-hover: 0 4px 12px -2px rgba(9, 9, 11, 0.08);
+    --transition: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dark {
+    --bg-deep: #18181b;
+    --bg: #09090b;
+    --bg-card: #121215;
+    --bg-card-hover: #1f1f23;
+    --border: #27272a;
+    --border-light: #3f3f46;
+    --fg: #fafafa;
+    --fg-secondary: #d4d4d8;
+    --muted: #a1a1aa;
+    --accent: #10b981;
+    --accent-light: #34d399;
+    --emerald: #10b981;
+    --sky: #38bdf8;
+    --rose: #fb7185;
+    --violet: #a78bfa;
+    --amber: #fbbf24;
   }
 }
 

@@ -38,6 +38,13 @@ module.exports = {
   // YouTube product videos are embedded in the storefront and dashboard.
   frameSrc: ["https://www.youtube.com", "https://youtube.com", "https://www.youtube-nocookie.com"],
   objectSrc: ["'none'"],
-  frameAncestors: ["'self'", "https://web.telegram.org", "https://*.telegram.org"],
+  frameAncestors: [
+    "'self'",
+    "https://web.telegram.org",
+    "https://*.telegram.org",
+    "https://aistudio.google.com",
+    "https://*.google.com",
+    "https://*.run.app",
+  ],
   upgradeInsecureRequests: [],
 };

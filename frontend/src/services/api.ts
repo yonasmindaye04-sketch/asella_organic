@@ -47,16 +47,34 @@ interface ApiResponse<T = unknown> {
   };
 }
 
+const ACCESS_TOKEN_KEY = "asella_access_token";
+const REFRESH_TOKEN_KEY = "asella_refresh_token";
+
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 async function doRefresh(): Promise<boolean> {
   try {
+    const storedRefresh = sessionStorage.getItem(REFRESH_TOKEN_KEY);
     const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
       method: "POST",
       credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: storedRefresh ? JSON.stringify({ refreshToken: storedRefresh }) : undefined,
     });
-    return res.ok;
+    if (!res.ok) return false;
+    try {
+      const json = await res.json();
+      if (json?.data?.token) {
+        sessionStorage.setItem(ACCESS_TOKEN_KEY, json.data.token);
+      }
+      if (json?.data?.refreshToken) {
+        sessionStorage.setItem(REFRESH_TOKEN_KEY, json.data.refreshToken);
+      }
+    } catch {
+      // ignore body parse errors
+    }
+    return true;
   } catch {
     return false;
   }
@@ -70,11 +88,13 @@ async function request<T>(
   extraHeaders?: Record<string, string>,
 ): Promise<ApiResponse<T>> {
   const isFormData = body instanceof FormData;
+  const storedToken = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(ACCESS_TOKEN_KEY) : null;
   const options: RequestInit = {
     method,
     credentials: "include", // Send HttpOnly cookies automatically
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
       ...extraHeaders,
     },
   };
@@ -102,19 +122,11 @@ async function request<T>(
 
     if (refreshed) {
       // Retry the original request once with the new access token cookie
-      return request<T>(method, path, body, false);
+      return request<T>(method, path, body, false, extraHeaders);
     } else {
-      // Session is genuinely gone.
-      //
-      // This used to do `window.location.href = "/login"`, which was a blunt
-      // instrument: it fired for ANY 401 from ANY page. A public customer who
-      // had just placed an order was bounced off their own receipt, because
-      // the receipt fetches GET /api/orders/:id and that route requires auth.
-      //
-      // Now the stored session is cleared and a guard-mounted listener (see
-      // ProtectedRoute) decides what to do. On a public page nothing happens;
-      // the caller sees `success: false` and already has a fallback.
       localStorage.removeItem('user');
+      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
       window.dispatchEvent(new Event('asella:session-expired'));
       return { success: false, error: "Session expired." };
     }
@@ -155,20 +167,31 @@ export interface StaffProfile {
 
 export const auth = {
   /**
-   * Log in. On success the backend sets HttpOnly cookies.
-   * Returns the staff profile (no token ever touches JS).
+   * Log in. On success the backend sets HttpOnly cookies and returns tokens.
    */
-  login: (username: string, password: string) =>
-    api.post<{ token: string; refreshToken: string; user: StaffProfile }>("/api/auth/login", { username, password }),
+  login: async (username: string, password: string) => {
+    const res = await api.post<{ token: string; refreshToken: string; user: StaffProfile }>("/api/auth/login", { username, password });
+    if (res.success && res.data) {
+      if (res.data.token) sessionStorage.setItem(ACCESS_TOKEN_KEY, res.data.token);
+      if (res.data.refreshToken) sessionStorage.setItem(REFRESH_TOKEN_KEY, res.data.refreshToken);
+    }
+    return res;
+  },
 
   /**
    * Log out. The backend clears both cookies and revokes the refresh token.
    */
-  logout: () => api.post<void>("/api/auth/logout", {}),
+  logout: async () => {
+    const storedRefresh = sessionStorage.getItem(REFRESH_TOKEN_KEY);
+    const res = await api.post<void>("/api/auth/logout", storedRefresh ? { refreshToken: storedRefresh } : {});
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    return res;
+  },
 
   /**
    * Fetch the current authenticated user.
-   * Call this on app load to rehydrate auth state from the cookie.
+   * Call this on app load to rehydrate auth state from the cookie or Bearer token.
    * Returns 401 if not logged in.
    */
   me: () => api.get<StaffProfile>("/api/auth/me"),

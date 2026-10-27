@@ -1,7 +1,4 @@
-# .github/workflows/ci.yml
-# Asella Organic — CI/CD Pipeline
-
-name: CI — Test, Audit & Deploy Check
+name: CI — Quality Gates
 
 on:
   push:
@@ -9,10 +6,16 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # ── Backend ────────────────────────────────────────────────────────────────
   backend:
-    name: Backend — Test & Audit
+    name: Backend — Build, Test & Audit
     runs-on: ubuntu-latest
 
     services:
@@ -20,9 +23,9 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: testroot
-          MYSQL_DATABASE:      asella_test
-          MYSQL_USER:          asella_user
-          MYSQL_PASSWORD:      asella_pass
+          MYSQL_DATABASE: asella_test
+          MYSQL_USER: asella_user
+          MYSQL_PASSWORD: asella_pass
         ports:
           - 3306:3306
         options: >-
@@ -32,141 +35,90 @@ jobs:
           --health-retries=3
 
     env:
-      NODE_ENV:     test
-      DB_HOST:      127.0.0.1
-      DB_PORT:      3306
-      DB_USER:      asella_user
-      DB_PASSWORD:  asella_pass
-      DB_NAME:      asella_test
-      JWT_SECRET:   ${{ secrets.JWT_SECRET || 'ci_test_secret_not_for_production_use_only_in_ci_environment_64chars_xyz' }}
-      NODE_OPTIONS: "--max-old-space-size=4096"
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: asella_user
+      DB_PASSWORD: asella_pass
+      DB_NAME: asella_test
+      JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci_test_secret_not_for_production_use_only_in_ci_environment_64chars_xyz' }}
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: 24
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install backend dependencies
-        run: cd backend && npm ci
+      - name: Install workspace dependencies
+        run: npm ci
 
       - name: TypeScript type check
-        run: cd backend && npm run typecheck --if-present
+        run: npm run typecheck --workspace=backend
 
       - name: ESLint
-        run: cd backend && npm run lint --if-present
+        run: npm run lint --workspace=backend
 
-      - name: Enable log_bin_trust_function_creators
-        run: |
-          mysql -h 127.0.0.1 -P 3306 -u root -ptestroot \
-            -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+      - name: Build backend
+        run: npm run build --workspace=backend
 
-      - name: Run DB migrations on test DB
-        run: cd backend && node migrate.cjs
+      - name: Enable MySQL migration support
+        run: mysql -h 127.0.0.1 -P 3306 -u root -ptestroot -e "SET GLOBAL log_bin_trust_function_creators = 1;"
 
-      - name: Run unit tests with coverage
-        run: |
-          cd backend && node --max-old-space-size=4096 \
-            --experimental-vm-modules \
-            ./node_modules/jest/bin/jest.js \
-            --testPathPatterns="tests/unit" \
-            --coverage \
-            --forceExit \
-            --maxWorkers=1
+      - name: Run database migrations
+        run: npm run db:migrate --workspace=backend
 
-      - name: Run integration tests
-        run: |
-          cd backend && node --max-old-space-size=4096 \
-            --experimental-vm-modules \
-            ./node_modules/jest/bin/jest.js \
-            --testPathPatterns="tests/integration" \
-            --forceExit \
-            --maxWorkers=1
-        continue-on-error: true
+      - name: Run backend unit tests
+        run: npm run test:unit:nodb --workspace=backend
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v4
-        with:
-          directory: backend/coverage
-          flags:     backend
-        continue-on-error: true
+      - name: Run backend integration tests
+        run: npm run test:integration --workspace=backend -- --runInBand
 
-      - name: Security audit (fail on high/critical)
-        run: cd backend && npm audit --audit-level=high
+      - name: Dependency audit
+        run: npm audit --audit-level=high
 
-  # ── Frontend ───────────────────────────────────────────────────────────────
   frontend:
-    name: Frontend — Build, Test & Audit
+    name: Frontend — Build & Test
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: 24
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install frontend dependencies
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend && npm ci
-          else
-            echo "No frontend/package.json found, skipping."
-          fi
+      - name: Install workspace dependencies
+        run: npm ci
 
       - name: TypeScript type check
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend && npm run typecheck --if-present
-          fi
+        run: npm run typecheck --workspace=frontend
 
       - name: ESLint
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend && npm run lint --if-present
-          fi
+        run: npm run lint --workspace=frontend
 
       - name: Production build
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend && npm run build
-          fi
+        run: npm run build --workspace=frontend
         env:
           VITE_API_URL: http://localhost:3001
 
-      - name: Frontend unit tests
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend && npm test --if-present -- --run
-          fi
+      - name: Frontend tests
+        run: npm test --workspace=frontend
 
-      - name: Security audit (fail on high/critical)
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend && npm audit --audit-level=high
-          fi
-
-  # ── Deploy gate ────────────────────────────────────────────────────────────
-  deploy-check:
-    name: Deploy Gate
+  ci-gate:
+    name: CI — All checks passed
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: All checks passed — ready to deploy
-        run: |
-          echo "╔══════════════════════════════════════╗"
-          echo "║  ✅ All CI checks passed              ║"
-          echo "║  Safe to deploy to production.       ║"
-          echo "╚══════════════════════════════════════╝"
-          echo "Commit: ${{ github.sha }}"
+      - name: Report successful checks
+        run: echo "Backend and frontend quality gates passed for ${{ github.sha }}."

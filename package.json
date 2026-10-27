@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "description": "Asella Organic — MySQL-backed e-commerce/inventory system. Monorepo with backend/, frontend/, and Playwright E2E tests at the root.",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
+    "dev": "sh -c '[ -f frontend/dist/index.html ] || npm run build --workspace=frontend; PORT=3000 exec npm run dev --workspace=backend'",
+    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "start": "PORT=3000 npm run start --workspace=backend",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
