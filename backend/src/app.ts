@@ -91,7 +91,26 @@ app.use(compression());
 // ── 2. Static files ───────────────────────────────────────────────────────────
 // Image optimizer must be BEFORE express.static so it intercepts /image/* first
 app.use("/image", imageRoutes);
+
+import { existsSync } from "fs";
+const frontendDistCandidates = [
+  path.join(process.cwd(), "frontend", "dist"),
+  path.resolve(process.cwd(), "../frontend/dist"),
+];
+const frontendPublicCandidates = [
+  path.join(process.cwd(), "frontend", "public"),
+  path.resolve(process.cwd(), "../frontend/public"),
+];
+const FRONTEND_DIST_DIR = frontendDistCandidates.find((d) => existsSync(d)) ?? frontendDistCandidates[0];
+const FRONTEND_PUBLIC_DIR = frontendPublicCandidates.find((d) => existsSync(d)) ?? frontendPublicCandidates[0];
+
 app.use(express.static(path.join(process.cwd(), "public")));
+if (existsSync(FRONTEND_PUBLIC_DIR)) {
+  app.use(express.static(FRONTEND_PUBLIC_DIR));
+}
+if (existsSync(FRONTEND_DIST_DIR)) {
+  app.use(express.static(FRONTEND_DIST_DIR));
+}
 
 // ── 3. CORS ───────────────────────────────────────────────────────────────────
 // credentials:true is required for HttpOnly cookies to work cross-origin.
@@ -106,37 +125,21 @@ if (isProduction && !process.env.ALLOWED_ORIGINS && process.env.FRONTEND_URL) {
 logger.info("CORS allowed origins resolved to:", { allowedOrigins });
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin || isAllowedOrigin(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   methods:        ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-2fa-token", "x-request-id", "x-telegram-init-data"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-2fa-token", "x-request-id", "x-telegram-init-data", "Idempotency-Key"],
   exposedHeaders: ["x-request-id"],
   credentials:    true,
 }));
 
 // ── 3b. Strict Origin Checking (CSRF Defense-in-Depth) ──────────────────────
 
-/**
- * Origin substituted for the CSRF check when a request carries neither Origin
- * nor Referer — and only when NODE_ENV is exactly "test".
- *
- * Supertest sends neither header, so without this every mutating request in
- * the suite is rejected at the door and each suite that logs in first fails on
- * an undefined token. Patching supertest itself was tried first and abandoned:
- * the tests are ESM, and swapping the module through moduleNameMapper made
- * Jest's loader import it after the environment had torn down.
- *
- * Gated on "test" rather than "not production" on purpose. config/env.ts
- * DEFAULTS NODE_ENV to "development" when it is unset, so a production host
- * that forgets NODE_ENV=production would otherwise have silently lost the
- * "a mutating request must carry an Origin" half of the defence — turning a
- * misconfiguration into a weaker security posture. A browser always attaches
- * Origin to a cross-site POST, so real traffic is unaffected either way; only
- * the non-browser test client is.
- *
- * The value is one isAllowedOrigin already accepts outside production, so the
- * matcher still runs rather than being bypassed. A caller that supplies its own
- * header is untouched: only the absent case is filled in.
- */
 const TEST_ORIGIN_FALLBACK = "http://localhost:5173";
 const IS_TEST_ENV = process.env.NODE_ENV === "test";
 
@@ -157,26 +160,28 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     return;
   }
 
-  // ── Test-mode accommodation ──────────────────────────────────────────────
-  // Fills in a known-allowed origin ONLY when the header is absent AND
-  // NODE_ENV is exactly "test". See TEST_ORIGIN_FALLBACK above for why the
-  // gate is "test" and not "not production".
-  //
-  // A request that supplies its own Origin still goes through isAllowedOrigin
-  // below, so "the origin must match" — the property that actually stops a
-  // hostile page — stays fully enforced and testable. Only "a header must be
-  // present at all" is relaxed, and only for the test client.
+  let refererOrigin: string | undefined;
+  if (req.headers.referer) {
+    try {
+      refererOrigin = new URL(req.headers.referer).origin;
+    } catch {
+      refererOrigin = req.headers.referer;
+    }
+  }
+
   const origin =
     req.headers.origin ||
-    req.headers.referer ||
+    refererOrigin ||
     (IS_TEST_ENV ? TEST_ORIGIN_FALLBACK : undefined);
   
   if (!origin) {
     res.status(403).json({ success: false, error: "CSRF protection: Missing Origin or Referer header" });
     return;
   }
-  
-  const isAllowed = isAllowedOrigin(origin);
+
+  const host = req.get("host");
+  const isSameHost = Boolean(host && (origin === `http://${host}` || origin === `https://${host}`));
+  const isAllowed = isSameHost || isAllowedOrigin(origin);
   if (!isAllowed) {
     res.status(403).json({ success: false, error: "CSRF protection: Origin mismatch" });
     return;
@@ -330,6 +335,29 @@ for (const [path, router] of routeMounts) {
   // Backward-compat shim — will be removed in v2
   app.use(`/api${path}`, router);
 }
+
+// ── 11b. Frontend SPA & Telegram Mini App Fallback ──────────────────────────
+app.get(["/tma", "/telegram-store"], (_req: Request, res: Response, next: NextFunction) => {
+  const tmaFile = path.join(FRONTEND_DIST_DIR, "tma.html");
+  if (existsSync(tmaFile)) {
+    res.sendFile(tmaFile);
+    return;
+  }
+  next();
+});
+
+app.get(/.*/, (req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith("/api") || req.path.startsWith("/image")) {
+    next();
+    return;
+  }
+  const indexFile = path.join(FRONTEND_DIST_DIR, "index.html");
+  if (existsSync(indexFile)) {
+    res.sendFile(indexFile);
+    return;
+  }
+  next();
+});
 
 // ── 12. 404 ───────────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {

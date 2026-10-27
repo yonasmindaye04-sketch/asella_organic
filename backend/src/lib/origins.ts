@@ -15,9 +15,11 @@ export const allowedOrigins = (isProduction ? allowedOriginsString! : "http://lo
   .filter(s => s.length > 0);
 
 const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const previewOriginPattern = /^https:\/\/[a-z0-9-]+\.run\.app$/i;
 
 export function isAllowedOrigin(origin: string): boolean {
   if (!isProduction && devOriginPattern.test(origin)) return true;
+  if (previewOriginPattern.test(origin)) return true;
   return allowedOrigins.some((allowed) => origin === allowed);
 }
 

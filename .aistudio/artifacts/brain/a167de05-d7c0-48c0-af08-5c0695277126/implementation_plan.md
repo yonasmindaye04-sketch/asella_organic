@@ -1,91 +1,54 @@
-# Asella Organic — Full-Stack Dev Server & Resilient Preview Setup
+# Asella Organic — Shadcn UI Kit Dashboard & Data Accuracy Plan
 
-Unify the Asella Organic storefront, admin dashboard, Telegram Mini App, and Express backend onto a single port 3000 server with an intelligent in-memory data layer fallback so the full application boots and runs seamlessly in the preview environment without requiring an external MySQL instance.
-
-## User Review & Critical Decisions
-
-> [!IMPORTANT]
-> The following setup decisions were confirmed during the clarification phase and govern how the application boots and handles data in the preview environment:
-
-- **Confirmed Decision 1 — Full-Stack Unified Server on Port 3000**: The root workspace will launch a unified development and production server bound to `0.0.0.0:3000` that serves both the Express REST API (`/api/*`, `/image/*`) and the React + Vite frontend (Storefront, Admin Dashboard, and Telegram Mini App).
-- **Confirmed Decision 2 — In-Memory Mock Database Fallback with Seeded Data**: When a live MySQL connection is not configured or unreachable, the database layer will automatically fall back to an in-memory SQL-compatible store pre-populated with realistic Asella Organic products (Moringa, Black Seed Oil, Shilajit, Frankincense, Turmeric, etc.), sample orders, customers, affiliate rules, and a default admin account (`admin` / `admin123`).
+## 1. Overview & Goals
+We will upgrade the Asella Organic Admin Dashboard (`/dashboard`) to match the clean **bundui/shadcn-ui-kit** aesthetic (Zinc/Slate surfaces with subtle emerald brand accents) and resolve all data accuracy, filtering, and visualization issues reported by the admin team.
 
 ---
 
-## 1. Overview & Core Concept
-
-- **What It Does**: Asella Organic is an Ethiopian highland organic health supplement e-commerce storefront, Telegram Mini App store, and operations/inventory management platform. Fixing the dev server enables all three surfaces—public storefront, staff/admin dashboard, and affiliate portal—to run together out-of-the-box.
-- **Target Audience / Persona**: Storefront shoppers browsing and ordering natural supplements, operations staff managing orders and inventory, and affiliates tracking referrals.
-- **Key Value**: Eliminates boot failures caused by missing root scripts, split ports (`5173` vs `3001`), strict environment exit guards, and unavailable local MySQL services, while preserving existing functionality and visual design.
-
----
-
-## 2. User Experience & Visual Design
-
-- **Key User Flows**:
-  1. **Public Storefront & Checkout**: Visitors land on the organic storefront, browse featured highland products and daily highlights, add items to their order form, and submit orders with instant receipt generation and order tracking.
-  2. **Admin & Staff Dashboard**: Staff sign in at `/login` (using seeded demo credentials when in preview mode) to view KPI cards, revenue charts, inventory alerts, customer insights, affiliate rules, and order logistics.
-  3. **Telegram Mini App (`/tma` & `/telegram-store`)**: Mobile shoppers browse the standalone Mini App interface with cart, checkout, order history, and multilingual support.
-- **Visual Identity & Theme**:
-  - *Aesthetic Direction*: Preserves the existing Asella Organic highland botanical aesthetic with zero restyling.
-  - *Color Palette & Mood*: Deep forest greens (`--g900: #0d2e10`, `--g700: #2e7d32`), warm parchment/cream (`--cream: #f7fdf7`), highland gold accents (`--highland-gold: #8B6932`), and high-contrast accessible ink tokens (`--ink: #1a2e1b`).
-  - *Typography & Hierarchy*: `Outfit` for bold display headers, `DM Sans` for clean body copy and dashboard controls, and `DM Mono` for order IDs and financial metrics.
-  - *Component Styling & Layout*: Existing Tailwind CSS and custom CSS variables across storefront cards, glassmorphic headers, and dashboard data tables.
-- **Interactive Feedback & Motion**: Smooth marquee product carousels, top navigation progress bars, toast notifications, and status pill transitions.
+## 2. Root Causes Identified & Fixes for Data Accuracy
+1. **Charts Always Starting at `0` (`ChartsRow.tsx`)**:
+   - **Cause**: `RevenueChart` and `TopProducts` previously generated 6 monthly buckets (`rangeMonths = 6`) regardless of the global date filter in `Dashboard.tsx` (which only fetched 1 month or 1 week of orders). As a result, the first 4–5 buckets on the X-axis had zero orders (`0, 0, 0, 0`) before the current month. Furthermore, choosing `1M` created only a single monthly bucket (1 data point).
+   - **Fix**: Drive all chart time-bucketing directly from the global header filter (`day`, `week`, `month`, `custom`) and actual `from`/`to` dates:
+     - **Day (`Today`)**: Hourly / 2-hour buckets across the day.
+     - **Week (`7D`)**: Daily buckets for each of the 7 days (`EEE, MMM d`).
+     - **1M (`30D`)**: Daily / 3-day buckets across the 30-day window.
+     - **Custom (`from` → `to`)**: Adaptive bucketing based on day span ($\le 2$ days: hourly; $\le 14$ days: daily; $\le 90$ days: weekly/multi-day; $> 90$ days: monthly), trimming leading empty buckets before the first recorded activity when appropriate so trends start from real data rather than flat zeros.
+2. **KPI Numbers Stuck at `0` (`KPICards.tsx`)**:
+   - **Cause**: `AnimatedNumber` used a one-time `hasAnimated.current` ref guard that blocked updates whenever `target` changed after the initial render or when switching date ranges.
+   - **Fix**: Update `AnimatedNumber` to animate from the previous value to the new `target` whenever `target` changes, and add period comparison / order count context on each KPI card.
+3. **Order Query Truncation (`backend/src/routes/orders.ts` & `mockDb.ts`)**:
+   - **Cause**: `Dashboard.tsx` requests `/api/orders?limit=1000`, but `backend/src/routes/orders.ts` clamped `limit` to `Math.min(100, ...)`, silently dropping orders in larger date windows.
+   - **Fix**: Allow `limit` up to `2000` for authenticated dashboard queries and ensure mock database seed timestamps dynamically cover **Today**, **This Week**, and **This Month (`1M`)** so every filter preset shows realistic, non-zero Asella Organic data immediately.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
-
-- **Decision 1: Single-Port Full-Stack Architecture (`0.0.0.0:3000`)**
-  - *Chosen Approach*: Configure the root workspace scripts to start a unified server on port `3000` where Express handles all `/api` and `/image` routes and delegates frontend asset serving (and `/tma` rewrites) on the same origin.
-  - *Why*: The runtime environment exposes only port `3000` externally and runs inside an iframe. Serving both frontend and API from the same origin avoids cross-origin cookie blocking (`SameSite` issues in iframes) and eliminates the need for separate background processes on ports `5173` and `3001`.
-  - *Alternatives Considered*: Running Vite alone on port `3000` was passed over because API calls to `/api/products`, `/api/orders`, and `/api/auth` would fail without the Express backend.
-- **Decision 2: Resilient MySQL Pool with Seeded In-Memory Fallback**
-  - *Chosen Approach*: Provide safe defaults for environment validation (`JWT_SECRET`, `PORT`, `ALLOWED_ORIGINS`) and wrap the database pool so that if MySQL is unreachable, queries are answered by an in-memory store seeded with Asella Organic catalog items, sample orders, customers, notifications, and staff credentials.
-  - *Why*: Direct TCP to external MySQL servers is unavailable in the container by default. An intelligent in-memory fallback lets every storefront and dashboard view render real product images, prices, KPIs, and interactive CRUD flows immediately.
-  - *Alternatives Considered*: Crashing on boot (`process.exit(1)`) or returning empty arrays for all queries, which would leave the storefront product grid empty and prevent dashboard login.
+## 3. Global Filtering System (`TimeRangeSelector.tsx` & `Dashboard.tsx`)
+- **Single Global Filter in Dashboard Header**:
+  - Replace the old `Today | This Week | This Month | 3 Months | 6 Months | All Time` selector and remove the duplicate per-card `1M | 3M | 6M | 12M` buttons.
+  - Provide exactly the requested presets: **Day**, **Week**, **1M**, and **Custom**.
+  - When **Custom** is selected, reveal a clean inline shadcn-style date range picker (`From` date input, `To` date input, and `Apply` / quick-reset control) right in the header bar.
+  - Pass the active `activeRange`, `from`, and `to` props down to `KPICards`, `RevenueChart`, `TopProducts`, `SalesDistribution`, `SalesByLocation`, `Heatmap`, `Pipeline`, `EmployeePerformance`, and `AffiliateLeaderboard`.
 
 ---
 
-## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+## 4. Top Products Sales Trend (`ETB` & `Qty` Toggle + Breakdown)
+- **Interactive Metric Toggle**:
+  - Add a segmented control on the **Top Products Sales Trend** card to switch between **Birr Amount (`ETB`)** and **Items Sold (`Qty`)**.
+  - Calculate product revenue accurately from `quantity * unit_price` on each order item and item count from `quantity`.
+- **Dual Summary List + Multi-Series Trend Chart**:
+  - Alongside the time-series trend chart, render a ranked Top Products summary table/list displaying each product's color indicator, **Units Sold (`Qty`)**, **Total Revenue (`ETB`)**, and **Share of Product Sales (`%`)**.
 
-- **Architecture & Component Diagram**:
+---
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                   Browser / Preview iFrame (Port 3000)                  │
-├───────────────────────┬─────────────────────────┬───────────────────────┤
-│   Public Storefront   │     Admin Dashboard     │   Telegram Mini App   │
-│  (Hero, ProductGrid,  │  (KPICards, Orders,     │  (TmaShell, StoreTab, │
-│   Checkout, Tracking) │   Inventory, Affiliates)│   CartView, Orders)   │
-└───────────┬───────────┴────────────┬────────────┴───────────┬───────────┘
-            │                        │                        │
-            └────────────────────────┼────────────────────────┘
-                                     │ Same-Origin HTTP (/api/*, /image/*)
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                Unified Express + Vite Server (0.0.0.0:3000)             │
-├────────────────────────────────────┬────────────────────────────────────┤
-│       Express API Middleware       │     Frontend Asset & SPA Router    │
-│  (CORS/CSRF Origin Adaptation,     │  (Vite Middleware / Static Build,  │
-│   Cookie Auth, Rate Limit, Images) │   /tma & /telegram-store Rewrite)  │
-└─────────────────┬──────────────────┴────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                   Resilient Database Layer (Pool Proxy)                 │
-├────────────────────────────────────┬────────────────────────────────────┤
-│     Live MySQL Connection Pool     │   In-Memory Seeded Store Fallback  │
-│  (Used when DB_HOST is reachable)  │  (Products, Orders, Staff,         │
-│                                    │   Customers, Affiliates, Analytics)│
-└────────────────────────────────────┴────────────────────────────────────┘
-```
-
-- **Data Model & State**:
-  - **Products & Inventory**: Seeded with Asella Organic's actual catalog matching the local product images (Moringa Powder, Black Seed Oil, Himalaya Shilajit, Frankincense Oil, Erid Turmeric, Ashwagandha, Hibiscus, Qasil Powder, Kerbe Oil, Chia Seed, etc.), including prices in ETB, stock quantities, and featured flags.
-  - **Staff & Auth**: Seeded with an active admin account (`username: "admin"`, `password: "admin123"`) and in-memory refresh token tracking so login, session rehydration (`/api/auth/me`), and logout work seamlessly. Also configures cookies (`SameSite=Lax` / `None` in iframe contexts) and CSRF origin checks to accept the preview host.
-  - **Orders, Customers & Affiliates**: Seeded with sample Ethiopian orders across Addis Ababa, Adama, Hawassa, and Bahir Dar, customer insights segments, and affiliate commission rules so all dashboard tables and charts populate cleanly.
-- **Interactive Component & State Mapping**:
-  - **Storefront Product Browsing & Checkout**: Queries `GET /api/products` -> renders product cards with local images -> submits `POST /api/orders` -> appends order to in-memory store, decrements product stock, and returns order receipt for `/track/:orderId`.
-  - **Dashboard Authentication & Management**: Submits `POST /api/auth/login` -> validates against seeded staff users -> issues JWT cookie -> unlocks `/dashboard/*` routes -> supports creating/editing products, updating order statuses, adjusting stock, and viewing analytics reports.
+## 5. Shadcn UI Kit Layout & Visual Upgrade (`bundui/shadcn-ui-kit` Style)
+- **Workspace Shell (`DashboardLayout.tsx`, `Sidebar.tsx`, `TopHeader.tsx`, `index.css`)**:
+  - Remove the floating green background blobs (`ambient-blob`) in `DashboardLayout.tsx`.
+  - Apply a crisp **Zinc/Slate** light & dark surface system (`#f8fafc` / `#09090b` canvas, `#ffffff` / `#18181b` cards, `1px` `#e4e4e7` / `#27272a` hairline borders) with subtle emerald (`#10b981` / `#059669`) brand accents.
+  - Upgrade `Sidebar.tsx` and `TopHeader.tsx` to match the `bundui/shadcn-ui-kit` layout: clean brand header with Asella Organic emblem, grouped navigation with subtle active states and count indicators, breadcrumb trail in the top header, storefront shortcut, notifications button, and user profile menu.
+- **Upgraded Charts & Data Cards**:
+  - **KPI Cards Row**: 4-column metric grid (Total Revenue, Total Expenses & COGS, Net Profit & Margin %, Active Orders / Inventory Value) with tabular numerals and clear sub-metrics.
+  - **Revenue & Profit Overview**: Smooth area/bar-line combination chart comparing **Revenue (ETB)**, **Expenses + COGS (ETB)**, and **Net Profit (ETB)** over the selected global time range, with summary totals in the card header.
+  - **Sales Distribution by Channel**: Interactive Donut/Pie chart with center total revenue/share readout and a structured channel legend showing order count, ETB amount, and percentage share.
+  - **Top Products Sales Trend**: Multi-series trend chart + ranked product breakdown with interactive **ETB / Qty** toggle.
+  - **Sales by Location & Order Pipeline**: Horizontal bar / donut breakdown of regional sales (in both orders and ETB) and fulfillment stage pipeline (Delivered, Shipped/In Transit, Processing, Pending) with stage conversion metrics.
+  - **Weekly Sales Heatmap, Employee Performance, Top Affiliates, and Low Stock Alerts**: Restyled into unified shadcn cards with tabular numerals.

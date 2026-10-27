@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { api } from '../../services/api';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../../services/api";
 
 interface Affiliate {
   id: string;
@@ -21,14 +22,16 @@ export default function AffiliateLeaderboard({ from, to }: AffiliateLeaderboardP
   useEffect(() => {
     const fetchAffiliates = async () => {
       try {
-        let url = '/api/referrals/affiliates?active=true';
+        let url = "/api/referrals/affiliates?active=true";
         if (from && to) {
           url += `&from=${from}&to=${to}`;
         }
-        
+
         const res = await api.get<Affiliate[]>(url);
         if (res.success && res.data) {
-          const sorted = [...res.data].sort((a, b) => b.total_commissions_amount - a.total_commissions_amount);
+          const sorted = [...res.data].sort(
+            (a, b) => b.total_commissions_amount - a.total_commissions_amount
+          );
           setAffiliates(sorted.slice(0, 5));
         }
       } catch (err) {
@@ -41,42 +44,69 @@ export default function AffiliateLeaderboard({ from, to }: AffiliateLeaderboardP
   }, [from, to]);
 
   return (
-    <div className="card p-4 lg:p-5 flex flex-col h-full bg-white dark:bg-[#001803] border border-slate-200 dark:border-[#E2F0D9]/20 shadow-sm rounded-xl">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Top Affiliates</h3>
-          <p className="text-[11px] font-bold text-slate-500 dark:text-[#A0F399] mt-0.5">Highest commission earners</p>
+    <div className="card p-5 h-full flex flex-col justify-between animate-in">
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Top Affiliate Partners
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Commission earners & customer referrals
+            </p>
+          </div>
+          <Link
+            to="/dashboard/affiliates"
+            className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-0.5"
+          >
+            Manage
+            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+          </Link>
         </div>
-        <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-          <span className="material-symbols-outlined text-[14px]">emoji_events</span>
-        </div>
-      </div>
 
-      <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-emerald-500 border-t-transparent" />
+          <div className="flex items-center justify-center h-40">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-emerald-600 border-t-transparent" />
           </div>
         ) : affiliates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-center">
-            <p className="text-sm font-bold text-slate-500 dark:text-[#A0F399]">No active affiliates yet</p>
+          <div className="flex flex-col items-center justify-center h-40 text-center">
+            <p className="text-xs text-zinc-400">No active affiliates yet</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {affiliates.map((aff, i) => (
-              <div key={aff.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-[#E2F0D9]/10 hover:border-emerald-200 dark:hover:border-emerald-500/30 transition-colors bg-slate-50 dark:bg-[#002C17]/50">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : i === 1 ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300' : i === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
+              <div
+                key={aff.id}
+                className="flex items-center justify-between p-2.5 rounded-lg border border-zinc-200/70 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/50 hover:border-emerald-500/30 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-7 h-7 rounded-md flex items-center justify-center font-bold text-xs tabular-nums shrink-0 ${
+                      i === 0
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                        : i === 1
+                        ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                        : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                    }`}
+                  >
                     #{i + 1}
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{aff.full_name}</p>
-                    <p className="text-[10px] font-mono font-bold text-emerald-600 dark:text-[#A0F399]">{aff.referral_code}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                      {aff.full_name}
+                    </p>
+                    <p className="text-[11px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                      {aff.referral_code}
+                    </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{Number(aff.total_commissions_amount).toLocaleString()} ETB</p>
-                  <p className="text-[10px] font-bold text-slate-500 dark:text-[#A0F399]/70 uppercase tracking-wider">{aff.total_customers} Customers</p>
+                <div className="text-right shrink-0 tabular-nums">
+                  <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                    {Number(aff.total_commissions_amount).toLocaleString()} ETB
+                  </p>
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                    {aff.total_customers} referrals
+                  </p>
                 </div>
               </div>
             ))}

@@ -1,133 +1,223 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { api } from '../services/api';
-import type { RootState } from '../store';
-import DashboardLayout from '../layouts/DashboardLayout';
-import KPICards from '../components/dashboard/KPICards';
-import { RevenueChart, SalesDistribution, TopProducts } from '../components/dashboard/ChartsRow';
-import SalesByLocation from '../components/dashboard/SalesByLocation';
-import { Heatmap, Pipeline } from '../components/dashboard/HeatmapAndPipeline';
-import AffiliateLeaderboard from '../components/dashboard/AffiliateLeaderboard';
-import LowStockTable from '../components/dashboard/LowStockTable';
-import EmployeePerformance from '../components/dashboard/EmployeePerformance';
-import TimeRangeSelector, { type TimeRangeOption } from '../components/dashboard/TimeRangeSelector';
+import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
+import DashboardLayout from "../layouts/DashboardLayout";
+import KPICards from "../components/dashboard/KPICards";
+import {
+  RevenueChart,
+  SalesDistribution,
+  TopProducts,
+} from "../components/dashboard/ChartsRow";
+import EmployeePerformance from "../components/dashboard/EmployeePerformance";
+import { Heatmap, Pipeline } from "../components/dashboard/HeatmapAndPipeline";
+import SalesByLocation from "../components/dashboard/SalesByLocation";
+import LowStockTable from "../components/dashboard/LowStockTable";
+import AffiliateLeaderboard from "../components/dashboard/AffiliateLeaderboard";
+import {
+  TimeRangeSelector,
+  getRangeDates,
+} from "../components/dashboard/TimeRangeSelector";
+import type { TimeRange } from "../components/dashboard/TimeRangeSelector";
+import { api } from "../services/api";
 
-const getOrderTotal = (o: any) => {
-  let items = [];
-  if (typeof o.items === 'string') {
-    try { items = JSON.parse(o.items); } catch { items = []; }
-  } else if (Array.isArray(o.items)) {
-    items = o.items;
-  }
-  const itemsTotal = items.reduce((sum: number, item: any) => sum + (Number(item.quantity || item.qty || 1) * Number(item.unit_price || item.price || 0)), 0);
-  return Number(o.total) || itemsTotal;
+const RANGE_LABELS: Record<TimeRange, string> = {
+  day: "Today",
+  week: "Last 7 Days",
+  month: "Last 30 Days",
+  custom: "Custom Range",
 };
 
-const Dashboard: React.FC = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
-
-  const isManager = user?.role === 'manager';
-  const isStaff = user?.role === 'staff' || user?.role === 'employee' || user?.role === 'driver' || user?.role === 'delivery';
+export default function DashboardPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
-  const [activeRange, setActiveRange] = useState<TimeRangeOption>('month');
-  
-  // Default to previous month to capture dummy data
-  const [dateRange, setDateRange] = useState(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-      from: firstDay.toISOString().split('T')[0],
-      to: lastDay.toISOString().split('T')[0],
-    };
-  });
+  const [loading, setLoading] = useState(true);
 
-  const handleRangeChange = (from: string, to: string) => {
+  const [activeRange, setActiveRange] = useState<TimeRange>("month");
+  const [dateRange, setDateRange] = useState(() => getRangeDates("month"));
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({ limit: "1500" });
+        if (dateRange.from) params.set("from", dateRange.from);
+        if (dateRange.to) params.set("to", dateRange.to);
+        const query = `?${params.toString()}`;
+
+        const [ordersRes, expensesRes] = await Promise.all([
+          api.get<any>(`/api/orders${query}`),
+          api.get<any>(`/api/expenses${query}`),
+        ]);
+
+        if (cancelled) return;
+
+        const orderList = ordersRes.data?.data || ordersRes.data;
+        setOrders(Array.isArray(orderList) ? orderList : []);
+
+        const expenseList = expensesRes.data?.data || expensesRes.data;
+        setExpenses(Array.isArray(expenseList) ? expenseList : []);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+    return () => {
+      cancelled = true;
+    };
+  }, [dateRange]);
+
+  const handleRangeChange = (range: TimeRange, from: string, to: string) => {
+    setActiveRange(range);
     setDateRange({ from, to });
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        let queryParams = '?limit=1000';
-        if (dateRange.from && dateRange.to) {
-          queryParams += `&from=${dateRange.from}&to=${dateRange.to}`;
-        }
-        const [ordRes, expRes] = await Promise.all([
-          api.get<any[]>(`/api/orders${queryParams}`),
-          api.get<any>(`/api/expenses${queryParams}`), // needed for profit plot
-        ]);
-        if (ordRes.success && ordRes.data) {
-          const withTotals = ordRes.data.map(o => ({ ...o, total: getOrderTotal(o) }));
-          setOrders(withTotals);
-        }
-        if (expRes.success && expRes.data) {
-          setExpenses(expRes.data);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchData();
-  }, [dateRange]);
+  // Compute accurate KPI metrics from filtered orders & expenses
+  const kpiMetrics = useMemo(() => {
+    const validOrders = orders.filter((o) => {
+      const st = String(o.status || "").toLowerCase();
+      return st !== "cancelled" && st !== "returned";
+    });
 
-  const filteredOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
+    const totalRevenue = validOrders.reduce(
+      (sum, o) => sum + Number(o.total || o.total_amount || 0),
+      0
+    );
+
+    let totalCogs = 0;
+    let totalUnitsSold = 0;
+
+    validOrders.forEach((o) => {
+      const items = Array.isArray(o.items) ? o.items : [];
+      if (items.length > 0) {
+        items.forEach((item: any) => {
+          const qty = Number(item.quantity || 1);
+          totalUnitsSold += qty;
+          const unitCost =
+            item.unit_cost !== undefined && item.unit_cost !== null
+              ? Number(item.unit_cost)
+              : Number(item.unit_price || item.price || 0) * 0.52;
+          totalCogs += qty * unitCost;
+        });
+      } else {
+        totalUnitsSold += 1;
+        totalCogs += Number(o.total || 0) * 0.52;
+      }
+    });
+
+    const opExpenses = expenses
+      .filter((e) => !e.voided_at && e.category !== "vendor_purchase")
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    const netProfit = Math.round(totalRevenue - totalCogs - opExpenses);
+    const totalOrders = validOrders.length;
+    const deliveredOrders = validOrders.filter(
+      (o) => String(o.status || "").toLowerCase() === "delivered"
+    ).length;
+    const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+    const profitMargin =
+      totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
+
+    return {
+      totalRevenue,
+      netProfit,
+      totalOrders,
+      deliveredOrders,
+      avgOrderValue,
+      totalUnitsSold,
+      totalExpenses: opExpenses,
+      profitMargin,
+    };
+  }, [orders, expenses]);
 
   return (
     <DashboardLayout>
-      <main className="p-6 space-y-5 max-w-[1440px] mx-auto">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-4 gap-4">
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <TimeRangeSelector 
-              activeRange={activeRange} 
-              setActiveRange={setActiveRange} 
-              onRangeChange={handleRangeChange} 
-            />
+      {/* Top Executive Toolbar with Single Global Date Range Filter */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Executive Analytics
+            </h1>
+            {loading && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                Syncing
+              </span>
+            )}
           </div>
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Real-time revenue, product sales velocity, and fulfillment performance
+          </p>
         </div>
 
-        {!isManager && <KPICards from={dateRange.from} to={dateRange.to} />}
-
-        {/* Row 1: Heatmap + Pipeline (2 cards) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
-          <Heatmap orders={orders} />
-          <Pipeline orders={orders} />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <TimeRangeSelector
+            activeRange={activeRange}
+            from={dateRange.from}
+            to={dateRange.to}
+            onRangeChange={handleRangeChange}
+          />
+          <Link
+            to="/dashboard/analytics"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
+          >
+            <span className="material-symbols-outlined text-[15px] text-emerald-600 dark:text-emerald-400">
+              request_quote
+            </span>
+            <span>P&amp;L Statement</span>
+          </Link>
         </div>
+      </div>
 
-        {/* Row 2: Sales by Location + Top Products (2 cards) */}
-        <div className={`grid grid-cols-1 ${!isStaff ? 'lg:grid-cols-2' : ''} gap-3 mb-6`}>
-          <SalesByLocation orders={filteredOrders} />
-          {!isStaff && <TopProducts orders={filteredOrders} />}
+      {/* Row 1: KPI Summary Cards */}
+      <KPICards metrics={kpiMetrics} rangeLabel={RANGE_LABELS[activeRange]} />
+
+      {/* Row 2: Revenue & Profit Overview (2/3) + Sales by Channel Donut (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div className="lg:col-span-2">
+          <RevenueChart
+            orders={orders}
+            expenses={expenses}
+            activeRange={activeRange}
+            from={dateRange.from}
+            to={dateRange.to}
+          />
         </div>
-
-        {/* Row 3: Revenue Overview + Sales Distribution (Hidden for managers and staff) */}
-        {(!isManager && !isStaff) && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
-            <div className="lg:col-span-2">
-              <RevenueChart orders={orders} expenses={expenses} />
-            </div>
-            <div className="lg:col-span-1">
-              <SalesDistribution orders={orders} />
-            </div>
-          </div>
-        )}
-
-        {/* Row 4: Employee Performance + Affiliate Leaderboard (2 cards) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
-          <EmployeePerformance from={dateRange.from} to={dateRange.to} />
-          <AffiliateLeaderboard from={dateRange.from} to={dateRange.to} />
+        <div className="lg:col-span-1">
+          <SalesDistribution orders={orders} />
         </div>
+      </div>
 
-        {/* Row 5: Low Stock Table (1 wide card) */}
-        <div className="mb-6">
-          <LowStockTable />
+      {/* Row 3: Top Products Sales Trend with ETB/Qty Toggle (2/3) + Sales by Location (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div className="lg:col-span-2">
+          <TopProducts
+            orders={orders}
+            activeRange={activeRange}
+            from={dateRange.from}
+            to={dateRange.to}
+          />
         </div>
+        <div className="lg:col-span-1">
+          <SalesByLocation orders={orders} />
+        </div>
+      </div>
 
-      </main>
+      {/* Row 4: Fulfillment Pipeline + Weekly Activity Heatmap */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <Pipeline orders={orders} />
+        <Heatmap orders={orders} />
+      </div>
+
+      {/* Row 5: Staff Performance + Affiliate Leaderboard + Low Stock Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <EmployeePerformance from={dateRange.from} to={dateRange.to} />
+        <AffiliateLeaderboard from={dateRange.from} to={dateRange.to} />
+        <LowStockTable />
+      </div>
     </DashboardLayout>
   );
-};
-
-export default Dashboard;
+}

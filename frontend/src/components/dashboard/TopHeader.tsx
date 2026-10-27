@@ -1,31 +1,49 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { RootState } from '../../store';
-import { api } from '../../services/api';
+import { logout } from '../../store/slices/authSlice';
+import { api, auth as authApi } from '../../services/api';
 
 interface TopHeaderProps {
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
 }
 
-export default function TopHeader({ isSidebarOpen = false, onToggleSidebar }: TopHeaderProps = {}) {
-  const { user } = useSelector((state: RootState) => state.auth);
-  const navigate = useNavigate();
-  const role = user?.role ?? 'guest';
-  const displayName = user?.name ?? 'Staff Member';
+const ROUTE_LABELS: Record<string, string> = {
+  '/dashboard': 'Overview & Analytics',
+  '/dashboard/analytics': 'Profit & Loss Report',
+  '/dashboard/new-order': 'New Sales Order',
+  '/dashboard/bulk-orders': 'Bulk Orders',
+  '/dashboard/vendor': 'Vendor Purchases',
+  '/dashboard/products': 'Products & Inventory',
+  '/dashboard/stock-alert': 'Stock Alerts',
+  '/dashboard/tracking': 'Order Tracking',
+  '/dashboard/notifications': 'Notifications',
+  '/dashboard/customers': 'Customer Intelligence',
+  '/dashboard/sms': 'SMS Campaigns',
+  '/dashboard/media': 'Media Library',
+  '/dashboard/expenses': 'Operating Expenses',
+  '/dashboard/change-password': 'Security Settings',
+  '/dashboard/users': 'Staff & Roles',
+  '/dashboard/affiliates': 'Affiliate Control',
+  '/dashboard/videos': 'Community Videos',
+};
 
-  const [dateStr, setDateStr] = useState("");
+export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const role = user?.role ?? 'guest';
+  const displayName = user?.name || user?.full_name || user?.username || 'Staff Member';
+
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const now = new Date();
-    setDateStr(now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }));
-  }, []);
+  const currentLabel = ROUTE_LABELS[location.pathname] || 'Workspace';
 
-  // Fetch real notification count from the API
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -47,81 +65,116 @@ export default function TopHeader({ isSidebarOpen = false, onToggleSidebar }: To
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 px-5 py-3.5 flex items-center justify-between bg-[var(--bg)] border-b border-[var(--border)] transition-all">
-      <div className="flex items-center gap-4 relative z-[2]">
-        {/* Hamburger Menu for Mobile */}
+    <header className="sticky top-0 z-30 h-14 px-4 sm:px-6 flex items-center justify-between gap-4 bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-xs border-b border-zinc-200 dark:border-zinc-800">
+      {/* Left: Mobile Sidebar Trigger + Breadcrumb Trail */}
+      <div className="flex items-center gap-3 min-w-0">
         {onToggleSidebar && (
-          <button 
+          <button
             onClick={onToggleSidebar}
-            className="flex items-center justify-center w-9 h-9 rounded-xl hover:bg-[var(--emerald-dim)] text-[var(--fg)] hover:text-[var(--emerald)] transition-all duration-300 md:hidden"
+            className="flex md:hidden items-center justify-center w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            aria-label="Toggle navigation"
           >
-            <div className="relative w-5 h-4 flex flex-col justify-between overflow-hidden">
-              <span className={`w-full h-[2px] bg-current rounded-full transform transition-all duration-300 origin-left ${isSidebarOpen ? 'rotate-[42deg] w-[22px]' : ''}`}></span>
-              <span className={`w-full h-[2px] bg-current rounded-full transition-all duration-300 ${isSidebarOpen ? 'opacity-0 translate-x-4' : ''}`}></span>
-              <span className={`w-full h-[2px] bg-current rounded-full transform transition-all duration-300 origin-left ${isSidebarOpen ? '-rotate-[42deg] w-[22px]' : ''}`}></span>
-            </div>
+            <span className="material-symbols-outlined text-[18px]">menu</span>
           </button>
         )}
 
-        {/* Moving items (Storefront & Date) */}
-        <div className={`flex items-center gap-4 transition-all duration-300 ease-in-out ml-0`}>
-          {/* Back to Storefront Button */}
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-card-hover)] transition-colors text-[var(--fg)]"
-          >
-            <span className="material-symbols-outlined text-[11px]">store</span>
-            <span className="text-[11px] font-medium hidden sm:inline">Storefront</span>
-          </button>
-
-          <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]">
-            <span className="material-symbols-outlined text-[var(--muted)] text-[10px]">event</span>
-            <span className="text-[11px] font-medium text-[var(--fg-secondary)]">{dateStr}</span>
-          </div>
-        </div>
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+          <span className="text-zinc-400 dark:text-zinc-500 font-medium hidden sm:inline whitespace-nowrap">
+            Asella Console
+          </span>
+          <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline" aria-hidden="true">
+            /
+          </span>
+          <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+            {currentLabel}
+          </span>
+        </nav>
       </div>
-      
-      <div className="flex items-center gap-2 relative z-[2]">
-        
-        {/* Notifications — links to the notifications page */}
+
+      {/* Right: Primary Workspace Actions & Account */}
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-colors whitespace-nowrap"
+        >
+          <span className="material-symbols-outlined text-[15px] text-zinc-500">storefront</span>
+          <span className="hidden sm:inline">View Storefront</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/dashboard/new-order')}
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-2xs whitespace-nowrap"
+        >
+          <span className="material-symbols-outlined text-[15px]">add</span>
+          <span>New Order</span>
+        </button>
+
         <button
           onClick={() => navigate('/dashboard/notifications')}
-          className="relative w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--bg-card)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)] hover:border-[var(--border-light)] transition-all"
+          className="relative w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
           aria-label="Notifications"
         >
-          <span className="material-symbols-outlined text-[11px]">notifications</span>
+          <span className="material-symbols-outlined text-[17px]">notifications</span>
           {notifCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--rose)] text-white text-[9px] font-bold rounded-full">
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-600 text-white text-[10px] font-semibold tabular-nums rounded-full">
               {notifCount > 99 ? '99+' : notifCount}
             </span>
           )}
         </button>
 
-        {/* Profile */}
-        <div className="relative ml-1" ref={profileRef}>
-          <button onClick={() => setProfileOpen(!profileOpen)} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-[var(--bg-card)] transition-colors group">
-            <div className="w-7 h-7 rounded-md bg-[#355E3B] flex items-center justify-center text-white font-bold text-xs shadow-sm group-hover:shadow-md transition-all">
-                {displayName.charAt(0).toUpperCase()}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => setProfileOpen(!profileOpen)}
+            className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-lg border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+          >
+            <div className="w-7 h-7 rounded-md bg-zinc-900 dark:bg-emerald-600 flex items-center justify-center text-white font-semibold text-xs">
+              {displayName.charAt(0).toUpperCase()}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-[11px] font-bold leading-tight text-[var(--fg)]">{displayName}</p>
-              <p className="text-[9px] text-[var(--muted)] uppercase tracking-wider font-semibold capitalize">{role}</p>
+              <p className="text-xs font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
+                {displayName}
+              </p>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight capitalize">
+                {role}
+              </p>
             </div>
-            <span className={`material-symbols-outlined text-[8px] text-[var(--muted)] transition-transform ml-1 ${profileOpen ? "rotate-180" : ""}`}>expand_more</span>
+            <span className={`material-symbols-outlined text-[16px] text-zinc-400 transition-transform ${profileOpen ? "rotate-180" : ""}`}>
+              expand_more
+            </span>
           </button>
-          
+
           {profileOpen && (
-            <div className="absolute top-full right-0 mt-1 w-[180px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl py-1.5 animate-[fadeInUp_0.2s_ease-out]">
-              <div className="px-3 py-2 border-b border-[var(--border)] mb-1">
-                <p className="text-[11px] font-bold text-[var(--fg)]">{displayName}</p>
-                <p className="text-[9.5px] text-[var(--muted)] truncate capitalize">{role}</p>
+            <div className="absolute top-full right-0 mt-1.5 w-48 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg py-1.5 z-50">
+              <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 mb-1">
+                <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">{displayName}</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 capitalize">{role}</p>
               </div>
-              <button onClick={() => { setProfileOpen(false); navigate('/dashboard/change-password'); }} className="w-full text-left px-3 py-1.5 text-[11px] font-medium text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center gap-2">
-                <span className="material-symbols-outlined w-4 text-center text-[10px]">settings</span> Settings
+              <button
+                onClick={() => { setProfileOpen(false); navigate('/dashboard/analytics'); }}
+                className="w-full text-left px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[15px] text-zinc-500">monitoring</span>
+                P&L Financial Report
               </button>
-              <div className="h-px bg-[var(--border)] my-1" />
-              <button onClick={() => { setProfileOpen(false); navigate('/login'); }} className="w-full text-left px-3 py-1.5 text-[11px] font-medium text-[var(--rose)] hover:bg-[var(--rose-dim)] transition-colors flex items-center gap-2">
-                <span className="material-symbols-outlined w-4 text-center text-[10px]">logout</span> Sign out
+              <button
+                onClick={() => { setProfileOpen(false); navigate('/dashboard/change-password'); }}
+                className="w-full text-left px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[15px] text-zinc-500">settings</span>
+                Security Settings
+              </button>
+              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+              <button
+                onClick={async () => {
+                  setProfileOpen(false);
+                  await authApi.logout();
+                  dispatch(logout());
+                  navigate('/login');
+                }}
+                className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[15px]">logout</span>
+                Sign out
               </button>
             </div>
           )}

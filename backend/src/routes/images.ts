@@ -25,7 +25,21 @@ import { createLogger } from "../lib/logger.js";
 
 const router = Router();
 
-const PUBLIC_DIR   = path.join(process.cwd(), "public");
+function resolvePublicDir(): string {
+  const candidates = [
+    path.join(process.cwd(), "frontend", "public"),
+    path.resolve(process.cwd(), "../frontend/public"),
+    path.join(process.cwd(), "public"),
+  ];
+  for (const dir of candidates) {
+    if (existsSync(path.join(dir, "image"))) {
+      return dir;
+    }
+  }
+  return path.join(process.cwd(), "public");
+}
+
+const PUBLIC_DIR   = resolvePublicDir();
 const CACHE_DIR    = path.join(PUBLIC_DIR, "cache", "img");
 
 // Ensure the cache directory exists at startup

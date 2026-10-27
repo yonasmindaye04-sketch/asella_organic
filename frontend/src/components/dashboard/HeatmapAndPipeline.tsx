@@ -1,169 +1,284 @@
-
+import { useMemo } from "react";
 import {
   Chart as ChartJS,
+  CategoryScale,
   LinearScale,
   BarElement,
   Tooltip,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 
-ChartJS.register(LinearScale, BarElement, Tooltip);
-ChartJS.defaults.color = "#5c6280";
-ChartJS.defaults.font.family = "'Inter', sans-serif";
-ChartJS.defaults.font.size = 11;
-ChartJS.defaults.plugins.legend.display = false;
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
 const tooltipStyle = {
-  backgroundColor: "#1a1d28",
-  borderColor: "#272c40",
+  backgroundColor: "#18181b",
+  borderColor: "#27272a",
   borderWidth: 1,
   padding: 10,
   cornerRadius: 8,
+  titleColor: "#fafafa",
+  bodyColor: "#e4e4e7",
 };
 
-// ─── Heatmap ───
-const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const hours = ["9am", "10am", "11am", "12pm", "1pm", "2pm", "3pm", "4pm", "5pm", "6pm"];
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const TIME_SLOTS = [
+  { label: "08–10h", start: 0, end: 10 },
+  { label: "10–12h", start: 10, end: 12 },
+  { label: "12–14h", start: 12, end: 14 },
+  { label: "14–16h", start: 14, end: 16 },
+  { label: "16–18h", start: 16, end: 18 },
+  { label: "18–22h", start: 18, end: 24 },
+];
 
 export function Heatmap({ orders }: { orders: any[] }) {
-  // Compute real heatmap data from orders
-  const heatMapData = Array(7).fill(0).map(() => Array(10).fill(0));
-  let maxVal = 1;
+  const { grid, maxVal, peakDay, peakSlot } = useMemo(() => {
+    const matrix = Array.from({ length: 7 }, () =>
+      Array.from({ length: TIME_SLOTS.length }, () => ({ count: 0, revenue: 0 }))
+    );
+    let highest = 1;
+    let bestDay = "Mon";
+    let bestSlot = "10–12h";
+    let bestCount = 0;
 
-  orders.forEach(o => {
-    if (!o.created_at) return;
-    const d = new Date(o.created_at);
-    // JS getDay() is 0=Sun, 1=Mon... we want 0=Mon, 6=Sun
-    let dayIdx = d.getDay() - 1;
-    if (dayIdx < 0) dayIdx = 6;
-    
-    // Hours: 9am to 6pm (0 to 9)
-    const h = d.getHours();
-    if (h >= 9 && h <= 18) {
-      const hourIdx = h - 9;
-      heatMapData[dayIdx][hourIdx] += 1;
-      if (heatMapData[dayIdx][hourIdx] > maxVal) {
-        maxVal = heatMapData[dayIdx][hourIdx];
+    orders.forEach((o) => {
+      if (!o.created_at) return;
+      const status = String(o.status || "").toLowerCase();
+      if (status === "cancelled") return;
+
+      const d = new Date(o.created_at);
+      let dayIdx = d.getDay() - 1;
+      if (dayIdx < 0) dayIdx = 6;
+
+      const h = d.getHours();
+      const sIdx = TIME_SLOTS.findIndex((s) => h >= s.start && h < s.end);
+      const slotIdx = sIdx === -1 ? 2 : sIdx;
+
+      matrix[dayIdx][slotIdx].count += 1;
+      matrix[dayIdx][slotIdx].revenue += Number(o.total || o.total_amount || 0);
+
+      if (matrix[dayIdx][slotIdx].count > highest) {
+        highest = matrix[dayIdx][slotIdx].count;
       }
-    }
-  });
+      if (matrix[dayIdx][slotIdx].count > bestCount) {
+        bestCount = matrix[dayIdx][slotIdx].count;
+        bestDay = DAYS[dayIdx];
+        bestSlot = TIME_SLOTS[slotIdx].label;
+      }
+    });
+
+    return { grid: matrix, maxVal: highest, peakDay: bestDay, peakSlot: bestSlot };
+  }, [orders]);
 
   return (
-    <div className="card p-5 animate-in h-full flex flex-col" style={{ animationDelay: "0.45s" }}>
-      <div className="mb-4 relative z-[2]">
-        <h3 className="text-sm font-bold text-[var(--fg)]">Weekly Sales Heatmap</h3>
-        <p className="text-[11px] text-[var(--muted)] mt-0.5">Sales intensity by day and hour</p>
-      </div>
-      <div className="overflow-x-auto relative z-[2] flex-1">
-        <div className="min-w-[460px]">
-          {/* Hour labels */}
-          <div className="flex gap-1 mb-1 pl-[44px]">
-            {hours.map((h) => (
-              <div key={h} className="flex-1 text-center text-[9px] text-[var(--muted)]">{h}</div>
+    <div className="card p-5 h-full flex flex-col justify-between animate-in">
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Order Activity Heatmap
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Checkout density by day of week and time window
+            </p>
+          </div>
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+            Peak: {peakDay} {peakSlot}
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="min-w-[340px]">
+            {/* Time slot headers */}
+            <div className="flex gap-1.5 mb-1.5 pl-10">
+              {TIME_SLOTS.map((slot) => (
+                <div
+                  key={slot.label}
+                  className="flex-1 text-center text-[10px] font-medium text-zinc-400 tabular-nums"
+                >
+                  {slot.label}
+                </div>
+              ))}
+            </div>
+
+            {/* Day rows */}
+            {grid.map((row, ri) => (
+              <div key={DAYS[ri]} className="flex items-center gap-1.5 mb-1.5">
+                <div className="w-8.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  {DAYS[ri]}
+                </div>
+                {row.map((cell, ci) => {
+                  const intensity = cell.count / maxVal;
+                  const bgStyle =
+                    cell.count === 0
+                      ? undefined
+                      : {
+                          backgroundColor: `rgba(5, 150, 105, ${Math.min(
+                            0.92,
+                            0.18 + intensity * 0.74
+                          )})`,
+                        };
+                  return (
+                    <div
+                      key={ci}
+                      style={bgStyle}
+                      title={`${DAYS[ri]} ${TIME_SLOTS[ci].label}: ${cell.count} orders (${cell.revenue.toLocaleString()} ETB)`}
+                      className={`heat-cell flex-1 h-6 rounded-md flex items-center justify-center text-[10px] font-semibold tabular-nums transition-all ${
+                        cell.count === 0
+                          ? "bg-zinc-100/80 dark:bg-zinc-800/50 text-transparent"
+                          : intensity > 0.55
+                          ? "text-white"
+                          : "text-emerald-900 dark:text-emerald-200"
+                      }`}
+                    >
+                      {cell.count > 0 ? cell.count : ""}
+                    </div>
+                  );
+                })}
+              </div>
             ))}
           </div>
-          {/* Rows */}
-          {heatMapData.map((row, ri) => (
-            <div key={days[ri]} className="flex gap-1 mb-1">
-              <div className="w-[40px] flex items-center text-[10px] text-[var(--muted)] font-medium pr-1">{days[ri]}</div>
-              {row.map((val, ci) => {
-                const intensity = val / maxVal;
-                const r = Math.round(240 * intensity + 20 * (1 - intensity));
-                const g = Math.round(160 * intensity + 20 * (1 - intensity));
-                const b = Math.round(48 * intensity + 40 * (1 - intensity));
-                const alpha = val === 0 ? 0.05 : 0.15 + intensity * 0.75;
-                return (
-                  <div
-                    key={ci}
-                    className="heat-cell flex-1 h-[22px] rounded-sm transition-colors hover:border border-[var(--border)]"
-                    style={{ background: `rgba(${r},${g},${b},${alpha})` }}
-                    title={`${days[ri]} ${hours[ci]}: ${val} orders`}
-                  />
-                );
-              })}
-            </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
+        <span>Hover any cell for order count & ETB volume</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px]">Low</span>
+          {[0.18, 0.38, 0.62, 0.9].map((alpha) => (
+            <span
+              key={alpha}
+              className="w-3.5 h-3 rounded-xs inline-block"
+              style={{ backgroundColor: `rgba(5, 150, 105, ${alpha})` }}
+            />
           ))}
-          {/* Legend */}
-          <div className="flex items-center justify-end gap-1.5 mt-2 pl-[44px]">
-            <span className="text-[9px] text-[var(--muted)]">Low</span>
-            {[0, 0.25, 0.5, 0.75, 1].map((v) => {
-              const r = Math.round(240 * v + 20 * (1 - v));
-              const g = Math.round(160 * v + 20 * (1 - v));
-              const b = Math.round(48 * v + 40 * (1 - v));
-              return <div key={v} className="w-4 h-3 rounded-sm" style={{ background: `rgba(${r},${g},${b},${0.15 + v * 0.75})` }} />;
-            })}
-            <span className="text-[9px] text-[var(--muted)]">High</span>
-          </div>
+          <span className="text-[10px]">High</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Pipeline Funnel ───
+// ─── Fulfillment Pipeline ───
 export function Pipeline({ orders }: { orders: any[] }) {
-  // Aggregate real orders based on status
-  // Our system statuses: Pending, Processing, Shipped, Delivered, Cancelled
-  const stats = {
-    pending: { count: 0, val: 0 },
-    processing: { count: 0, val: 0 },
-    shipped: { count: 0, val: 0 },
-    delivered: { count: 0, val: 0 }
-  };
+  const stats = useMemo(() => {
+    const res = {
+      pending: { label: "Pending", count: 0, val: 0, color: "#f59e0b" },
+      confirmed: { label: "Confirmed / Prep", count: 0, val: 0, color: "#0ea5e9" },
+      transit: { label: "In Transit", count: 0, val: 0, color: "#8b5cf6" },
+      delivered: { label: "Delivered", count: 0, val: 0, color: "#059669" },
+    };
 
-  orders.forEach(o => {
-    const s = o.status?.toLowerCase();
-    const v = Number(o.total || o.total_amount || 0);
-    if (s === 'pending') { stats.pending.count++; stats.pending.val += v; }
-    else if (s === 'processing') { stats.processing.count++; stats.processing.val += v; }
-    else if (s === 'shipped') { stats.shipped.count++; stats.shipped.val += v; }
-    else if (s === 'delivered') { stats.delivered.count++; stats.delivered.val += v; }
-  });
+    orders.forEach((o) => {
+      const s = String(o.status || "").toLowerCase();
+      const v = Number(o.total || o.total_amount || 0);
+      if (s === "pending") {
+        res.pending.count++;
+        res.pending.val += v;
+      } else if (s === "confirmed" || s === "processing") {
+        res.confirmed.count++;
+        res.confirmed.val += v;
+      } else if (s === "in transit" || s === "shipped") {
+        res.transit.count++;
+        res.transit.val += v;
+      } else if (s === "delivered") {
+        res.delivered.count++;
+        res.delivered.val += v;
+      }
+    });
+
+    return res;
+  }, [orders]);
+
+  const stages = [stats.delivered, stats.transit, stats.confirmed, stats.pending];
 
   return (
-    <div className="card p-5 animate-in h-full flex flex-col" style={{ animationDelay: "0.5s" }}>
-      <div className="mb-4 relative z-[2]">
-        <h3 className="text-sm font-bold text-[var(--fg)]">Order Pipeline</h3>
-        <p className="text-[11px] text-[var(--muted)] mt-0.5">Fulfillment stages and values</p>
+    <div className="card p-5 h-full flex flex-col justify-between animate-in">
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Fulfillment Pipeline
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Order value (ETB) & volume by fulfillment stage
+            </p>
+          </div>
+          <span className="material-symbols-outlined text-[18px] text-zinc-400">local_shipping</span>
+        </div>
+
+        <div className="h-[165px] relative">
+          <Bar
+            data={{
+              labels: stages.map((s) => s.label),
+              datasets: [
+                {
+                  data: stages.map((s) => s.val),
+                  backgroundColor: stages.map((s) => s.color),
+                  borderRadius: 6,
+                  borderSkipped: false,
+                  barThickness: 20,
+                },
+              ],
+            }}
+            options={{
+              indexAxis: "y",
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  ...tooltipStyle,
+                  callbacks: {
+                    label: (ctx: any) => {
+                      const st = stages[ctx.dataIndex];
+                      return ` ${st.val.toLocaleString()} ETB (${st.count} orders)`;
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  beginAtZero: true,
+                  grid: { color: "rgba(113, 113, 122, 0.12)" },
+                  border: { display: false },
+                  ticks: {
+                    color: "#71717a",
+                    callback: (v) => {
+                      const num = Number(v);
+                      return num >= 1000 ? `${(num / 1000).toFixed(0)}k` : `${num}`;
+                    },
+                  },
+                },
+                y: {
+                  grid: { display: false },
+                  border: { display: false },
+                  ticks: { color: "#71717a", font: { weight: 500, size: 11 } },
+                },
+              },
+            }}
+          />
+        </div>
       </div>
-      <div className="relative z-[2] flex-1 min-h-[160px]">
-        <Bar
-          data={{
-            labels: ["Delivered", "Shipped", "Processing", "Pending"],
-            datasets: [{
-              data: [stats.delivered.val, stats.shipped.val, stats.processing.val, stats.pending.val],
-              backgroundColor: ["#10b981", "#8b5cf6", "#f59e0b", "#38bdf8"],
-              borderRadius: 6,
-              borderSkipped: false,
-              barThickness: 20,
-            }],
-          }}
-          options={{
-            indexAxis: "y",
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { tooltip: { ...tooltipStyle, callbacks: { label: (ctx: any) => ` ${(ctx.parsed.x || 0).toLocaleString()} ETB` } } },
-            scales: {
-              x: { beginAtZero: true, grid: { color: "rgba(100,100,100,0.1)" }, ticks: { callback: (v) => `${(Number(v) / 1000).toFixed(0)}k` }, border: { display: false } },
-              y: { grid: { display: false }, border: { display: false }, ticks: { color: 'var(--fg-secondary)' } },
-            },
-          }}
-        />
-      </div>
-      <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-[var(--border)] relative z-[2]">
-        {[
-          { label: "Pending", value: stats.pending.count, color: "var(--sky)" },
-          { label: "Process", value: stats.processing.count, color: "var(--accent)" },
-          { label: "Shipped", value: stats.shipped.count, color: "var(--violet)" },
-          { label: "Done", value: stats.delivered.count, color: "var(--emerald)" },
-        ].map((item) => (
-          <div key={item.label} className="text-center">
-            <p className="text-base font-extrabold" style={{ color: item.color }}>{item.value}</p>
-            <p className="text-[9px] text-[var(--muted)] uppercase tracking-wider font-semibold">{item.label}</p>
+
+      <div className="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
+        {[stats.pending, stats.confirmed, stats.transit, stats.delivered].map((item) => (
+          <div
+            key={item.label}
+            className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800 text-center"
+          >
+            <p className="text-sm font-bold tabular-nums" style={{ color: item.color }}>
+              {item.count}
+            </p>
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate mt-0.5">
+              {item.label.split(" / ")[0]}
+            </p>
+            <p className="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 tabular-nums">
+              {item.val >= 1000 ? `${(item.val / 1000).toFixed(1)}k` : item.val} ETB
+            </p>
           </div>
         ))}
       </div>
     </div>
   );
 }
-

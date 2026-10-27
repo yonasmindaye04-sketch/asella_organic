@@ -10,11 +10,12 @@ import { sendMorningBriefing, initBotConfiguration } from "./lib/telegram.js";
 import { sendWeeklyAffiliateReports } from "./scripts/affiliate-report-cron.js";
 import { startSmsDispatcher, stopSmsDispatcher } from "./lib/smsQueue.js";
 
-const PORT = process.env.PORT ?? "3001";
+const PORT = Number(process.env.PORT ?? 3000);
 
-const server = app.listen(PORT as any, () => {
-  console.log(`\n Asella Organic API running`);
-  console.log(`   http://localhost:${PORT}/api/health\n`);
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`\n Asella Organic Full-Stack Server running`);
+  console.log(`   http://0.0.0.0:${PORT}`);
+  console.log(`   http://0.0.0.0:${PORT}/api/health\n`);
 
   // Asynchronously synchronize bot commands, descriptions, and menu button
   void initBotConfiguration();
