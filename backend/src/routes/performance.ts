@@ -123,8 +123,14 @@ function resolveWindow(query: Record<string, string | undefined>): {
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-  const to   = (query.to   ?? last.toISOString().split("T")[0]);
-  const from = (query.from ?? first.toISOString().split("T")[0]);
+  const isoDay = (d: Date): string => {
+    // toISOString().split("T")[0] is `string | undefined` under noUncheckedIndexedAccess.
+    const day = d.toISOString().split("T")[0];
+    return day ?? d.toISOString().slice(0, 10);
+  };
+
+  const to   = query.to   ?? isoDay(last);
+  const from = query.from ?? isoDay(first);
 
   return {
     from,
