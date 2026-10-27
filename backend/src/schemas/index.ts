@@ -92,6 +92,10 @@ export const CreateStaffSchema = z.object({
 // ─── Orders ───────────────────────────────────────────────────────────────
 
 const OrderItemSchema = z.object({
+  // The variant id (products.id). Declared here or Zod strips it before the
+  // route can use it, which is how order lines previously fell back to a
+  // fragile name/size lookup.
+  product_id:   z.string().uuid("product_id must be a UUID").optional(),
   name:         z.string().trim().min(1, "Item name is required"),
   package_size: z.string().trim().min(1, "Package size is required"),
   quantity:     z.coerce.number().int().positive("Quantity must be a positive integer"),
@@ -178,6 +182,9 @@ export const UpdateItemsSchema = z.object({
 // ─── Products ─────────────────────────────────────────────────────────────
 
 export const CreateProductSchema = z.object({
+  // Attach the variant to an existing parent. When omitted, the route reuses
+  // a group with the same name or creates a single-variant group.
+  product_group_id: z.string().uuid("product_group_id must be a UUID").optional(),
   name:         z.string()
                   .trim()
                   .min(2)
@@ -205,6 +212,7 @@ export const CreateProductSchema = z.object({
 
 export const UpdateProductSchema = z
   .object({
+    product_group_id:    z.string().uuid("product_group_id must be a UUID").optional(),
     name:                z.string().trim().min(2).max(100).transform((val) => val.replace(/\s+/g, ' ')).optional(),
     package_size:        z.string().trim().min(1).max(50).optional(),
     price:               z.number().positive().optional(),

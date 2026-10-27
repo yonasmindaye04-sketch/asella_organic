@@ -616,6 +616,18 @@ export const staff = {
   setup2FA:   ()              => api.post("/api/staff/2fa/setup", {}),
   verify2FA:  (token: string) => api.post("/api/staff/2fa/verify", { token }),
   disable2FA: (token: string) => api.delete("/api/staff/2fa/disable", { "x-2fa-token": token }),
+
+  /** Delivery team performance rollup. Admin/manager only. */
+  deliveryPerformance: (params: {
+    driver?: string; from?: string; to?: string;
+    period?: "day" | "week" | "month";
+    city?: string; location?: string; status?: string;
+    page?: number; limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined) qs.set(k, String(v)); });
+    return api.get(`/api/staff/delivery-performance?${qs}`);
+  },
 };
 
 // ─── SMS ────────────────────────────────────────────────────────────────────

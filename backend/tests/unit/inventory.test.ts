@@ -264,19 +264,17 @@ describe("deductOrderStock", () => {
 
     const results = await deductOrderStock(TEST_ORDER_ID, null);
 
-    // The SUT joins on LOWER(oi.item_name) = LOWER(p.name) — we
-    // named the order item "Moringa" but the product is "Moringa
-    // (inventory test)". The match is case-insensitive substring, so
-    // if the order item is "Moringa" and the product name is
-    // "Moringa (inventory test)", they DON'T match.
-    // So the result will be 0 items (the case-insensitive equality
-    // check is strict).
-    expect(results).toHaveLength(0);
+    // The order item was seeded with no product_id, so under the new
+    // product_id-first resolver it is reported as "unlinked" rather than
+    // silently matched by name/size.
+    expect(results.changed).toEqual([]);
+    expect(results.skipped).toHaveLength(1);
+    expect(results.skipped[0].reason).toBe("unlinked");
   });
 
   it("returns an empty array when the order has no matching products", async () => {
     const results = await deductOrderStock(`no-such-order-${Date.now()}`, null);
-    expect(results).toEqual([]);
+    expect(results).toEqual({ changed: [], skipped: [] });
   });
 });
 
@@ -285,9 +283,8 @@ describe("deductOrderStock", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("restoreOrderStock", () => {
-  it("runs without throwing on a non-existent order (returns void)", async () => {
-    await expect(
-      restoreOrderStock(`no-such-order-${Date.now()}`, null)
-    ).resolves.toBeUndefined();
+  it("runs without throwing on a non-existent order", async () => {
+    const result = await restoreOrderStock(`no-such-order-${Date.now()}`, null);
+    expect(result).toEqual({ changed: [], skipped: [] });
   });
 });

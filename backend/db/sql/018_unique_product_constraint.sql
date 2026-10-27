@@ -24,15 +24,44 @@ END//
 DELIMITER ;
 
 CALL check_active_duplicates();
-DROP PROCEDURE check_active_duplicates;
+DROP PROCEDURE IF EXISTS check_active_duplicates;
 
--- 2. Add virtual column and unique constraint
--- We add `active_unique` which maps active=1 to 1 and active=0 to NULL.
--- Since unique constraints ignore NULLs in MySQL/MariaDB, this effectively
--- creates a partial unique index on (name, package_size) where active = 1.
+-- 2. Add virtual column if missing (idempotent)
+DROP PROCEDURE IF EXISTS add_v2_active_unique_col;
+DELIMITER //
+CREATE PROCEDURE add_v2_active_unique_col()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'
+      AND COLUMN_NAME = 'active_unique'
+  ) THEN
+    ALTER TABLE products
+      ADD COLUMN active_unique TINYINT AS (IF(active = 1, 1, NULL)) VIRTUAL;
+  END IF;
+END//
+DELIMITER ;
+CALL add_v2_active_unique_col();
+DROP PROCEDURE IF EXISTS add_v2_active_unique_col;
 
-ALTER TABLE products 
-ADD COLUMN active_unique TINYINT AS (IF(active = 1, 1, NULL)) VIRTUAL;
+-- 3. Add unique index if missing (idempotent)
+DROP PROCEDURE IF EXISTS add_unique_active_product_idx;
+DELIMITER //
+CREATE PROCEDURE add_unique_active_product_idx()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'
+      AND INDEX_NAME = 'idx_unique_active_product'
+  ) THEN
+    ALTER TABLE products
+      ADD UNIQUE INDEX idx_unique_active_product (name, package_size, active_unique);
+  END IF;
+END//
+DELIMITER ;
+CALL add_unique_active_product_idx();
+DROP PROCEDURE IF EXISTS add_unique_active_product_idx;
 
-ALTER TABLE products 
-ADD UNIQUE INDEX idx_unique_active_product (name, package_size, active_unique);
+INSERT IGNORE INTO migrations_log (filename) VALUES ('018_unique_product_constraint.sql');
+
+SELECT '018_unique_product_constraint.sql applied' AS result;

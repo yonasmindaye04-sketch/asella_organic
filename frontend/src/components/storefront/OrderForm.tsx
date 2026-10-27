@@ -15,7 +15,7 @@ import { COUNTRY_CODES as _CC } from '../../constants/countries';
 const OrderForm: React.FC = () => {
   const dispatch = useDispatch();
   const { toast } = useToast();
-  const { orderModalOpen, orderFormMode, selectedProductName } = useSelector(
+  const { orderModalOpen, orderFormMode, selectedProductId, selectedProductName } = useSelector(
     (state: RootState) => state.ui
   );
   const { products } = useProducts();
@@ -45,13 +45,28 @@ const OrderForm: React.FC = () => {
   useEffect(() => {
     if (orderModalOpen) {
       setGlobalDeliveryDate('');
-      if (orderFormMode === 'buy_now' && selectedProductName) {
-        setItems([{ name: selectedProductName, packageSize: '', qty: 1 }]);
+      if (orderFormMode === 'buy_now' && (selectedProductId || selectedProductName)) {
+        // Prefer the exact variant id passed by the buy-now button. The name
+        // fallback parses the legacy "Product (size)" label.
+        const byId = selectedProductId
+          ? products.find((p) => p.id === selectedProductId)
+          : undefined;
+
+        if (byId) {
+          setItems([{ name: byId.name, packageSize: byId.package_size, qty: 1 }]);
+        } else if (selectedProductName) {
+          const match = selectedProductName.match(/^(.*)\s+\(([^)]+)\)$/);
+          setItems([{
+            name: match ? match[1].trim() : selectedProductName,
+            packageSize: match ? match[2].trim() : '',
+            qty: 1,
+          }]);
+        }
       } else {
         setItems([{ name: '', packageSize: '', qty: 1 }]);
       }
     }
-  }, [orderModalOpen, orderFormMode, selectedProductName]);
+  }, [orderModalOpen, orderFormMode, selectedProductId, selectedProductName, products]);
 
   const regionalFees: Record<string, number> = {
     'Addis Ababa': 200,
@@ -123,6 +138,7 @@ const OrderForm: React.FC = () => {
         const product = products.find(p => p.name === item.name && p.package_size === item.packageSize);
         const qty = Number(item.qty);
         return { 
+          product_id: product?.id,
           name: item.name || 'Custom Item', 
           package_size: item.packageSize || 'Standard', 
           quantity: isNaN(qty) || qty < 1 ? 1 : qty, 

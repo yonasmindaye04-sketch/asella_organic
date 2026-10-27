@@ -59,6 +59,9 @@ const UpdateStockRequestStatusSchema = z.object({
   status: z.enum(["pending", "ordered", "received", "cancelled", "rejected", "returned"]),
   notes:  z.string().max(500).optional(),
   qty_needed: z.number().int().positive().optional(),
+  // Allows a legacy free-text request to be linked to a variant at receive
+  // time, so the stock movement lands on the correct product.
+  product_id: z.string().min(1).optional(),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -87,8 +90,8 @@ router.get(
     const values:     unknown[] = [];
 
     if (search) {
-      conditions.push("(p.name LIKE ? OR p.package_size LIKE ?)");
-      values.push(`%${search}%`, `%${search}%`);
+      conditions.push("(p.name LIKE ? OR p.package_size LIKE ? OR g.name LIKE ?)");
+      values.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     // Filter by stock_status computed value
@@ -108,6 +111,8 @@ router.get(
       const [rows] = await pool.query(
         `SELECT
            p.id,
+           p.product_group_id,
+           g.name AS group_name,
            p.name,
            p.package_size,
            p.price,
@@ -135,6 +140,7 @@ router.get(
             ORDER  BY im.created_at DESC
             LIMIT  1) AS last_movement_type
          FROM products p
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
          ${where}
          ORDER BY p.inventory_quantity ASC, p.name ASC`,
         values
@@ -251,12 +257,15 @@ router.get(
            im.reference_type,
            im.created_at,
            p.id   AS product_id,
+           p.product_group_id,
+           g.name AS group_name,
            p.name AS product_name,
            p.package_size,
            su.full_name AS performed_by_name,
            su.username  AS performed_by_username
          FROM inventory_movements im
          JOIN products    p  ON im.product_id = p.id
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
          LEFT JOIN staff_users su ON im.performed_by = su.id
          ${where}
          ORDER BY im.created_at DESC
@@ -292,18 +301,20 @@ router.get(
     try {
       const [rows] = await pool.query(
         `SELECT
-           id, name, package_size,
-           inventory_quantity AS current_quantity,
-           low_stock_threshold,
+           p.id, p.product_group_id, g.name AS group_name,
+           p.name, p.package_size,
+           p.inventory_quantity AS current_quantity,
+           p.low_stock_threshold,
            CASE
-             WHEN inventory_quantity = 0                           THEN 'out_of_stock'
-             WHEN inventory_quantity <= low_stock_threshold / 2   THEN 'critical'
+             WHEN p.inventory_quantity = 0                           THEN 'out_of_stock'
+             WHEN p.inventory_quantity <= p.low_stock_threshold / 2 THEN 'critical'
              ELSE 'low'
            END AS stock_status
-         FROM products
-         WHERE inventory_quantity <= low_stock_threshold
-           AND active = true
-         ORDER BY inventory_quantity ASC`
+         FROM products p
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
+         WHERE p.inventory_quantity <= p.low_stock_threshold
+           AND p.active = true
+         ORDER BY p.inventory_quantity ASC`
       ) as [any[], any];
 
       res.json({ success: true, data: rows });
@@ -425,13 +436,25 @@ router.post(
       // If vendor_order has a product_id, use it directly
       let productId: string | null = vo.product_id ?? null;
 
-      // Otherwise try to match by item name (legacy POs without product_id)
+      // Otherwise try to match by item name (legacy POs without product_id).
+      // Only an unambiguous single active variant is accepted; multiple sizes
+      // must be resolved by setting product_id on the vendor order.
       if (!productId) {
         const [pRows] = await conn.query(
-          `SELECT id FROM products WHERE LOWER(name) = LOWER(?) AND active = true LIMIT 1`,
+          `SELECT id, package_size FROM products WHERE LOWER(name) = LOWER(?) AND active = true`,
           [vo.item]
         ) as [any[], any];
-        productId = pRows[0]?.id ?? null;
+
+        if (pRows.length === 1) {
+          productId = pRows[0].id;
+        } else if (pRows.length > 1) {
+          await conn.rollback();
+          res.status(400).json({
+            success: false,
+            error: `Multiple variants match vendor order item "${vo.item}". Set product_id on the vendor_order to receive it.`,
+          });
+          return;
+        }
       }
 
       if (!productId) {
@@ -440,6 +463,30 @@ router.post(
           success: false,
           error: `No product found matching vendor order item "${vo.item}". ` +
                  `Set product_id on the vendor_order to fix this.`,
+        });
+        return;
+      }
+
+      // Validate the linked variant before writing the movement.
+      const [prodRows] = await conn.query(
+        `SELECT id, name, package_size, active FROM products WHERE id = ? LIMIT 1`,
+        [productId]
+      ) as [any[], any];
+
+      const product = prodRows[0];
+      if (!product) {
+        await conn.rollback();
+        res.status(400).json({
+          success: false,
+          error: "The linked product no longer exists. Update product_id on the vendor_order.",
+        });
+        return;
+      }
+      if (!product.active) {
+        await conn.rollback();
+        res.status(400).json({
+          success: false,
+          error: `Product "${product.name}" (${product.package_size}) is inactive and cannot receive stock.`,
         });
         return;
       }
@@ -479,6 +526,13 @@ router.post(
       });
     } catch (err: any) {
       await conn.rollback();
+      const message = err instanceof Error ? err.message : String(err);
+
+      if (message.includes("Insufficient stock") || message.includes("not found or inactive")) {
+        res.status(400).json({ success: false, error: message });
+        return;
+      }
+
       const log = createLogger(req);
       log.error("Failed to receive vendor order stock", err);
       res.status(500).json({ success: false, error: "Internal server error" });
@@ -511,6 +565,59 @@ router.post(
     };
 
     try {
+      let resolvedProductId: string | null = product_id ?? null;
+      let resolvedItem = item;
+      let resolvedSize: string | null = package_size ?? null;
+      let resolvedStock = stock_available;
+
+      if (resolvedProductId) {
+        // A supplied variant id is authoritative. Snapshot its canonical
+        // name/size/stock so the request cannot drift from the catalog.
+        const [pRows] = await pool.query(
+          `SELECT id, name, package_size, inventory_quantity
+           FROM products WHERE id = ? LIMIT 1`,
+          [resolvedProductId]
+        ) as [any[], any];
+
+        const product = pRows[0];
+        if (!product) {
+          res.status(400).json({ success: false, error: "Product not found." });
+          return;
+        }
+
+        resolvedItem = product.name;
+        resolvedSize = product.package_size;
+        if (resolvedStock === undefined) resolvedStock = product.inventory_quantity;
+      } else {
+        // Legacy free-text request: link it only when the name/size match is
+        // unambiguous. Ambiguous matches must not pick an arbitrary variant.
+        const conditions = ["active = 1", "LOWER(name) = LOWER(?)"];
+        const params: unknown[] = [item];
+        if (package_size) {
+          conditions.push("package_size = ?");
+          params.push(package_size);
+        }
+
+        const [pRows] = await pool.query(
+          `SELECT id, name, package_size, inventory_quantity
+           FROM products WHERE ${conditions.join(" AND ")}`,
+          params
+        ) as [any[], any];
+
+        if (pRows.length === 1) {
+          resolvedProductId = pRows[0].id;
+          resolvedItem = pRows[0].name;
+          resolvedSize = pRows[0].package_size;
+          if (resolvedStock === undefined) resolvedStock = pRows[0].inventory_quantity;
+        } else if (pRows.length > 1) {
+          res.status(400).json({
+            success: false,
+            error: "Multiple variants match this item and size. Provide product_id.",
+          });
+          return;
+        }
+      }
+
       const newId = crypto.randomUUID();
       await pool.query(
         `INSERT INTO stock_requests
@@ -519,10 +626,10 @@ router.post(
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newId,
-          product_id      ?? null,
-          item,
-          package_size    ?? null,
-          stock_available ?? 0,
+          resolvedProductId,
+          resolvedItem,
+          resolvedSize,
+          resolvedStock ?? 0,
           qty_needed,
           delivery_date   ?? null,
           requested_by    ?? null,
@@ -531,17 +638,19 @@ router.post(
       );
 
       const [reqRows] = await pool.query(
-        `SELECT sr.*, p.name AS product_name, p.package_size AS product_package_size
+        `SELECT sr.*, p.name AS product_name, p.package_size AS product_package_size,
+                p.product_group_id, g.name AS group_name
          FROM stock_requests sr
          LEFT JOIN products p ON sr.product_id = p.id
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
          WHERE sr.id = ?`,
         [newId]
       ) as [any[], any];
 
       void sendStockRequestAlert({
-        item,
-        packageSize:  package_size    ?? "N/A",
-        current:      stock_available ?? 0,
+        item:         resolvedItem,
+        packageSize:  resolvedSize ?? "N/A",
+        current:      resolvedStock ?? 0,
         needed:       qty_needed,
         deliveryDate: delivery_date   ?? "Not specified",
         requestedBy:  requested_by    ?? req.user!.username,
@@ -579,10 +688,13 @@ router.get(
            su.username  AS requested_by_username,
            su.full_name AS requested_by_name,
            p.name       AS product_name,
+           p.product_group_id,
+           g.name       AS group_name,
            p.inventory_quantity AS current_stock
          FROM stock_requests sr
          LEFT JOIN staff_users su ON sr.requested_by_user_id = su.id
          LEFT JOIN products    p  ON sr.product_id = p.id
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
          ${where}
          ORDER BY sr.created_at DESC`,
         values
@@ -607,7 +719,12 @@ router.patch(
   authorise("admin", "manager"),
   validate(UpdateStockRequestStatusSchema),
   async (req: Request, res: Response): Promise<void> => {
-    const { status, notes, qty_needed } = req.body as { status: string; notes?: string; qty_needed?: number };
+    const { status, notes, qty_needed, product_id } = req.body as {
+      status: string;
+      notes?: string;
+      qty_needed?: number;
+      product_id?: string;
+    };
     const requestId = entityIdParam(req.params.id);
     if (!requestId) {
       res.status(400).json({ success: false, error: "Invalid stock request ID" });
@@ -630,6 +747,54 @@ router.patch(
         return;
       }
 
+      // Resolve the linked variant. An explicit product_id wins; otherwise a
+      // legacy free-text request is matched only when the match is unique.
+      let linkedProductId: string | null = sr.product_id ?? null;
+
+      if (product_id) {
+        const [pRows] = await conn.query(
+          `SELECT id FROM products WHERE id = ? LIMIT 1`,
+          [product_id]
+        ) as [any[], any];
+
+        if (!pRows[0]) {
+          await conn.rollback();
+          res.status(400).json({ success: false, error: "Product not found." });
+          return;
+        }
+        linkedProductId = pRows[0].id;
+      } else if (!linkedProductId && status === "received") {
+        const conditions = ["active = 1", "LOWER(name) = LOWER(?)"];
+        const params: unknown[] = [sr.item];
+        if (sr.package_size) {
+          conditions.push("package_size = ?");
+          params.push(sr.package_size);
+        }
+
+        const [pRows] = await conn.query(
+          `SELECT id FROM products WHERE ${conditions.join(" AND ")}`,
+          params
+        ) as [any[], any];
+
+        if (pRows.length === 1) {
+          linkedProductId = pRows[0].id;
+        } else if (pRows.length > 1) {
+          await conn.rollback();
+          res.status(400).json({
+            success: false,
+            error: "Multiple variants match this request. Supply product_id to receive it.",
+          });
+          return;
+        } else {
+          await conn.rollback();
+          res.status(400).json({
+            success: false,
+            error: "Stock request is not linked to a product. Supply product_id to receive it.",
+          });
+          return;
+        }
+      }
+
       // Prevent double-receive
       if (sr.status === "received" && status === "received") {
         await conn.rollback();
@@ -637,35 +802,48 @@ router.patch(
         return;
       }
 
+      const receiveQty = qty_needed ?? sr.qty_needed;
+
       await conn.query(
-        `UPDATE stock_requests SET status = ?, notes = ?, qty_needed = COALESCE(?, qty_needed), updated_at = NOW() WHERE id = ?`,
-        [status, notes ?? null, qty_needed ?? null, requestId]
+        `UPDATE stock_requests
+         SET status = ?, notes = ?, qty_needed = COALESCE(?, qty_needed),
+             product_id = COALESCE(?, product_id), updated_at = NOW()
+         WHERE id = ?`,
+        [status, notes ?? null, qty_needed ?? null, linkedProductId, requestId]
       );
 
       // Auto-increment inventory when request is received AND linked to a product
       let movementResult = null;
-      if (status === "received" && sr.product_id && sr.qty_needed > 0) {
-        movementResult = await recordMovement(
-          {
-            productId:     sr.product_id as string,
-            type:          "purchase_received",
-            changeAmount:  sr.qty_needed as number,
-            performedBy:   req.user!.id,
-            referenceId:   requestId,
-            referenceType: "stock_request",
-            reason:        `Stock request #${requestId} fulfilled`,
-            notes:         notes ?? null,
-          },
-          conn
-        );
+      let inventoryWarning: string | null = null;
+
+      if (status === "received") {
+        if (linkedProductId && Number(receiveQty) > 0) {
+          movementResult = await recordMovement(
+            {
+              productId:     linkedProductId,
+              type:          "purchase_received",
+              changeAmount:  Number(receiveQty),
+              performedBy:   req.user!.id,
+              referenceId:   requestId,
+              referenceType: "stock_request",
+              reason:        `Stock request #${requestId} fulfilled`,
+              notes:         notes ?? null,
+            },
+            conn
+          );
+        } else {
+          inventoryWarning = "No stock movement was recorded because the request has a zero quantity.";
+        }
       }
 
       await conn.commit();
 
       const [updatedRows] = await pool.query(
-        `SELECT sr.*, p.name AS product_name, p.inventory_quantity AS current_stock
+        `SELECT sr.*, p.name AS product_name, p.product_group_id,
+                g.name AS group_name, p.inventory_quantity AS current_stock
          FROM stock_requests sr
          LEFT JOIN products p ON sr.product_id = p.id
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
          WHERE sr.id = ?`,
         [requestId]
       ) as [any[], any];
@@ -673,13 +851,19 @@ router.patch(
       res.json({
         success: true,
         data: updatedRows[0],
-        ...(movementResult ? {
-          inventory_updated: true,
-          new_quantity: movementResult.newQuantity,
-        } : {}),
+        inventory_updated: Boolean(movementResult),
+        ...(movementResult ? { new_quantity: movementResult.newQuantity } : {}),
+        ...(inventoryWarning ? { inventory_warning: inventoryWarning } : {}),
       });
     } catch (err: any) {
       await conn.rollback();
+      const message = err instanceof Error ? err.message : String(err);
+
+      if (message.includes("Insufficient stock") || message.includes("not found or inactive")) {
+        res.status(400).json({ success: false, error: message });
+        return;
+      }
+
       const log = createLogger(req);
       log.error("Failed to update stock request status", err);
       res.status(500).json({ success: false, error: "Internal server error" });

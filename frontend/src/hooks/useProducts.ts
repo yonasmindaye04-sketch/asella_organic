@@ -3,6 +3,8 @@ import { api } from '../services/api';
 
 export interface Product {
   id: string;
+  product_group_id?: string | null;
+  group_name?: string | null;
   name: string;
   package_size: string;
   price: string;
@@ -17,6 +19,7 @@ export interface Product {
 
 export interface Variant {
   id: string;
+  name?: string;
   package_size: string;
   price: string | number;
   inventory_quantity: number;
@@ -25,6 +28,7 @@ export interface Variant {
 }
 
 export interface GroupedProduct {
+  id: string | null;
   name: string;
   description: string;
   image_url: string;

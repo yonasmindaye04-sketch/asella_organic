@@ -23,7 +23,7 @@ import crypto from "crypto";
 export interface TokenPayload {
   id:       string;
   username: string;
-  role:     "admin" | "manager" | "employee" | "affiliate" | "delivery" | "vendor";
+  role:     "admin" | "manager" | "employee" | "affiliate" | "delivery" | "vendor" | "call_center";
   jti:      string;
 }
 

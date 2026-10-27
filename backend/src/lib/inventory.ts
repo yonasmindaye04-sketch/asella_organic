@@ -59,6 +59,7 @@ export interface RecordMovementOptions {
   reason:         string;
   notes?:         string | null;
   allowNegative?: boolean;         // default false — guard against oversell
+  allowInactive?: boolean;         // default false — allow returns to archived variants
 }
 
 export interface MovementResult {
@@ -95,14 +96,16 @@ export async function recordMovement(
     const [productRows] = await conn.query(
       `SELECT id, name, package_size, inventory_quantity, low_stock_threshold
        FROM   products
-       WHERE  id = ? AND active = true
+       WHERE  id = ?${options.allowInactive ? "" : " AND active = true"}
        FOR UPDATE`,
       [options.productId]
     ) as [any[], any];
 
     const product = productRows[0];
     if (!product) {
-      throw new Error(`Product ${options.productId} not found or inactive.`);
+      throw new Error(
+        `Product ${options.productId} not found${options.allowInactive ? "" : " or inactive"}.`
+      );
     }
 
     const previousQty = product.inventory_quantity as number;
@@ -202,40 +205,80 @@ export async function recordMovement(
   }
 }
 
-// ─── Batch helper (used when delivering an entire order) ──────────────────
+// ─── Batch helpers (used when delivering or cancelling an order) ──────────
+
+export interface SkippedOrderItem {
+  orderItemId: string;
+  itemName: string;
+  packageSize: string;
+  quantity: number;
+  reason: "unlinked" | "missing" | "inactive";
+}
+
+export interface OrderStockChange {
+  productId: string;
+  newQuantity: number;
+  belowThreshold: boolean;
+}
+
+export interface OrderStockResult {
+  changed: OrderStockChange[];
+  skipped: SkippedOrderItem[];
+}
+
+function skippedItem(item: any, reason: SkippedOrderItem["reason"]): SkippedOrderItem {
+  return {
+    orderItemId: item.id as string,
+    itemName: item.item_name as string,
+    packageSize: item.package_size as string,
+    quantity: Number(item.quantity),
+    reason,
+  };
+}
 
 /**
- * Deduct stock for all items in an order in a single transaction.
- * Called by the orders route when status transitions to "Delivered".
+ * Deduct stock for all linked items in an order in a single transaction.
  *
- * Returns an array of { productId, newQuantity, belowThreshold }
- * for each item successfully matched to a product.
+ * Uses order_items.product_id directly. Name/package_size are never used to
+ * guess a variant: that was the source of the wrong-product stock deductions.
+ * Unlinked, missing, and inactive variants are returned as `skipped` so the
+ * caller can surface them instead of silently leaving stock untouched.
  */
 export async function deductOrderStock(
   orderId:     string,
   performedBy: string | null
-): Promise<{ productId: string; newQuantity: number; belowThreshold: boolean }[]> {
+): Promise<OrderStockResult> {
   const conn = await pool.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    // Resolve product_id for each order item via name + package_size match
     const [items] = await conn.query(
-      `SELECT oi.quantity, p.id AS product_id
+      `SELECT oi.id, oi.product_id, oi.item_name, oi.package_size, oi.quantity,
+              p.id AS resolved_id, p.active AS product_active
        FROM   order_items oi
-       JOIN   products p
-         ON   LOWER(oi.item_name) = LOWER(p.name)
-        AND   oi.package_size = p.package_size
-       WHERE  oi.order_id = ?
-         AND  p.active = true`,
+       LEFT JOIN products p ON p.id = oi.product_id
+       WHERE  oi.order_id = ?`,
       [orderId]
     ) as [any[], any];
 
-    const results: { productId: string; newQuantity: number; belowThreshold: boolean }[] = [];
+    const result: OrderStockResult = { changed: [], skipped: [] };
 
     for (const item of items) {
-      const result = await recordMovement(
+      if (!item.product_id) {
+        result.skipped.push(skippedItem(item, "unlinked"));
+        continue;
+      }
+      if (!item.resolved_id) {
+        result.skipped.push(skippedItem(item, "missing"));
+        continue;
+      }
+      if (!item.product_active) {
+        result.skipped.push(skippedItem(item, "inactive"));
+        continue;
+      }
+
+      const movement = await recordMovement(
         {
           productId:     item.product_id as string,
           type:          "sale",
@@ -248,15 +291,15 @@ export async function deductOrderStock(
         conn  // share the transaction
       );
 
-      results.push({
-        productId:     item.product_id,
-        newQuantity:   result.newQuantity,
-        belowThreshold: result.belowThreshold,
+      result.changed.push({
+        productId:      item.product_id,
+        newQuantity:    movement.newQuantity,
+        belowThreshold: movement.belowThreshold,
       });
     }
 
     await conn.commit();
-    return results;
+    return result;
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -266,32 +309,43 @@ export async function deductOrderStock(
 }
 
 /**
- * Restore stock for all items in an order in a single transaction.
- * Called by the orders route when status transitions FROM "Delivered" TO "Cancelled" or "Issue".
+ * Restore stock for all linked items in an order in a single transaction.
+ *
+ * Called when a Delivered order moves to Cancelled, Issue, or Returned.
+ * Archived variants are allowed here: a product deactivated after delivery
+ * still needs its stock returned.
  */
 export async function restoreOrderStock(
   orderId:     string,
   performedBy: string | null
-): Promise<void> {
+): Promise<OrderStockResult> {
   const conn = await pool.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    // Resolve product_id for each order item
     const [items] = await conn.query(
-      `SELECT oi.quantity, p.id AS product_id
+      `SELECT oi.id, oi.product_id, oi.item_name, oi.package_size, oi.quantity,
+              p.id AS resolved_id
        FROM   order_items oi
-       JOIN   products p
-         ON   LOWER(oi.item_name) = LOWER(p.name)
-        AND   oi.package_size = p.package_size
-       WHERE  oi.order_id = ?
-         AND  p.active = true`,
+       LEFT JOIN products p ON p.id = oi.product_id
+       WHERE  oi.order_id = ?`,
       [orderId]
     ) as [any[], any];
 
+    const result: OrderStockResult = { changed: [], skipped: [] };
+
     for (const item of items) {
-      await recordMovement(
+      if (!item.product_id) {
+        result.skipped.push(skippedItem(item, "unlinked"));
+        continue;
+      }
+      if (!item.resolved_id) {
+        result.skipped.push(skippedItem(item, "missing"));
+        continue;
+      }
+
+      const movement = await recordMovement(
         {
           productId:     item.product_id as string,
           type:          "return",
@@ -300,12 +354,20 @@ export async function restoreOrderStock(
           referenceId:   orderId,
           referenceType: "order",
           reason:        `Order ${orderId} cancelled/returned`,
+          allowInactive: true,
         },
         conn  // share the transaction
       );
+
+      result.changed.push({
+        productId:      item.product_id,
+        newQuantity:    movement.newQuantity,
+        belowThreshold: movement.belowThreshold,
+      });
     }
 
     await conn.commit();
+    return result;
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -313,3 +375,4 @@ export async function restoreOrderStock(
     conn.release();
   }
 }
+

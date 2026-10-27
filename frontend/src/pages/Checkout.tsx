@@ -142,7 +142,7 @@ const Checkout: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          source:        'website/online',
+          source:        'website',
           order_type:    'delivery',
           customer_name: form.customer_name.trim(),
           phone:         form.phone.trim(),
@@ -151,6 +151,7 @@ const Checkout: React.FC = () => {
           location:      form.location.trim(),
           notes:         form.notes.trim() || undefined,
           items:         cart.map((it) => ({
+            product_id:   it.product_id,
             name:         it.name,
             package_size: it.package_size,
             quantity:     it.quantity,

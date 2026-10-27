@@ -408,6 +408,7 @@ export const TelegramStore: React.FC = () => {
         notes: form.notes.trim() || undefined,
         referral_code: referralCode.trim() || undefined,
         items: cart.cart.map((item) => ({
+          product_id: item.productId,
           name: item.name,
           package_size: item.packageSize,
           quantity: item.quantity,

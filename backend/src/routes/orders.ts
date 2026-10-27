@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/routes/orders.ts
  * Asella Organic — Orders Routes (MySQL)
  *
@@ -38,6 +38,7 @@ import { mirrorToSheets, mirrorOrderStatusToSheets, mirrorOrderDeletionToSheets 
 import { sanitizeObject, randomId }   from "../lib/security.js";
 import { createLogger }               from "../lib/logger.js";
 import { deductOrderStock, restoreOrderStock }           from "../lib/inventory.js";
+import { resolveOrderItems, OrderItemResolutionError }  from "../lib/orderItems.js";
 import { orderRateLimit } from "../middleware/rateLimit.js";
 import jwt from "jsonwebtoken";
 
@@ -180,8 +181,8 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  const { referral_code, items, ...fields } = parsed.data;
-  const total   = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const { referral_code, items: itemInputs, ...fields } = parsed.data;
+  const total   = itemInputs.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
 
   let staffUserId = null;
@@ -198,6 +199,17 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+
+    // Resolve every line against the catalog before writing anything.
+    // A supplied product_id wins; legacy name/size input is still accepted.
+    const items = (await resolveOrderItems(connection, itemInputs)).map((item) => ({
+      name:         item.name,
+      package_size: item.packageSize,
+      quantity:     item.quantity,
+      unit_price:   item.unitPrice,
+      product_id:   item.productId,
+      unit_cost:    item.unitCost,
+    }));
 
     const tempCustomerId = crypto.randomUUID();
     await connection.query(
@@ -237,17 +249,13 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
     }
 
     for (const item of items) {
-      const [prodRows] = await connection.query(
-        `SELECT id, unit_cost FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? LIMIT 1`,
-        [item.name, item.package_size]
-      ) as [any[], any];
-      const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
-      const productId = prodRows.length ? prodRows[0].id : null;
-
       await connection.query(
         `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, unitCost, productId]
+        [
+          crypto.randomUUID(), orderId, item.name, item.package_size,
+          item.quantity, item.unit_price, item.unit_cost, item.product_id,
+        ]
       );
     }
 
@@ -298,11 +306,17 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
       try {
         const alertItems: string[] = [];
         for (const item of items) {
-          const [rows] = await pool.query(
-            `SELECT name, package_size, inventory_quantity, low_stock_threshold
-             FROM products WHERE name = ? AND package_size = ? AND active = TRUE LIMIT 1`,
-            [item.name, item.package_size]
-          ) as [any[], any];
+          const [rows] = item.product_id
+            ? await pool.query(
+                `SELECT name, package_size, inventory_quantity, low_stock_threshold
+                 FROM products WHERE id = ? AND active = TRUE LIMIT 1`,
+                [item.product_id]
+              ) as [any[], any]
+            : await pool.query(
+                `SELECT name, package_size, inventory_quantity, low_stock_threshold
+                 FROM products WHERE name = ? AND package_size = ? AND active = TRUE LIMIT 1`,
+                [item.name, item.package_size]
+              ) as [any[], any];
           if (!rows.length) continue;
           const p = rows[0];
           if (p.inventory_quantity === 0) {
@@ -366,6 +380,10 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
     res.status(201).json({ success: true, data: { id: orderId, total } });
   } catch (err) {
     await connection.rollback();
+    if (err instanceof OrderItemResolutionError) {
+      res.status(400).json({ success: false, error: err.message });
+      return;
+    }
     log.error("Failed to create order", err);
     res.status(500).json({ success: false, error: "Internal server error" });
   } finally {
@@ -441,7 +459,7 @@ router.get("/", authenticate,
   // authenticated principal could dump the whole customer book — name, phone,
   // address, notes — by paging through it. Affiliates are excluded: they
   // have their own scoped portal endpoints.
-  authorise("admin", "manager", "employee", "delivery"),
+  authorise("admin", "manager", "employee", "delivery", "call_center"),
   async (req: Request, res: Response) => {
   const log = createLogger(req);
   try {
@@ -463,6 +481,12 @@ router.get("/", authenticate,
     if (search) {
       conditions.push("(o.customer_name LIKE ? OR o.phone LIKE ? OR o.id LIKE ?)");
       values.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    // Call center agents can only see orders they created themselves.
+    if (req.user?.role === "call_center") {
+      conditions.push("o.created_by_staff_id = ?");
+      values.push(req.user.id);
     }
 
     const where   = `WHERE ${conditions.join(" AND ")}`;
@@ -530,7 +554,7 @@ router.get(
   // this returns `o.*`, which includes customer name, phone and address —
   // simply by iterating the order id. The portal has its own scoped endpoints
   // for what an affiliate is allowed to see.
-  authorise("admin", "manager", "employee", "delivery"),
+  authorise("admin", "manager", "employee", "delivery", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -545,6 +569,12 @@ router.get(
       const order = orders[0];
       if (!order) {
         res.status(404).json({ success: false, error: "Order not found" });
+        return;
+      }
+
+      // call_center agents can only read orders they created
+      if (req.user?.role === "call_center" && order.created_by_staff_id !== req.user.id) {
+        res.status(403).json({ success: false, error: "Forbidden" });
         return;
       }
 
@@ -597,19 +627,37 @@ router.patch(
       res.status(404).json({ success: false, error: "Order not found" });
       return;
     }
+//this is the part where we check if the status is being changed to "Delivered" and if the current status is not "Delivered". 
+// If so, we check the inventory for each item in the order to ensure there is sufficient stock. If any item has insufficient stock, 
+// we return a 400 error with a message indicating which item is out of stock. If all items have sufficient stock, we proceed to deduct the stock for the order. 
+// If there is an error during stock deduction, we return a 400 error with a message indicating that stock deduction failed.
+    let stockWarnings: string[] = [];
 
     if (status === "Delivered" && current.status !== "Delivered") {
       const [items] = await pool.query(
-        `SELECT oi.item_name, oi.package_size, oi.quantity, p.inventory_quantity
+        `SELECT oi.id, oi.item_name, oi.package_size, oi.quantity,
+                oi.product_id, p.id AS resolved_id, p.active AS product_active,
+                p.inventory_quantity
          FROM   order_items oi
-         LEFT JOIN products p
-           ON  LOWER(oi.item_name) = LOWER(p.name)
-           AND oi.package_size = p.package_size
-         WHERE oi.order_id = ?`,
+         LEFT JOIN products p ON p.id = oi.product_id
+         WHERE  oi.order_id = ?`,
         [orderId]
       ) as [any[], any];
 
       for (const item of items) {
+        if (!item.product_id) continue;          // reported by deductOrderStock
+        if (!item.resolved_id) {
+          stockWarnings.push(
+            `${item.item_name} (${item.package_size}) x${item.quantity}: product no longer exists`
+          );
+          continue;
+        }
+        if (!item.product_active) {
+          stockWarnings.push(
+            `${item.item_name} (${item.package_size}) x${item.quantity}: product is inactive`
+          );
+          continue;
+        }
         if (item.inventory_quantity !== null && item.inventory_quantity < item.quantity) {
           res.status(400).json({
             success: false,
@@ -619,9 +667,16 @@ router.patch(
         }
       }
 
-      // Deduct stock now that the check passed
+      // Deduct stock now that the check passed. The function uses
+      // order_items.product_id and reports anything it had to skip.
       try {
-        await deductOrderStock(orderId, (req as any).user?.id ?? null);
+        const stockResult = await deductOrderStock(orderId, (req as any).user?.id ?? null);
+        stockWarnings = [
+          ...stockWarnings,
+          ...stockResult.skipped.map(
+            (item) => `${item.itemName} (${item.packageSize}) x${item.quantity}: ${item.reason}`
+          ),
+        ];
       } catch (stockErr: any) {
         res.status(400).json({
           success: false,
@@ -637,7 +692,10 @@ router.patch(
       // same restoration as a cancellation. The commission reversal trigger
       // treats all three void statuses identically.
       try {
-        await restoreOrderStock(orderId, (req as any).user?.id ?? null);
+        const stockResult = await restoreOrderStock(orderId, (req as any).user?.id ?? null);
+        stockWarnings = stockResult.skipped.map(
+          (item) => `${item.itemName} (${item.packageSize}) x${item.quantity}: ${item.reason}`
+        );
       } catch (stockErr: any) {
         res.status(400).json({
           success: false,
@@ -721,8 +779,19 @@ router.patch(
       });
     }
 
+    if (stockWarnings.length > 0) {
+      log.warn("Order status changed with stock warnings", { orderId, status, stockWarnings });
+    }
+
     log.info("Order status updated", { orderId, status });
-    res.json({ success: true, data: { id: orderId, status } });
+    res.json({
+      success: true,
+      data: {
+        id: orderId,
+        status,
+        ...(stockWarnings.length > 0 ? { stock_warnings: stockWarnings } : {}),
+      },
+    });
   }
 );
 
@@ -736,8 +805,14 @@ router.patch(
   validate(UpdateItemsSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
-    const { items } = req.body as {
-      items: Array<{ name: string; package_size: string; quantity: number; unit_price: number }>;
+    const { items: itemInputs } = req.body as {
+      items: Array<{
+        product_id?: string;
+        name: string;
+        package_size: string;
+        quantity: number;
+        unit_price: number;
+      }>;
     };
     const orderId = String(req.params.id);
     const connection = await pool.getConnection();
@@ -763,6 +838,16 @@ router.patch(
       // delivery time and will deduct whatever is currently in order_items.
       const isDelivered = orderStatus === "Delivered";
 
+      // Resolve the replacement lines before deleting the old ones.
+      const items = (await resolveOrderItems(connection, itemInputs)).map((item) => ({
+        name:         item.name,
+        package_size: item.packageSize,
+        quantity:     item.quantity,
+        unit_price:   item.unitPrice,
+        product_id:   item.productId,
+        unit_cost:    item.unitCost,
+      }));
+
       // 1. Fetch old items for inventory rebalancing (only needed when Delivered)
       const [oldItemsRows] = await connection.query(
         `SELECT product_id, quantity FROM order_items WHERE order_id = ?`,
@@ -783,22 +868,17 @@ router.patch(
       }
 
       for (const item of items) {
-        const [prodRows] = await connection.query(
-          `SELECT id, unit_cost FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? LIMIT 1`,
-          [item.name, item.package_size]
-        ) as [any[], any];
-        
-        const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
-        const productId = prodRows.length ? prodRows[0].id : null;
-
-        if (isDelivered && productId) {
-          deltaMap.set(productId, (deltaMap.get(productId) || 0) - item.quantity); // subtract new qty (negative means we deduct from stock)
+        if (isDelivered && item.product_id) {
+          deltaMap.set(item.product_id, (deltaMap.get(item.product_id) || 0) - item.quantity); // subtract new qty (negative means we deduct from stock)
         }
 
         await connection.query(
           `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, unitCost, productId]
+          [
+            crypto.randomUUID(), orderId, item.name, item.package_size,
+            item.quantity, item.unit_price, item.unit_cost, item.product_id,
+          ]
         );
       }
 
@@ -847,6 +927,10 @@ router.patch(
       res.json({ success: true, data: { id: orderId, total: newTotal } });
     } catch (err) {
       await connection.rollback();
+      if (err instanceof OrderItemResolutionError) {
+        res.status(400).json({ success: false, error: err.message });
+        return;
+      }
       log.error("Failed to update order items", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     } finally {

@@ -9,6 +9,7 @@ import DashboardLayout from '../layouts/DashboardLayout';
 interface OrderItem {
   id?: string;
   order_id?: string;
+  product_id?: string | null;
   item_name: string;
   package_size: string;
   quantity: number;
@@ -443,6 +444,7 @@ const OrderTracking: React.FC = () => {
     setEditedItems([
       ...editedItems,
       {
+        product_id: firstProduct.id,
         item_name: firstProduct.name,
         package_size: firstProduct.package_size,
         quantity: 1,
@@ -463,6 +465,7 @@ const OrderTracking: React.FC = () => {
       const itemsToSave = editedItems
         .filter(item => item.item_name && item.item_name.trim() !== '')
         .map(item => ({
+          product_id: item.product_id ?? undefined,
           name: item.item_name,
           package_size: item.package_size,
           quantity: Number(item.quantity) || 1,
@@ -916,6 +919,7 @@ const OrderTracking: React.FC = () => {
                                 const updated = [...editedItems];
                                 updated[idx] = { 
                                   ...updated[idx], 
+                                  product_id: firstVariant.id,
                                   item_name: firstVariant.name,
                                   package_size: firstVariant.package_size,
                                   unit_price: firstVariant.price
@@ -940,6 +944,7 @@ const OrderTracking: React.FC = () => {
                                 const updated = [...editedItems];
                                 updated[idx] = { 
                                   ...updated[idx], 
+                                  product_id: variant.id,
                                   package_size: variant.package_size,
                                   unit_price: variant.price 
                                 };

@@ -29,7 +29,7 @@ const router = Router();
 
 const BCRYPT_ROUNDS = 12;
 
-const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver"] as const;
+const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver", "call_center"] as const;
 type StaffRole    = typeof VALID_ROLES[number];
 const isValidRole = (r: unknown): r is StaffRole => VALID_ROLES.includes(r as StaffRole);
 
@@ -130,7 +130,7 @@ router.get(
 
       // ── 1. Staff info ────────────────────────────────────────────
       const [staffRows] = await pool.query(
-        `SELECT id, full_name, role, email, phone, created_at
+        `SELECT id, full_name, role, email, phone, telegram_username, created_at
          FROM staff_users WHERE id = ? AND deleted_at IS NULL`,
         [staffId]
       ) as [any[], any];
@@ -244,6 +244,90 @@ router.get(
         [staffId, ...dp]
       ) as [any[], any];
 
+      // ── 9. Delivery workload (drivers only) ──────────────────────────
+      //
+      // A driver's work is attributed by Telegram handle, not staff id:
+      // orders.assigned_to holds the @handle the Telegram bot wrote when the
+      // driver accepted the job, so it is joined against the staff row's
+      // telegram_username. Drivers with no handle on file get no delivery
+      // numbers here — that is a staff-record gap, not a zero-performance
+      // driver, so the block is omitted rather than filled with zeroes.
+      let delivery: Record<string, number> | null = null;
+      if (staffRows[0].role === "delivery" && staffRows[0].telegram_username) {
+        const tgUsername = staffRows[0].telegram_username;
+
+        const [deliveryRows] = await pool.query(
+          `SELECT
+             COUNT(o.id)                                                     AS total_assigned,
+             COALESCE(SUM(o.status = 'Delivered'), 0)                        AS delivered,
+             COALESCE(SUM(o.status IN ('Cancelled','CANCELLED')), 0)          AS cancelled,
+             COALESCE(SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED')), 0) AS pending,
+             COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED')
+                               THEN o.total ELSE 0 END), 0)                 AS revenue,
+             COALESCE(SUM(CASE WHEN o.status = 'Delivered'
+                                AND dh.delivered_at IS NOT NULL
+                                AND o.delivery_date IS NOT NULL
+                               THEN 1 ELSE 0 END), 0)                        AS with_promised_date,
+             COALESCE(SUM(CASE WHEN o.status = 'Delivered'
+                                AND dh.delivered_at IS NOT NULL
+                                AND o.delivery_date IS NOT NULL
+                                AND DATE(dh.delivered_at) <= o.delivery_date
+                               THEN 1 ELSE 0 END), 0)                        AS on_time
+           FROM orders o
+           LEFT JOIN (
+             SELECT order_id, MIN(created_at) AS delivered_at
+             FROM order_status_history
+             WHERE new_status = 'Delivered'
+             GROUP BY order_id
+           ) dh ON dh.order_id = o.id
+           WHERE o.assigned_to = ?
+             AND o.deleted_at IS NULL${dateFilter}`,
+          [tgUsername, ...dp]
+        ) as [any[], any];
+
+        let rejected = 0;
+        try {
+          // The rejections table is optional — it arrived in a later
+          // migration than the orders table, so an older database has no
+          // rows and possibly no table at all. Only filter by date when the
+          // caller actually supplied a window.
+          const rejParams: unknown[] = [tgUsername];
+          let rejDateFilter = "";
+          if (from && to) {
+            rejDateFilter = " AND rejected_at BETWEEN ? AND ?";
+            rejParams.push(`${from} 00:00:00`, `${to} 23:59:59`);
+          }
+          const [rejRows] = await pool.query(
+            `SELECT COUNT(*) AS rejected
+             FROM delivery_rejections
+             WHERE driver_username = ?${rejDateFilter}`,
+            rejParams
+          ) as [any[], any];
+          rejected = Number(rejRows[0]?.rejected || 0);
+        } catch {
+          // The rejections table may not exist on an older database.
+          rejected = 0;
+        }
+
+        const d = deliveryRows[0] || {};
+        const assigned = Number(d.total_assigned || 0);
+        const onTime   = Number(d.on_time || 0);
+        const promised = Number(d.with_promised_date || 0);
+
+        delivery = {
+          total_assigned:   assigned,
+          delivered:        Number(d.delivered || 0),
+          cancelled:        Number(d.cancelled || 0),
+          pending:          Number(d.pending || 0),
+          revenue:          Number(d.revenue || 0),
+          rejected,
+          acceptance_rate:  assigned + rejected > 0
+            ? Number(((assigned / (assigned + rejected)) * 100).toFixed(1))
+            : 0,
+          on_time_rate:     promised > 0 ? Number(((onTime / promised) * 100).toFixed(1)) : 0,
+        };
+      }
+
       res.json({
         success: true,
         data: {
@@ -259,6 +343,7 @@ router.get(
             cancellation_rate: Number(cancellationRate.toFixed(1)),
             orders_per_day:    Number(ordersPerDay.toFixed(1)),
           },
+          delivery,
           revenue_over_time: revenueRows,
           by_channel:        channelRows,
           top_products:      productRows,
@@ -269,6 +354,265 @@ router.get(
       });
     } catch (err) {
       log.error("Failed to fetch staff performance", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/staff/delivery-performance — delivery team performance rollup
+// Tracks orders accepted/delivered/rejected by delivery drivers, with
+// custom date filtering, day/week/month grouping, and location patterns.
+// ─────────────────────────────────────────────────────────────────────────────
+function getWeekNumber(d: Date): number {
+  // ISO week: Thursday-based week, week 1 contains the first Thursday of the year.
+  const copy = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  copy.setUTCDate(copy.getUTCDate() + 4 - (copy.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(copy.getFullYear(), 0, 1));
+  return Math.ceil(((copy.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+router.get(
+  "/delivery-performance",
+  authenticate,
+  authorise("admin", "manager"),
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    try {
+      const {
+        driver,
+        from,
+        to,
+        period = "day",
+        city,
+        location,
+        status,
+        page = "1",
+        limit = "50",
+      } = req.query as Record<string, string>;
+
+      const pageNum  = Math.max(1, parseInt(page, 10));
+      const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
+      const offset   = (pageNum - 1) * limitNum;
+
+      // ── Build shared WHERE clauses ──────────────────────────────────
+      const conditions: string[] = ["o.deleted_at IS NULL"];
+      const values: unknown[] = [];
+      const rejConditions: string[] = ["1=1"];
+      const rejValues: unknown[] = [];
+
+      const addDateFilter = (conds: string[], vals: unknown[], col: string) => {
+        if (from && to) {
+          conds.push(`${col} BETWEEN ? AND ?`);
+          vals.push(`${from} 00:00:00`, `${to} 23:59:59`);
+        } else if (from) {
+          conds.push(`${col} >= ?`);
+          vals.push(`${from} 00:00:00`);
+        } else if (to) {
+          conds.push(`${col} <= ?`);
+          vals.push(`${to} 23:59:59`);
+        }
+      };
+
+      addDateFilter(conditions, values, "da.claimed_at");
+      addDateFilter(rejConditions, rejValues, "dr.rejected_at");
+
+      if (driver) {
+        conditions.push("da.driver_username = ?");
+        values.push(driver);
+        rejConditions.push("dr.driver_username = ?");
+        rejValues.push(driver);
+      }
+      if (city) {
+        conditions.push("o.city LIKE ?");
+        values.push(`%${city}%`);
+      }
+      if (location) {
+        conditions.push("o.location LIKE ?");
+        values.push(`%${location}%`);
+      }
+      if (status) {
+        conditions.push("o.status = ?");
+        values.push(status);
+      }
+
+      const where = `WHERE ${conditions.join(" AND ")}`;
+      const rejWhere = `WHERE ${rejConditions.join(" AND ")}`;
+
+      // ── 1. All accepted deliveries in range (base dataset) ──────────
+      const [baseRows] = await pool.query(
+        `SELECT
+           da.order_id,
+           da.driver_username,
+           da.claimed_at,
+           da.delivered_at,
+           o.status,
+           o.city,
+           o.location,
+           o.delivery_date,
+           o.created_at,
+           su.full_name AS driver_full_name,
+           su.id AS driver_staff_id
+         FROM delivery_assignments da
+         JOIN orders o ON o.id = da.order_id
+         LEFT JOIN staff_users su ON su.username = da.driver_username AND su.deleted_at IS NULL
+         ${where}
+         ORDER BY da.claimed_at DESC`,
+        values
+      ) as [any[], any];
+
+      // ── 2. Rejections per driver ────────────────────────────────────
+      const [rejRows] = await pool.query(
+        `SELECT driver_username, COUNT(*) AS rejected_count
+         FROM delivery_rejections dr
+         ${rejWhere}
+         GROUP BY driver_username`,
+        rejValues
+      ) as [any[], any];
+
+      const rejMap = new Map<string, number>();
+      for (const r of rejRows) rejMap.set(r.driver_username, Number(r.rejected_count || 0));
+
+      // ── 3. Summary KPIs ─────────────────────────────────────────────
+      const totalAssigned = baseRows.length;
+      const totalDelivered = baseRows.filter((r) => r.status === "Delivered").length;
+      const totalRejected = Array.from(rejMap.values()).reduce((a, b) => a + b, 0);
+      const totalPending = totalAssigned - totalDelivered;
+
+      const acceptRate = totalAssigned > 0 ? (totalAssigned / (totalAssigned + totalRejected)) * 100 : 0;
+      const rejectRate = (totalAssigned + totalRejected) > 0 ? (totalRejected / (totalAssigned + totalRejected)) * 100 : 0;
+      const completionRate = totalAssigned > 0 ? (totalDelivered / totalAssigned) * 100 : 0;
+
+      const firstClaim = baseRows.length > 0
+        ? baseRows.reduce((min: Date, r: any) => (new Date(r.claimed_at) < min ? new Date(r.claimed_at) : min), new Date(baseRows[0].claimed_at))
+        : null;
+      const lastClaim = baseRows.length > 0
+        ? baseRows.reduce((max: Date, r: any) => (new Date(r.claimed_at) > max ? new Date(r.claimed_at) : max), new Date(baseRows[0].claimed_at))
+        : null;
+      const daySpan = firstClaim && lastClaim ? Math.max(1, Math.ceil((lastClaim.getTime() - firstClaim.getTime()) / 86_400_000) + 1) : 1;
+      const weekSpan = Math.max(1, Math.ceil(daySpan / 7));
+      const avgPerDay = totalAssigned / daySpan;
+      const avgPerWeek = totalAssigned / weekSpan;
+
+      // ── 4. Time series grouped by period ────────────────────────────
+      const periodKey = (dateStr: string): string => {
+        const d = new Date(dateStr);
+        if (period === "week") {
+          return `${d.getFullYear()}-W${String(getWeekNumber(d)).padStart(2, "0")}`;
+        }
+        if (period === "month") {
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        }
+        // day (default)
+        return d.toISOString().split("T")[0] ?? "";
+      };
+
+      const tsMap = new Map<string, { accepted: number; delivered: number }>();
+      for (const r of baseRows) {
+        const key = periodKey(String(r.claimed_at ?? ""));
+        if (!tsMap.has(key)) tsMap.set(key, { accepted: 0, delivered: 0 });
+        const bucket = tsMap.get(key)!;
+        bucket.accepted += 1;
+        if (r.status === "Delivered") bucket.delivered += 1;
+      }
+      const timeSeries = Array.from(tsMap.entries())
+        .map(([periodLabel, counts]) => ({
+          period: periodLabel,
+          accepted: counts.accepted,
+          delivered: counts.delivered,
+        }))
+        .sort((a, b) => a.period.localeCompare(b.period));
+
+      // ── 5. Per-driver breakdown ─────────────────────────────────────
+      const driverMap = new Map<string, {
+        driver_username: string;
+        driver_staff_id: string | null;
+        driver_full_name: string | null;
+        accepted: number;
+        delivered: number;
+        rejected: number;
+      }>();
+      for (const r of baseRows) {
+        const key = r.driver_username;
+        if (!driverMap.has(key)) {
+          driverMap.set(key, {
+            driver_username: key,
+            driver_staff_id: r.driver_staff_id ?? null,
+            driver_full_name: r.driver_full_name ?? null,
+            accepted: 0,
+            delivered: 0,
+            rejected: rejMap.get(key) || 0,
+          });
+        }
+        const b = driverMap.get(key)!;
+        b.accepted += 1;
+        if (r.status === "Delivered") b.delivered += 1;
+      }
+      const byDriver = Array.from(driverMap.values())
+        .map((d) => ({
+          ...d,
+          accept_rate: d.accepted > 0 ? Number(((d.accepted / (d.accepted + d.rejected)) * 100).toFixed(1)) : 0,
+          reject_rate: (d.accepted + d.rejected) > 0 ? Number(((d.rejected / (d.accepted + d.rejected)) * 100).toFixed(1)) : 0,
+          completion_rate: d.accepted > 0 ? Number(((d.delivered / d.accepted) * 100).toFixed(1)) : 0,
+        }))
+        .sort((a, b) => b.accepted - a.accepted);
+
+      // ── 6. Location pattern analysis (delivered orders only) ────────
+      const locMap = new Map<string, { city: string; location: string | null; delivered: number }>();
+      for (const r of baseRows) {
+        if (r.status !== "Delivered") continue;
+        const key = `${r.city}||${r.location ?? ""}`;
+        if (!locMap.has(key)) locMap.set(key, { city: r.city, location: r.location ?? null, delivered: 0 });
+        locMap.get(key)!.delivered += 1;
+      }
+      const totalDeliveredCount = totalDelivered || 1;
+      const byLocation = Array.from(locMap.values())
+        .map((l) => ({ ...l, pct: Number(((l.delivered / totalDeliveredCount) * 100).toFixed(1)) }))
+        .sort((a, b) => b.delivered - a.delivered);
+
+      // ── 7. Recent deliveries (paginated) ────────────────────────────
+      const recent = baseRows.slice(offset, offset + limitNum).map((r) => ({
+        order_id: r.order_id,
+        driver_username: r.driver_username,
+        driver_full_name: r.driver_full_name,
+        city: r.city,
+        location: r.location,
+        status: r.status,
+        claimed_at: r.claimed_at,
+        delivered_at: r.delivered_at,
+        delivery_date: r.delivery_date,
+      }));
+
+      log.info("Delivery performance fetched", {
+        totalAssigned,
+        totalDelivered,
+        totalRejected,
+        driverCount: driverMap.size,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          summary: {
+            total_assigned: totalAssigned,
+            total_delivered: totalDelivered,
+            total_rejected: totalRejected,
+            total_pending: totalPending,
+            accept_rate: Number(acceptRate.toFixed(1)),
+            reject_rate: Number(rejectRate.toFixed(1)),
+            completion_rate: Number(completionRate.toFixed(1)),
+            avg_orders_per_day: Number(avgPerDay.toFixed(1)),
+            avg_orders_per_week: Number(avgPerWeek.toFixed(1)),
+          },
+          time_series: timeSeries,
+          by_driver: byDriver,
+          by_location: byLocation,
+          recent_deliveries: recent,
+        },
+        meta: { total: totalAssigned, page: pageNum, limit: limitNum, pages: Math.ceil(totalAssigned / limitNum) },
+      });
+    } catch (err) {
+      log.error("Failed to fetch delivery performance", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }

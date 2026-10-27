@@ -5,6 +5,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import pool from "../config/db.js";
 import { CreateOrderSchema, TelegramProfileSchema } from "../schemas/index.js";
+import { resolveOrderItems, OrderItemResolutionError } from "../lib/orderItems.js";
 import { randomId } from "../lib/security.js";
 import {
   answerCallbackQuery,
@@ -639,13 +640,33 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
     throw new Error(firstError ?? "Order details are incomplete.");
   }
 
-  const { items, ...fields } = parsed.data;
-  const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const { items: itemInputs, ...fields } = parsed.data;
+  const total = itemInputs.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
   const connection = await pool.getConnection();
 
+  // Declared outside the transaction block because the delivery notification
+  // below needs the resolved (canonical) item names.
+  let items: Array<{
+    name: string;
+    package_size: string;
+    quantity: number;
+    unit_price: number;
+    product_id: string | null;
+    unit_cost: number;
+  }> = [];
+
   try {
     await connection.beginTransaction();
+
+    items = (await resolveOrderItems(connection, itemInputs)).map((item) => ({
+      name:         item.name,
+      package_size: item.packageSize,
+      quantity:     item.quantity,
+      unit_price:   item.unitPrice,
+      product_id:   item.productId,
+      unit_cost:    item.unitCost,
+    }));
 
     const customerId = crypto.randomUUID();
     await connection.query(
@@ -697,9 +718,13 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
 
     for (const item of items) {
       await connection.query(
-        `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price]
+        `INSERT INTO order_items
+           (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(), orderId, item.name, item.package_size,
+          item.quantity, item.unit_price, item.unit_cost, item.product_id,
+        ]
       );
     }
 
@@ -1197,11 +1222,27 @@ async function handleCallback(query: any): Promise<void> {
       // the order card kept its live buttons, so the next driver to tap it
       // saw a card that looked untouched. Mark it and strip the buttons, the
       // same way accept does, so the group can see the order was declined.
+      const orderId = data.replace("delivery_reject_", "");
+      const driverChatId = from?.id;
+      const driverUsername = from?.username || `delivery_${driverChatId || 'unknown'}`;
+      const driverDisplayName = from?.first_name || "Driver";
       const rejectMessageId = message?.message_id;
       const rejectChatId = message?.chat?.id ?? process.env.TELEGRAM_DELIVERY_GROUP_ID;
+
+      // Persist the rejection so accept/reject rates can be computed per driver.
+      try {
+        await pool.query(
+          `INSERT INTO delivery_rejections (id, order_id, driver_username, rejected_at)
+           VALUES (?, ?, ?, NOW())`,
+          [crypto.randomUUID(), orderId, driverUsername]
+        );
+      } catch (err) {
+        console.error("[delivery_reject] failed to persist rejection:", err);
+      }
+
       if (rejectMessageId && rejectChatId) {
         try {
-          const who = `${escapeMarkdown(from?.first_name || "Driver")} (@${escapeMarkdown(from?.username || "driver")})`;
+          const who = `${escapeMarkdown(driverDisplayName)} (@${escapeMarkdown(driverUsername)})`;
           const r = await editMessageText(
             rejectChatId,
             rejectMessageId,
@@ -1700,13 +1741,30 @@ router.post("/app-order", orderRateLimit, async (req: Request, res: Response): P
       return;
     }
 
-    const { referral_code, items, ...fields } = parsed.data;
-    const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const { referral_code, items: itemInputs, ...fields } = parsed.data;
+    const total = itemInputs.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
 
     const connection = await pool.getConnection();
+    let items: Array<{
+      name: string;
+      package_size: string;
+      quantity: number;
+      unit_price: number;
+      product_id: string | null;
+      unit_cost: number;
+    }> = [];
     try {
       await connection.beginTransaction();
+
+      items = (await resolveOrderItems(connection, itemInputs)).map((item) => ({
+        name:         item.name,
+        package_size: item.packageSize,
+        quantity:     item.quantity,
+        unit_price:   item.unitPrice,
+        product_id:   item.productId,
+        unit_cost:    item.unitCost,
+      }));
 
       const customerId = crypto.randomUUID();
       await connection.query(
@@ -1759,17 +1817,13 @@ router.post("/app-order", orderRateLimit, async (req: Request, res: Response): P
       );
 
       for (const item of items) {
-        const [prodRows] = await connection.query(
-          `SELECT id, unit_cost FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? LIMIT 1`,
-          [item.name, item.package_size]
-        ) as [any[], any];
-        const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
-        const productId = prodRows.length ? prodRows[0].id : null;
-
         await connection.query(
           `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, unitCost, productId]
+          [
+            crypto.randomUUID(), orderId, item.name, item.package_size,
+            item.quantity, item.unit_price, item.unit_cost, item.product_id,
+          ]
         );
       }
 
@@ -1834,6 +1888,10 @@ router.post("/app-order", orderRateLimit, async (req: Request, res: Response): P
       },
     });
   } catch (err: any) {
+    if (err instanceof OrderItemResolutionError) {
+      res.status(400).json({ success: false, error: err.message });
+      return;
+    }
     res.status(500).json({ success: false, error: err.message || "Failed to create order" });
   }
 });

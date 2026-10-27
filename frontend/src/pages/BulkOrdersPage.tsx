@@ -77,14 +77,22 @@ const BulkOrdersPage: React.FC = () => {
         return;
       }
 
-      const orderItems = validItems.map(item => ({ 
-        product_id: `${item.name} (${item.packageSize})`, 
-        name: item.name,
-        package_size: item.packageSize,
-        quantity: item.qty, 
-        unit_price: item.unitPrice || 0,
-        delivery_date: item.deliveryDate 
-      }));
+      const orderItems = validItems.map(item => {
+        // Send the real variant id when the typed name/size matches the
+        // catalog; otherwise omit it and let the backend treat the line as a
+        // custom item instead of inventing a fake id.
+        const match = products.find(
+          p => p.name === item.name && p.package_size === item.packageSize
+        );
+        return {
+          product_id: match?.id,
+          name: item.name,
+          package_size: item.packageSize,
+          quantity: item.qty,
+          unit_price: item.unitPrice || 0,
+          delivery_date: item.deliveryDate
+        };
+      });
 
       const fullPhoneNumber = `${countryCode} ${formData.phone.trim()}`;
 

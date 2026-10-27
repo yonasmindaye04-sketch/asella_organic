@@ -35,6 +35,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <Navigate to="/affiliate" replace />;
   }
 
+  if (user?.role === 'call_center') {
+    return <Navigate to="/dashboard/call-center" replace />;
+  }
+
   if (requiredRole && user?.role !== requiredRole && user?.role !== 'admin') {
     return <Navigate to="/" replace />;
   }

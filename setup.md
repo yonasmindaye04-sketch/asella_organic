@@ -103,6 +103,25 @@ VITE_API_URL=
 
 ## 4. Local Development Walkthrough
 
+### One-command start (this machine, XAMPP + MariaDB)
+
+This checkout is configured to run against XAMPP's MariaDB on `127.0.0.1:3306`
+(database `asella_organic`, app user `asella`, credentials in `backend/.env`).
+MySQL runs as the Windows service `XAMPP_MySQL`; Apache is only needed for
+phpMyAdmin and is started manually from `C:\xampp\xampp-control.exe`.
+
+```powershell
+.\start-local.ps1            # MySQL check + backend + Vite + opens the storefront
+.\start-local.ps1 -NoBrowser # same, without opening a browser
+```
+
+The script skips anything already listening on 3001/5173, so it is safe to
+re-run. If PowerShell refuses to run it:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\start-local.ps1
+```
+
 To test both the web storefront and the Telegram bot locally, open separate terminal windows:
 
 ### Terminal 1: Backend API Server

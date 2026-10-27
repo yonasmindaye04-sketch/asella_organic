@@ -9,3 +9,4 @@ CREATE TABLE IF NOT EXISTS order_status_history (
     created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
+

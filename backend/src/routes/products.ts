@@ -13,6 +13,7 @@
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { z }  from "zod";
+import type { PoolConnection } from "mysql2/promise";
 import pool   from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { require2FA }   from "../middleware/2fa.js";
@@ -22,10 +23,16 @@ import {
   UpdateProductSchema,
   AdjustStockSchema,
 } from "../schemas/index.js";
-import { sendLowStockAlert } from "../lib/telegram.js";
 import { createLogger }      from "../lib/logger.js";
 import { apiCache }          from "../middleware/apiCache.js";
 import { ALLOWED_TAGS, isDuplicate, mergedActive } from "../lib/productRules.js";
+import { recordMovement } from "../lib/inventory.js";
+import {
+  ensureProductGroup,
+  renameProductGroup,
+  syncGroupAfterVariantChange,
+  ProductGroupError,
+} from "../lib/productGroups.js";
 
 // Helper for application-level data quality validation
 function validateProductData(name?: string, image_url?: string | null) {
@@ -42,6 +49,19 @@ function validateProductData(name?: string, image_url?: string | null) {
     }
   }
   return null;
+}
+
+type Queryable = Pick<PoolConnection, "query">;
+
+async function loadGroupMeta(conn: Queryable, groupId: string) {
+  const [rows] = await conn.query(
+    `SELECT id, name, description, image_url, featured, tag
+     FROM product_groups
+     WHERE id = ?
+     LIMIT 1`,
+    [groupId]
+  ) as [any[], any];
+  return rows[0] ?? null;
 }
 
 const router = Router();
@@ -86,14 +106,20 @@ router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => 
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    let orderByClause = "ORDER BY featured DESC, name ASC";
-    let joinClause = "";
-    const selectFields = `p.id, p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
+    let orderByClause = "ORDER BY p.featured DESC, p.name ASC";
+    let joinClause = "LEFT JOIN product_groups g ON g.id = p.product_group_id";
+    const selectFields = `p.id, p.product_group_id, g.name AS group_name,
+                          p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
                           p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active`;
     
     if (req.query.sort === "sales") {
-      joinClause = `LEFT JOIN order_items oi ON p.id = oi.product_id`;
-      orderByClause = `GROUP BY p.id ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.name ASC`;
+      joinClause += ` LEFT JOIN (
+                        SELECT product_id, SUM(quantity) AS sold
+                        FROM order_items
+                        WHERE product_id IS NOT NULL
+                        GROUP BY product_id
+                      ) oi ON oi.product_id = p.id`;
+      orderByClause = `ORDER BY COALESCE(oi.sold, 0) DESC, p.name ASC`;
     }
 
     const [countRows] = await pool.query(
@@ -125,7 +151,7 @@ router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/products/grouped  — Returns products grouped by name
+// GET /api/products/grouped  — Returns variants grouped by product group
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
@@ -153,16 +179,25 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    // Fetch all matching rows (since there are < 100 base products, no pagination needed here)
-    const selectFields = `p.id, p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
-                          p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active`;
-    
-    let joinClause = "";
-    let orderByClause = "ORDER BY p.featured DESC, p.name ASC, p.price ASC";
-    
+    const selectFields = `p.id, p.product_group_id, p.name, p.package_size, p.price,
+                          p.unit_cost, p.description, p.image_url, p.featured, p.tag,
+                          p.inventory_quantity, p.low_stock_threshold, p.active,
+                          g.name AS group_name, g.description AS group_description,
+                          g.image_url AS group_image_url, g.featured AS group_featured,
+                          g.tag AS group_tag, g.active AS group_active`;
+
+    let joinClause = "LEFT JOIN product_groups g ON g.id = p.product_group_id";
+    let orderByClause = "ORDER BY COALESCE(g.featured, p.featured) DESC, COALESCE(g.name, p.name) ASC, p.price ASC";
+
     if (req.query.sort === "sales") {
-      joinClause = `LEFT JOIN order_items oi ON p.id = oi.product_id`;
-      orderByClause = `GROUP BY p.id ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.name ASC, p.price ASC`;
+      joinClause += ` LEFT JOIN (
+                        SELECT p2.product_group_id AS group_id, SUM(oi.quantity) AS sold
+                        FROM order_items oi
+                        JOIN products p2 ON p2.id = oi.product_id
+                        WHERE p2.product_group_id IS NOT NULL
+                        GROUP BY p2.product_group_id
+                      ) gs ON gs.group_id = p.product_group_id`;
+      orderByClause = `ORDER BY COALESCE(gs.sold, 0) DESC, COALESCE(g.name, p.name) ASC, p.price ASC`;
     }
 
     const [rows] = await pool.query(
@@ -170,55 +205,36 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
       params
     ) as [any[], any];
 
-    // Group the rows in memory with normalization for duplicate names
+    // Group by product_group_id. Rows without a parent (legacy/inactive
+    // products) fall back to one synthetic group per row so the response
+    // still exposes them instead of dropping them.
     const groupsMap = new Map<string, any>();
     for (const row of rows) {
-      let baseName = (row.name || '').trim();
-      let extractedSize = (row.package_size || '').trim();
+      const groupId: string | null = row.product_group_id ?? null;
+      const key = groupId ?? `legacy:${row.id}`;
 
-      // 1. Remove trailing sizes like "(100g)", "200 g", "60 Tablet" from name
-      const sizeRegex = /(?:\s*\(?\s*(\d+\s*(?:g|ml|kg|pcs|tablets?|gummies|pills?))\s*\)?)$/i;
-      const match = baseName.match(sizeRegex);
-      if (match) {
-        if (!extractedSize) {
-          extractedSize = match[1].trim(); // use extracted size if db field was empty
-        }
-        baseName = baseName.replace(sizeRegex, '').trim();
-      }
-
-      // 2. Title Case for grouping consistency (e.g., "Nila powder" -> "Nila Powder")
-      baseName = baseName
-        .toLowerCase()
-        .split(' ')
-        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-
-      // 3. Hardcoded corrections for major inconsistencies in the DB
-      if (baseName === "Hibiscus Kerkede Leafe" || baseName === "Hibiscus Kerkede") {
-        baseName = "Hibiscus Dry Leafe";
-      }
-
-      if (!groupsMap.has(baseName)) {
-        groupsMap.set(baseName, {
-          name: baseName,
-          description: row.description,
-          image_url: row.image_url,
-          featured: Boolean(row.featured),
-          tag: row.tag,
-          active: Boolean(row.active),
-          variants: []
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          id: groupId,
+          name: (row.group_name ?? row.name ?? "").trim(),
+          description: row.group_description ?? row.description,
+          image_url: row.group_image_url ?? row.image_url,
+          featured: Boolean(row.group_featured ?? row.featured),
+          tag: row.group_tag ?? row.tag,
+          active: Boolean(row.group_active ?? row.active),
+          variants: [],
         });
       }
-      
-      // Push the variant using the extracted size (or 'Default Size' if still empty)
-      groupsMap.get(baseName).variants.push({
+
+      groupsMap.get(key).variants.push({
         id: row.id,
-        package_size: extractedSize || 'Standard',
+        name: row.name,
+        package_size: row.package_size || "Standard",
         price: row.price,
         unit_cost: row.unit_cost,
         inventory_quantity: row.inventory_quantity,
         low_stock_threshold: row.low_stock_threshold,
-        active: Boolean(row.active)
+        active: Boolean(row.active),
       });
     }
 
@@ -259,10 +275,12 @@ router.get(
       const total = parseInt(countRows[0]?.total ?? "0", 10);
 
       const [rows] = await pool.query(
-        `SELECT id, name, package_size, inventory_quantity, low_stock_threshold
-         FROM products
-         WHERE inventory_quantity <= low_stock_threshold AND active = true
-         ORDER BY inventory_quantity ASC
+        `SELECT p.id, p.product_group_id, g.name AS group_name,
+                p.name, p.package_size, p.inventory_quantity, p.low_stock_threshold
+         FROM products p
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
+         WHERE p.inventory_quantity <= p.low_stock_threshold AND p.active = true
+         ORDER BY p.inventory_quantity ASC
          LIMIT ? OFFSET ?`,
         [limitNum, offset]
       ) as [any[], any];
@@ -358,10 +376,12 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, package_size, price, unit_cost, description, image_url,
-              featured, tag, inventory_quantity, low_stock_threshold
-       FROM products
-       WHERE id = ? AND active = true`,
+      `SELECT p.id, p.product_group_id, g.name AS group_name,
+              p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
+              p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold
+       FROM products p
+       LEFT JOIN product_groups g ON g.id = p.product_group_id
+       WHERE p.id = ? AND p.active = true`,
       [req.params.id]
     ) as [any[], any];
 
@@ -387,8 +407,10 @@ router.post(
   validate(CreateProductSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
+    const connection = await pool.getConnection();
+
     try {
-      const d     = req.body;
+      const d = req.body;
 
       const validationError = validateProductData(d.name, d.image_url);
       if (validationError) {
@@ -396,46 +418,97 @@ router.post(
         return;
       }
 
-      if (await isDuplicate((sql, params) => pool.query(sql, params) as any, d.name, d.package_size)) {
+      await connection.beginTransaction();
+
+      if (await isDuplicate((sql, params) => connection.query(sql, params) as any, d.name, d.package_size)) {
+        await connection.rollback();
         res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
 
-      const newId = crypto.randomUUID();
+      // Attach to an existing parent, reuse a group with the same name, or
+      // create a new single-variant group.
+      const group = await ensureProductGroup(connection, {
+        product_group_id: d.product_group_id,
+        name:             d.name,
+        description:      d.description ?? null,
+        image_url:        d.image_url ?? null,
+        featured:         d.featured ?? false,
+        tag:              d.tag ?? null,
+        active:           d.active ?? true,
+      });
+      const groupMeta = await loadGroupMeta(connection, group.id);
+      const groupName = groupMeta?.name ?? group.name;
 
-      await pool.query(
+      const newId = crypto.randomUUID();
+      const openingStock = Number(d.inventory_quantity ?? 0);
+
+      await connection.query(
         `INSERT INTO products
-           (id, name, package_size, price, unit_cost, description, image_url,
+           (id, product_group_id, name, package_size, price, unit_cost, description, image_url,
             featured, tag, inventory_quantity, low_stock_threshold, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
         [
-          newId, d.name, d.package_size, d.price, d.unit_cost ?? 0,
-          d.description ?? null, d.image_url ?? null,
-          d.featured ?? false, d.tag ?? null,
-          d.inventory_quantity ?? 0, d.low_stock_threshold ?? 10,
-          d.active ?? true
+          newId, group.id, groupName, d.package_size, d.price, d.unit_cost ?? 0,
+          groupMeta?.description ?? d.description ?? null,
+          groupMeta?.image_url ?? d.image_url ?? null,
+          groupMeta?.featured ?? d.featured ?? false,
+          groupMeta?.tag ?? d.tag ?? null,
+          d.low_stock_threshold ?? 10,
+          d.active ?? true,
         ]
       );
 
-      const [newRows] = await pool.query(
-        `SELECT id, name, package_size, price, inventory_quantity FROM products WHERE id = ?`, [newId]
+      if (openingStock > 0) {
+        await recordMovement(
+          {
+            productId:     newId,
+            type:          "initial_stock",
+            changeAmount:  openingStock,
+            performedBy:   req.user!.id,
+            referenceType: "manual",
+            reason:        "Initial stock on product creation",
+            allowInactive: !(d.active ?? true),
+          },
+          connection
+        );
+      }
+
+      await syncGroupAfterVariantChange(connection, group.id);
+
+      const [newRows] = await connection.query(
+        `SELECT p.id, p.product_group_id, g.name AS group_name,
+                p.name, p.package_size, p.price, p.inventory_quantity
+         FROM products p
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
+         WHERE p.id = ?`,
+        [newId]
       ) as [any[], any];
 
-      await pool.query(
+      await connection.query(
         `INSERT INTO audit_log (table_name, actor, action, old_values, new_values)
          VALUES ('products', ?, 'INSERT', NULL, ?)`,
-        [req.user!.id, JSON.stringify({ name: d.name, price: d.price })]
+        [req.user!.id, JSON.stringify({ name: groupName, price: d.price })]
       ).catch(() => {});
 
-      log.info("Product created", { productId: newId, name: d.name });
+      await connection.commit();
+
+      log.info("Product created", { productId: newId, name: groupName });
       res.status(201).json({ success: true, data: newRows[0] });
     } catch (err: any) {
+      await connection.rollback();
+      if (err instanceof ProductGroupError) {
+        res.status(400).json({ success: false, error: err.message });
+        return;
+      }
       if (err.code === "ER_DUP_ENTRY") {
         res.status(409).json({ success: false, error: "Duplicate entry." });
         return;
       }
       log.error("Failed to create product", err);
       res.status(500).json({ success: false, error: "Internal server error" });
+    } finally {
+      connection.release();
     }
   }
 );
@@ -450,34 +523,90 @@ router.patch(
   validate(UpdateProductSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
+    const connection = await pool.getConnection();
+
     try {
       const fields  = req.body as Record<string, unknown>;
+      const productId = String(req.params.id);
 
-      const [existingRows] = await pool.query(`SELECT name, image_url, package_size, active FROM products WHERE id = ?`, [req.params.id]) as [any[], any];
-      if (!existingRows[0]) {
+      await connection.beginTransaction();
+
+      const [existingRows] = await connection.query(
+        `SELECT id, product_group_id, name, image_url, package_size, active, inventory_quantity
+         FROM products WHERE id = ?`,
+        [productId]
+      ) as [any[], any];
+
+      const existing = existingRows[0];
+      if (!existing) {
+        await connection.rollback();
         res.status(404).json({ success: false, error: "Product not found" });
         return;
       }
-      
-      const mergedName = fields.name !== undefined ? (fields.name as string) : existingRows[0].name;
-      const mergedImage = fields.image_url !== undefined ? (fields.image_url as string) : existingRows[0].image_url;
-      const mergedSize = fields.package_size !== undefined ? (fields.package_size as string) : existingRows[0].package_size;
+
+      const mergedName = fields.name !== undefined ? (fields.name as string) : existing.name;
+      const mergedImage = fields.image_url !== undefined ? (fields.image_url as string) : existing.image_url;
+      const mergedSize = fields.package_size !== undefined ? (fields.package_size as string) : existing.package_size;
       const validationError = validateProductData(mergedName, mergedImage);
       if (validationError) {
+        await connection.rollback();
         res.status(400).json({ success: false, error: validationError });
         return;
       }
 
-      const isActive = mergedActive(fields.active, existingRows[0].active);
-      if (isActive && await isDuplicate((sql, params) => pool.query(sql, params) as any, mergedName, mergedSize, req.params.id as string)) {
+      const isActive = mergedActive(fields.active, existing.active);
+
+      // ── Resolve the parent group ────────────────────────────────
+      const oldGroupId: string | null = existing.product_group_id ?? null;
+      let targetGroupId: string | null = oldGroupId;
+      let targetGroupName: string | null = null;
+      const movingGroup = fields.product_group_id !== undefined;
+
+      if (movingGroup) {
+        const group = await ensureProductGroup(connection, {
+          product_group_id: fields.product_group_id as string,
+          name:             mergedName,
+        });
+        targetGroupId = group.id;
+        targetGroupName = group.name;
+
+        if (fields.name !== undefined && mergedName.toLowerCase() !== group.name.toLowerCase()) {
+          await connection.rollback();
+          res.status(400).json({
+            success: false,
+            error: "A variant must use its group name. Rename the group instead of the individual variant.",
+          });
+          return;
+        }
+      } else if (targetGroupId) {
+        const groupMeta = await loadGroupMeta(connection, targetGroupId);
+        targetGroupName = groupMeta?.name ?? null;
+      }
+
+      const finalName = targetGroupName ?? mergedName;
+
+      if (isActive && await isDuplicate(
+        (sql, params) => connection.query(sql, params) as any,
+        finalName,
+        mergedSize,
+        productId
+      )) {
+        await connection.rollback();
         res.status(409).json({ success: false, error: "Active product with this name and size already exists." });
         return;
       }
 
+      // ── Rename the parent (and all its variants) when the name changes ──
+      let groupRenamed = false;
+      if (!movingGroup && targetGroupId && fields.name !== undefined && mergedName !== existing.name) {
+        await renameProductGroup(connection, targetGroupId, mergedName);
+        groupRenamed = true;
+      }
+
+      // ── Update the variant row ──────────────────────────────────
       const allowed = [
-        "name", "package_size", "price", "unit_cost", "description",
-        "image_url", "featured", "tag", "active",
-        "inventory_quantity", "low_stock_threshold",
+        "package_size", "price", "unit_cost", "description",
+        "image_url", "featured", "tag", "active", "low_stock_threshold",
       ];
 
       const updates: string[] = [];
@@ -490,33 +619,103 @@ router.patch(
         }
       }
 
-      if (updates.length === 0) {
+      if (movingGroup) {
+        updates.push("product_group_id = ?", "name = ?");
+        values.push(targetGroupId, targetGroupName);
+      } else if (!targetGroupId && fields.name !== undefined) {
+        updates.push("name = ?");
+        values.push(mergedName);
+      }
+
+      let changed = updates.length > 0 || groupRenamed;
+
+      if (updates.length > 0) {
+        values.push(productId);
+        await connection.query(
+          `UPDATE products SET ${updates.join(", ")}, updated_at = NOW()
+           WHERE id = ?`,
+          values
+        );
+      }
+
+      // ── Parent presentation fields ──────────────────────────────
+      if (targetGroupId) {
+        const groupUpdates: string[] = [];
+        const groupValues:  unknown[] = [];
+        for (const field of ["description", "image_url", "featured", "tag"]) {
+          if (fields[field] !== undefined) {
+            groupUpdates.push(`${field} = ?`);
+            groupValues.push(fields[field]);
+          }
+        }
+        if (groupUpdates.length > 0) {
+          groupValues.push(targetGroupId);
+          await connection.query(
+            `UPDATE product_groups SET ${groupUpdates.join(", ")}, updated_at = NOW()
+             WHERE id = ?`,
+            groupValues
+          );
+        }
+      }
+
+      // ── Inventory edits go through the ledger ───────────────────
+      if (fields.inventory_quantity !== undefined) {
+        const requestedQty = Number(fields.inventory_quantity);
+        const delta = requestedQty - Number(existing.inventory_quantity);
+
+        if (delta !== 0) {
+          await recordMovement(
+            {
+              productId,
+              type:          "adjustment",
+              changeAmount:  delta,
+              performedBy:   req.user!.id,
+              referenceType: "manual",
+              reason:        "Inventory updated from product edit",
+              allowInactive: !isActive,
+            },
+            connection
+          );
+          changed = true;
+        }
+      }
+
+      if (!changed) {
+        await connection.rollback();
         res.status(400).json({ success: false, error: "No valid fields to update" });
         return;
       }
 
-      values.push(req.params.id);
-      await pool.query(
-        `UPDATE products SET ${updates.join(", ")}, updated_at = NOW()
-         WHERE id = ?`,
-        values
-      );
+      // A group is active while at least one variant is active.
+      if (targetGroupId) await syncGroupAfterVariantChange(connection, targetGroupId);
+      if (oldGroupId && oldGroupId !== targetGroupId) {
+        await syncGroupAfterVariantChange(connection, oldGroupId);
+      }
 
-      await pool.query(
+      await connection.query(
         `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
          VALUES ('products', ?, ?, 'UPDATE', ?)`,
-        [req.params.id, req.user!.id, JSON.stringify(fields)]
+        [productId, req.user!.id, JSON.stringify(fields)]
       ).catch(() => {});
 
-      log.info("Product updated", { productId: req.params.id });
+      await connection.commit();
+
+      log.info("Product updated", { productId });
       res.json({ success: true, data: { message: "Product updated." } });
     } catch (err: any) {
+      await connection.rollback();
+      if (err instanceof ProductGroupError) {
+        res.status(400).json({ success: false, error: err.message });
+        return;
+      }
       if (err.code === "ER_DUP_ENTRY") {
         res.status(409).json({ success: false, error: "Duplicate entry." });
         return;
       }
       log.error("Failed to update product", err);
       res.status(500).json({ success: false, error: "Internal server error" });
+    } finally {
+      connection.release();
     }
   }
 );
@@ -531,22 +730,42 @@ router.delete(
   require2FA,
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
-    try {
-      const [result] = await pool.query(
-        `UPDATE products SET active = false, updated_at = NOW() WHERE id = ?`,
-        [req.params.id]
-      ) as [any, any];
+    const connection = await pool.getConnection();
 
-      if (result.affectedRows === 0) {
+    try {
+      const productId = String(req.params.id);
+
+      await connection.beginTransaction();
+
+      const [rows] = await connection.query(
+        `SELECT product_group_id FROM products WHERE id = ?`,
+        [productId]
+      ) as [any[], any];
+
+      if (!rows[0]) {
+        await connection.rollback();
         res.status(404).json({ success: false, error: "Product not found" });
         return;
       }
 
-      log.info("Product archived", { productId: req.params.id });
+      await connection.query(
+        `UPDATE products SET active = false, updated_at = NOW() WHERE id = ?`,
+        [productId]
+      );
+
+      const groupId: string | null = rows[0].product_group_id ?? null;
+      if (groupId) await syncGroupAfterVariantChange(connection, groupId);
+
+      await connection.commit();
+
+      log.info("Product archived", { productId });
       res.json({ success: true, data: { message: "Product archived." } });
     } catch (err) {
+      await connection.rollback();
       log.error("Failed to archive product", err);
       res.status(500).json({ success: false, error: "Internal server error" });
+    } finally {
+      connection.release();
     }
   }
 );
@@ -562,68 +781,56 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const log       = createLogger(req);
     const { change_amount, reason } = req.body;
-    const productId = req.params.id;
+    const productId = String(req.params.id);
     const connection = await pool.getConnection();
 
     try {
       await connection.beginTransaction();
 
-      const [rows] = await connection.query(
-        `SELECT id, name, package_size, inventory_quantity, low_stock_threshold
-         FROM products WHERE id = ? AND active = true FOR UPDATE`,
-        [productId]
-      ) as [any[], any];
-      const product = rows[0];
-
-      if (!product) {
-        await connection.rollback();
-        res.status(404).json({ success: false, error: "Product not found" });
-        return;
-      }
-
-      const newQty = product.inventory_quantity + change_amount;
-      if (newQty < 0) {
-        await connection.rollback();
-        res.status(400).json({
-          success: false,
-          error: `Insufficient stock. Current: ${product.inventory_quantity}, requested change: ${change_amount}`,
-        });
-        return;
-      }
-
-      await connection.query(
-        `UPDATE products SET inventory_quantity = ?, updated_at = NOW() WHERE id = ?`,
-        [newQty, productId]
-      );
-
-      await connection.query(
-        `INSERT INTO inventory_movements (id, product_id, change_amount, reason, performed_by, quantity_after)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [crypto.randomUUID(), productId, change_amount, reason, req.user!.id, newQty]
+      // recordMovement owns the stock write: it locks the row, updates
+      // products + stock_snapshots, writes the ledger row, and fires the
+      // low-stock alert.
+      const movement = await recordMovement(
+        {
+          productId,
+          type:          "adjustment",
+          changeAmount:  change_amount,
+          performedBy:   req.user!.id,
+          referenceType: "manual",
+          reason,
+        },
+        connection
       );
 
       await connection.commit();
 
-      if (newQty <= product.low_stock_threshold) {
-        void sendLowStockAlert({
-          name:      product.name,
-          size:      product.package_size,
-          current:   newQty,
-          threshold: product.low_stock_threshold,
-        });
-      }
+      log.info("Stock adjusted", {
+        productId,
+        change_amount,
+        newQty: movement.newQuantity,
+        reason,
+      });
 
-      log.info("Stock adjusted", { productId, change_amount, newQty, reason });
       res.json({
         success: true,
         data: {
-          new_quantity:    newQty,
-          product_name:    product.name,
-          below_threshold: newQty <= product.low_stock_threshold,
+          new_quantity:    movement.newQuantity,
+          product_name:    movement.productName,
+          below_threshold: movement.belowThreshold,
         },
       });
-    } catch (err) {
+    } catch (err: any) {
       await connection.rollback();
+
+      if (err instanceof Error && err.message.includes("Insufficient stock")) {
+        res.status(400).json({ success: false, error: err.message });
+        return;
+      }
+      if (err instanceof Error && err.message.includes("not found")) {
+        res.status(404).json({ success: false, error: "Product not found" });
+        return;
+      }
+
       log.error("Failed to adjust stock", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     } finally {
@@ -705,28 +912,60 @@ router.post(
           return;
         }
 
+        const group = await ensureProductGroup(connection, {
+          product_group_id: product.product_group_id,
+          name:             product.name,
+          description:      product.description ?? null,
+          image_url:        product.image_url ?? null,
+          featured:         product.featured ?? false,
+          tag:              product.tag ?? null,
+          active:           product.active ?? true,
+        });
+        const groupMeta = await loadGroupMeta(connection, group.id);
+        const groupName = groupMeta?.name ?? group.name;
+
         const id = crypto.randomUUID();
+        const openingStock = Number(product.inventory_quantity ?? 0);
+
         await connection.query(
           `INSERT INTO products
-             (id, name, package_size, price, inventory_quantity,
+             (id, product_group_id, name, package_size, price, unit_cost, inventory_quantity,
               low_stock_threshold, active, image_url, description,
               tag, featured)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
           [
             id,
-            product.name,
+            group.id,
+            groupName,
             product.package_size,
             product.price,
-            product.inventory_quantity ?? 0,
-            product.low_stock_threshold ?? 5,
+            product.unit_cost ?? 0,
+            product.low_stock_threshold ?? 10,
             product.active ?? true,
-            product.image_url ?? null,
-            product.description ?? null,
-            product.tag ?? null,
-            product.featured ?? false,
+            groupMeta?.image_url ?? product.image_url ?? null,
+            groupMeta?.description ?? product.description ?? null,
+            groupMeta?.tag ?? product.tag ?? null,
+            groupMeta?.featured ?? product.featured ?? false,
           ]
         );
-        created.push({ id, name: product.name });
+
+        if (openingStock > 0) {
+          await recordMovement(
+            {
+              productId:     id,
+              type:          "initial_stock",
+              changeAmount:  openingStock,
+              performedBy:   req.user!.id,
+              referenceType: "manual",
+              reason:        "Initial stock on bulk product creation",
+              allowInactive: !(product.active ?? true),
+            },
+            connection
+          );
+        }
+
+        await syncGroupAfterVariantChange(connection, group.id);
+        created.push({ id, name: groupName, package_size: product.package_size, product_group_id: group.id });
       }
 
       await connection.commit();

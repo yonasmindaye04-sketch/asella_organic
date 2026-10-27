@@ -185,6 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 />
                 <NavItem to="/dashboard/customers" icon="groups" label="Customers" />
                 <NavItem to="/dashboard/sms" icon="sms" label="SMS Campaigns" />
+                <NavItem to="/dashboard/delivery-performance" icon="track_changes" label="Delivery Performance" />
                 <NavItem to="/dashboard/media" icon="perm_media" label="Media Library" />
                 {role === 'admin' && (
                   <NavItem to="/dashboard/expenses" icon="payments" label="Expenses" />

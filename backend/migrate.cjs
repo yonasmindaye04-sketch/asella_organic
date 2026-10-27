@@ -16,6 +16,15 @@ const path = require("path");
 const mysql = require("mysql2/promise");
 require("dotenv").config();
 
+// ── Strip numbered comment lines like "1.-- MORINGA seed" ─────────
+// These appear inside INSERT ... VALUES blocks in some migration files
+// and break SQL syntax if left in place.
+function stripNumberedComments(sql) {
+  return sql.split("\n")
+    .filter(line => !/^\s*\d+\.?\s*--/.test(line))
+    .join("\n");
+}
+
 // ── Strip DELIMITER $$ ... DELIMITER ; blocks ─────────────────────
 function stripDelimiters(sql) {
   const lines  = sql.split("\n");
@@ -148,60 +157,31 @@ async function runMigrations() {
   // opted into explicitly like any other fixture.
   const DANGEROUS_MIGRATION = /seed|dummy|verify_seed|rebuild_inventory|repair/i;
 
+  // SKIP dangerous files in ALL modes (not just production) — they rewrite
+  // real money/stock data and must never run on a curated database.
+  const dangerousFiles = pendingFiles.filter(f => DANGEROUS_MIGRATION.test(f));
+  const safeFiles       = pendingFiles.filter(f => !DANGEROUS_MIGRATION.test(f));
+
+  if (dangerousFiles.length > 0 && !allowDangerous) {
+    console.warn("\n=== SKIPPING DANGEROUS MIGRATIONS ===");
+    dangerousFiles.forEach(f => console.warn(`  skipped: ${f}`));
+    console.warn(
+      "These are demo fixtures or legacy-data repairs. They are correct\n" +
+      "against a seeded dataset and destructive against real orders, so\n" +
+      "they are not recorded as applied and will be skipped again on every\n" +
+      "run. Pass --allow-dangerous only if that is genuinely what you want.\n"
+    );
+    if (safeFiles.length === 0) {
+      console.error("No safe migrations pending — nothing to do.");
+      process.exit(0);
+    }
+    console.warn(`Continuing with ${safeFiles.length} safe migration(s).\n`);
+  }
+
   if (isProduction) {
     if (isReset && !allowDangerous) {
       console.error("Refusing --reset in production without --allow-dangerous");
       process.exit(1);
-    }
-
-    // Fixtures and data-repair scripts, not schema changes.
-    //
-    // `seed` / `dummy` cover the bulk fixtures (004_dummy_data, 027-030).
-    // `verify_seed` and `rebuild_inventory` name their own risk: 032 aborts
-    // the run on invariants that only hold for the fixture dataset, and 031
-    // deletes and rebuilds inventory_movements from scratch.
-    //
-    // `repair` is here for the same reason and is NOT a stylistic addition.
-    // 026_repair_catalog.sql looked safe because it has no DROP/DELETE and no
-    // unguarded mass UPDATE, but it rewrites production money data:
-    //   :219  products.unit_cost      <- price * 0.55 for every zero-cost product
-    //   :222  order_items.unit_cost   <- overwrites the historical COGS snapshot
-    //   :234  orders.total            <- recomputed from line items
-    //   :243+ historical unit_price   <- rewritten where the export smeared them
-    //   :169-210 stock levels        <- hardcoded for the 31 seeded SKUs
-    // Those rewrites are correct against the legacy export this file was
-    // written for and wrong against a live database, so the file has to be
-    // opted into explicitly like any other fixture.
-    const dangerousFiles = pendingFiles.filter(f => DANGEROUS_MIGRATION.test(f));
-    const safeFiles       = pendingFiles.filter(f => !DANGEROUS_MIGRATION.test(f));
-
-    if (dangerousFiles.length > 0 && !allowDangerous) {
-      // SKIP, do not abort.
-      //
-      // The first version of this guard called process.exit(1) instead, on
-      // the reasoning that refusing loudly is safer than proceeding. That was
-      // wrong in the one situation that matters: a production box whose queue
-      // holds BOTH a fixture and a real schema change. Every fixture ships
-      // permanently pending, because they must never be recorded as applied,
-      // so the abort fired on every run and blocked the safe migrations
-      // sitting behind them — including 025_sms.sql. Verified: with 026
-      // pending, 025 and 033 were refused along with it.
-      //
-      // Skipping keeps the destructive files out while still letting the
-      // schema catch up. --allow-dangerous remains the explicit opt-in.
-      console.warn("\n=== SKIPPING DANGEROUS MIGRATIONS (production) ===");
-      dangerousFiles.forEach(f => console.warn(`  skipped: ${f}`));
-      console.warn(
-        "These are demo fixtures or legacy-data repairs. They are correct\n" +
-        "against a seeded dataset and destructive against real orders, so\n" +
-        "they are not recorded as applied and will be skipped again on every\n" +
-        "run. Pass --allow-dangerous only if that is genuinely what you want.\n"
-      );
-      if (safeFiles.length === 0) {
-        console.error("No safe migrations pending — nothing to do.");
-        process.exit(0);
-      }
-      console.warn(`Continuing with ${safeFiles.length} safe migration(s).\n`);
     }
 
     if (pendingFiles.length > 0 && !isYes) {
@@ -212,13 +192,9 @@ async function runMigrations() {
     }
   }
 
-  // Files to deliberately not run this pass. Empty unless production declined
-  // the dangerous set above.
-  const blockedFiles = new Set(
-    isProduction && !allowDangerous
-      ? pendingFiles.filter(f => DANGEROUS_MIGRATION.test(f))
-      : []
-  );
+  // Files to deliberately not run this pass — dangerous migrations are
+  // blocked in ALL modes, not just production.
+  const blockedFiles = new Set(dangerousFiles);
 
   // Iterate scanFiles, not files — otherwise the APPLY-* bundle that was
   // filtered out above is still executed, because the appliedFiles check only
@@ -230,13 +206,13 @@ async function runMigrations() {
     }
 
     if (blockedFiles.has(file)) {
-      console.log(`Skipping (blocked in production): ${file}`);
+      console.log(`Skipping (blocked): ${file}`);
       continue;
     }
 
     console.log(`Applying: ${file} ...`);
     const raw        = fs.readFileSync(path.join(sqlDir, file), "utf8");
-    const cleaned    = stripDelimiters(raw);
+    const cleaned    = stripDelimiters(stripNumberedComments(raw));
     const statements = splitStatements(cleaned).filter(s => {
       const stripped = s.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "").trim();
       return stripped.length > 0 && stripped !== ";";

@@ -110,6 +110,7 @@ export async function updateProfile(
 }
 
 export interface PlaceOrderItem {
+  product_id: string;
   name: string;
   package_size: string;
   quantity: number;

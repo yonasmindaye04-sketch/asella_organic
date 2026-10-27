@@ -5,7 +5,7 @@
 
 // ─── User / Auth ──────────────────────────────────────────────────────────
 
-export type UserRole = "admin" | "manager" | "employee" | "affiliate" | "delivery" | "vendor";
+export type UserRole = "admin" | "manager" | "employee" | "affiliate" | "delivery" | "vendor" | "call_center";
 
 export interface StaffUser {
   id: string;

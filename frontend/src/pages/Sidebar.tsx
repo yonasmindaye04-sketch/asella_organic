@@ -21,9 +21,10 @@ const Sidebar: React.FC = () => {
   const role        = user?.role ?? 'guest';
   const displayName = user?.name ?? 'Staff';
   const displayRole =
-    role === 'admin'    ? 'Super Admin' :
-    role === 'manager'  ? 'Manager'     :
-    role === 'employee' ? 'Employee'    : role;
+    role === 'admin'       ? 'Super Admin'  :
+    role === 'manager'     ? 'Manager'      :
+    role === 'employee'    ? 'Employee'     :
+    role === 'call_center' ? 'Call Center'  : role;
 
   useEffect(() => {
     const fetch = async () => {
@@ -62,6 +63,7 @@ const Sidebar: React.FC = () => {
 
   const isStaffOrAbove   = ['employee', 'staff', 'admin', 'manager'].includes(role);
   const isManagerOrAbove = ['admin', 'manager'].includes(role);
+  const isCallCenter     = role === 'call_center';
 
   return (
     <aside className="w-72 bg-[#001803] flex-col justify-between z-20 flex-shrink-0 border-r border-[#E2F0D9]/20 max-md:hidden md:flex">
@@ -83,126 +85,153 @@ const Sidebar: React.FC = () => {
         {/* Nav */}
         <nav className="p-4 space-y-6 overflow-y-auto flex-1">
 
-          {/* Quick */}
-          <ul className="space-y-1">
-            <li>
-              <Link to="/dashboard/new-order" className={link('/dashboard/new-order')}>
-                <span className={icon('/dashboard/new-order')}>shopping_cart</span>
-                New Sales Order
-              </Link>
-            </li>
-          </ul>
-
-          {/* Partners */}
-          {isStaffOrAbove && (
-            <div>
-              <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Partners</h3>
+          {isCallCenter ? (
+            /* ── Call Center simplified nav ─────────────────────── */
+            <ul className="space-y-1">
+              <li>
+                <Link to="/dashboard/new-order" className={link('/dashboard/new-order')}>
+                  <span className={icon('/dashboard/new-order')}>shopping_cart</span>
+                  New Sales Order
+                </Link>
+              </li>
+              <li>
+                <Link to="/dashboard/call-center" className={link('/dashboard/call-center')}>
+                  <span className={icon('/dashboard/call-center')}>headset_mic</span>
+                  My Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link to="/dashboard/change-password" className={link('/dashboard/change-password')}>
+                  <span className={icon('/dashboard/change-password')}>key</span>
+                  Change Password
+                </Link>
+              </li>
+            </ul>
+          ) : (
+            /* ── Full nav for all other roles ────────────────────── */
+            <>
+              {/* Quick */}
               <ul className="space-y-1">
                 <li>
-                  <Link to="/dashboard/bulk-orders" className={link('/dashboard/bulk-orders')}>
-                    <span className={icon('/dashboard/bulk-orders')}>inventory_2</span>
-                    Bulk Orders
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/vendor" className={link('/dashboard/vendor')}>
-                    <span className={icon('/dashboard/vendor')}>local_shipping</span>
-                    Vendor Purchase
+                  <Link to="/dashboard/new-order" className={link('/dashboard/new-order')}>
+                    <span className={icon('/dashboard/new-order')}>shopping_cart</span>
+                    New Sales Order
                   </Link>
                 </li>
               </ul>
-            </div>
-          )}
 
-          {/* Internal */}
-          {isStaffOrAbove && (
-            <div>
-              <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Internal</h3>
-              <ul className="space-y-1">
-                <li>
-                  <Link to="/dashboard/stock-alert" className={link('/dashboard/stock-alert')}>
-                    <span className={icon('/dashboard/stock-alert')}>warning</span>
-                    Stock Alert
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/tracking" className={link('/dashboard/tracking')}>
-                    <span className={icon('/dashboard/tracking')}>route</span>
-                    Order Tracking
-                    {pendingCount > 0 && (
-                      <span className="ml-auto bg-amber-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full animate-pulse">
-                        {pendingCount}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          )}
+              {/* Partners */}
+              {isStaffOrAbove && (
+                <div>
+                  <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Partners</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <Link to="/dashboard/bulk-orders" className={link('/dashboard/bulk-orders')}>
+                        <span className={icon('/dashboard/bulk-orders')}>inventory_2</span>
+                        Bulk Orders
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/vendor" className={link('/dashboard/vendor')}>
+                        <span className={icon('/dashboard/vendor')}>local_shipping</span>
+                        Vendor Purchase
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
+              )}
 
-          {/* Management — Inventory + Catalog merged into Products */}
-          {isManagerOrAbove && (
-            <div>
-              <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Management</h3>
-              <ul className="space-y-1">
-                <li>
-                  <Link to="/dashboard/products" className={link('/dashboard/products')}>
-                    <span className={icon('/dashboard/products')}>category</span>
-                    Products
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/analytics" className={link('/dashboard/analytics')}>
-                    <span className={icon('/dashboard/analytics')}>analytics</span>
-                    Reports
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/notifications" className={link('/dashboard/notifications')}>
-                    <span className={icon('/dashboard/notifications')}>notifications</span>
-                    Notifications
-                    {notifCount > 0 && (
-                      <span className="ml-auto bg-red-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full">
-                        {notifCount > 99 ? '99+' : notifCount}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/change-password" className={link('/dashboard/change-password')}>
-                    <span className={icon('/dashboard/change-password')}>key</span>
-                    Change Password
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          )}
+              {/* Internal */}
+              {isStaffOrAbove && (
+                <div>
+                  <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Internal</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <Link to="/dashboard/stock-alert" className={link('/dashboard/stock-alert')}>
+                        <span className={icon('/dashboard/stock-alert')}>warning</span>
+                        Stock Alert
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/tracking" className={link('/dashboard/tracking')}>
+                        <span className={icon('/dashboard/tracking')}>route</span>
+                        Order Tracking
+                        {pendingCount > 0 && (
+                          <span className="ml-auto bg-amber-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full animate-pulse">
+                            {pendingCount}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
+              )}
 
-          {/* Admin */}
-          {role === 'admin' && (
-            <div>
-              <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Admin</h3>
-              <ul className="space-y-1">
-                <li>
-                  <Link to="/dashboard/users" className={link('/dashboard/users')}>
-                    <span className={icon('/dashboard/users')}>groups</span>
-                    User Management
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/audit-log" className={link('/dashboard/audit-log')}>
-                    <span className={icon('/dashboard/audit-log')}>manage_history</span>
-                    Audit Log
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/sms" className={link('/dashboard/sms')}>
-                    <span className={icon('/dashboard/sms')}>sms</span>
-                    SMS Broadcasts
-                  </Link>
-                </li>
-              </ul>
-            </div>
+              {/* Management */}
+              {isManagerOrAbove && (
+                <div>
+                  <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Management</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <Link to="/dashboard/products" className={link('/dashboard/products')}>
+                        <span className={icon('/dashboard/products')}>category</span>
+                        Products
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/analytics" className={link('/dashboard/analytics')}>
+                        <span className={icon('/dashboard/analytics')}>analytics</span>
+                        Reports
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/notifications" className={link('/dashboard/notifications')}>
+                        <span className={icon('/dashboard/notifications')}>notifications</span>
+                        Notifications
+                        {notifCount > 0 && (
+                          <span className="ml-auto bg-red-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                            {notifCount > 99 ? '99+' : notifCount}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/change-password" className={link('/dashboard/change-password')}>
+                        <span className={icon('/dashboard/change-password')}>key</span>
+                        Change Password
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
+              )}
+
+              {/* Admin */}
+              {role === 'admin' && (
+                <div>
+                  <h3 className="text-[10px] font-bold text-[#A0F399] uppercase tracking-widest mb-2 px-4">Admin</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <Link to="/dashboard/users" className={link('/dashboard/users')}>
+                        <span className={icon('/dashboard/users')}>groups</span>
+                        User Management
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/audit-log" className={link('/dashboard/audit-log')}>
+                        <span className={icon('/dashboard/audit-log')}>manage_history</span>
+                        Audit Log
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/sms" className={link('/dashboard/sms')}>
+                        <span className={icon('/dashboard/sms')}>sms</span>
+                        SMS Broadcasts
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </>
           )}
 
         </nav>

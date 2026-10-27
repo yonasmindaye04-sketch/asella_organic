@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/app.ts
  * Asella Organic — Express Application (MySQL)
  *
@@ -41,6 +41,8 @@ import mediaRoutes          from "./routes/media.js";
 import reportRoutes         from "./routes/reports.js";
 import customerRoutes       from "./routes/customers.js";
 import smsRoutes            from "./routes/sms.js";
+import callcenterRoutes     from "./routes/callcenter.js";
+import performanceRoutes   from "./routes/performance.js";
 import affiliatePortalRoutes, { publicAffiliateRouter } from "./routes/affiliatePortal.js";
 
 const app = express();
@@ -315,6 +317,8 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/reports",      reportRoutes],
   ["/customers",    customerRoutes],
   ["/sms",          smsRoutes],
+  ["/callcenter",   callcenterRoutes],
+  ["/performance",  performanceRoutes],
 ];
 
 // ── Public affiliate click tracking ────────────────────────────────────────
