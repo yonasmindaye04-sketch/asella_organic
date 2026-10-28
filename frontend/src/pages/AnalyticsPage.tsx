@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 import { api } from '../services/api';
 
 const AnalyticsPage: React.FC = () => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isAdmin = user?.role === 'admin';
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
@@ -37,6 +41,7 @@ const AnalyticsPage: React.FC = () => {
   }, [dateRange]);
 
   const handleExport = () => {
+    if (!isAdmin) return;
     let url = '/api/reports/pl/export';
     if (dateRange.from || dateRange.to) {
       const params = new URLSearchParams();
@@ -97,12 +102,14 @@ const AnalyticsPage: React.FC = () => {
               >
                 <span className="material-symbols-outlined text-[18px]">print</span> Print
               </button>
-              <button 
-                onClick={handleExport}
-                className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[18px]">download</span> Export CSV
-              </button>
+              {isAdmin && (
+                <button 
+                  onClick={handleExport}
+                  className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[18px]">download</span> Export CSV
+                </button>
+              )}
             </div>
           </div>
         </div>

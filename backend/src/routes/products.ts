@@ -24,7 +24,7 @@ import {
   AdjustStockSchema,
 } from "../schemas/index.js";
 import { createLogger }      from "../lib/logger.js";
-import { apiCache }          from "../middleware/apiCache.js";
+import { apiCache, clearApiCache } from "../middleware/apiCache.js";
 import { ALLOWED_TAGS, isDuplicate, mergedActive } from "../lib/productRules.js";
 import { recordMovement } from "../lib/inventory.js";
 import {
@@ -224,6 +224,8 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
           active: Boolean(row.group_active ?? row.active),
           variants: [],
         });
+      } else if (Boolean(row.featured)) {
+        groupsMap.get(baseName).featured = true;
       }
 
       groupsMap.get(key).variants.push({
@@ -234,6 +236,7 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
         unit_cost: row.unit_cost,
         inventory_quantity: row.inventory_quantity,
         low_stock_threshold: row.low_stock_threshold,
+        featured: Boolean(row.featured),
         active: Boolean(row.active),
       });
     }
@@ -486,14 +489,15 @@ router.post(
       ) as [any[], any];
 
       await connection.query(
-        `INSERT INTO audit_log (table_name, actor, action, old_values, new_values)
+        `INSERT INTO audit_log (table_name, record_id, actor, action, old_values, new_values)
          VALUES ('products', ?, 'INSERT', NULL, ?)`,
-        [req.user!.id, JSON.stringify({ name: groupName, price: d.price })]
+        [newId, req.user!.id, JSON.stringify({ name: d.name, price: d.price, unit_cost: d.unit_cost ?? 0, featured: d.featured })]
       ).catch(() => {});
 
       await connection.commit();
+      clearApiCache();
 
-      log.info("Product created", { productId: newId, name: groupName });
+      log.info("Product created", { productId: newId, name: d.name });
       res.status(201).json({ success: true, data: newRows[0] });
     } catch (err: any) {
       await connection.rollback();
@@ -532,7 +536,7 @@ router.patch(
       await connection.beginTransaction();
 
       const [existingRows] = await connection.query(
-        `SELECT id, product_group_id, name, image_url, package_size, active, inventory_quantity
+        `SELECT id, product_group_id, name, image_url, package_size, price, unit_cost, featured, tag, active, inventory_quantity, low_stock_threshold
          FROM products WHERE id = ?`,
         [productId]
       ) as [any[], any];
@@ -693,12 +697,13 @@ router.patch(
       }
 
       await connection.query(
-        `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
-         VALUES ('products', ?, ?, 'UPDATE', ?)`,
-        [productId, req.user!.id, JSON.stringify(fields)]
+        `INSERT INTO audit_log (table_name, record_id, actor, action, old_values, new_values)
+         VALUES ('products', ?, ?, 'UPDATE', ?, ?)`,
+        [productId, req.user!.id, JSON.stringify(existingRows[0]), JSON.stringify(fields)]
       ).catch(() => {});
 
       await connection.commit();
+      clearApiCache();
 
       log.info("Product updated", { productId });
       res.json({ success: true, data: { message: "Product updated." } });
@@ -758,6 +763,7 @@ router.delete(
 
       await connection.commit();
 
+      clearApiCache();
       log.info("Product archived", { productId });
       res.json({ success: true, data: { message: "Product archived." } });
     } catch (err) {
@@ -803,6 +809,7 @@ router.post(
       );
 
       await connection.commit();
+      clearApiCache();
 
       log.info("Stock adjusted", {
         productId,
@@ -932,7 +939,7 @@ router.post(
              (id, product_group_id, name, package_size, price, unit_cost, inventory_quantity,
               low_stock_threshold, active, image_url, description,
               tag, featured)
-           VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             group.id,
@@ -940,8 +947,10 @@ router.post(
             product.package_size,
             product.price,
             product.unit_cost ?? 0,
+            product.inventory_quantity ?? 0,
             product.low_stock_threshold ?? 10,
             product.active ?? true,
+
             groupMeta?.image_url ?? product.image_url ?? null,
             groupMeta?.description ?? product.description ?? null,
             groupMeta?.tag ?? product.tag ?? null,
@@ -969,6 +978,7 @@ router.post(
       }
 
       await connection.commit();
+      clearApiCache();
       log.info("Bulk product creation", { count: created.length });
       res.status(201).json({
         success: true,

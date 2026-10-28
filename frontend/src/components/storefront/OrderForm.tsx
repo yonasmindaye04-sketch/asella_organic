@@ -172,8 +172,8 @@ const OrderForm: React.FC = () => {
       
       if (res.success && res.data) {
         toast(t('orderForm.successMessage'), 'success');
-        // Fetch full order to get correct receipt data (same as OrderTracking)
-        const fullOrder = await api.get<Order>(`/api/orders/${res.data.id}`);
+        // Fetch full order via public tracking endpoint to get receipt data without 401
+        const fullOrder = await api.get<Order>(`/api/orders/track/${res.data.id}`);
         if (fullOrder.success && fullOrder.data) {
           const order = fullOrder.data;
           setReceiptData({

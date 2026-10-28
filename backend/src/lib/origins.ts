@@ -9,13 +9,18 @@ if (isProduction && !allowedOriginsString) {
   }
 }
 
-export const allowedOrigins = (isProduction ? allowedOriginsString! : "http://localhost:5173,http://localhost:3000,http://localhost:3001")
+export const allowedOrigins = (
+  isProduction
+    ? allowedOriginsString!
+    : "http://localhost:5173,http://localhost:3000,http://localhost:3001"
+)
   .split(",")
-  .map(s => s.trim().replace(/\/+$/, ""))
-  .filter(s => s.length > 0);
+  .map((s) => s.trim().replace(/\/+$/, ""))
+  .filter((s) => s.length > 0);
 
-const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-const previewOriginPattern = /^https:\/\/[a-z0-9-]+\.run\.app$/i;
+const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+// Support regional Cloud Run URLs like https://ais-dev-...europe-west3.run.app
+const previewOriginPattern = /^https?:\/\/[a-z0-9.-]+\.(run\.app|google\.com|googleusercontent\.com)$/i;
 
 export function isAllowedOrigin(origin: string): boolean {
   if (!isProduction && devOriginPattern.test(origin)) return true;

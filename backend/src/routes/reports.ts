@@ -15,7 +15,7 @@ router.get(
     try {
       const { from, to } = req.query as Record<string, string | undefined>;
       
-      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED')";
+      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED', 'Returned', 'Issue')";
       let dateWhereExpenses = "voided_at IS NULL AND category != 'vendor_purchase'";
       
       const paramsOrders: unknown[] = [];
@@ -112,16 +112,17 @@ router.get(
 );
 
 // ─── GET /api/reports/pl/export ───────────────────────────────────────
+// Admin-only: data download is restricted to super admins.
 router.get(
   "/pl/export",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin"),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { from, to } = req.query as Record<string, string | undefined>;
       
       // Fetch the JSON payload first by re-using the logic (we just fetch from our own DB)
-      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED')";
+      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED', 'Returned', 'Issue')";
       let dateWhereExpenses = "voided_at IS NULL AND category != 'vendor_purchase'";
       const paramsOrders: unknown[] = [];
       const paramsExpenses: unknown[] = [];

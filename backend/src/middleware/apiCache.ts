@@ -7,6 +7,10 @@ const cache = new LRUCache<string, any>({
   ttl: 1000 * 60, // 1 minute
 });
 
+export function clearApiCache(): void {
+  cache.clear();
+}
+
 export const apiCache = (req: Request, res: Response, next: NextFunction) => {
   // Only cache GET requests
   if (req.method !== 'GET') {
@@ -38,3 +42,4 @@ export const apiCache = (req: Request, res: Response, next: NextFunction) => {
 
   next();
 };
+

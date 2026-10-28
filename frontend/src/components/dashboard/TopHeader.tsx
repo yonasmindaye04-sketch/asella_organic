@@ -47,13 +47,28 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const res = await api.get<{ total: number }>('/api/notifications/summary');
+        const sinceDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+        const res = await api.get<{ total: number }>(`/api/notifications/unread-counts?since=${sinceDate}`);
         if (res.success && res.data) setNotifCount(res.data.total);
       } catch { /* silently ignore */ }
     };
+    const handleSync = (e: Event) => {
+      const detail = (e as CustomEvent<{ total?: number }>).detail;
+      if (detail && typeof detail.total === 'number') {
+        setNotifCount(detail.total);
+      } else {
+        fetchNotifications();
+      }
+    };
     fetchNotifications();
+    window.addEventListener('asella:notifications-updated', handleSync);
     const interval = setInterval(fetchNotifications, 60_000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('asella:notifications-updated', handleSync);
+    };
   }, []);
 
   useEffect(() => {

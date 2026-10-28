@@ -109,15 +109,18 @@ export const CreateOrderSchema = z.object({
     .regex(/^\+?[0-9\s\-]{7,20}$/, "Invalid phone number"),
   city:          z.string().trim().min(1, "City is required").max(100),
   location:      z.string().trim().min(2, "Location is required").max(255),
-  source:        z.enum([
-    "telegram",
-    "website",
-    "instagram",
-    "facebook",
-    "phone",
-    "walk-in",
-    "other",
-  ]),
+  source:        z.preprocess(
+    (v) => (typeof v === "string" && v.trim().toLowerCase() === "website/online" ? "website" : v),
+    z.enum([
+      "telegram",
+      "website",
+      "instagram",
+      "facebook",
+      "phone",
+      "walk-in",
+      "other",
+    ])
+  ),
   order_type:    z.enum(["delivery", "pickup"]),
   gender:        z.enum(["male", "female", "other"]).optional(),
   age_group:     z
@@ -132,7 +135,7 @@ export const CreateOrderSchema = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^ASL[-_\s]?[A-Z0-9]{3,8}$/, "Invalid referral code format")
+    .regex(/^[A-Z0-9_\-\s]{3,24}$/, "Invalid referral code format")
     .optional(),
   items: z
     .array(OrderItemSchema)

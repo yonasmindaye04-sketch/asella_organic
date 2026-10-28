@@ -30,6 +30,7 @@
 import pool from "../config/db.js";
 import { sendLowStockAlert } from "./telegram.js";
 import { mirrorStockMovementToSheets } from "./sheets.js";
+import { clearApiCache } from "../middleware/apiCache.js";
 import crypto from "crypto";
 import type { PoolConnection } from "mysql2/promise";
 
@@ -112,6 +113,11 @@ export async function recordMovement(
     const newQty      = previousQty + options.changeAmount;
 
     // ── 2. Guard against negative stock ─────────────────────────
+    // When allowNegative is false (default), we throw before any mutation.
+    // When allowNegative is true (damage_loss/write-off), we allow the
+    // negative change to be recorded exactly as requested — no silent
+    // clamping, which would decouple products.inventory_quantity from
+    // the inventory_movements ledger and cause permanent drift.
     if (!options.allowNegative && newQty < 0) {
       throw new Error(
         `Insufficient stock for "${product.name}" (${product.package_size}). ` +
@@ -119,7 +125,7 @@ export async function recordMovement(
       );
     }
 
-    const finalQty = Math.max(0, newQty);
+    const finalQty = newQty;
 
     // ── 3. Update products.inventory_quantity ────────────────────
     await conn.query(
@@ -162,6 +168,7 @@ export async function recordMovement(
     );
 
     if (useOwnTransaction) await conn.commit();
+    clearApiCache();
 
     const belowThreshold = finalQty <= product.low_stock_threshold;
 
@@ -236,6 +243,38 @@ function skippedItem(item: any, reason: SkippedOrderItem["reason"]): SkippedOrde
   };
 }
 
+async function resolveOrderItemsWithProducts(conn: PoolConnection, orderId: string): Promise<Array<{ quantity: number; product_id: string }>> {
+  const [rawItems] = await conn.query(
+    `SELECT product_id, item_name, package_size, quantity FROM order_items WHERE order_id = ?`,
+    [orderId]
+  ) as [any[], any];
+
+  const resolved: Array<{ quantity: number; product_id: string }> = [];
+
+  for (const item of rawItems) {
+    let matchedId: string | null = null;
+    if (item.product_id) {
+      const [byId] = await conn.query(
+        `SELECT id FROM products WHERE id = ? AND active = true LIMIT 1`,
+        [item.product_id]
+      ) as [any[], any];
+      if (byId[0]?.id) matchedId = byId[0].id;
+    }
+    if (!matchedId && item.item_name) {
+      const [byName] = await conn.query(
+        `SELECT id FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? AND active = true LIMIT 1`,
+        [item.item_name, item.package_size]
+      ) as [any[], any];
+      if (byName[0]?.id) matchedId = byName[0].id;
+    }
+    if (matchedId) {
+      resolved.push({ quantity: Number(item.quantity), product_id: matchedId });
+    }
+  }
+
+  return resolved;
+}
+
 /**
  * Deduct stock for all linked items in an order in a single transaction.
  *
@@ -246,12 +285,14 @@ function skippedItem(item: any, reason: SkippedOrderItem["reason"]): SkippedOrde
  */
 export async function deductOrderStock(
   orderId:     string,
-  performedBy: string | null
+  performedBy: string | null,
+  existingConn?: PoolConnection
 ): Promise<OrderStockResult> {
-  const conn = await pool.getConnection();
+  const useOwnTransaction = !existingConn;
+  const conn = existingConn ?? (await pool.getConnection());
 
   try {
-    await conn.beginTransaction();
+    if (useOwnTransaction) await conn.beginTransaction();
 
     const [items] = await conn.query(
       `SELECT oi.id, oi.product_id, oi.item_name, oi.package_size, oi.quantity,
@@ -280,9 +321,9 @@ export async function deductOrderStock(
 
       const movement = await recordMovement(
         {
-          productId:     item.product_id as string,
+          productId:     item.product_id,
           type:          "sale",
-          changeAmount:  -(item.quantity as number),
+          changeAmount:  -item.quantity,
           performedBy,
           referenceId:   orderId,
           referenceType: "order",
@@ -298,13 +339,13 @@ export async function deductOrderStock(
       });
     }
 
-    await conn.commit();
+    if (useOwnTransaction) await conn.commit();
     return result;
   } catch (err) {
-    await conn.rollback();
+    if (useOwnTransaction) await conn.rollback();
     throw err;
   } finally {
-    conn.release();
+    if (useOwnTransaction) conn.release();
   }
 }
 
@@ -317,12 +358,14 @@ export async function deductOrderStock(
  */
 export async function restoreOrderStock(
   orderId:     string,
-  performedBy: string | null
+  performedBy: string | null,
+  existingConn?: PoolConnection
 ): Promise<OrderStockResult> {
-  const conn = await pool.getConnection();
+  const useOwnTransaction = !existingConn;
+  const conn = existingConn ?? (await pool.getConnection());
 
   try {
-    await conn.beginTransaction();
+    if (useOwnTransaction) await conn.beginTransaction();
 
     const [items] = await conn.query(
       `SELECT oi.id, oi.product_id, oi.item_name, oi.package_size, oi.quantity,
@@ -347,9 +390,9 @@ export async function restoreOrderStock(
 
       const movement = await recordMovement(
         {
-          productId:     item.product_id as string,
+          productId:     item.product_id,
           type:          "return",
-          changeAmount:  item.quantity as number, // positive to restore
+          changeAmount:  item.quantity, // positive to restore
           performedBy,
           referenceId:   orderId,
           referenceType: "order",
@@ -366,13 +409,13 @@ export async function restoreOrderStock(
       });
     }
 
-    await conn.commit();
+    if (useOwnTransaction) await conn.commit();
     return result;
   } catch (err) {
-    await conn.rollback();
+    if (useOwnTransaction) await conn.rollback();
     throw err;
   } finally {
-    conn.release();
+    if (useOwnTransaction) conn.release();
   }
 }
 

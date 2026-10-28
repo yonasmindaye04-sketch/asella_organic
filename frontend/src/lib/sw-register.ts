@@ -25,8 +25,32 @@ declare const __SW_BUILD_ID__: string
 export function registerServiceWorker(): void {
   if (typeof window === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
-  // Only register in production builds
+
+  // Purge any unversioned/stale service worker caches left over from earlier builds
+  if ("caches" in window) {
+    caches
+      .keys()
+      .then((keys) => {
+        for (const k of keys) {
+          if (k.includes("__VERSION__")) {
+            caches.delete(k).catch(() => {});
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Only register in production builds on the canonical production domain
   if (!import.meta.env.PROD) return;
+  if (!window.location.hostname.includes("asellaorganic.com")) {
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((regs) => {
+        for (const r of regs) r.unregister().catch(() => {});
+      })
+      .catch(() => {});
+    return;
+  }
 
   window.addEventListener("load", () => {
     navigator.serviceWorker

@@ -52,7 +52,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     };
     fetchNotifs();
     const t = setInterval(fetchNotifs, 60_000);
-    return () => clearInterval(t);
+    const onUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ total?: number }>).detail;
+      if (detail && typeof detail.total === 'number') {
+        setNotifCount(detail.total);
+      } else {
+        fetchNotifs();
+      }
+    };
+    window.addEventListener('asella:notifications-updated', onUpdated);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener('asella:notifications-updated', onUpdated);
+    };
   }, [role]);
 
   const isActive = (path: string) => location.pathname === path;

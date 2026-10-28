@@ -103,6 +103,26 @@ export async function authenticate(
     // If table doesn't exist yet, proceed — non-blocking
   }
 
+  // Verify live account status & role so deactivated or demoted staff lose access immediately
+  try {
+    const [userRows] = await pool.query(
+      `SELECT id, role, active, deleted_at FROM staff_users WHERE id = ? LIMIT 1`,
+      [payload.id]
+    ) as [any[], any];
+    const dbUser = userRows?.[0];
+    if (dbUser) {
+      if (!dbUser.active || dbUser.deleted_at) {
+        res.status(401).json({ success: false, error: "Account has been deactivated." });
+        return;
+      }
+      if (dbUser.role) {
+        payload.role = dbUser.role;
+      }
+    }
+  } catch {
+    // Non-blocking fallback if staff_users lookup is unavailable in unit tests
+  }
+
   req.user = payload;
   next();
 }

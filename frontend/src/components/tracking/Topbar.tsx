@@ -21,9 +21,6 @@ const Topbar: React.FC = () => {
         <button className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/10 text-[11px] sm:text-xs font-bold transition">
           <span className="material-symbols-outlined text-xs">bar_chart</span> <span className="hidden sm:inline">Analytics</span>
         </button>
-        <button className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-[#4caf50] border border-[#4caf50] hover:bg-[#66bb6a] text-[11px] sm:text-xs font-bold transition">
-          <span className="material-symbols-outlined text-xs">download</span> <span className="hidden sm:inline">Export CSV</span>
-        </button>
       </div>
     </header>
   );
