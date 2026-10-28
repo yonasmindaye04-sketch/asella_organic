@@ -1261,22 +1261,87 @@ async function handleCallback(query: any): Promise<void> {
     }
 
     // ── Vendor PO callbacks (existing) ─────────────────────────────
+    // State-machine guard: only pending → approved / cancelled are allowed.
+    // received and cancelled are terminal — an order must not slip back to
+    // approved just because a vendor taps an old Telegram button again.
     if (data.startsWith("po_accept_")) {
       const orderId = data.replace("po_accept_", "");
+      const [rows] = await pool.query(
+        `SELECT status FROM vendor_orders WHERE order_id = ?`,
+        [orderId]
+      ) as [any[], any];
+      const current = rows[0]?.status;
+
+      if (!current) {
+        await answerCallbackQuery(callbackQueryId, "Order not found.", true);
+        return;
+      }
+      if (current === "received" || current === "cancelled") {
+        await answerCallbackQuery(
+          callbackQueryId,
+          `Order is already ${current}.`,
+          true
+        );
+        return;
+      }
+      if (current === "approved") {
+        await answerCallbackQuery(callbackQueryId, "Already accepted.", true);
+        return;
+      }
+
       await pool.query(
         `UPDATE vendor_orders SET status = 'approved', updated_at = NOW() WHERE order_id = ?`,
         [orderId]
       );
+
+      // Strip the buttons so the vendor cannot re-accept an old PO message.
+      if (message?.message_id && message?.chat?.id) {
+        await editMessageReplyMarkup(message.chat.id, message.message_id, {
+          inline_keyboard: [],
+        });
+      }
+
       await answerCallbackQuery(callbackQueryId, "PO Accepted!", false);
       return;
     }
 
     if (data.startsWith("po_decline_")) {
       const orderId = data.replace("po_decline_", "");
+      const [rows] = await pool.query(
+        `SELECT status FROM vendor_orders WHERE order_id = ?`,
+        [orderId]
+      ) as [any[], any];
+      const current = rows[0]?.status;
+
+      if (!current) {
+        await answerCallbackQuery(callbackQueryId, "Order not found.", true);
+        return;
+      }
+      if (current === "received" || current === "cancelled") {
+        await answerCallbackQuery(
+          callbackQueryId,
+          `Order is already ${current}.`,
+          true
+        );
+        return;
+      }
+      if (current === "approved") {
+        await answerCallbackQuery(callbackQueryId, "Already declined.", true);
+        return;
+      }
+
       await pool.query(
         `UPDATE vendor_orders SET status = 'cancelled', updated_at = NOW() WHERE order_id = ?`,
         [orderId]
       );
+
+      // Strip the buttons so the vendor cannot re-decline an old PO message.
+      if (message?.message_id && message?.chat?.id) {
+        await editMessageReplyMarkup(message.chat.id, message.message_id, {
+          inline_keyboard: [],
+        });
+      }
+
       await answerCallbackQuery(callbackQueryId, "PO Declined", false);
       return;
     }

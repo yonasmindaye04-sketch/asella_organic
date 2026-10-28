@@ -20,5 +20,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0"
+  },
+  "dependencies": {
+    "nodemailer": "^10.2.1"
   }
 }

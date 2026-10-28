@@ -430,6 +430,109 @@ const CallCenterReportPage: React.FC = () => {
           </p>
         </div>
 
+        {/* ── Period analytics ──────────────────────────────────────────────── */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-2">
+          <div>
+            <h2 className="text-lg font-semibold">Reporting Analytics</h2>
+            <p className="text-sm text-gray-500">
+              Calls and orders recorded in the selected period.
+            </p>
+          </div>
+          <TimeRangeSelector
+            activeRange={activeRange}
+            from={dateRange.from}
+            to={dateRange.to}
+            onRangeChange={handleRangeChange}
+          />
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-64 gap-3 text-gray-400">
+            <span className="material-symbols-outlined text-[28px] animate-spin">progress_activity</span>
+            <span className="text-sm">Loading report…</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-2 text-gray-400">
+            <span className="material-symbols-outlined text-[32px]">error_outline</span>
+            <p className="text-sm">{error}</p>
+            <button
+              onClick={() => void fetchReport()}
+              className="mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+              <StatCard
+                label="Calls Received"
+                value={(s?.calls_received ?? 0).toLocaleString()}
+                icon="headset_mic"
+                color="text-blue-600"
+                hint={`${s?.reports_submitted ?? 0} day(s) reported`}
+              />
+              <StatCard
+                label="Orders Placed"
+                value={(s?.calls_ordered ?? 0).toLocaleString()}
+                icon="shopping_cart"
+                color="text-emerald-700"
+                hint="Entered by agent"
+              />
+              <StatCard
+                label="Rejected Calls"
+                value={(s?.calls_rejected ?? 0).toLocaleString()}
+                icon="phone_disabled"
+                color="text-amber-600"
+              />
+              <StatCard
+                label="Orders in System"
+                value={(s?.total_orders ?? 0).toLocaleString()}
+                icon="receipt_long"
+                color="text-indigo-600"
+                hint={`Avg ${s?.avg_orders_per_day ?? 0}/day`}
+              />
+              <StatCard
+                label="Total Sales"
+                value={`ETB ${(s?.total_sales ?? 0).toLocaleString()}`}
+                icon="payments"
+                color="text-emerald-700"
+              />
+              <StatCard
+                label="Delivery Orders"
+                value={(s?.delivery_orders ?? 0).toLocaleString()}
+                icon="local_shipping"
+                color="text-emerald-700"
+              />
+              <StatCard
+                label="Pickup Orders"
+                value={(s?.pickup_orders ?? 0).toLocaleString()}
+                icon="storefront"
+                color="text-amber-600"
+              />
+              <StatCard
+                label="Addis Ababa"
+                value={(s?.addis_orders ?? 0).toLocaleString()}
+                icon="location_city"
+                color="text-emerald-700"
+              />
+              <StatCard
+                label="Other Regions"
+                value={(s?.other_region_orders ?? 0).toLocaleString()}
+                icon="map"
+                color="text-amber-700"
+              />
+              <StatCard
+                label="Abroad"
+                value={(s?.abroad_orders ?? 0).toLocaleString()}
+                icon="public"
+                color="text-cyan-700"
+              />
+            </div>
+              </div>
+          </>
+        )
         {/* ── Daily call report ─────────────────────────────────────────────── */}
         <div className="bg-[#FAF9F6] border border-[#d4ecd4] rounded-3xl w-full shadow-lg overflow-hidden">
           <div className="px-6 md:px-8 pt-6 md:pt-7 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -726,215 +829,115 @@ const CallCenterReportPage: React.FC = () => {
           </form>
         </div>
 
-        {/* ── Period analytics ──────────────────────────────────────────────── */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-2">
-          <div>
-            <h2 className="text-lg font-semibold">Reporting Analytics</h2>
-            <p className="text-sm text-gray-500">
-              Calls and orders recorded in the selected period.
-            </p>
+        {/* Charts */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-800">Orders Placed Per Day</h2>
+              <span className="text-xs text-gray-400">
+                {data?.date_range.from} → {data?.date_range.to}
+              </span>
+            </div>
+            <div className="h-72">
+              <Bar data={dailyChart} options={dailyOptions} />
+            </div>
           </div>
-          <TimeRangeSelector
-            activeRange={activeRange}
-            from={dateRange.from}
-            to={dateRange.to}
-            onRangeChange={handleRangeChange}
-          />
+
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <h2 className="font-semibold text-gray-800 mb-4">Order Type</h2>
+            <div className="h-48">
+              <Doughnut data={typeChart} options={donutOptions} />
+            </div>
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <h2 className="font-semibold text-gray-800 mb-3">Location</h2>
+              <div className="h-48">
+                <Doughnut data={locationChart} options={donutOptions} />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center h-64 gap-3 text-gray-400">
-            <span className="material-symbols-outlined text-[28px] animate-spin">progress_activity</span>
-            <span className="text-sm">Loading report…</span>
+        {/* Daily table */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800">Daily Breakdown</h2>
+            <span className="text-xs text-gray-400">
+              {daily.length} day{daily.length === 1 ? '' : 's'} with activity
+            </span>
           </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-2 text-gray-400">
-            <span className="material-symbols-outlined text-[32px]">error_outline</span>
-            <p className="text-sm">{error}</p>
-            <button
-              onClick={() => void fetchReport()}
-              className="mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
-            >
-              Retry
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-              <StatCard
-                label="Calls Received"
-                value={(s?.calls_received ?? 0).toLocaleString()}
-                icon="headset_mic"
-                color="text-blue-600"
-                hint={`${s?.reports_submitted ?? 0} day(s) reported`}
-              />
-              <StatCard
-                label="Orders Placed"
-                value={(s?.calls_ordered ?? 0).toLocaleString()}
-                icon="shopping_cart"
-                color="text-emerald-700"
-                hint="Entered by agent"
-              />
-              <StatCard
-                label="Rejected Calls"
-                value={(s?.calls_rejected ?? 0).toLocaleString()}
-                icon="phone_disabled"
-                color="text-amber-600"
-              />
-              <StatCard
-                label="Orders in System"
-                value={(s?.total_orders ?? 0).toLocaleString()}
-                icon="receipt_long"
-                color="text-indigo-600"
-                hint={`Avg ${s?.avg_orders_per_day ?? 0}/day`}
-              />
-              <StatCard
-                label="Total Sales"
-                value={`ETB ${(s?.total_sales ?? 0).toLocaleString()}`}
-                icon="payments"
-                color="text-emerald-700"
-              />
-              <StatCard
-                label="Delivery Orders"
-                value={(s?.delivery_orders ?? 0).toLocaleString()}
-                icon="local_shipping"
-                color="text-emerald-700"
-              />
-              <StatCard
-                label="Pickup Orders"
-                value={(s?.pickup_orders ?? 0).toLocaleString()}
-                icon="storefront"
-                color="text-amber-600"
-              />
-              <StatCard
-                label="Addis Ababa"
-                value={(s?.addis_orders ?? 0).toLocaleString()}
-                icon="location_city"
-                color="text-emerald-700"
-              />
-              <StatCard
-                label="Other Regions"
-                value={(s?.other_region_orders ?? 0).toLocaleString()}
-                icon="map"
-                color="text-amber-700"
-              />
-              <StatCard
-                label="Abroad"
-                value={(s?.abroad_orders ?? 0).toLocaleString()}
-                icon="public"
-                color="text-cyan-700"
-              />
+          {daily.length === 0 ? (
+            <div className="p-10 text-center text-gray-400">
+              <span className="material-symbols-outlined text-[36px] text-gray-200">bar_chart</span>
+              <p className="mt-2 text-sm">No calls or orders recorded in this period.</p>
             </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              <div className="xl:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-gray-800">Orders Placed Per Day</h2>
-                  <span className="text-xs text-gray-400">
-                    {data?.date_range.from} → {data?.date_range.to}
-                  </span>
-                </div>
-                <div className="h-72">
-                  <Bar data={dailyChart} options={dailyOptions} />
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <h2 className="font-semibold text-gray-800 mb-4">Order Type</h2>
-                <div className="h-48">
-                  <Doughnut data={typeChart} options={donutOptions} />
-                </div>
-                <div className="mt-4 border-t border-gray-100 pt-4">
-                  <h2 className="font-semibold text-gray-800 mb-3">Location</h2>
-                  <div className="h-48">
-                    <Doughnut data={locationChart} options={donutOptions} />
-                  </div>
-                </div>
-              </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-right">Calls</th>
+                    <th className="px-4 py-3 text-right">Ordered</th>
+                    <th className="px-4 py-3 text-right">Rejected</th>
+                    <th className="px-4 py-3 text-right">System Orders</th>
+                    <th className="px-4 py-3 text-right">Delivery</th>
+                    <th className="px-4 py-3 text-right">Pickup</th>
+                    <th className="px-4 py-3 text-right">Addis Ababa</th>
+                    <th className="px-4 py-3 text-right">Other Regions</th>
+                    <th className="px-4 py-3 text-right">Abroad</th>
+                    <th className="px-4 py-3 text-right">Sales (ETB)</th>
+                    <th className="px-4 py-3 text-center">Report</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {daily.map((d) => (
+                    <tr key={d.date} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">
+                        {fmtDate(d.date)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-600">
+                        {d.report_submitted ? d.calls_received : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-700">
+                        {d.report_submitted ? d.calls_ordered : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-amber-700">
+                        {d.report_submitted ? d.calls_rejected : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-indigo-700">{d.orders}</td>
+                      <td className="px-4 py-3 text-right text-emerald-700">{d.delivery_orders}</td>
+                      <td className="px-4 py-3 text-right text-amber-700">{d.pickup_orders}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{d.addis_orders}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{d.other_region_orders}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{d.abroad_orders}</td>
+                      <td className="px-4 py-3 text-right font-medium text-gray-700">
+                        {d.total_sales.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        {d.report_submitted ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+                            <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                            {d.is_backdated ? 'Backdated' : 'Submitted'}
+                          </span>
+                        ) : (
+                          <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 text-[11px] font-semibold">
+                            Not submitted
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          )}
+        </div>
 
-            {/* Daily table */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="font-semibold text-gray-800">Daily Breakdown</h2>
-                <span className="text-xs text-gray-400">
-                  {daily.length} day{daily.length === 1 ? '' : 's'} with activity
-                </span>
-              </div>
-              {daily.length === 0 ? (
-                <div className="p-10 text-center text-gray-400">
-                  <span className="material-symbols-outlined text-[36px] text-gray-200">bar_chart</span>
-                  <p className="mt-2 text-sm">No calls or orders recorded in this period.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                      <tr>
-                        <th className="px-4 py-3 text-left">Date</th>
-                        <th className="px-4 py-3 text-right">Calls</th>
-                        <th className="px-4 py-3 text-right">Ordered</th>
-                        <th className="px-4 py-3 text-right">Rejected</th>
-                        <th className="px-4 py-3 text-right">System Orders</th>
-                        <th className="px-4 py-3 text-right">Delivery</th>
-                        <th className="px-4 py-3 text-right">Pickup</th>
-                        <th className="px-4 py-3 text-right">Addis Ababa</th>
-                        <th className="px-4 py-3 text-right">Other Regions</th>
-                        <th className="px-4 py-3 text-right">Abroad</th>
-                        <th className="px-4 py-3 text-right">Sales (ETB)</th>
-                        <th className="px-4 py-3 text-center">Report</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {daily.map((d) => (
-                        <tr key={d.date} className="hover:bg-gray-50 transition">
-                          <td className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">
-                            {fmtDate(d.date)}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-blue-600">
-                            {d.report_submitted ? d.calls_received : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right text-gray-700">
-                            {d.report_submitted ? d.calls_ordered : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right text-amber-700">
-                            {d.report_submitted ? d.calls_rejected : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-indigo-700">{d.orders}</td>
-                          <td className="px-4 py-3 text-right text-emerald-700">{d.delivery_orders}</td>
-                          <td className="px-4 py-3 text-right text-amber-700">{d.pickup_orders}</td>
-                          <td className="px-4 py-3 text-right text-gray-600">{d.addis_orders}</td>
-                          <td className="px-4 py-3 text-right text-gray-600">{d.other_region_orders}</td>
-                          <td className="px-4 py-3 text-right text-gray-600">{d.abroad_orders}</td>
-                          <td className="px-4 py-3 text-right font-medium text-gray-700">
-                            {d.total_sales.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3 text-center whitespace-nowrap">
-                            {d.report_submitted ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
-                                <span className="material-symbols-outlined text-[13px]">check_circle</span>
-                                {d.is_backdated ? 'Backdated' : 'Submitted'}
-                              </span>
-                            ) : (
-                              <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 text-[11px] font-semibold">
-                                Not submitted
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </>
-        )}
       </main>
     </DashboardLayout>
   );
 };
 
 export default CallCenterReportPage;
+
+
