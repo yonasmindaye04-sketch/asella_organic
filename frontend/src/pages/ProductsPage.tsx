@@ -100,19 +100,19 @@ const MOVEMENT_LABELS: Record<string, string> = {
 };
 
 const MOVEMENT_COLORS: Record<string, string> = {
-  sale:               'text-red-600',
-  purchase_received:  'text-green-600',
-  adjustment:         'text-blue-600',
-  return:             'text-purple-600',
-  damage_loss:        'text-orange-600',
-  initial_stock:      'text-gray-600',
+  sale:               'text-red-700 dark:text-red-400',
+  purchase_received:  'text-green-700 dark:text-green-400',
+  adjustment:         'text-blue-700 dark:text-blue-400',
+  return:             'text-purple-700 dark:text-purple-400',
+  damage_loss:        'text-orange-700 dark:text-orange-400',
+  initial_stock:      'text-gray-600 dark:text-gray-400',
 };
 
 const STATUS_STYLES: Record<StockItem['stock_status'], { badge: string; row: string; dot: string }> = {
-  ok:           { badge: 'text-green-700 font-bold',   row: '',                    dot: 'bg-green-500'  },
-  low:          { badge: 'text-amber-700 font-bold',   row: 'bg-amber-50/40',      dot: 'bg-amber-500'  },
-  critical:     { badge: 'text-orange-700 font-bold',  row: 'bg-orange-50/40',     dot: 'bg-orange-500' },
-  out_of_stock: { badge: 'text-red-700 font-bold',     row: 'bg-red-50/50',        dot: 'bg-red-600'    },
+  ok:           { badge: 'text-green-700 dark:text-green-400',   row: '',                    dot: 'bg-green-500'  },
+  low:          { badge: 'text-amber-700 dark:text-amber-400',   row: 'bg-amber-50/40',      dot: 'bg-amber-500'  },
+  critical:     { badge: 'text-orange-700 dark:text-orange-400', row: 'bg-orange-50/40',     dot: 'bg-orange-500' },
+  out_of_stock: { badge: 'text-red-700 dark:text-red-400',       row: 'bg-red-50/50',        dot: 'bg-red-600'    },
 };
 
 const STATUS_LABELS: Record<StockItem['stock_status'], string> = {
@@ -894,18 +894,18 @@ function ProductsTab({ onReloadStock }: ProductsTabProps) {
                 {/* Badges */}
                 <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
                   {!p.active && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 uppercase">Archived</span>
+                    <span className="text-[10px] font-bold uppercase text-orange-700 drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]">Archived</span>
                   )}
                   {p.featured && p.active && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 uppercase">Featured</span>
+                    <span className="text-[10px] font-bold uppercase text-amber-700 drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]">Featured</span>
                   )}
                 </div>
                 {/* Stock quick badge */}
                 <div className="absolute bottom-2 right-2">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm ${
-                    p.inventory_quantity === 0                    ? 'bg-red-600 text-white' :
-                    p.inventory_quantity <= p.low_stock_threshold ? 'bg-amber-500 text-white' :
-                    'bg-green-100 text-green-800'
+                  <span className={`text-[10px] font-bold drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)] ${
+                    p.inventory_quantity === 0                    ? 'text-red-700' :
+                    p.inventory_quantity <= p.low_stock_threshold ? 'text-amber-700' :
+                    'text-green-700'
                   }`}>
                     {p.inventory_quantity} units
                   </span>

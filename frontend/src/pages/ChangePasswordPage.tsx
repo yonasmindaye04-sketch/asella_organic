@@ -207,7 +207,7 @@ const ChangePasswordPage: React.FC = () => {
               <h2 className="text-lg font-bold text-[#112415]">Two-Factor Authentication (2FA)</h2>
             </div>
             {twoFaEnabled !== null && (
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${twoFaEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+              <span className={`text-xs font-bold uppercase ${twoFaEnabled ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}>
                 {twoFaEnabled ? 'Enabled' : 'Disabled'}
               </span>
             )}

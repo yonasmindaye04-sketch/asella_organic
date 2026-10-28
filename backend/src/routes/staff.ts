@@ -29,7 +29,7 @@ const router = Router();
 
 const BCRYPT_ROUNDS = 12;
 
-const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver", "call_center"] as const;
+const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver", "call_center", "store_manager"] as const;
 type StaffRole    = typeof VALID_ROLES[number];
 const isValidRole = (r: unknown): r is StaffRole => VALID_ROLES.includes(r as StaffRole);
 
@@ -82,7 +82,7 @@ router.get(
                 (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id AND status = 'Delivered'${dateFilterStr}) AS orders_delivered_count,
                 (SELECT COALESCE(SUM(total),0) FROM orders
                  WHERE created_by_staff_id = staff_users.id
-                   AND status NOT IN ('Cancelled','CANCELLED','Returned','Issue')${dateFilterStr}) AS revenue_generated
+                   AND status NOT IN ('Cancelled','CANCELLED')${dateFilterStr}) AS revenue_generated
          FROM staff_users ${where}
          ORDER BY created_at DESC
          LIMIT ? OFFSET ?`,
@@ -144,10 +144,10 @@ router.get(
         `SELECT
            COUNT(*)                                                         AS total_orders,
            SUM(o.status = 'Delivered')                                      AS delivered,
-           SUM(o.status IN ('Cancelled','CANCELLED','Returned','Issue'))    AS cancelled,
-           SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED','Returned','Issue')) AS pending,
-           COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue,
-           COALESCE(AVG(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total END),0)         AS avg_order_value,
+           SUM(o.status IN ('Cancelled','CANCELLED'))                       AS cancelled,
+           SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED'))       AS pending,
+           COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue,
+           COALESCE(AVG(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total END),0)         AS avg_order_value,
            MIN(o.created_at)                                                AS first_order_at,
            MAX(o.created_at)                                                AS last_order_at
          FROM orders o
@@ -174,7 +174,7 @@ router.get(
       const [revenueRows] = await pool.query(
         `SELECT DATE(o.created_at) AS date,
                 COUNT(*)            AS orders,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
          WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
          GROUP BY DATE(o.created_at)
@@ -186,7 +186,7 @@ router.get(
       const [channelRows] = await pool.query(
         `SELECT o.source,
                 COUNT(*) AS orders,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
          WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
          GROUP BY o.source
@@ -205,7 +205,7 @@ router.get(
          JOIN orders o ON o.id = oi.order_id
          WHERE o.created_by_staff_id = ?
            AND o.deleted_at IS NULL
-           AND o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue')${dateFilter.replace(/o\./g, "o.")}
+           AND o.status NOT IN ('Cancelled','CANCELLED')${dateFilter.replace(/o\./g, "o.")}
          GROUP BY oi.item_name, oi.package_size
          ORDER BY revenue DESC
          LIMIT 10`,
@@ -216,7 +216,7 @@ router.get(
       const [cityRows] = await pool.query(
         `SELECT o.city,
                 COUNT(*) AS orders,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
          WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
          GROUP BY o.city
@@ -246,14 +246,21 @@ router.get(
 
       // ── 9. Delivery workload (drivers only) ──────────────────────────
       //
-      // A driver's work is attributed by Telegram handle, not staff id:
-      // orders.assigned_to holds the @handle the Telegram bot wrote when the
-      // driver accepted the job, so it is joined against the staff row's
-      // telegram_username. Drivers with no handle on file get no delivery
-      // numbers here — that is a staff-record gap, not a zero-performance
-      // driver, so the block is omitted rather than filled with zeroes.
+      // Sourced from delivery_assignments, not orders.assigned_to.
+      //
+      // orders.assigned_to is the Telegram bot's raw write target and holds
+      // two incompatible shapes — the current bare handle and a legacy
+      // "@handle (chat_id)" form — so it cannot be joined reliably.
+      // delivery_assignments is the normalised table the bot also writes, one
+      // row per accepted job, with claimed_at as the timestamp. That is the
+      // same source the team rollup in routes/performance.ts uses, so a
+      // driver's numbers agree between the panel and this drill-down.
+      //
+      // The delivery timestamp comes from order_status_history, not
+      // orders.updated_at: updated_at is bumped by later edits (notes, item
+      // changes) and would silently rewrite delivery history.
       let delivery: Record<string, number> | null = null;
-      if (staffRows[0].role === "delivery" && staffRows[0].telegram_username) {
+      if (staffRows[0].telegram_username) {
         const tgUsername = staffRows[0].telegram_username;
 
         const [deliveryRows] = await pool.query(
@@ -273,35 +280,32 @@ router.get(
                                 AND o.delivery_date IS NOT NULL
                                 AND DATE(dh.delivered_at) <= o.delivery_date
                                THEN 1 ELSE 0 END), 0)                        AS on_time
-           FROM orders o
+           FROM delivery_assignments da
+           JOIN orders o
+                ON o.id = da.order_id
+               AND o.deleted_at IS NULL
            LEFT JOIN (
              SELECT order_id, MIN(created_at) AS delivered_at
              FROM order_status_history
              WHERE new_status = 'Delivered'
              GROUP BY order_id
            ) dh ON dh.order_id = o.id
-           WHERE o.assigned_to = ?
-             AND o.deleted_at IS NULL${dateFilter}`,
-          [tgUsername, ...dp]
+           WHERE da.driver_username = ?
+             AND da.claimed_at BETWEEN ? AND ?`,
+          [tgUsername, `${from ?? "1970-01-01"} 00:00:00`, `${to ?? "2999-12-31"} 23:59:59`]
         ) as [any[], any];
 
         let rejected = 0;
         try {
           // The rejections table is optional — it arrived in a later
           // migration than the orders table, so an older database has no
-          // rows and possibly no table at all. Only filter by date when the
-          // caller actually supplied a window.
-          const rejParams: unknown[] = [tgUsername];
-          let rejDateFilter = "";
-          if (from && to) {
-            rejDateFilter = " AND rejected_at BETWEEN ? AND ?";
-            rejParams.push(`${from} 00:00:00`, `${to} 23:59:59`);
-          }
+          // rows and possibly no table at all.
           const [rejRows] = await pool.query(
             `SELECT COUNT(*) AS rejected
              FROM delivery_rejections
-             WHERE driver_username = ?${rejDateFilter}`,
-            rejParams
+             WHERE driver_username = ?
+               AND rejected_at BETWEEN ? AND ?`,
+            [tgUsername, `${from ?? "1970-01-01"} 00:00:00`, `${to ?? "2999-12-31"} 23:59:59`]
           ) as [any[], any];
           rejected = Number(rejRows[0]?.rejected || 0);
         } catch {
@@ -311,21 +315,33 @@ router.get(
 
         const d = deliveryRows[0] || {};
         const assigned = Number(d.total_assigned || 0);
+        const deliveredCount = Number(d.delivered || 0);
         const onTime   = Number(d.on_time || 0);
         const promised = Number(d.with_promised_date || 0);
 
         delivery = {
           total_assigned:   assigned,
-          delivered:        Number(d.delivered || 0),
+          delivered:        deliveredCount,
           cancelled:        Number(d.cancelled || 0),
           pending:          Number(d.pending || 0),
           revenue:          Number(d.revenue || 0),
           rejected,
+          delivery_rate:    assigned > 0
+            ? Number(((deliveredCount / assigned) * 100).toFixed(1))
+            : 0,
           acceptance_rate:  assigned + rejected > 0
             ? Number(((assigned / (assigned + rejected)) * 100).toFixed(1))
             : 0,
           on_time_rate:     promised > 0 ? Number(((onTime / promised) * 100).toFixed(1)) : 0,
         };
+
+        // A driver role with no jobs in the window still gets the delivery
+        // KPI layout (all zeroes); a salesperson who happens to drive only
+        // gets it when there is delivery work to report, so their ordinary
+        // sales drill-down is unchanged.
+        if (staffRows[0].role !== "delivery" && assigned === 0 && rejected === 0) {
+          delivery = null;
+        }
       }
 
       res.json({
@@ -768,17 +784,6 @@ router.patch(
         res.status(404).json({ success: false, error: "Staff member not found." });
         return;
       }
-
-      // Immediately revoke refresh tokens if staff member is deactivated or role is changed
-      if (active === false || role !== undefined) {
-        await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [staffId]).catch(() => {});
-      }
-
-      await pool.query(
-        `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
-         VALUES ('staff_users', ?, ?, 'STAFF_UPDATED', ?)`,
-        [staffId, req.user!.id, JSON.stringify({ full_name, role, email, phone, telegram_username, active })]
-      ).catch(() => {});
 
       log.info("Staff updated", { staffId: req.params.id });
       res.json({ success: true, data: { message: "Staff updated." } });

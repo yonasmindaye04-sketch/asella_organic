@@ -7,24 +7,36 @@
  * One endpoint that rolls every internal team up into a comparable shape so
  * the admin can watch the whole organisation from a single side panel:
  *
- *   call_center — calls logged (call_logs) + orders placed (created_by_staff_id)
- *   delivery    — orders assigned (orders.assigned_to) + rejections
+ *   call_center — calls received (call_center_daily_reports) + orders placed (created_by_staff_id)
+ *   delivery    — orders accepted (delivery_assignments) + rejections
  *   employee    — orders placed (created_by_staff_id)
  *   all         — every member of the three teams above, in one list
  *
- * Two different keys link a person to their work, and that asymmetry is the
- * whole reason this file exists:
+ * ── Why the three teams are sourced differently ─────────────────────────────
  *
- *   - Sales work is attributed by staff id:  orders.created_by_staff_id
- *   - Delivery work is attributed by Telegram handle: orders.assigned_to
+ * Sales work is attributed by staff id. `orders.created_by_staff_id` is a real
+ * foreign key set by whoever submitted the order, so the join is trivial.
  *
- * `assigned_to` is written by the Telegram delivery bot, which has no
- * knowledge of staff_users.id — it stores the driver's @handle (see the
- * delivery_accept handler in routes/telegram.ts). `staff_users.telegram_username`
- * is the matching column, so delivery rows are joined through it. A driver
- * with no telegram_username on their staff row therefore contributes no
- * delivery numbers; the roster still lists them so the admin can see the gap
- * and fix the staff record.
+ * Delivery work is not. It is attributed by Telegram handle:
+ * `delivery_assignments.driver_username` holds the driver's @handle, written
+ * by the delivery bot, which has no knowledge of staff_users.id. The matching
+ * column is `staff_users.telegram_username`.
+ *
+ * Two consequences that shaped this file:
+ *
+ * 1. The delivery team is NOT `staff_users.role = 'delivery'`. That role has
+ *    only a couple of rows while eight distinct handles actually accept
+ *    deliveries — several of them are admins and employees who also drive.
+ *    The roster is therefore built from the drivers who actually appear in
+ *    delivery_assignments, with staff rows linked in where they exist. A
+ *    driver with no staff record still shows up, flagged as unlinked, because
+ *    silently dropping them would hide a driver the admin cannot manage.
+ *
+ * 2. `delivery_assignments.delivered_at` is never written by any code path, so
+ *    it is NULL for every row. The delivery timestamp is taken from
+ *    order_status_history instead — the moment the order actually flipped to
+ *    Delivered. `orders.updated_at` is not a substitute: it is bumped by later
+ *    edits (notes, item changes) and would silently rewrite delivery history.
  */
 
 import { Router, Request, Response } from "express";
@@ -40,15 +52,15 @@ const router = Router();
 // `icon` are display-only and travel with the payload so the panel does not
 // have to hardcode a second copy of this table.
 const TEAMS = [
-  { key: "call_center", label: "Call Centre",     icon: "headset_mic",  roles: ["call_center"] },
-  { key: "delivery",    label: "Delivery",        icon: "local_shipping", roles: ["delivery"] },
-  { key: "employee",    label: "Staff / Employee", icon: "badge",        roles: ["employee"] },
+  { key: "call_center", label: "Call Centre",       icon: "headset_mic",    roles: ["call_center"] },
+  { key: "delivery",    label: "Delivery",          icon: "local_shipping", roles: ["delivery"] },
+  { key: "employee",    label: "Staff / Employee",  icon: "badge",          roles: ["employee"] },
 ] as const;
 
 type TeamKey = (typeof TEAMS)[number]["key"] | "all";
 
-// The roles that make up each team, flattened for the roster query.
-const TEAM_ROLES: string[] = TEAMS.flatMap((t) => [...t.roles]);
+// The roles that make up the sales teams, flattened for the roster query.
+const SALES_ROLES: string[] = TEAMS.flatMap((t) => [...t.roles]).filter((r) => r !== "delivery");
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,6 +72,8 @@ interface Member {
   team:              TeamKey;
   active:            boolean;
   telegram_username: string | null;
+  /** True when a driver accepts deliveries but has no staff account. */
+  unlinked:          boolean;
 
   calls_logged:    number;
   orders_placed:   number;
@@ -155,19 +169,50 @@ router.get(
     try {
       const { from, to, params } = resolveWindow(req.query as Record<string, string | undefined>);
 
-      // ── 1. Roster ────────────────────────────────────────────────────────
-      // Every non-deleted member of the three tracked teams. Left-joined to
-      // the aggregates below so a member with no activity still appears —
-      // "zero orders" is itself a performance signal.
-      const [rosterRows] = await pool.query(
+      // ── 1. Sales roster ──────────────────────────────────────────────────
+      // Every non-deleted call centre agent and employee. Left-joined to the
+      // aggregates below so a member with no activity still appears — "zero
+      // orders" is itself a performance signal.
+      const [salesRoster] = await pool.query(
         `SELECT id, full_name, username, role, active, telegram_username
          FROM staff_users
          WHERE role IN (?)
            AND deleted_at IS NULL`,
-        [TEAM_ROLES]
+        [SALES_ROLES]
       ) as [any[], any];
 
-      // ── 2. Sales aggregates (call centre + employees) ────────────────────
+      // ── 2. Driver roster ─────────────────────────────────────────────────
+      // Distinct handles that accepted a delivery inside the window, linked
+      // to a staff record where possible.
+      //
+      // The staff link is matched on telegram_username first because that is
+      // what the bot writes. The username fallback catches staff whose login
+      // name happens to equal their Telegram handle.
+      //
+      // A driver with no staff record is kept, with unlinked = true, so the
+      // owner can see that a working driver has no account to manage.
+      const [driverRoster] = await pool.query(
+        `SELECT da.driver_username,
+                su.id             AS staff_id,
+                su.full_name      AS full_name,
+                su.username       AS staff_username,
+                su.role           AS role,
+                su.active         AS active,
+                su.telegram_username
+         FROM (
+                SELECT DISTINCT driver_username
+                FROM delivery_assignments
+                WHERE claimed_at BETWEEN ? AND ?
+         ) da
+         LEFT JOIN staff_users su
+                ON su.deleted_at IS NULL
+               AND (su.telegram_username = da.driver_username
+                    OR su.username          = da.driver_username)
+         ORDER BY da.driver_username`,
+        params
+      ) as [any[], any];
+
+      // ── 3. Sales aggregates (call centre + employees) ────────────────────
       const [salesRows] = await pool.query(
         `SELECT o.created_by_staff_id AS staff_id,
                 COUNT(*)                                                        AS total_orders,
@@ -184,36 +229,30 @@ router.get(
         params
       ) as [any[], any];
 
-      // ── 3. Call log counts (call centre) ─────────────────────────────────
-      // The call_logs table arrived with the call_center role. If a database
-      // has not had 034_call_center.sql applied yet this table is absent, and
-      // the query would take the whole endpoint down with it. A missing table
-      // means "no calls logged", which is the correct answer for a database
-      // that has never had the feature.
+      // ── 4. Daily call report counts (call centre) ────────────────────────
+      // Calls are submitted once per day through the Reporting Channel, not
+      // logged one-by-one. If a database has not had the daily-report table
+      // applied yet the endpoint still works and reports zero calls.
       let callRows: any[] = [];
       try {
         const [rows] = await pool.query(
-          `SELECT staff_id, COUNT(*) AS call_count
-           FROM call_logs
-           WHERE logged_at BETWEEN ? AND ?
+          `SELECT staff_id, COALESCE(SUM(calls_received), 0) AS call_count
+           FROM call_center_daily_reports
+           WHERE report_date BETWEEN ? AND ?
            GROUP BY staff_id`,
-          params
+          [from, to]
         ) as [any[], any];
         callRows = rows;
       } catch {
-        log.warn("call_logs unavailable — call metrics reported as zero");
+        log.warn("call_center_daily_reports unavailable — call metrics reported as zero");
       }
 
-      // ── 4. Delivery aggregates ───────────────────────────────────────────
-      // Joined through telegram_username because assigned_to holds the
-      // driver's Telegram handle, not their staff id.
-      //
-      // `dh` is the delivery timestamp taken from the status history — the
-      // moment the order actually flipped to Delivered. orders.updated_at is
-      // not usable here: it is bumped by later edits (notes, item changes),
-      // so it would silently rewrite history and wreck the on-time rate.
+      // ── 5. Delivery aggregates ───────────────────────────────────────────
+      // Filtered on claimed_at — when the driver took the job — rather than
+      // the order's created_at, so the window measures delivery work done in
+      // that period and not orders that happened to be placed then.
       const [deliveryRows] = await pool.query(
-        `SELECT su.id AS staff_id,
+        `SELECT da.driver_username,
                 COUNT(o.id)                                                    AS total_assigned,
                 COALESCE(SUM(o.status = 'Delivered'), 0)                       AS delivered,
                 COALESCE(SUM(o.status IN ('Cancelled','CANCELLED')), 0)         AS cancelled,
@@ -229,25 +268,22 @@ router.get(
                                    AND o.delivery_date IS NOT NULL
                                    AND DATE(dh.delivered_at) <= o.delivery_date
                                   THEN 1 ELSE 0 END), 0)                       AS on_time
-         FROM staff_users su
-         LEFT JOIN orders o
-                ON o.assigned_to = su.telegram_username
-               AND o.deleted_at IS NULL
-               AND o.created_at BETWEEN ? AND ?
+         FROM delivery_assignments da
+         JOIN orders o
+              ON o.id = da.order_id
+             AND o.deleted_at IS NULL
          LEFT JOIN (
                 SELECT order_id, MIN(created_at) AS delivered_at
                 FROM order_status_history
                 WHERE new_status = 'Delivered'
                 GROUP BY order_id
          ) dh ON dh.order_id = o.id
-         WHERE su.role = 'delivery'
-           AND su.deleted_at IS NULL
-           AND su.telegram_username IS NOT NULL
-         GROUP BY su.id`,
+         WHERE da.claimed_at BETWEEN ? AND ?
+         GROUP BY da.driver_username`,
         params
       ) as [any[], any];
 
-      // ── 5. Delivery rejections ───────────────────────────────────────────
+      // ── 6. Delivery rejections ───────────────────────────────────────────
       let rejectionRows: any[] = [];
       try {
         const [rows] = await pool.query(
@@ -262,30 +298,23 @@ router.get(
         log.warn("delivery_rejections unavailable — rejection metrics reported as zero");
       }
 
-      // ── 6. Merge into one row per person ─────────────────────────────────
-      const salesById    = new Map(salesRows.map((r: any) => [r.staff_id, r]));
-      const callsById    = new Map(callRows.map((r: any) => [r.staff_id, r]));
-      const deliveryById = new Map(deliveryRows.map((r: any) => [r.staff_id, r]));
-      const rejectsByUser = new Map(rejectionRows.map((r: any) => [r.driver_username, r]));
+      // ── 7. Merge into one row per person ─────────────────────────────────
+      const salesById     = new Map(salesRows.map((r: any) => [r.staff_id, r]));
+      const callsById     = new Map(callRows.map((r: any) => [r.staff_id, r]));
+      const deliveryByUser = new Map(deliveryRows.map((r: any) => [r.driver_username, r]));
+      const rejectsByUser  = new Map(rejectionRows.map((r: any) => [r.driver_username, r]));
 
-      const members: Member[] = rosterRows.map((s: any) => {
-        const sales    = salesById.get(s.id);
-        const calls    = callsById.get(s.id);
-        const delivery = deliveryById.get(s.id);
-        const rejects  = s.telegram_username ? rejectsByUser.get(s.telegram_username) : undefined;
+      // ── 7a. Sales members ────────────────────────────────────────────────
+      const members: Member[] = salesRoster.map((s: any) => {
+        const sales = salesById.get(s.id);
+        const calls = callsById.get(s.id);
 
-        const callsLogged    = num(calls?.call_count);
-        const ordersPlaced   = num(sales?.total_orders);
-        const ordersAssigned = num(delivery?.total_assigned);
-        const delivered      = num(delivery?.delivered) + num(sales?.delivered);
-        const cancelled      = num(delivery?.cancelled) + num(sales?.cancelled);
-        const pending        = num(delivery?.pending) + num(sales?.pending);
-        const revenue        = num(delivery?.revenue) + num(sales?.revenue);
-        const rejected       = num(rejects?.rejected);
-
-        // The denominator differs by team: a driver is measured on what they
-        // were handed, everyone else on what they sold.
-        const workload = s.role === "delivery" ? ordersAssigned : ordersPlaced;
+        const callsLogged  = num(calls?.call_count);
+        const ordersPlaced = num(sales?.total_orders);
+        const delivered    = num(sales?.delivered);
+        const cancelled    = num(sales?.cancelled);
+        const pending      = num(sales?.pending);
+        const revenue      = num(sales?.revenue);
 
         return {
           id:                s.id,
@@ -296,24 +325,151 @@ router.get(
                               ?? "employee") as TeamKey,
           active:            Boolean(s.active),
           telegram_username: s.telegram_username ?? null,
+          unlinked:          false,
 
           calls_logged:    callsLogged,
           orders_placed:   ordersPlaced,
-          orders_assigned: ordersAssigned,
+          orders_assigned: 0,
+          delivered,
+          cancelled,
+          pending,
+          rejected:         0,
+          revenue,
+
+          delivery_rate:   pct(delivered, ordersPlaced),
+          conversion_rate: pct(ordersPlaced, callsLogged),
+          acceptance_rate: 0,
+          on_time_rate:    0,
+        };
+      });
+
+      // ── 7b. Delivery members ─────────────────────────────────────────────
+      // One row per driver handle. When the handle maps to a staff record the
+      // staff identity is used, so the panel shows a real name; otherwise the
+      // handle stands in and the row is flagged unlinked.
+      for (const d of driverRoster) {
+        const handle     = d.driver_username as string;
+        const delivery   = deliveryByUser.get(handle);
+        const rejects    = rejectsByUser.get(handle);
+
+        const assigned   = num(delivery?.total_assigned);
+        const delivered  = num(delivery?.delivered);
+        const cancelled  = num(delivery?.cancelled);
+        const pending    = num(delivery?.pending);
+        const revenue    = num(delivery?.revenue);
+        const rejected   = num(rejects?.rejected);
+
+        members.push({
+          // A driver with no staff record still needs a stable React key and
+          // a distinguishable identity, so the handle is namespaced.
+          id:                d.staff_id ?? `driver:${handle}`,
+          name:              d.full_name ?? `@${handle}`,
+          username:          d.staff_username ?? handle,
+          role:              "delivery",
+          team:              "delivery",
+          active:            d.active === null || d.active === undefined ? true : Boolean(d.active),
+          telegram_username: handle,
+          unlinked:          !d.staff_id,
+
+          calls_logged:    0,
+          orders_placed:   0,
+          orders_assigned: assigned,
           delivered,
           cancelled,
           pending,
           rejected,
           revenue,
 
-          delivery_rate:   pct(delivered, workload),
-          conversion_rate: pct(ordersPlaced, callsLogged),
-          acceptance_rate: pct(ordersAssigned, ordersAssigned + rejected),
+          delivery_rate:   pct(delivered, assigned),
+          conversion_rate: 0,
+          acceptance_rate: pct(assigned, assigned + rejected),
           on_time_rate:    pct(num(delivery?.on_time), num(delivery?.with_promised_date)),
-        };
-      });
+        });
+      }
 
-      // ── 7. Team summaries ─────────────────────────────────────────────────
+      // ── 7c. Delivery staff with no jobs in the window ────────────────────
+      // A driver account that took no deliveries this period is still on the
+      // payroll and still needs to be visible — otherwise the team list
+      // silently shrinks when someone is off.
+      const [allDeliveryStaff] = await pool.query(
+        `SELECT id, full_name, username, role, active, telegram_username
+         FROM staff_users
+         WHERE role = 'delivery'
+           AND deleted_at IS NULL`
+      ) as [any[], any];
+
+      for (const s of allDeliveryStaff ?? []) {
+        // Skip anyone already added — a linked driver who did take jobs this
+        // period was added in 7b with their real numbers.
+        if (members.some((m) => m.id === s.id)) continue;
+
+        members.push({
+          id:                s.id,
+          name:              s.full_name,
+          username:          s.username,
+          role:              s.role,
+          team:              "delivery",
+          active:            Boolean(s.active),
+          telegram_username: s.telegram_username ?? null,
+          unlinked:          false,
+
+          calls_logged:    0,
+          orders_placed:   0,
+          orders_assigned: 0,
+          delivered:       0,
+          cancelled:       0,
+          pending:         0,
+          rejected:         0,
+          revenue:         0,
+
+          delivery_rate:   0,
+          conversion_rate: 0,
+          acceptance_rate: 0,
+          on_time_rate:    0,
+        });
+      }
+
+      // ── 8. "All" view: one row per person ─────────────────────────────────
+      //
+      // A person can appear twice in `members`: once as a sales agent and
+      // once as a driver. That is correct for the per-team tabs, where each
+      // row answers "what did this team get from this person", but it would
+      // double-count them in the combined list. Collapse by staff id and sum
+      // the work so a hybrid employee is one person with one total.
+      const byPerson = new Map<string, Member>();
+      for (const m of members) {
+        const existing = byPerson.get(m.id);
+        if (!existing) {
+          byPerson.set(m.id, { ...m });
+          continue;
+        }
+
+        existing.calls_logged    += m.calls_logged;
+        existing.orders_placed   += m.orders_placed;
+        existing.orders_assigned += m.orders_assigned;
+        existing.delivered       += m.delivered;
+        existing.cancelled       += m.cancelled;
+        existing.pending         += m.pending;
+        existing.rejected        += m.rejected;
+        existing.revenue         += m.revenue;
+
+        // Recompute the rates from the merged totals. Averaging the two
+        // rows' percentages would over-weight whichever job has fewer units.
+        const workload = existing.orders_placed + existing.orders_assigned;
+        existing.delivery_rate   = pct(existing.delivered, workload);
+        existing.conversion_rate = pct(existing.orders_placed, existing.calls_logged);
+        existing.acceptance_rate = pct(existing.orders_assigned,
+                                        existing.orders_assigned + existing.rejected);
+
+        // On-time rate only exists on the delivery side, so keep it rather
+        // than blending it with the sales row's structural zero.
+        if (m.team === "delivery" && m.on_time_rate > 0) {
+          existing.on_time_rate = m.on_time_rate;
+        }
+      }
+      const allMembers = [...byPerson.values()];
+
+      // ── 9. Team summaries ─────────────────────────────────────────────────
       //
       // Rates are recomputed from the team's totals, never averaged from the
       // per-member rates. Averaging percentages weights a driver with one
@@ -364,23 +520,17 @@ router.get(
         summarise(t.key, t.label, t.icon, members.filter((m) => m.team === t.key))
       );
 
-      // "All" is every member of the three teams in a single list. Members are
-      // not duplicated across teams, so summing the three summaries here would
-      // count the same person once per team they appear in — the roster is
-      // partitioned by role, so each person belongs to exactly one.
-      const allSummary = summarise(
-        "all",
-        "All Teams",
-        "groups",
-        members
-      );
+      // "All" is every person in the three teams, once each. `membersByTeam`
+      // keeps the uncollapsed per-team rows below — the collapse above is
+      // only for this combined view and its totals.
+      const allSummary = summarise("all", "All Teams", "groups", allMembers);
 
-      // ── 8. Response ───────────────────────────────────────────────────────
+      // ── 10. Response ──────────────────────────────────────────────────────
       const membersByTeam: Record<string, Member[]> = {
         call_center: members.filter((m) => m.team === "call_center"),
         delivery:    members.filter((m) => m.team === "delivery"),
         employee:    members.filter((m) => m.team === "employee"),
-        all:         members,
+        all:         allMembers,
       };
 
       log.info("Team performance loaded", { from, to, members: members.length });

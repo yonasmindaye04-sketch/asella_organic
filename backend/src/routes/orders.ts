@@ -459,7 +459,7 @@ router.get("/", authenticate,
   // authenticated principal could dump the whole customer book — name, phone,
   // address, notes — by paging through it. Affiliates are excluded: they
   // have their own scoped portal endpoints.
-  authorise("admin", "manager", "employee", "delivery", "call_center"),
+  authorise("admin", "manager", "employee", "delivery", "call_center", "store_manager"),
   async (req: Request, res: Response) => {
   const log = createLogger(req);
   try {
@@ -485,6 +485,12 @@ router.get("/", authenticate,
 
     // Call center agents can only see orders they created themselves.
     if (req.user?.role === "call_center") {
+      conditions.push("o.created_by_staff_id = ?");
+      values.push(req.user.id);
+    }
+
+    // Store managers can only see orders they created themselves.
+    if (req.user?.role === "store_manager") {
       conditions.push("o.created_by_staff_id = ?");
       values.push(req.user.id);
     }
@@ -554,7 +560,7 @@ router.get(
   // this returns `o.*`, which includes customer name, phone and address —
   // simply by iterating the order id. The portal has its own scoped endpoints
   // for what an affiliate is allowed to see.
-  authorise("admin", "manager", "employee", "delivery", "call_center"),
+  authorise("admin", "manager", "employee", "delivery", "call_center", "store_manager"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -593,20 +599,6 @@ router.get(
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/orders/:id/status
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Valid order state machine transitions
-const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
-  "Pending":    ["Confirmed", "Processing", "In Transit", "Delivered", "Cancelled", "Issue"],
-  "Confirmed":  ["Processing", "In Transit", "Delivered", "Cancelled", "Issue"],
-  "Processing": ["In Transit", "Delivered", "Cancelled", "Issue"],
-  "In Transit": ["Delivered", "Cancelled", "Issue", "Returned"],
-  "Delivered":  ["Returned", "Cancelled", "Issue"],
-  "Issue":      ["Pending", "Confirmed", "Processing", "In Transit", "Delivered", "Cancelled", "Returned"],
-  "Returned":   [],
-  "Cancelled":  [],
-  "CANCELLED":  [],
-};
-
 router.patch(
   "/:id/status",
   authenticate,
@@ -647,123 +639,95 @@ router.patch(
 // If there is an error during stock deduction, we return a 400 error with a message indicating that stock deduction failed.
     let stockWarnings: string[] = [];
 
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
+    if (status === "Delivered" && current.status !== "Delivered") {
+      const [items] = await pool.query(
+        `SELECT oi.id, oi.item_name, oi.package_size, oi.quantity,
+                oi.product_id, p.id AS resolved_id, p.active AS product_active,
+                p.inventory_quantity
+         FROM   order_items oi
+         LEFT JOIN products p ON p.id = oi.product_id
+         WHERE  oi.order_id = ?`,
+        [orderId]
+      ) as [any[], any];
 
-      // ── State machine guard ──────────────────────────────────────
-      if (current.status !== status) {
-        const allowedNext = VALID_ORDER_TRANSITIONS[current.status as string];
-        if (allowedNext && !allowedNext.includes(status)) {
-          await conn.rollback();
-          conn.release();
-          res.status(400).json({
-            success: false,
-            error: `Invalid status transition from "${current.status}" to "${status}". Allowed transitions: ${allowedNext.join(", ") || "none (terminal state)"}`,
-          });
-          return;
-        }
-      }
-
-      if (status === "Delivered" && current.status !== "Delivered") {
-        const [items] = await conn.query(
-          `SELECT oi.id, oi.item_name, oi.package_size, oi.quantity,
-                  oi.product_id, p.id AS resolved_id, p.active AS product_active,
-                  p.inventory_quantity
-           FROM   order_items oi
-           LEFT JOIN products p ON p.id = oi.product_id
-           WHERE  oi.order_id = ?`,
-          [orderId]
-        ) as [any[], any];
-
-        for (const item of items) {
-          if (!item.product_id) continue;
-          if (!item.resolved_id) {
-            stockWarnings.push(
-              `${item.item_name} (${item.package_size}) x${item.quantity}: product no longer exists`
-            );
-            continue;
-          }
-          if (!item.product_active) {
-            stockWarnings.push(
-              `${item.item_name} (${item.package_size}) x${item.quantity}: product is inactive`
-            );
-            continue;
-          }
-          if (item.inventory_quantity !== null && item.inventory_quantity < item.quantity) {
-            await conn.rollback();
-            conn.release();
-            res.status(400).json({
-              success: false,
-              error: `Insufficient stock for ${item.item_name} (${item.package_size}). Available: ${item.inventory_quantity}, needed: ${item.quantity}`,
-            });
-            return;
-          }
-        }
-
-        try {
-          const stockResult = await deductOrderStock(orderId, (req as any).user?.id ?? null, conn);
-          stockWarnings = [
-            ...stockWarnings,
-            ...stockResult.skipped.map(
-              (item) => `${item.itemName} (${item.packageSize}) x${item.quantity}: ${item.reason}`
-            ),
-          ];
-        } catch (stockErr: any) {
-          await conn.rollback();
-          conn.release();
-          res.status(400).json({
-            success: false,
-            error: `Stock deduction failed: ${stockErr.message}`,
-          });
-          return;
-        }
-      } else if (
-        (status === "Cancelled" || status === "Issue" || status === "Returned") &&
-        current.status === "Delivered"
-      ) {
-        try {
-          const stockResult = await restoreOrderStock(orderId, (req as any).user?.id ?? null, conn);
-          stockWarnings = stockResult.skipped.map(
-            (item) => `${item.itemName} (${item.packageSize}) x${item.quantity}: ${item.reason}`
+      for (const item of items) {
+        if (!item.product_id) continue;          // reported by deductOrderStock
+        if (!item.resolved_id) {
+          stockWarnings.push(
+            `${item.item_name} (${item.package_size}) x${item.quantity}: product no longer exists`
           );
-        } catch (stockErr: any) {
-          await conn.rollback();
-          conn.release();
+          continue;
+        }
+        if (!item.product_active) {
+          stockWarnings.push(
+            `${item.item_name} (${item.package_size}) x${item.quantity}: product is inactive`
+          );
+          continue;
+        }
+        if (item.inventory_quantity !== null && item.inventory_quantity < item.quantity) {
           res.status(400).json({
             success: false,
-            error: `Stock restoration failed: ${stockErr.message}`,
+            error:   `Insufficient stock for ${item.item_name} (${item.package_size}). Available: ${item.inventory_quantity}, needed: ${item.quantity}`,
           });
           return;
         }
       }
 
-      await conn.query(
-        `UPDATE orders SET status = ?, notes = IFNULL(?, notes), updated_at = NOW() WHERE id = ?`,
-        [status, note ?? null, orderId]
-      );
-
-      await conn.query(
-        `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-        [crypto.randomUUID(), orderId, current.status, status, (req as any).user?.username ?? 'system', note ?? null]
-      );
-
-      await conn.query(
-        `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, old_values, new_values)
-         VALUES ('orders', ?, ?, ?, 'ORDER_STATUS_UPDATED', ?, ?)`,
-        [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ status: current.status }), JSON.stringify({ status })]
-      );
-
-      await conn.commit();
-    } catch (txErr) {
-      try { await conn.rollback(); } catch {}
-      log.error("Failed to update order status transactionally", txErr);
-      res.status(500).json({ success: false, error: "Internal server error" });
-      return;
-    } finally {
-      conn.release();
+      // Deduct stock now that the check passed. The function uses
+      // order_items.product_id and reports anything it had to skip.
+      try {
+        const stockResult = await deductOrderStock(orderId, (req as any).user?.id ?? null);
+        stockWarnings = [
+          ...stockWarnings,
+          ...stockResult.skipped.map(
+            (item) => `${item.itemName} (${item.packageSize}) x${item.quantity}: ${item.reason}`
+          ),
+        ];
+      } catch (stockErr: any) {
+        res.status(400).json({
+          success: false,
+          error: `Stock deduction failed: ${stockErr.message}`,
+        });
+        return;
+      }
+    } else if (
+      (status === "Cancelled" || status === "Issue" || status === "Returned") &&
+      current.status === "Delivered"
+    ) {
+      // A "Returned" order comes back as Delivered stock, so it needs the
+      // same restoration as a cancellation. The commission reversal trigger
+      // treats all three void statuses identically.
+      try {
+        const stockResult = await restoreOrderStock(orderId, (req as any).user?.id ?? null);
+        stockWarnings = stockResult.skipped.map(
+          (item) => `${item.itemName} (${item.packageSize}) x${item.quantity}: ${item.reason}`
+        );
+      } catch (stockErr: any) {
+        res.status(400).json({
+          success: false,
+          error: `Stock restoration failed: ${stockErr.message}`,
+        });
+        return;
+      }
     }
+
+    await pool.query(
+      `UPDATE orders SET status = ?, notes = IFNULL(?, notes), updated_at = NOW() WHERE id = ?`,
+      [status, note, orderId]
+    );
+
+    // Record in order_status_history for timeline tracking
+    await pool.query(
+      `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [crypto.randomUUID(), orderId, current.status, status, (req as any).user?.username ?? 'system', note ?? null]
+    );
+
+    await pool.query(
+      `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, new_values)
+       VALUES ('orders', ?, ?, ?, 'ORDER_STATUS_UPDATED', ?)`,
+      [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ status })]
+    );
 
     void mirrorOrderStatusToSheets({
       orderId, oldStatus: current.status as string | null,

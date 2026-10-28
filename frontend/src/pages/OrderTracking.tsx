@@ -57,13 +57,13 @@ const LEGACY_STATUS_MAP: Record<string, string> = {
 };
 // Status colors and source labels for better UI representation
 const STATUS_COLORS: Record<string, string> = {
-  'Pending': '#f59e0b',
-  'Confirmed': '#3b82f6',
-  'Packed': '#8b5cf6',
-  'In Transit': '#06b6d4',
-  'Delivered': '#22c55e',
-  'Cancelled': '#ef4444',
-  'Issue': '#f97316'
+  'Pending': '#b45309',
+  'Confirmed': '#1d4ed8',
+  'Packed': '#6d28d9',
+  'In Transit': '#0e7490',
+  'Delivered': '#15803d',
+  'Cancelled': '#b91c1c',
+  'Issue': '#c2410c'
 };
 const SOURCE_LABELS: Record<string, string> = {
   Sales_DB: 'Sales',
@@ -105,6 +105,11 @@ const OrderTracking: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
   const isAdmin = user?.role === 'admin';
+  // Call center agents can open Order Tracking to follow their own orders, but
+  // the backend only lets admin/manager/employee change status or items. Keep
+  // those controls off their screen instead of showing actions that would 403.
+  const isCallCenter = user?.role === 'call_center';
+  const canManageOrders = !isCallCenter;
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -549,9 +554,11 @@ const OrderTracking: React.FC = () => {
           <button onClick={fetchOrders} className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-[1.5px] border-white/20 text-white rounded-md text-[12px] font-bold hover:bg-white/10 hover:border-white/50 transition whitespace-nowrap">
             <span className="material-symbols-outlined text-[14px]">refresh</span> Refresh
           </button>
-          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-[1.5px] border-white/20 text-white rounded-md text-[12px] font-bold hover:bg-white/10 hover:border-white/50 transition whitespace-nowrap">
-            <span className="material-symbols-outlined text-[14px]">bar_chart</span> Analytics
-          </button>
+          {!isCallCenter && (
+            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-[1.5px] border-white/20 text-white rounded-md text-[12px] font-bold hover:bg-white/10 hover:border-white/50 transition whitespace-nowrap">
+              <span className="material-symbols-outlined text-[14px]">bar_chart</span> Analytics
+            </button>
+          )}
           <button onClick={doExport} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#388e3c] border-[1.5px] border-[#388e3c] text-white rounded-md text-[12px] font-bold hover:bg-[#43a047] transition whitespace-nowrap">
             <span className="material-symbols-outlined text-[14px]">download</span> Export CSV
           </button>
@@ -616,7 +623,7 @@ const OrderTracking: React.FC = () => {
           <span className="material-symbols-outlined text-[14px]">close</span> Clear
         </button>
 
-        {selectedIds.size > 0 && (
+        {canManageOrders && selectedIds.size > 0 && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#e8f5e9] border-[1.5px] border-[#2e7d32] rounded-lg text-xs font-bold text-[#2e7d32] shrink-0 whitespace-nowrap animate-[mpop_0.2s_ease]">
             <span className="material-symbols-outlined text-[14px]">check_box</span> <span>{selectedIds.size}</span> selected
             <select className="ml-1 border-[1.5px] border-[#2e7d32] rounded-md px-1.5 py-0.5 text-[11px] bg-white focus:outline-none" value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}>
@@ -650,9 +657,11 @@ const OrderTracking: React.FC = () => {
           <table className="w-full min-w-[840px] border-collapse text-[13px]">
             <thead>
               <tr>
-                <th className="sticky top-0 bg-white p-2 border-b-2 border-[#ddeedd] z-10 w-[34px] px-2.5">
-                  <input type="checkbox" onChange={toggleAll} checked={paginatedOrders.length > 0 && paginatedOrders.every(o => selectedIds.has(o.id))} />
-                </th>
+                {canManageOrders && (
+                  <th className="sticky top-0 bg-white p-2 border-b-2 border-[#ddeedd] z-10 w-[34px] px-2.5">
+                    <input type="checkbox" onChange={toggleAll} checked={paginatedOrders.length > 0 && paginatedOrders.every(o => selectedIds.has(o.id))} />
+                  </th>
+                )}
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('id')}>Order ID {sortCol === 'id' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('customer_name')}>Customer {sortCol === 'customer_name' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('source')}>Source {sortCol === 'source' && (sortDir === 'asc' ? '↑' : '↓')}</th>
@@ -667,7 +676,7 @@ const OrderTracking: React.FC = () => {
             <tbody>
               {loading ? renderSkeletons() : paginatedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={10}>
+                  <td colSpan={canManageOrders ? 10 : 9}>
                     <div className="flex flex-col items-center justify-center p-16 gap-2 text-[#607d66]">
                       <span className="material-symbols-outlined text-[35px] opacity-20">inbox</span>
                       <p className="text-sm">No orders match the current filters.</p>
@@ -681,9 +690,11 @@ const OrderTracking: React.FC = () => {
                 
                 return (
                   <tr key={o.id} className={`bg-white border-b border-[#ddeedd] cursor-pointer transition-colors ${isSelected ? 'bg-[#e8f5e9]' : 'hover:bg-[#f1f8f1]'}`} onClick={() => openDrawer(o)}>
-                    <td className="w-[34px] px-2.5 py-2 align-middle" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleOne(o.id)} />
-                    </td>
+                    {canManageOrders && (
+                      <td className="w-[34px] px-2.5 py-2 align-middle" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleOne(o.id)} />
+                      </td>
+                    )}
                     <td className="px-3 py-2 align-middle font-mono text-[12px] text-[#2e7d32] font-medium whitespace-nowrap">{o.id}</td>
                     <td className="px-3 py-2 align-middle whitespace-nowrap">
                       <strong className="block font-bold text-[13px]">{o.customer_name || '—'}</strong>
@@ -710,14 +721,16 @@ const OrderTracking: React.FC = () => {
                       {Number(o.total || o.total_amount).toLocaleString()}
                     </td>
                     <td className="px-3 py-2 align-middle whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider" style={{ color: STATUS_COLORS[displayStatus] }}>
+                      <span className="inline-flex items-center gap-1 text-[12px] font-extrabold uppercase tracking-wider" style={{ color: STATUS_COLORS[displayStatus] }}>
                         {displayStatus}
                       </span>
                     </td>
                     <td className="px-3 py-2 align-middle text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                      <button onClick={(e) => handleQuickAdvance(e, o)} title="Advance" className="w-[27px] h-[27px] rounded-md border-[1.5px] border-[#ddeedd] bg-white inline-flex items-center justify-center text-[11px] text-[#607d66] ml-1 transition-colors hover:bg-[#2e7d32] hover:text-white hover:border-[#2e7d32]">
-                        <span className="material-symbols-outlined text-[14px]">fast_forward</span>
-                      </button>
+                      {canManageOrders && (
+                        <button onClick={(e) => handleQuickAdvance(e, o)} title="Advance" className="w-[27px] h-[27px] rounded-md border-[1.5px] border-[#ddeedd] bg-white inline-flex items-center justify-center text-[11px] text-[#607d66] ml-1 transition-colors hover:bg-[#2e7d32] hover:text-white hover:border-[#2e7d32]">
+                          <span className="material-symbols-outlined text-[14px]">fast_forward</span>
+                        </button>
+                      )}
                       <button onClick={() => openDrawer(o)} title="Details" className="w-[27px] h-[27px] rounded-md border-[1.5px] border-[#ddeedd] bg-white inline-flex items-center justify-center text-[11px] text-[#607d66] ml-1 transition-colors hover:bg-[#2e7d32] hover:text-white hover:border-[#2e7d32]">
                         <span className="material-symbols-outlined text-[14px]">visibility</span>
                       </button>
@@ -743,7 +756,7 @@ const OrderTracking: React.FC = () => {
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar">
                 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 text-[12px] font-extrabold uppercase tracking-wider" style={{ color: STATUS_COLORS[normalizeStatus(selectedOrder.status)] }}>
+                  <span className="inline-flex items-center gap-1 text-[13px] font-extrabold uppercase tracking-wider" style={{ color: STATUS_COLORS[normalizeStatus(selectedOrder.status)] }}>
                     {normalizeStatus(selectedOrder.status)}
                   </span>
                   <span className="text-[12px] text-[#607d66]">
@@ -852,6 +865,7 @@ const OrderTracking: React.FC = () => {
                 </div>
 
                 {/* Update Form */}
+                {canManageOrders && (
                 <div>
                   <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] flex items-center gap-1.5 mb-2 after:content-[''] after:flex-1 after:h-[1px] after:bg-[#ddeedd]">
                     <span className="material-symbols-outlined text-[#2e7d32] text-[14px]">edit_note</span> Update
@@ -886,9 +900,10 @@ const OrderTracking: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                )}
 
                 {/* Modify Order Items Section */}
-                {!editingItems ? (
+                {canManageOrders && (!editingItems ? (
                   <button 
                     onClick={() => initializeEditMode(selectedOrder)}
                     className="w-full p-2.5 rounded-lg border-[1.5px] border-[#2e7d32] bg-white text-[#2e7d32] text-[13px] font-extrabold flex items-center justify-center gap-1.5 transition hover:bg-[#f1f8f1]"
@@ -1022,7 +1037,7 @@ const OrderTracking: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                )}
+                ))}
 
                 <div className="flex flex-col items-center gap-2 mt-2">
                   <button onClick={() => setReceiptOrder(selectedOrder)} className="bg-[#065f46] text-white border-none py-2.5 px-[22px] rounded-lg cursor-pointer text-[14px] font-bold inline-flex items-center gap-2 hover:bg-[#044e3a] transition shadow-md">

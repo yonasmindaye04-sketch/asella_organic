@@ -15,10 +15,10 @@ import {
 import type { StockRequest } from "../../../store/slices/stockSlice";
 
 const STATUS_CONFIG = {
-  pending:   { label: "Pending",   className: "text-amber-400 border-amber-500/30" },
-  ordered:   { label: "Ordered",   className: "text-blue-400 border-blue-500/30" },
-  received:  { label: "Received",  className: "text-emerald-400 border-emerald-500/30" },
-  cancelled: { label: "Cancelled", className: "text-slate-400 border-slate-600" },
+  pending:   { label: "Pending",   className: "text-amber-400" },
+  ordered:   { label: "Ordered",   className: "text-blue-400" },
+  received:  { label: "Received",  className: "text-emerald-400" },
+  cancelled: { label: "Cancelled", className: "text-slate-400" },
 };
 
 const StockRequestsTable: React.FC = () => {
@@ -127,8 +127,7 @@ const StockRequestsTable: React.FC = () => {
                       {req.requested_by_name ?? req.requested_by ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-block px-2.5 py-0.5 text-xs font-medium
-                                        rounded-full border ${cfg.className}`}>
+                      <span className={`inline-block text-xs font-bold ${cfg.className}`}>
                         {cfg.label}
                       </span>
                     </td>

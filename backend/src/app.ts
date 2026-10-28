@@ -32,13 +32,14 @@ import stockRoutes    from "./routes/stock.js";
 import uploadRoutes   from "./routes/upload.js";
 import staffRoutes          from "./routes/staff.js";
 import vendorOrderRoutes   from "./routes/vendor-orders.js";
-import notificationRoutes  from "./routes/notifications.js";
+import notificationRoutes  from "./routes/notification.js";
 import appointmentRoutes   from "./routes/appointments.js";
 import adminRoutes          from "./routes/admin.js";
 import expenseRoutes        from "./routes/expenses.js";
 import videoRoutes          from "./routes/videos.js";
 import mediaRoutes          from "./routes/media.js";
 import reportRoutes         from "./routes/reports.js";
+import storeReportRoutes    from "./routes/store-report.js";
 import customerRoutes       from "./routes/customers.js";
 import smsRoutes            from "./routes/sms.js";
 import callcenterRoutes     from "./routes/callcenter.js";
@@ -67,8 +68,6 @@ app.set("trust proxy", trustProxy);
 
 // ── 1. Security headers (helmet) — must be first ──────────────────────────────
 app.use(helmet({
-  frameguard: false,
-  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   strictTransportSecurity: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -97,31 +96,25 @@ app.use(compression());
 app.use("/image", imageRoutes);
 
 import { existsSync } from "fs";
+const FRONTEND_DIST_FALLBACK  = path.resolve(process.cwd(), "../frontend/dist");
+const FRONTEND_PUBLIC_FALLBACK = path.resolve(process.cwd(), "../frontend/public");
 const frontendDistCandidates = [
   path.join(process.cwd(), "frontend", "dist"),
-  path.resolve(process.cwd(), "../frontend/dist"),
+  FRONTEND_DIST_FALLBACK,
 ];
 const frontendPublicCandidates = [
   path.join(process.cwd(), "frontend", "public"),
-  path.resolve(process.cwd(), "../frontend/public"),
+  FRONTEND_PUBLIC_FALLBACK,
 ];
-const FRONTEND_DIST_DIR = frontendDistCandidates.find((d) => existsSync(d)) ?? frontendDistCandidates[0];
-const FRONTEND_PUBLIC_DIR = frontendPublicCandidates.find((d) => existsSync(d)) ?? frontendPublicCandidates[0];
+const FRONTEND_DIST_DIR   = frontendDistCandidates.find((d) => existsSync(d))   ?? FRONTEND_DIST_FALLBACK;
+const FRONTEND_PUBLIC_DIR = frontendPublicCandidates.find((d) => existsSync(d)) ?? FRONTEND_PUBLIC_FALLBACK;
 
 app.use(express.static(path.join(process.cwd(), "public")));
-if (existsSync(FRONTEND_DIST_DIR)) {
-  app.use(
-    express.static(FRONTEND_DIST_DIR, {
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith("index.html") || filePath.endsWith("sw.js")) {
-          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-        }
-      },
-    })
-  );
-}
 if (existsSync(FRONTEND_PUBLIC_DIR)) {
   app.use(express.static(FRONTEND_PUBLIC_DIR));
+}
+if (existsSync(FRONTEND_DIST_DIR)) {
+  app.use(express.static(FRONTEND_DIST_DIR));
 }
 
 // ── 3. CORS ───────────────────────────────────────────────────────────────────
@@ -181,16 +174,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     }
   }
 
-  const secFetchSite = req.headers["sec-fetch-site"];
-  if (secFetchSite === "same-origin" || secFetchSite === "same-site") {
-    next();
-    return;
-  }
-
   const origin =
     req.headers.origin ||
     refererOrigin ||
-    (!isProduction || IS_TEST_ENV ? TEST_ORIGIN_FALLBACK : undefined);
+    (IS_TEST_ENV ? TEST_ORIGIN_FALLBACK : undefined);
   
   if (!origin) {
     res.status(403).json({ success: false, error: "CSRF protection: Missing Origin or Referer header" });
@@ -283,7 +270,7 @@ async function healthCheck() {
   return {
     db,
     telegram,
-    healthy: db,
+    healthy: db && telegram,
   };
 }
 
@@ -336,6 +323,7 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/videos",       videoRoutes],
   ["/media",        mediaRoutes],
   ["/reports",      reportRoutes],
+  ["/store-report", storeReportRoutes],
   ["/customers",    customerRoutes],
   ["/sms",          smsRoutes],
   ["/callcenter",   callcenterRoutes],
@@ -367,17 +355,12 @@ app.get(["/tma", "/telegram-store"], (_req: Request, res: Response, next: NextFu
 });
 
 app.get(/.*/, (req: Request, res: Response, next: NextFunction) => {
-  if (
-    req.path.startsWith("/api") ||
-    req.path.startsWith("/image") ||
-    req.path.startsWith("/assets/")
-  ) {
+  if (req.path.startsWith("/api") || req.path.startsWith("/image")) {
     next();
     return;
   }
   const indexFile = path.join(FRONTEND_DIST_DIR, "index.html");
   if (existsSync(indexFile)) {
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.sendFile(indexFile);
     return;
   }

@@ -8,7 +8,8 @@ interface KPIMetrics {
   avgOrderValue: number;
   totalUnitsSold: number;
   totalExpenses: number;
-  profitMargin: number;
+  /** Optional — derived from netProfit / totalRevenue when omitted. */
+  profitMargin?: number;
 }
 
 function AnimatedNumber({
@@ -49,7 +50,14 @@ function AnimatedNumber({
     };
 
     frameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameId);
+    // rAF is paused while the window is hidden/unfocused. Guarantee the
+    // final value renders anyway so KPIs never stay stuck at their old value.
+    const fallbackId = window.setTimeout(() => setDisplayValue(endVal), duration + 100);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      clearTimeout(fallbackId);
+    };
   }, [target]);
 
   const formatted =
@@ -94,7 +102,7 @@ export default function KPICards({
       badgeText: `${unitsSold.toLocaleString()} items sold`,
       badgePositive: true,
       subtext: `Gross sales (${rangeLabel || "Selected Period"})`,
-      accentClass: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+      accentClass: "bg-emerald-600 text-white border-emerald-600",
     },
     {
       label: "Net Profit",
@@ -106,8 +114,8 @@ export default function KPICards({
       subtext: `After COGS & operating expenses`,
       accentClass:
         profit >= 0
-          ? "text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20"
-          : "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20",
+          ? "bg-teal-600 text-white border-teal-600"
+          : "bg-rose-600 text-white border-rose-600",
     },
     {
       label: "Total Orders",
@@ -117,7 +125,7 @@ export default function KPICards({
       badgeText: `${deliveryRate}% delivered`,
       badgePositive: deliveryRate >= 50,
       subtext: `${delivered} completed of ${orders} placed`,
-      accentClass: "text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20",
+      accentClass: "bg-sky-600 text-white border-sky-600",
     },
     {
       label: "Avg. Order Value",
@@ -127,7 +135,7 @@ export default function KPICards({
       badgeText: orders > 0 ? `${(unitsSold / orders).toFixed(1)} items/order` : "0 items/order",
       badgePositive: true,
       subtext: "Revenue per customer checkout",
-      accentClass: "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
+      accentClass: "bg-amber-500 text-white border-amber-500",
     },
   ];
 
@@ -155,15 +163,15 @@ export default function KPICards({
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+          <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
+            <span className="text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">
               {kpi.subtext}
             </span>
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold shrink-0 tabular-nums ${
+              className={`inline-flex items-center gap-1 text-[13px] font-bold shrink-0 tabular-nums ${
                 kpi.badgePositive
-                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-rose-700 dark:text-rose-400"
               }`}
             >
               {kpi.badgeText}

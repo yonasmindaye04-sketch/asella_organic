@@ -9,35 +9,36 @@ import LoadingSpinner       from './components/ui/LoadingSpinner';
 import TopProgressBar       from './components/ui/TopProgressBar';
 import './telegram/miniApp.css';
 
-import Dashboard            from './pages/Dashboard';
-import Login                from './pages/Login';
-import AnalyticsPage        from './pages/AnalyticsPage';
-import NotificationsPage    from './pages/Notificationspage';
-import AffiliateRoute       from './components/ui/AffiliateRoute';
-
-const Storefront            = lazy(() => import('./pages/Storefront'));
-const Checkout              = lazy(() => import('./pages/Checkout'));
-const TelegramStore         = lazy(() => import('./pages/TelegramStore'));
-const OrderTracking         = lazy(() => import('./pages/OrderTracking'));
-const CommunityVideos       = lazy(() => import('./pages/CommunityVideos'));
-const ProductsPage          = lazy(() => import('./pages/ProductsPage'));
-const BulkOrdersPage        = lazy(() => import('./pages/BulkOrdersPage'));
-const VendorPurchasePage    = lazy(() => import('./pages/VendorPurchasePage'));
-const StockAlertPage        = lazy(() => import('./pages/StockAlertPage'));
-const ChangePasswordPage    = lazy(() => import('./pages/ChangePasswordPage'));
-const UserManagementPage    = lazy(() => import('./pages/UserManagementPage'));
-const AffiliateControlPage  = lazy(() => import('./pages/AffiliateControlPage'));
-const AffiliateDashboard    = lazy(() => import('./pages/AffiliateDashboard'));
-const NewOrderPage          = lazy(() => import('./pages/NewOrderPage'));
+const Storefront           = lazy(() => import('./pages/Storefront'));
+const Checkout             = lazy(() => import('./pages/Checkout'));
+const TelegramStore        = lazy(() => import('./pages/TelegramStore'));
+const Dashboard            = lazy(() => import('./pages/Dashboard'));
+const OrderTracking        = lazy(() => import('./pages/OrderTracking'));
+const Login                = lazy(() => import('./pages/Login'));
+const CommunityVideos      = lazy(() => import('./pages/CommunityVideos'));
+const ProductsPage         = lazy(() => import('./pages/ProductsPage'));
+const BulkOrdersPage       = lazy(() => import('./pages/BulkOrdersPage'));
+const VendorPurchasePage   = lazy(() => import('./pages/VendorPurchasePage'));
+const StockAlertPage       = lazy(() => import('./pages/StockAlertPage'));
+const AnalyticsPage        = lazy(() => import('./pages/AnalyticsPage'));
+const NotificationsPage    = lazy(() => import('./pages/Notificationspage'));
+const ChangePasswordPage   = lazy(() => import('./pages/ChangePasswordPage'));
+const UserManagementPage   = lazy(() => import('./pages/UserManagementPage'));
+const AffiliateControlPage = lazy(() => import('./pages/AffiliateControlPage'));
+const AffiliateDashboard   = lazy(() => import('./pages/AffiliateDashboard'));
+import AffiliateRoute from './components/ui/AffiliateRoute';
+const NewOrderPage         = lazy(() => import('./pages/NewOrderPage'));
 const CustomerOrderTracking = lazy(() => import('./pages/CustomerOrderTracking'));
-const ExpensesPage          = lazy(() => import('./pages/ExpensesPage'));
-const VideoManagementPage   = lazy(() => import('./pages/VideoManagementPage'));
-const MediaLibraryPage      = lazy(() => import('./pages/MediaLibraryPage'));
-const AuditLogPage          = lazy(() => import('./pages/AuditLogPage'));
-const CustomersPage         = lazy(() => import('./pages/CustomersPage'));
-const PrivacyPolicy         = lazy(() => import('./pages/PrivacyPolicy'));
-const TermsOfService        = lazy(() => import('./pages/TermsOfService'));
-const SmsDashboard          = lazy(() => import('./pages/SmsDashboard'));
+const ExpensesPage         = lazy(() => import('./pages/ExpensesPage'));
+const VideoManagementPage  = lazy(() => import('./pages/VideoManagementPage'));
+const MediaLibraryPage     = lazy(() => import('./pages/MediaLibraryPage'));
+const AuditLogPage         = lazy(() => import('./pages/AuditLogPage'));
+const CustomersPage        = lazy(() => import('./pages/CustomersPage'));
+const PrivacyPolicy        = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService       = lazy(() => import('./pages/TermsOfService'));
+const SmsDashboard         = lazy(() => import('./pages/SmsDashboard'));
+const StoreReportPage      = lazy(() => import('./pages/StoreReportPage'));
+const CallCenterReportPage = lazy(() => import('./pages/CallCenterReportPage'));
 
 
 function App() {
@@ -82,6 +83,9 @@ function App() {
                 <Route path="/dashboard/bulk-orders"  element={<ProtectedRoute><BulkOrdersPage /></ProtectedRoute>} />
                 <Route path="/dashboard/vendor"       element={<ProtectedRoute><VendorPurchasePage /></ProtectedRoute>} />
                 <Route path="/dashboard/stock-alert"  element={<ProtectedRoute><StockAlertPage /></ProtectedRoute>} />
+                <Route path="/dashboard/stock-request" element={<ProtectedRoute><StockAlertPage /></ProtectedRoute>} />
+                <Route path="/dashboard/store-report"  element={<ProtectedRoute><StoreReportPage /></ProtectedRoute>} />
+                <Route path="/dashboard/call-center"   element={<ProtectedRoute><CallCenterReportPage /></ProtectedRoute>} />
                 <Route path="/dashboard/expenses"     element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
                 <Route path="/dashboard/analytics"    element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
                 <Route path="/dashboard/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />

@@ -18,7 +18,7 @@ const ADMIN_FULL_NAME = process.env.ADMIN_FULL_NAME || "System Admin";
 const ADMIN_ROLE = process.env.ADMIN_ROLE || "admin";
 
 // Configuration Validation
-const VALID_ROLES = ['admin', 'manager', 'employee', 'affiliate', 'delivery', 'vendor'];
+const VALID_ROLES = ['admin', 'manager', 'employee', 'affiliate', 'delivery', 'vendor', 'store_manager', 'call_center'];
 
 const validateInput = () => {
     if (!ADMIN_PASSWORD) {

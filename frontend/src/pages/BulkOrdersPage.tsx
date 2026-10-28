@@ -141,7 +141,7 @@ const BulkOrdersPage: React.FC = () => {
               <h3 className="font-sans font-black text-3xl text-obsidian dark:text-white mb-1 tracking-tight">Franchise Partner Portal</h3>
               <p className="text-sm font-sans text-slate-500 dark:text-slate-300">Place bulk/wholesale requests for franchise stores.</p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-parchment-mid dark:bg-[#1A301D] border border-highland-gold/30 text-highland-gold flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-[#8b6932] border border-[#8b6932] text-white flex items-center justify-center">
               <span className="material-symbols-outlined">inventory_2</span>
             </div>
           </div>

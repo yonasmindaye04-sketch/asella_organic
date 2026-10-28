@@ -192,16 +192,16 @@ const ProductImageCard: React.FC<{
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-bold text-[var(--fg)] text-sm leading-tight">{product.name}</h3>
             {custom ? (
-              <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+              <span className="text-[10px] font-mono font-bold uppercase text-amber-700 dark:text-amber-400">
                 Custom
               </span>
             ) : (
-              <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--border)] text-[var(--fg-muted)]">
+              <span className="text-[10px] font-mono font-bold uppercase text-gray-600 dark:text-gray-400">
                 Default
               </span>
             )}
             {!product.active && (
-              <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+              <span className="text-[10px] font-mono font-bold uppercase text-slate-600 dark:text-slate-400">
                 Archived
               </span>
             )}

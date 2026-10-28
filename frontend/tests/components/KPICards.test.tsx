@@ -1,136 +1,92 @@
 /**
  * frontend/tests/components/KPICards.test.tsx
- * Tests the dashboard KPI cards with mocked API responses
+ * Tests the dashboard KPI cards.
+ *
+ * KPICards is a presentational component: it receives a `metrics` object from
+ * the Dashboard (which does the fetching) and renders four cards from it.
+ * Earlier revisions fetched their own data via `fetch`; those tests were left
+ * behind when the component was rewritten, so they mocked a transport the
+ * component no longer uses and asserted labels it no longer renders.
  */
 
-import { screen, waitFor, renderWithProviders } from "../utils/renderWithProviders";
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { screen, renderWithProviders } from "../utils/renderWithProviders";
+import { describe, it, expect } from "vitest";
 import KPICards from "../../src/components/dashboard/KPICards";
 
-const MOCK_ORDERS = [
-  { id: "ORD-001", total: 650.00,  status: "Pending",   items: [] },
-  { id: "ORD-002", total: 420.00,  status: "Delivered", items: [] },
-  { id: "ORD-003", total: 1150.00, status: "Cancelled", items: [] },
-];
-
-const MOCK_EXPENSES_SUMMARY = {
-  total_expenses: 350.00,
-  this_month: 150.00,
-  last_30_days: 200.00,
-  total_count: 5,
-  avg_monthly: 100.00,
-  categories: [],
-  monthly: [],
+const METRICS = {
+  totalRevenue: 1070,
+  netProfit: 720,
+  totalOrders: 2,
+  deliveredOrders: 1,
+  avgOrderValue: 535,
+  totalUnitsSold: 4,
+  totalExpenses: 350,
+  profitMargin: 67,
 };
 
-/** KPICards picks its KPI set from state.auth.user.role, so tests must seed one. */
-const asRole = (role: string) => ({
-  preloadedState: {
-    auth: { user: { id: "u1", email: "t@example.com", role }, isAuthenticated: true },
-  },
-});
-
 describe("KPICards", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      if (url.includes("/api/orders")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ success: true, data: MOCK_ORDERS }),
-        };
-      }
-      if (url.includes("/api/expenses/summary")) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ success: true, data: MOCK_EXPENSES_SUMMARY }),
-        };
-      }
-      return {
-        ok: false,
-        status: 404,
-        json: async () => ({ success: false, error: "Not Found" }),
-      };
-    }));
+  it("renders the four KPI cards", () => {
+    renderWithProviders(<KPICards metrics={METRICS} />);
+
+    expect(screen.getByText("Total Revenue")).toBeInTheDocument();
+    expect(screen.getByText("Net Profit")).toBeInTheDocument();
+    expect(screen.getByText("Total Orders")).toBeInTheDocument();
+    expect(screen.getByText("Avg. Order Value")).toBeInTheDocument();
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
+  it("shows the supplied metric values", () => {
+    renderWithProviders(<KPICards metrics={METRICS} />);
+
+    expect(screen.getByText(/1,070/)).toBeInTheDocument();
+    expect(screen.getByText(/720/)).toBeInTheDocument();
+    expect(screen.getByText(/535/)).toBeInTheDocument();
+    // Total orders has no suffix, so it is the bare "2".
+    expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("renders the 4 admin KPI cards for an admin role", async () => {
-    renderWithProviders(<KPICards />, asRole("admin"));
-    await waitFor(() => {
-      expect(screen.getByText("Total Revenue")).toBeInTheDocument();
-      expect(screen.getByText("Total Expenses")).toBeInTheDocument();
-      expect(screen.getByText("Net Profit")).toBeInTheDocument();
-      expect(screen.getByText("Inventory Value")).toBeInTheDocument();
-    });
+  it("derives the profit margin when it is not supplied", () => {
+    const { profitMargin: _omit, ...withoutMargin } = METRICS;
+    renderWithProviders(<KPICards metrics={withoutMargin} />);
+
+    // 720 / 1070 = 67%
+    expect(screen.getByText("67% margin")).toBeInTheDocument();
   });
 
-  it("renders the 4 order KPI cards instead for a staff role", async () => {
-    // KPICards renders adminKpis OR staffKpis, never both (see isStaff).
-    renderWithProviders(<KPICards />, asRole("staff"));
-    await waitFor(() => {
-      expect(screen.getByText("Total Orders")).toBeInTheDocument();
-      expect(screen.getByText("Pending Orders")).toBeInTheDocument();
-      expect(screen.getByText("In Progress")).toBeInTheDocument();
-      expect(screen.getByText("Completed Orders")).toBeInTheDocument();
-      expect(screen.queryByText("Net Profit")).not.toBeInTheDocument();
-    });
+  it("prefers an explicit profit margin when supplied", () => {
+    renderWithProviders(<KPICards metrics={{ ...METRICS, profitMargin: 40 }} />);
+
+    expect(screen.getByText("40% margin")).toBeInTheDocument();
   });
 
-  it("shows correct total order count excluding cancelled", async () => {
-    renderWithProviders(<KPICards />, asRole("staff"));
-    await waitFor(() => {
-      // 2 valid orders (ORD-001, ORD-002). ORD-003 is Cancelled.
-      expect(screen.getByText("2")).toBeInTheDocument();
-    });
+  it("renders the delivery badge from orders and delivered", () => {
+    renderWithProviders(<KPICards metrics={METRICS} />);
+
+    // 1 delivered of 2 orders = 50%
+    expect(screen.getByText("50% delivered")).toBeInTheDocument();
+    expect(screen.getByText("1 completed of 2 placed")).toBeInTheDocument();
   });
 
-  it("calculates total revenue correctly excluding cancelled", async () => {
+  it("shows the range label in the revenue subtext", () => {
+    renderWithProviders(<KPICards metrics={METRICS} rangeLabel="Last 7 Days" />);
+
+    expect(screen.getByText("Gross sales (Last 7 Days)")).toBeInTheDocument();
+  });
+
+  it("falls back to zeroes when no metrics are supplied", () => {
     renderWithProviders(<KPICards />);
-    // 650 + 420 = 1070
-    await waitFor(() => {
-      expect(screen.getByText(/1,070/)).toBeInTheDocument();
-    });
+
+    expect(screen.getByText("Total Revenue")).toBeInTheDocument();
+    // No NaN or "undefined" should ever reach the DOM.
+    expect(document.body.textContent ?? "").not.toContain("NaN");
+    expect(document.body.textContent ?? "").not.toContain("undefined");
   });
 
-  it("shows correct total expenses", async () => {
-    renderWithProviders(<KPICards />);
-    // MOCK_EXPENSES_SUMMARY has total_expenses: 350
-    await waitFor(() => {
-      expect(screen.getByText(/350/)).toBeInTheDocument();
-    });
-  });
+  it("renders a loss without producing NaN", () => {
+    renderWithProviders(
+      <KPICards metrics={{ ...METRICS, totalRevenue: 1000, netProfit: -250 }} />
+    );
 
-  it("shows correct net profit", async () => {
-    renderWithProviders(<KPICards />);
-    // 1070 (revenue) - 350 (expenses) = 720
-    await waitFor(() => {
-      expect(screen.getByText(/720/)).toBeInTheDocument();
-    });
-  });
-
-  it("falls back gracefully on API failure", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("Network error");
-    }));
-    renderWithProviders(<KPICards />, asRole("staff"));
-    // Should still render cards (with 0s or fallback), not crash
-    await waitFor(() => {
-      expect(screen.getByText("Total Orders")).toBeInTheDocument();
-    });
-  });
-
-  it("does not show NaN or undefined in any card", async () => {
-    renderWithProviders(<KPICards />);
-    await waitFor(() => {
-      const container = document.body.textContent ?? "";
-      expect(container).not.toContain("NaN");
-      expect(container).not.toContain("undefined");
-    });
+    expect(screen.getByText(/-250/)).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toContain("NaN");
   });
 });

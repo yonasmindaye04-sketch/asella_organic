@@ -95,7 +95,15 @@ const OrderItemSchema = z.object({
   // The variant id (products.id). Declared here or Zod strips it before the
   // route can use it, which is how order lines previously fell back to a
   // fragile name/size lookup.
-  product_id:   z.string().uuid("product_id must be a UUID").optional(),
+  //
+  // Deliberately a shape check rather than z.string().uuid(): seeded catalog
+  // rows use UUID-shaped ids whose version nibble is 0 (for example
+  // 11111111-0001-0001-0001-000000000001). Zod's UUID validator enforces RFC
+  // 4122 version/variant bits and rejected those products outright.
+  product_id:   z
+    .string()
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "product_id must be a UUID")
+    .optional(),
   name:         z.string().trim().min(1, "Item name is required"),
   package_size: z.string().trim().min(1, "Package size is required"),
   quantity:     z.coerce.number().int().positive("Quantity must be a positive integer"),
@@ -109,18 +117,15 @@ export const CreateOrderSchema = z.object({
     .regex(/^\+?[0-9\s\-]{7,20}$/, "Invalid phone number"),
   city:          z.string().trim().min(1, "City is required").max(100),
   location:      z.string().trim().min(2, "Location is required").max(255),
-  source:        z.preprocess(
-    (v) => (typeof v === "string" && v.trim().toLowerCase() === "website/online" ? "website" : v),
-    z.enum([
-      "telegram",
-      "website",
-      "instagram",
-      "facebook",
-      "phone",
-      "walk-in",
-      "other",
-    ])
-  ),
+  source:        z.enum([
+    "telegram",
+    "website",
+    "instagram",
+    "facebook",
+    "phone",
+    "walk-in",
+    "other",
+  ]),
   order_type:    z.enum(["delivery", "pickup"]),
   gender:        z.enum(["male", "female", "other"]).optional(),
   age_group:     z
@@ -135,7 +140,7 @@ export const CreateOrderSchema = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z0-9_\-\s]{3,24}$/, "Invalid referral code format")
+    .regex(/^ASL[-_\s]?[A-Z0-9]{3,8}$/, "Invalid referral code format")
     .optional(),
   items: z
     .array(OrderItemSchema)
@@ -249,7 +254,12 @@ export const CreateStockRequestSchema = z.object({
   // then made routes/stock.ts:639 ("status === 'received' && sr.product_id")
   // permanently false, so receiving a stock request never recorded the
   // inventory movement and stock was never updated from one.
-  product_id:      z.string().uuid("product_id must be a UUID").optional().or(z.literal("")),
+  // Same shape check as OrderItemSchema.product_id — see the comment there.
+  product_id:      z
+    .string()
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "product_id must be a UUID")
+    .optional()
+    .or(z.literal("")),
   item:            z.string().trim().min(1),
   package_size:    z.string().trim().optional(),
   stock_available: z.number().int().nonnegative().default(0),

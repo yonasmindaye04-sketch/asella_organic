@@ -11,7 +11,8 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
-import TimeRangeSelector, { type TimeRangeOption } from '../components/dashboard/TimeRangeSelector';
+import { TimeRangeSelector, getRangeDates } from '../components/dashboard/TimeRangeSelector';
+import type { TimeRange } from '../components/dashboard/TimeRangeSelector';
 
 interface CallCenterStats {
   total_orders: number;
@@ -34,13 +35,13 @@ interface CCOrder {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  Delivered:  'bg-green-100 text-green-800',
-  Cancelled:  'bg-red-100 text-red-800',
-  CANCELLED:  'bg-red-100 text-red-800',
-  Pending:    'bg-amber-100 text-amber-800',
-  Confirmed:  'bg-blue-100 text-blue-800',
-  Processing: 'bg-purple-100 text-purple-800',
-  'In Transit': 'bg-cyan-100 text-cyan-800',
+  Delivered:  'text-green-700 dark:text-green-400',
+  Cancelled:  'text-red-700 dark:text-red-400',
+  CANCELLED:  'text-red-700 dark:text-red-400',
+  Pending:    'text-amber-700 dark:text-amber-400',
+  Confirmed:  'text-blue-700 dark:text-blue-400',
+  Processing: 'text-purple-700 dark:text-purple-400',
+  'In Transit': 'text-cyan-700 dark:text-cyan-400',
 };
 
 interface StatCardProps {
@@ -69,16 +70,8 @@ const CallCenterDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [logging, setLogging] = useState(false);
   const [logSuccess, setLogSuccess] = useState(false);
-  const [activeRange, setActiveRange] = useState<TimeRangeOption>('month');
-  const [dateRange, setDateRange] = useState(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-      from: firstDay.toISOString().split('T')[0],
-      to:   lastDay.toISOString().split('T')[0],
-    };
-  });
+  const [activeRange, setActiveRange] = useState<TimeRange>('month');
+  const [dateRange, setDateRange] = useState(() => getRangeDates('month'));
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -117,7 +110,8 @@ const CallCenterDashboard: React.FC = () => {
     }
   };
 
-  const handleRangeChange = (from: string, to: string) => {
+  const handleRangeChange = (range: TimeRange, from: string, to: string) => {
+    setActiveRange(range);
     setDateRange({ from, to });
   };
 
@@ -135,7 +129,8 @@ const CallCenterDashboard: React.FC = () => {
           </div>
           <TimeRangeSelector
             activeRange={activeRange}
-            setActiveRange={setActiveRange}
+            from={dateRange.from}
+            to={dateRange.to}
             onRangeChange={handleRangeChange}
           />
         </div>
@@ -249,7 +244,7 @@ const CallCenterDashboard: React.FC = () => {
                         {Number(order.total).toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                        <span className={`inline-flex text-xs font-bold ${STATUS_COLORS[order.status] ?? 'text-gray-600 dark:text-gray-400'}`}>
                           {order.status}
                         </span>
                       </td>

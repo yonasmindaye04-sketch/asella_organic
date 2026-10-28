@@ -7,18 +7,11 @@ import {
   Tooltip,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import { CHART, CHART_AXIS, CHART_TOOLTIP } from "./chartTheme";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
-const tooltipStyle = {
-  backgroundColor: "#18181b",
-  borderColor: "#27272a",
-  borderWidth: 1,
-  padding: 10,
-  cornerRadius: 8,
-  titleColor: "#fafafa",
-  bodyColor: "#e4e4e7",
-};
+const tooltipStyle = CHART_TOOLTIP;
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TIME_SLOTS = [
@@ -81,7 +74,7 @@ export function Heatmap({ orders }: { orders: any[] }) {
               Checkout density by day of week and time window
             </p>
           </div>
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
             Peak: {peakDay} {peakSlot}
           </span>
         </div>
@@ -112,7 +105,7 @@ export function Heatmap({ orders }: { orders: any[] }) {
                     cell.count === 0
                       ? undefined
                       : {
-                          backgroundColor: `rgba(5, 150, 105, ${Math.min(
+                          backgroundColor: `rgba(46, 125, 50, ${Math.min(
                             0.92,
                             0.18 + intensity * 0.74
                           )})`,
@@ -149,7 +142,7 @@ export function Heatmap({ orders }: { orders: any[] }) {
             <span
               key={alpha}
               className="w-3.5 h-3 rounded-xs inline-block"
-              style={{ backgroundColor: `rgba(5, 150, 105, ${alpha})` }}
+              style={{ backgroundColor: `rgba(46, 125, 50, ${alpha})` }}
             />
           ))}
           <span className="text-[10px]">High</span>
@@ -163,10 +156,10 @@ export function Heatmap({ orders }: { orders: any[] }) {
 export function Pipeline({ orders }: { orders: any[] }) {
   const stats = useMemo(() => {
     const res = {
-      pending: { label: "Pending", count: 0, val: 0, color: "#f59e0b" },
-      confirmed: { label: "Confirmed / Prep", count: 0, val: 0, color: "#0ea5e9" },
-      transit: { label: "In Transit", count: 0, val: 0, color: "#8b5cf6" },
-      delivered: { label: "Delivered", count: 0, val: 0, color: "#059669" },
+      pending: { label: "Pending", count: 0, val: 0, color: CHART.gold },
+      confirmed: { label: "Confirmed / Prep", count: 0, val: 0, color: CHART.green300 },
+      transit: { label: "In Transit", count: 0, val: 0, color: CHART.mutedInk },
+      delivered: { label: "Delivered", count: 0, val: 0, color: CHART.green700 },
     };
 
     orders.forEach((o) => {
@@ -240,10 +233,10 @@ export function Pipeline({ orders }: { orders: any[] }) {
               scales: {
                 x: {
                   beginAtZero: true,
-                  grid: { color: "rgba(113, 113, 122, 0.12)" },
+                  grid: { color: CHART_AXIS.grid },
                   border: { display: false },
                   ticks: {
-                    color: "#71717a",
+                    color: CHART_AXIS.tick,
                     callback: (v) => {
                       const num = Number(v);
                       return num >= 1000 ? `${(num / 1000).toFixed(0)}k` : `${num}`;
@@ -253,7 +246,7 @@ export function Pipeline({ orders }: { orders: any[] }) {
                 y: {
                   grid: { display: false },
                   border: { display: false },
-                  ticks: { color: "#71717a", font: { weight: 500, size: 11 } },
+                  ticks: { color: CHART_AXIS.tick, font: { weight: 500, size: 11 } },
                 },
               },
             }}

@@ -92,14 +92,6 @@ export const TimeRangeSelector: React.FC<TimeRangeSelectorProps> = ({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* Date window indicator */}
-      {activeRange !== 'custom' && (
-        <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-400 tabular-nums shadow-2xs">
-          <span className="material-symbols-outlined text-[15px] text-emerald-600 dark:text-emerald-400">calendar_today</span>
-          <span>{from === to ? from : `${from} → ${to}`}</span>
-        </div>
-      )}
-
       {/* Segmented filter tabs (Day, Week, 1M, Custom) */}
       <div className="inline-flex items-center p-1 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
         {RANGES.map((r) => {

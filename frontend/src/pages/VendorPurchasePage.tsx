@@ -61,10 +61,10 @@ const MATERIAL_TYPES = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  pending:   { label: 'Pending',   bg: '', text: 'text-amber-500' },
-  approved:  { label: 'Approved',  bg: '', text: 'text-blue-500' },
-  received:  { label: 'Received',  bg: '', text: 'text-emerald-500' },
-  cancelled: { label: 'Cancelled', bg: '', text: 'text-red-500' },
+  pending:   { label: 'Pending',   bg: '', text: 'text-amber-600 dark:text-amber-400' },
+  approved:  { label: 'Approved',  bg: '', text: 'text-blue-600 dark:text-blue-400' },
+  received:  { label: 'Received',  bg: '', text: 'text-emerald-600 dark:text-emerald-400' },
+  cancelled: { label: 'Cancelled', bg: '', text: 'text-red-600 dark:text-red-400' },
 };
 
 // ─── Component ───────────────────────────────────────────────────
@@ -214,8 +214,8 @@ const VendorPurchasePage: React.FC = () => {
             <h1 className="text-xl font-extrabold tracking-tight text-[var(--fg)]">Vendor Purchase</h1>
             <p className="text-[13px] text-[var(--muted)] mt-1">Manage procurement and track vendor orders.</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-[var(--emerald-dim)] flex items-center justify-center">
-            <span className="material-symbols-outlined text-[var(--emerald)] text-[24px]">local_shipping</span>
+          <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center">
+            <span className="material-symbols-outlined text-white text-[24px]">local_shipping</span>
           </div>
         </div>
 

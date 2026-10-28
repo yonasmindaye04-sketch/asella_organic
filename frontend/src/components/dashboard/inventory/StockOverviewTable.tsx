@@ -18,11 +18,11 @@ interface Props {
   onFilterChange: (f: { search?: string; status?: StockStatus | "" }) => void;
 }
 
-const STATUS_CONFIG: Record<StockStatus, { label: string; bg: string; text: string; dot: string }> = {
-  ok:           { label: "OK",           bg: "#dcfce7", text: "#166534", dot: "#22c55e" },
-  low:          { label: "Low Stock",    bg: "#fef9c3", text: "#854d0e", dot: "#eab308" },
-  critical:     { label: "Critical",     bg: "#ffedd5", text: "#9a3412", dot: "#f97316" },
-  out_of_stock: { label: "Out of Stock", bg: "#fee2e2", text: "#991b1b", dot: "#ef4444" },
+const STATUS_CONFIG: Record<StockStatus, { label: string; text: string; dot: string }> = {
+  ok:           { label: "OK",           text: "text-green-700 dark:text-green-400",   dot: "#22c55e" },
+  low:          { label: "Low Stock",    text: "text-amber-700 dark:text-amber-400",   dot: "#eab308" },
+  critical:     { label: "Critical",     text: "text-orange-700 dark:text-orange-400", dot: "#f97316" },
+  out_of_stock: { label: "Out of Stock", text: "text-red-700 dark:text-red-400",       dot: "#ef4444" },
 };
 
 const MOVEMENT_LABEL: Record<string, string> = {
@@ -154,9 +154,7 @@ const StockOverviewTable: React.FC<Props> = ({ onAdjust, onFilterChange }) => {
 
                     {/* Status badge */}
                     <td className="px-6 py-5 text-left">
-                      <span className={`inline-block px-4 py-1 text-xs font-bold uppercase tracking-wider
-                                        rounded-full border-0`}
-                            style={{ background: cfg.bg, color: cfg.text }}>
+                      <span className={`inline-block text-xs font-bold uppercase tracking-wider ${cfg.text}`}>
                         {cfg.label}
                       </span>
                     </td>

@@ -134,91 +134,91 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 max-w-[1600px] mx-auto w-full">
+      <div className="px-4 sm:px-6 py-5">
         {/* Top Executive Toolbar with Single Global Date Range Filter */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-                Executive Analytics
-              </h1>
-              {loading && (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                  Syncing
-                </span>
-              )}
-            </div>
-            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Real-time revenue, product sales velocity, and fulfillment performance
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <TimeRangeSelector
-              activeRange={activeRange}
-              from={dateRange.from}
-              to={dateRange.to}
-              onRangeChange={handleRangeChange}
-            />
-            <Link
-              to="/dashboard/analytics"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
-            >
-              <span className="material-symbols-outlined text-[15px] text-emerald-600 dark:text-emerald-400">
-                request_quote
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Executive Analytics
+            </h1>
+            {loading && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                Syncing
               </span>
-              <span>P&amp;L Statement</span>
-            </Link>
+            )}
           </div>
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Real-time revenue, product sales velocity, and fulfillment performance
+          </p>
         </div>
 
-        {/* Row 1: KPI Summary Cards */}
-        <KPICards metrics={kpiMetrics} rangeLabel={RANGE_LABELS[activeRange]} />
-
-        {/* Row 2: Revenue & Profit Overview (2/3) + Sales by Channel Donut (1/3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-          <div className="lg:col-span-2">
-            <RevenueChart
-              orders={orders}
-              expenses={expenses}
-              activeRange={activeRange}
-              from={dateRange.from}
-              to={dateRange.to}
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <SalesDistribution orders={orders} />
-          </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <TimeRangeSelector
+            activeRange={activeRange}
+            from={dateRange.from}
+            to={dateRange.to}
+            onRangeChange={handleRangeChange}
+          />
+          <Link
+            to="/dashboard/analytics"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs"
+          >
+            <span className="material-symbols-outlined text-[15px] text-emerald-600 dark:text-emerald-400">
+              request_quote
+            </span>
+            <span>P&amp;L Statement</span>
+          </Link>
         </div>
+      </div>
 
-        {/* Row 3: Top Products Sales Trend with ETB/Qty Toggle (2/3) + Sales by Location (1/3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-          <div className="lg:col-span-2">
-            <TopProducts
-              orders={orders}
-              activeRange={activeRange}
-              from={dateRange.from}
-              to={dateRange.to}
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <SalesByLocation orders={orders} />
-          </div>
-        </div>
+      {/* Row 1: KPI Summary Cards */}
+      <KPICards metrics={kpiMetrics} rangeLabel={RANGE_LABELS[activeRange]} />
 
-        {/* Row 4: Fulfillment Pipeline + Weekly Activity Heatmap */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <Pipeline orders={orders} />
-          <Heatmap orders={orders} />
+      {/* Row 2: Revenue & Profit Overview (2/3) + Sales by Channel Donut (1/3) */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+        <div className="xl:col-span-2">
+          <RevenueChart
+            orders={orders}
+            expenses={expenses}
+            activeRange={activeRange}
+            from={dateRange.from}
+            to={dateRange.to}
+          />
         </div>
+        <div className="xl:col-span-1">
+          <SalesDistribution orders={orders} />
+        </div>
+      </div>
 
-        {/* Row 5: Staff Performance + Affiliate Leaderboard + Low Stock Alerts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <EmployeePerformance from={dateRange.from} to={dateRange.to} />
-          <AffiliateLeaderboard from={dateRange.from} to={dateRange.to} />
-          <LowStockTable />
+      {/* Row 3: Top Products Sales Trend with ETB/Qty Toggle (2/3) + Sales by Location (1/3) */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+        <div className="xl:col-span-2">
+          <TopProducts
+            orders={orders}
+            activeRange={activeRange}
+            from={dateRange.from}
+            to={dateRange.to}
+          />
         </div>
+        <div className="xl:col-span-1">
+          <SalesByLocation orders={orders} />
+        </div>
+      </div>
+
+      {/* Row 4: Fulfillment Pipeline + Weekly Activity Heatmap */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <Pipeline orders={orders} />
+        <Heatmap orders={orders} />
+      </div>
+
+      {/* Row 5: Staff Performance + Affiliate Leaderboard + Low Stock Alerts */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <EmployeePerformance from={dateRange.from} to={dateRange.to} />
+        <AffiliateLeaderboard from={dateRange.from} to={dateRange.to} />
+        <LowStockTable />
+      </div>
       </div>
     </DashboardLayout>
   );

@@ -4,6 +4,7 @@
  */
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import StockAlertPage from "../../src/pages/StockAlertPage";
 
@@ -33,26 +34,33 @@ vi.mock("../../src/services/api", () => ({
 }));
 
 describe("StockAlertPage", () => {
+  const renderPage = () =>
+    render(
+      <MemoryRouter>
+        <StockAlertPage />
+      </MemoryRouter>
+    );
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockPost.mockResolvedValue({ success: true, data: { id: "SR-001" } });
   });
 
   it("renders the Stock Alert form", () => {
-    render(<StockAlertPage />);
+    renderPage();
     expect(screen.getByText("Stock Alert")).toBeInTheDocument();
     expect(screen.getByText("Send Stock Alert")).toBeInTheDocument();
   });
 
   it("populates product dropdown with fetched products", () => {
-    render(<StockAlertPage />);
+    renderPage();
     expect(screen.getByText("Moringa Powder")).toBeInTheDocument();
     expect(screen.getByText("Black Seed Oil")).toBeInTheDocument();
     expect(screen.getByText("Turmeric Powder")).toBeInTheDocument();
   });
 
   it("populates size dropdown after selecting a product", async () => {
-    render(<StockAlertPage />);
+    renderPage();
 
     // Select product name
     const selects = screen.getAllByRole("combobox");
@@ -64,7 +72,7 @@ describe("StockAlertPage", () => {
   });
 
   it("auto-fills stock remaining when product and size selected", async () => {
-    render(<StockAlertPage />);
+    renderPage();
 
     const selects = screen.getAllByRole("combobox");
 
@@ -83,7 +91,7 @@ describe("StockAlertPage", () => {
   });
 
   it("submits to /api/stock/request with correct payload", async () => {
-    render(<StockAlertPage />);
+    renderPage();
 
     const selects = screen.getAllByRole("combobox");
 
@@ -116,7 +124,7 @@ describe("StockAlertPage", () => {
   });
 
   it("shows success message after successful submit", async () => {
-    render(<StockAlertPage />);
+    renderPage();
 
     const selects = screen.getAllByRole("combobox");
     fireEvent.change(selects[0], { target: { value: "Moringa Powder" } });
@@ -142,7 +150,7 @@ describe("StockAlertPage", () => {
   it("shows error message on API failure", async () => {
     mockPost.mockRejectedValue({ message: "Validation failed" });
 
-    render(<StockAlertPage />);
+    renderPage();
 
     const selects = screen.getAllByRole("combobox");
     fireEvent.change(selects[0], { target: { value: "Moringa Powder" } });

@@ -28,14 +28,10 @@ export default function AffiliateLeaderboard({ from, to }: AffiliateLeaderboardP
         }
 
         const res = await api.get<Affiliate[]>(url);
-        if (res.success && Array.isArray(res.data)) {
-          const sorted = [...res.data]
-            .filter((a) => a && (a.referral_code || a.full_name))
-            .sort(
-              (a, b) =>
-                Number(b.total_commissions_amount || 0) -
-                Number(a.total_commissions_amount || 0)
-            );
+        if (res.success && res.data) {
+          const sorted = [...res.data].sort(
+            (a, b) => b.total_commissions_amount - a.total_commissions_amount
+          );
           setAffiliates(sorted.slice(0, 5));
         }
       } catch (err) {
@@ -80,36 +76,36 @@ export default function AffiliateLeaderboard({ from, to }: AffiliateLeaderboardP
           <div className="space-y-2.5">
             {affiliates.map((aff, i) => (
               <div
-                key={aff.id || i}
+                key={aff.id}
                 className="flex items-center justify-between p-2.5 rounded-lg border border-zinc-200/70 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/50 hover:border-emerald-500/30 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={`w-7 h-7 rounded-md flex items-center justify-center font-bold text-xs tabular-nums shrink-0 ${
                       i === 0
-                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                        ? "bg-amber-500 text-white"
                         : i === 1
-                        ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                        : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                        ? "bg-zinc-600 text-white"
+                        : "bg-emerald-600 text-white"
                     }`}
                   >
                     #{i + 1}
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                      {aff.full_name || "Affiliate Partner"}
+                      {aff.full_name}
                     </p>
                     <p className="text-[11px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
-                      {aff.referral_code || "—"}
+                      {aff.referral_code}
                     </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0 tabular-nums">
                   <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                    {Number(aff.total_commissions_amount || 0).toLocaleString()} ETB
+                    {Number(aff.total_commissions_amount).toLocaleString()} ETB
                   </p>
                   <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {Number(aff.total_customers || 0)} referrals
+                    {aff.total_customers} referrals
                   </p>
                 </div>
               </div>

@@ -77,7 +77,7 @@ export default function CallCenterLeaderboard({ from, to }: CallCenterLeaderboar
                 <tr key={agent.id} className="hover:bg-gray-50 transition">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
                         {agent.full_name.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -85,7 +85,7 @@ export default function CallCenterLeaderboard({ from, to }: CallCenterLeaderboar
                         <p className="text-[10px] text-gray-400">@{agent.username}</p>
                       </div>
                       {!agent.active && (
-                        <span className="ml-1 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">
+                        <span className="ml-1 text-[10px] text-red-600 dark:text-red-400 font-bold">
                           inactive
                         </span>
                       )}

@@ -27,11 +27,11 @@ interface ExpenseSummary {
 }
 
 const CATEGORY_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  vendor_purchase: { label: 'Vendor Purchase', bg: 'bg-emerald-500/15', text: 'text-emerald-400' },
-  operational: { label: 'Operational', bg: 'bg-blue-500/15', text: 'text-blue-400' },
-  salary: { label: 'Salary', bg: 'bg-purple-500/15', text: 'text-purple-400' },
-  affiliate_payout: { label: 'Affiliate Payout', bg: 'bg-amber-500/15', text: 'text-amber-400' },
-  other: { label: 'Other', bg: 'bg-gray-500/15', text: 'text-gray-400' },
+  vendor_purchase: { label: 'Vendor Purchase', bg: '', text: 'text-emerald-700 dark:text-emerald-400' },
+  operational: { label: 'Operational', bg: '', text: 'text-blue-700 dark:text-blue-400' },
+  salary: { label: 'Salary', bg: '', text: 'text-purple-700 dark:text-purple-400' },
+  affiliate_payout: { label: 'Affiliate Payout', bg: '', text: 'text-amber-700 dark:text-amber-400' },
+  other: { label: 'Other', bg: '', text: 'text-gray-600 dark:text-gray-400' },
 };
 
 const ExpensesPage: React.FC = () => {
@@ -213,8 +213,8 @@ const ExpensesPage: React.FC = () => {
           {/* Total Revenue */}
           <div className="card p-4 animate-in" style={{ animationDelay: '0.05s' }}>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <span className="material-symbols-outlined text-[18px] text-[var(--emerald)]">payments</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-600">
+                <span className="material-symbols-outlined text-[18px] text-white">payments</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Total Revenue</span>
             </div>
@@ -226,8 +226,8 @@ const ExpensesPage: React.FC = () => {
           {/* Total Expenses */}
           <div className="card p-4 animate-in" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <span className="material-symbols-outlined text-[18px] text-[var(--rose)]">currency_exchange</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-600">
+                <span className="material-symbols-outlined text-[18px] text-white">currency_exchange</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Total Expenses</span>
             </div>
@@ -239,8 +239,8 @@ const ExpensesPage: React.FC = () => {
           {/* Net Profit */}
           <div className="card p-4 animate-in" style={{ animationDelay: '0.15s' }}>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <span className="material-symbols-outlined text-[18px] text-[var(--accent)]">savings</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-600">
+                <span className="material-symbols-outlined text-[18px] text-white">savings</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Net Profit</span>
             </div>
@@ -252,8 +252,8 @@ const ExpensesPage: React.FC = () => {
           {/* Expenses This Month */}
           <div className="card p-4 animate-in" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
-                <span className="material-symbols-outlined text-[18px] text-[var(--sky)]">event</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-sky-600">
+                <span className="material-symbols-outlined text-[18px] text-white">event</span>
               </div>
               <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Expenses This Month</span>
             </div>

@@ -14,10 +14,13 @@ const ROUTE_LABELS: Record<string, string> = {
   '/dashboard': 'Overview & Analytics',
   '/dashboard/analytics': 'Profit & Loss Report',
   '/dashboard/new-order': 'New Sales Order',
-  '/dashboard/bulk-orders': 'Bulk Orders',
+  '/dashboard/bulk-orders': 'Bulk Sales Order',
   '/dashboard/vendor': 'Vendor Purchases',
   '/dashboard/products': 'Products & Inventory',
   '/dashboard/stock-alert': 'Stock Alerts',
+  '/dashboard/stock-request': 'Stock Request',
+  '/dashboard/store-report': 'Reporting Channel',
+  '/dashboard/call-center': 'Reporting Channel',
   '/dashboard/tracking': 'Order Tracking',
   '/dashboard/notifications': 'Notifications',
   '/dashboard/customers': 'Customer Intelligence',
@@ -37,6 +40,12 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
   const location = useLocation();
   const role = user?.role ?? 'guest';
   const displayName = user?.name || user?.full_name || user?.username || 'Staff Member';
+  const displayRole =
+    role === 'store_manager' ? 'Sub Store Manager' :
+    role === 'call_center' ? 'Call Center Agent' :
+    role === 'delivery' ? 'Driver' :
+    role.charAt(0).toUpperCase() + role.slice(1);
+  const canSeeNotifications = role === 'admin' || role === 'manager' || role === 'store_manager';
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
@@ -45,31 +54,17 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
   const currentLabel = ROUTE_LABELS[location.pathname] || 'Workspace';
 
   useEffect(() => {
+    if (!canSeeNotifications) return;
     const fetchNotifications = async () => {
       try {
-        const sinceDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
-        const res = await api.get<{ total: number }>(`/api/notifications/unread-counts?since=${sinceDate}`);
+        const res = await api.get<{ total: number }>('/api/notifications/summary');
         if (res.success && res.data) setNotifCount(res.data.total);
       } catch { /* silently ignore */ }
     };
-    const handleSync = (e: Event) => {
-      const detail = (e as CustomEvent<{ total?: number }>).detail;
-      if (detail && typeof detail.total === 'number') {
-        setNotifCount(detail.total);
-      } else {
-        fetchNotifications();
-      }
-    };
     fetchNotifications();
-    window.addEventListener('asella:notifications-updated', handleSync);
     const interval = setInterval(fetchNotifications, 60_000);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('asella:notifications-updated', handleSync);
-    };
-  }, []);
+    return () => clearInterval(interval);
+  }, [canSeeNotifications]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -94,10 +89,10 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
         )}
 
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm min-w-0">
-          <span className="text-zinc-400 dark:text-zinc-500 font-medium hidden sm:inline whitespace-nowrap">
+          <span className="text-zinc-400 dark:text-zinc-500 font-medium hidden lg:inline whitespace-nowrap">
             Asella Console
           </span>
-          <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline" aria-hidden="true">
+          <span className="text-zinc-300 dark:text-zinc-700 hidden lg:inline" aria-hidden="true">
             /
           </span>
           <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
@@ -124,18 +119,20 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
           <span>New Order</span>
         </button>
 
-        <button
-          onClick={() => navigate('/dashboard/notifications')}
-          className="relative w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-          aria-label="Notifications"
-        >
-          <span className="material-symbols-outlined text-[17px]">notifications</span>
-          {notifCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-600 text-white text-[10px] font-semibold tabular-nums rounded-full">
-              {notifCount > 99 ? '99+' : notifCount}
-            </span>
-          )}
-        </button>
+        {canSeeNotifications && (
+          <button
+            onClick={() => navigate('/dashboard/notifications')}
+            className="relative w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            aria-label="Notifications"
+          >
+            <span className="material-symbols-outlined text-[17px]">notifications</span>
+            {notifCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-600 text-white text-[10px] font-semibold tabular-nums rounded-full">
+                {notifCount > 99 ? '99+' : notifCount}
+              </span>
+            )}
+          </button>
+        )}
 
         <div className="relative" ref={profileRef}>
           <button
@@ -150,7 +147,7 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
                 {displayName}
               </p>
               <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight capitalize">
-                {role}
+                {displayRole}
               </p>
             </div>
             <span className={`material-symbols-outlined text-[16px] text-zinc-400 transition-transform ${profileOpen ? "rotate-180" : ""}`}>
@@ -162,23 +159,27 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
             <div className="absolute top-full right-0 mt-1.5 w-48 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg py-1.5 z-50">
               <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 mb-1">
                 <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">{displayName}</p>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 capitalize">{role}</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 capitalize">{displayRole}</p>
               </div>
-              <button
-                onClick={() => { setProfileOpen(false); navigate('/dashboard/analytics'); }}
-                className="w-full text-left px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[15px] text-zinc-500">monitoring</span>
-                P&L Financial Report
-              </button>
-              <button
-                onClick={() => { setProfileOpen(false); navigate('/dashboard/change-password'); }}
-                className="w-full text-left px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[15px] text-zinc-500">settings</span>
-                Security Settings
-              </button>
-              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+              {role !== 'store_manager' && role !== 'call_center' && (
+                <>
+                  <button
+                    onClick={() => { setProfileOpen(false); navigate('/dashboard/analytics'); }}
+                    className="w-full text-left px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[15px] text-zinc-500">monitoring</span>
+                    P&L Financial Report
+                  </button>
+                  <button
+                    onClick={() => { setProfileOpen(false); navigate('/dashboard/change-password'); }}
+                    className="w-full text-left px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[15px] text-zinc-500">settings</span>
+                    Security Settings
+                  </button>
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+                </>
+              )}
               <button
                 onClick={async () => {
                   setProfileOpen(false);

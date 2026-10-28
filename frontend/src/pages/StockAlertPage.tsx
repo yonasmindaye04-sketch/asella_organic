@@ -2,6 +2,7 @@
  * frontend/src/pages/StockAlertPage.tsx
  */
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -25,6 +26,9 @@ const EMPTY: Form = {
 
 export default function StockAlertPage() {
   const { products, loading: productsLoading } = useProducts();
+  const location = useLocation();
+  const isStockRequest = location.pathname.includes('/stock-request');
+  const pageTitle = isStockRequest ? 'Stock Request' : 'Stock Alert';
   const [form, setForm]           = useState<Form>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess]     = useState<string | null>(null);
@@ -55,7 +59,7 @@ export default function StockAlertPage() {
 
       if (!res.success) throw new Error(res.error ?? 'Submission failed');
 
-      setSuccess(`Stock alert sent for ${form.product_name} (${form.package_size}). Admin has been notified via Telegram.`);
+      setSuccess(`${isStockRequest ? 'Stock request' : 'Stock alert'} sent for ${form.product_name} (${form.package_size}). Admin has been notified via Telegram.`);
       setForm(EMPTY);
     } catch (err: any) {
       setError(err?.message ?? 'Submission failed. Please try again.');
@@ -70,10 +74,10 @@ export default function StockAlertPage() {
 
   const stockBadgeColor =
     !selectedProduct             ? '' :
-    qty === 0                    ? 'bg-red-50 text-red-700 border-red-200' :
-    qty <= threshold / 2         ? 'bg-orange-50 text-orange-700 border-orange-200' :
-    qty <= threshold             ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                   'bg-green-50 text-green-700 border-green-200';
+    qty === 0                    ? 'text-red-700' :
+    qty <= threshold / 2         ? 'text-orange-700' :
+    qty <= threshold             ? 'text-amber-700' :
+                                   'text-green-700';
 
   const selectedProductVariants = products.filter(p => p.name === form.product_name);
   const availableSizes = [...new Set(selectedProductVariants.map(p => p.package_size))];
@@ -86,12 +90,14 @@ export default function StockAlertPage() {
         {/* Header */}
         <div className="px-8 pt-8 pb-4 bg-[#FAF9F6] flex justify-between items-start">
           <div>
-             <h3 className="font-sans font-black text-3xl text-obsidian mb-1 tracking-tight">Stock Alert</h3>
+             <h3 className="font-sans font-black text-3xl text-obsidian mb-1 tracking-tight">{pageTitle}</h3>
              <p className="text-sm font-sans text-slate-500">
-              Running low on a product? Submit a restock request. The main warehouse admin will be notified immediately via Telegram and in-app.
+              {isStockRequest
+                ? 'Request stock replenishment from the main store. The main warehouse admin will be notified immediately via Telegram and in-app.'
+                : 'Running low on a product? Submit a restock request. The main warehouse admin will be notified immediately via Telegram and in-app.'}
             </p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-amber-500 border border-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
             <span className="material-symbols-outlined">warning</span>
           </div>
         </div>
@@ -173,7 +179,7 @@ export default function StockAlertPage() {
                   placeholder="0"
                 />
                 {selectedProduct && (
-                  <div className={`absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${stockBadgeColor}`}>
+                  <div className={`absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 text-xs font-bold ${stockBadgeColor}`}>
                     {qty === 0 ? 'OUT OF STOCK' : qty <= threshold ? 'LOW STOCK' : 'IN STOCK'}
                   </div>
                 )}
@@ -234,7 +240,9 @@ export default function StockAlertPage() {
               className="px-8 py-3.5 bg-amber-400 hover:bg-amber-300 text-obsidian rounded-xl font-mono text-xs font-bold uppercase tracking-widest shadow-lg hover:shadow-amber-400/25 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-lg leading-none">send</span>
-              {submitting ? 'Sending alert…' : 'Send Stock Alert'}
+              {submitting
+                ? (isStockRequest ? 'Sending request…' : 'Sending alert…')
+                : (isStockRequest ? 'Send Stock Request' : 'Send Stock Alert')}
             </button>
           </div>
 

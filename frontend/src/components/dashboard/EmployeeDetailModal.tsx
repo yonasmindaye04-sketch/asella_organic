@@ -22,37 +22,28 @@ import {
 } from "chart.js";
 import { Line, Bar } from "react-chartjs-2";
 import { api } from "../../services/api";
+import { CHART, CHART_AXIS, CHART_TOOLTIP } from "./chartTheme";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, BarElement, Tooltip, Filler);
 
-// ── Source colour map (matches ChartsRow) ─────────────────────────────────────
+// ── Source colour map (brand cream / natural-green series) ───────────────────
 const SOURCE_MAP: Record<string, { label: string; color: string; icon: string }> = {
-  website:   { label: "Website",        color: "#f0a030", icon: "language" },
-  telegram:  { label: "Telegram",       color: "#38bdf8", icon: "send" },
-  instagram: { label: "Instagram",      color: "#a78bfa", icon: "photo_camera" },
-  tiktok:    { label: "TikTok",         color: "#34d399", icon: "music_video" },
-  franchise: { label: "Bulk / Franchise", color: "#fb7185", icon: "inventory" },
-  sales:     { label: "Walk-in / Phone", color: "#81c784", icon: "phone_in_talk" },
-  phone:     { label: "Phone",          color: "#81c784", icon: "phone_in_talk" },
+  website:   { label: "Website",        color: CHART.gold, icon: "language" },
+  telegram:  { label: "Telegram",       color: CHART.green700, icon: "send" },
+  instagram: { label: "Instagram",      color: CHART.green300, icon: "photo_camera" },
+  tiktok:    { label: "TikTok",         color: CHART.green500, icon: "music_video" },
+  franchise: { label: "Bulk / Franchise", color: CHART.goldLight, icon: "inventory" },
+  sales:     { label: "Walk-in / Phone", color: CHART.mutedInk, icon: "phone_in_talk" },
+  phone:     { label: "Phone",          color: CHART.mutedInk, icon: "phone_in_talk" },
 };
-const FALLBACK_SOURCE = { label: "Other", color: "#6b8f6e", icon: "help_outline" };
+const FALLBACK_SOURCE = { label: "Other", color: CHART.inkSoft, icon: "help_outline" };
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  delivered:  { bg: "bg-[#f0fdf4] text-[#166534]", text: "Delivered" },
-  pending:    { bg: "bg-[#fffbeb] text-[#92400e]", text: "Pending" },
-  "in transit": { bg: "bg-[#eff6ff] text-[#1d4ed8]", text: "In Transit" },
-  cancelled:  { bg: "bg-[#fef2f2] text-[#991b1b]", text: "Cancelled" },
-  packed:     { bg: "bg-[#f5f3ff] text-[#5b21b6]", text: "Packed" },
-};
-
-const CHART_TOOLTIP = {
-  backgroundColor: "#fff",
-  borderColor: "var(--border)",
-  borderWidth: 1,
-  padding: 10,
-  cornerRadius: 8,
-  titleColor: "var(--fg)",
-  bodyColor: "var(--muted)",
+  delivered:  { bg: "text-green-700 dark:text-green-400", text: "Delivered" },
+  pending:    { bg: "text-amber-600 dark:text-amber-400", text: "Pending" },
+  "in transit": { bg: "text-blue-700 dark:text-blue-400", text: "In Transit" },
+  cancelled:  { bg: "text-red-700 dark:text-red-400", text: "Cancelled" },
+  packed:     { bg: "text-violet-700 dark:text-violet-400", text: "Packed" },
 };
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -63,6 +54,16 @@ interface PerformanceData {
     revenue: number; avg_order_value: number; delivery_rate: number;
     cancellation_rate: number; orders_per_day: number;
   };
+  /**
+   * Delivery workload. Present only for drivers — a driver has no sales
+   * history, so the sales summary above reads as all zeroes for them and
+   * this block carries the numbers that actually describe their work.
+   */
+  delivery?: {
+    total_assigned: number; delivered: number; cancelled: number; pending: number;
+    revenue: number; rejected: number; delivery_rate: number;
+    acceptance_rate: number; on_time_rate: number;
+  } | null;
   revenue_over_time: { date: string; orders: number; revenue: number }[];
   by_channel:  { source: string; orders: number; revenue: number }[];
   top_products: { item_name: string; package_size: string; qty: number; revenue: number; order_count: number }[];
@@ -182,8 +183,8 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
       tooltip: { ...CHART_TOOLTIP, callbacks: { label: (ctx: any) => ` ETB ${(ctx.parsed.y || 0).toLocaleString()}` } },
     },
     scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { color: "var(--muted)", maxTicksLimit: 8 } },
-      y: { beginAtZero: true, grid: { color: "rgba(100,140,100,0.08)" }, border: { display: false }, ticks: { color: "var(--muted)", callback: (v: any) => `${(v / 1000).toFixed(0)}k` } },
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: CHART_AXIS.tick, maxTicksLimit: 8 } },
+      y: { beginAtZero: true, grid: { color: CHART_AXIS.grid }, border: { display: false }, ticks: { color: CHART_AXIS.tick, callback: (v: any) => `${(v / 1000).toFixed(0)}k` } },
     },
   };
 
@@ -195,7 +196,7 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
     datasets: [{
       label: "Orders",
       data: allHours.map(h => hourMap[h] ?? 0),
-      backgroundColor: allHours.map(h => (hourMap[h] ?? 0) > 0 ? staffColor + "cc" : "rgba(100,140,100,0.1)"),
+      backgroundColor: allHours.map(h => (hourMap[h] ?? 0) > 0 ? staffColor + "cc" : CHART.green100),
       borderRadius: 4,
       borderSkipped: false,
     }],
@@ -205,8 +206,8 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
     maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { ...CHART_TOOLTIP } },
     scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { color: "var(--muted)", maxTicksLimit: 12 } },
-      y: { beginAtZero: true, grid: { color: "rgba(100,140,100,0.08)" }, border: { display: false }, ticks: { color: "var(--muted)", precision: 0 } },
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: CHART_AXIS.tick, maxTicksLimit: 12 } },
+      y: { beginAtZero: true, grid: { color: CHART_AXIS.grid }, border: { display: false }, ticks: { color: CHART_AXIS.tick, precision: 0 } },
     },
   };
 
@@ -276,15 +277,47 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
 
           {data && s && (
             <>
-              {/* ── KPI Grid ─────────────────────────────────────── */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                <KpiChip icon="payments"        label="Revenue"        value={fmtEtb(s.revenue)}          accent="var(--emerald)" />
-                <KpiChip icon="shopping_bag"    label="Orders"         value={fmt(s.total_orders)}        sub={`${s.delivered} delivered`} accent="var(--sky)" />
-                <KpiChip icon="check_circle"    label="Delivery Rate"  value={`${s.delivery_rate}%`}      sub={`${s.delivered} of ${s.total_orders}`} accent="var(--accent)" />
-                <KpiChip icon="cancel"          label="Cancel Rate"    value={`${s.cancellation_rate}%`}  sub={`${s.cancelled} cancelled`} accent="var(--rose)" />
-                <KpiChip icon="bar_chart"       label="Avg Order"      value={fmtEtb(s.avg_order_value)}  accent="var(--amber)" />
-                <KpiChip icon="today"           label="Orders / Day"   value={`${s.orders_per_day}`}      accent="#6b8f6e" />
-              </div>
+              {/* ── KPI Grids ─────────────────────────────────────── */}
+              {/* Drivers are measured on deliveries, salespeople on sales.
+                  Someone who does both gets both grids — showing only one
+                  would hide half of their work. */}
+              {data.delivery && (
+                <section>
+                  {s.total_orders > 0 && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-[15px] text-[var(--muted)]">local_shipping</span>
+                      <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Delivery</h3>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                    <KpiChip icon="local_shipping" label="Assigned"        value={fmt(data.delivery.total_assigned)} sub="jobs accepted" accent={CHART.gold} />
+                    <KpiChip icon="check_circle"   label="Delivered"       value={fmt(data.delivery.delivered)}    sub={`${data.delivery.delivery_rate}% completion`} accent="var(--emerald)" />
+                    <KpiChip icon="how_to_reg"     label="Accept Rate"     value={`${data.delivery.acceptance_rate}%`} sub={`${data.delivery.rejected} rejected`} accent="var(--sky)" />
+                    <KpiChip icon="timer"          label="On-Time Rate"    value={`${data.delivery.on_time_rate}%`} sub="vs promised date" accent="var(--accent)" />
+                    <KpiChip icon="cancel"         label="Cancelled"       value={fmt(data.delivery.cancelled)}    accent="var(--rose)" />
+                    <KpiChip icon="payments"       label="Delivered Value" value={fmtEtb(data.delivery.revenue)}   accent="var(--emerald)" />
+                  </div>
+                </section>
+              )}
+
+              {(!data.delivery || s.total_orders > 0) && (
+                <section>
+                  {data.delivery && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-[15px] text-[var(--muted)]">shopping_bag</span>
+                      <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Sales</h3>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                    <KpiChip icon="payments"        label="Revenue"        value={fmtEtb(s.revenue)}          accent="var(--emerald)" />
+                    <KpiChip icon="shopping_bag"    label="Orders"         value={fmt(s.total_orders)}        sub={`${s.delivered} delivered`} accent="var(--sky)" />
+                    <KpiChip icon="check_circle"    label="Delivery Rate"  value={`${s.delivery_rate}%`}      sub={`${s.delivered} of ${s.total_orders}`} accent="var(--accent)" />
+                    <KpiChip icon="cancel"          label="Cancel Rate"    value={`${s.cancellation_rate}%`}  sub={`${s.cancelled} cancelled`} accent="var(--rose)" />
+                    <KpiChip icon="bar_chart"       label="Avg Order"      value={fmtEtb(s.avg_order_value)}  accent="var(--amber)" />
+                    <KpiChip icon="today"           label="Orders / Day"   value={`${s.orders_per_day}`}      accent={CHART.mutedInk} />
+                  </div>
+                </section>
+              )}
 
               {/* ── Revenue over time ─────────────────────────────── */}
               {data.revenue_over_time.length > 0 && (
@@ -446,7 +479,7 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
                       <tbody>
                         {data.recent_orders.map(o => {
                           const statusKey = o.status?.toLowerCase() ?? "";
-                          const st = STATUS_STYLE[statusKey] ?? { bg: "bg-[var(--bg-deep)] text-[var(--muted)]", text: o.status };
+                          const st = STATUS_STYLE[statusKey] ?? { bg: "text-zinc-600 dark:text-zinc-400", text: o.status };
                           const src = SOURCE_MAP[o.source?.toLowerCase()] ?? FALLBACK_SOURCE;
                           return (
                             <tr key={o.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-deep)] transition-colors">
@@ -460,7 +493,7 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
                               </td>
                               <td className="px-4 py-2.5 text-right font-semibold text-[var(--fg)]">ETB {Number(o.total).toLocaleString()}</td>
                               <td className="px-4 py-2.5 text-right">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg}`}>{st.text}</span>
+                                <span className={`inline-flex text-[10px] font-bold ${st.bg}`}>{st.text}</span>
                               </td>
                               <td className="px-4 py-2.5 text-right text-[var(--muted)] hidden sm:table-cell whitespace-nowrap">
                                 {new Date(o.created_at).toLocaleDateString("en-GB")}

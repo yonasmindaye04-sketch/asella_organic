@@ -13,6 +13,7 @@ import {
 } from "chart.js";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
 import type { TimeRange } from "./TimeRangeSelector";
+import { CHART, CHART_AXIS, CHART_SERIES, CHART_TOOLTIP } from "./chartTheme";
 
 ChartJS.register(
   CategoryScale,
@@ -26,21 +27,11 @@ ChartJS.register(
   Legend
 );
 
-ChartJS.defaults.color = "#71717a";
+ChartJS.defaults.color = CHART_AXIS.tick;
 ChartJS.defaults.font.family = "'Inter', -apple-system, sans-serif";
 ChartJS.defaults.font.size = 11;
 
-const tooltipStyle = {
-  backgroundColor: "#18181b",
-  borderColor: "#27272a",
-  borderWidth: 1,
-  padding: 10,
-  cornerRadius: 8,
-  titleColor: "#fafafa",
-  bodyColor: "#e4e4e7",
-  titleFont: { weight: "bold" as const, size: 12 },
-  bodyFont: { size: 11 },
-};
+const tooltipStyle = CHART_TOOLTIP;
 
 interface TimeBucket {
   label: string;
@@ -264,15 +255,15 @@ export function RevenueChart({
       x: {
         grid: { display: false },
         border: { display: false },
-        ticks: { color: "#71717a", font: { size: 11, weight: 500 } },
+        ticks: { color: CHART_AXIS.tick, font: { size: 11, weight: 500 } },
       },
       y: {
         beginAtZero: false,
         grace: "10%",
-        grid: { color: "rgba(113, 113, 122, 0.12)" },
+        grid: { color: CHART_AXIS.grid },
         border: { display: false },
         ticks: {
-          color: "#71717a",
+          color: CHART_AXIS.tick,
           callback: (v: any) => {
             const num = Number(v);
             if (Math.abs(num) >= 1000) return `${(num / 1000).toFixed(1)}k`;
@@ -292,7 +283,11 @@ export function RevenueChart({
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 Revenue & Profit Overview
               </h3>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 tabular-nums">
+              <span className={`text-[13px] font-bold tabular-nums ${
+                marginPct >= 0
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-rose-700 dark:text-rose-400"
+              }`}>
                 {marginPct}% Net Margin
               </span>
             </div>
@@ -304,11 +299,11 @@ export function RevenueChart({
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-300">
-                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-600 inline-block" />
+                <span className="w-2.5 h-2.5 rounded-xs bg-[#2e7d32] inline-block" />
                 Revenue
               </span>
               <span className="inline-flex items-center gap-1.5 font-medium text-zinc-600 dark:text-zinc-300">
-                <span className="w-2.5 h-2.5 rounded-xs bg-sky-500 inline-block" />
+                <span className="w-2.5 h-2.5 rounded-xs bg-[#8b6932] inline-block" />
                 Net Profit
               </span>
             </div>
@@ -372,42 +367,38 @@ export function RevenueChart({
                 {
                   label: "Gross Revenue",
                   data: revenueData,
-                  borderColor: "#059669",
+                  borderColor: CHART.green700,
                   backgroundColor: (ctx: any) => {
-                    const canvasCtx = ctx?.chart?.ctx;
-                    if (!canvasCtx) return "rgba(5, 150, 105, 0.16)";
-                    const g = canvasCtx.createLinearGradient(0, 0, 0, 230);
-                    g.addColorStop(0, "rgba(5, 150, 105, 0.24)");
-                    g.addColorStop(1, "rgba(5, 150, 105, 0.01)");
+                    const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 230);
+                    g.addColorStop(0, "rgba(46, 125, 50, 0.22)");
+                    g.addColorStop(1, "rgba(46, 125, 50, 0.01)");
                     return g;
                   },
                   borderWidth: 2.5,
                   fill: true,
                   tension: 0.35,
                   pointRadius: 4,
-                  pointBackgroundColor: "#059669",
-                  pointBorderColor: "#ffffff",
+                  pointBackgroundColor: CHART.green700,
+                  pointBorderColor: CHART.cream,
                   pointBorderWidth: 1.5,
                   pointHoverRadius: 6,
                 },
                 {
                   label: "Net Profit",
                   data: profitData,
-                  borderColor: "#0ea5e9",
+                  borderColor: CHART.gold,
                   backgroundColor: (ctx: any) => {
-                    const canvasCtx = ctx?.chart?.ctx;
-                    if (!canvasCtx) return "rgba(14, 165, 233, 0.12)";
-                    const g = canvasCtx.createLinearGradient(0, 0, 0, 230);
-                    g.addColorStop(0, "rgba(14, 165, 233, 0.16)");
-                    g.addColorStop(1, "rgba(14, 165, 233, 0.0)");
+                    const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 230);
+                    g.addColorStop(0, "rgba(139, 105, 50, 0.16)");
+                    g.addColorStop(1, "rgba(139, 105, 50, 0.0)");
                     return g;
                   },
                   borderWidth: 2,
                   fill: true,
                   tension: 0.35,
                   pointRadius: 3.5,
-                  pointBackgroundColor: "#0ea5e9",
-                  pointBorderColor: "#ffffff",
+                  pointBackgroundColor: CHART.gold,
+                  pointBorderColor: CHART.cream,
                   pointBorderWidth: 1.5,
                   pointHoverRadius: 5,
                 },
@@ -423,14 +414,14 @@ export function RevenueChart({
                 {
                   label: "Gross Revenue",
                   data: revenueData,
-                  backgroundColor: "#059669",
+                  backgroundColor: CHART.green700,
                   borderRadius: 6,
                   maxBarThickness: 28,
                 },
                 {
                   label: "Net Profit",
                   data: profitData,
-                  backgroundColor: "#0ea5e9",
+                  backgroundColor: CHART.gold,
                   borderRadius: 6,
                   maxBarThickness: 28,
                 },
@@ -451,7 +442,7 @@ export function RevenueChart({
 }
 
 // ─── 2. Sales Distribution (Donut + Revenue & Count Breakdown) ───
-const CHANNEL_COLORS = ["#059669", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6"];
+const CHANNEL_COLORS = CHART_SERIES;
 
 export function SalesDistribution({ orders }: { orders: any[] }) {
   const { channels, totalOrders, totalRevenue } = useMemo(() => {
@@ -589,7 +580,7 @@ export function SalesDistribution({ orders }: { orders: any[] }) {
 }
 
 // ─── 3. Top Products Sales Trend (Interactive ETB / Qty Toggle + Ranked Summary) ───
-const PRODUCT_COLORS = ["#059669", "#0ea5e9", "#8b5cf6", "#f59e0b"];
+const PRODUCT_COLORS = CHART_SERIES.slice(0, 4);
 
 export function TopProducts({
   orders,
@@ -702,7 +693,7 @@ export function TopProducts({
       tension: 0.35,
       pointRadius: 3.5,
       pointBackgroundColor: p.color,
-      pointBorderColor: "#ffffff",
+      pointBorderColor: CHART.cream,
       pointBorderWidth: 1.5,
       pointHoverRadius: 5.5,
       fill: false,
@@ -792,15 +783,15 @@ export function TopProducts({
                   x: {
                     grid: { display: false },
                     border: { display: false },
-                    ticks: { color: "#71717a", font: { size: 11, weight: 500 } },
+                    ticks: { color: CHART_AXIS.tick, font: { size: 11, weight: 500 } },
                   },
                   y: {
                     beginAtZero: false,
                     grace: "10%",
-                    grid: { color: "rgba(113, 113, 122, 0.12)" },
+                    grid: { color: CHART_AXIS.grid },
                     border: { display: false },
                     ticks: {
-                      color: "#71717a",
+                      color: CHART_AXIS.tick,
                       callback: (v: any) => {
                         const num = Number(v);
                         if (metricMode === "etb" && num >= 1000) {

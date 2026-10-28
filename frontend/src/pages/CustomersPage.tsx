@@ -234,8 +234,8 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({ customerId, onClose }) => {
         {/* Header — shrink-0 so the identity stays put while the body scrolls */}
         <div className="flex items-start justify-between p-4 border-b border-[#ddeedd] shrink-0 gap-2 bg-white">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-[#e8f5e9] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[18px] text-[#2e7d32]">person</span>
+            <div className="w-9 h-9 rounded-lg bg-[#2e7d32] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[18px] text-white">person</span>
             </div>
             <div className="min-w-0">
               <h3 className="text-[15px] font-extrabold text-[#141c15] truncate leading-tight">

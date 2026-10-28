@@ -400,7 +400,7 @@ router.post(
 
       // Fetch the vendor order
       const [voRows] = await conn.query(
-        `SELECT id, order_id, product_id, vendor_name, item, amount, price, status
+        `SELECT id, order_id, product_id, vendor_name, item, amount, status
          FROM vendor_orders
          WHERE id = ?
          FOR UPDATE`,
@@ -506,44 +506,10 @@ router.post(
         conn
       );
 
-      // Update Moving Average Cost (products.unit_cost)
-      try {
-        const [prodRows] = await conn.query(
-          `SELECT inventory_quantity, unit_cost FROM products WHERE id = ?`,
-          [productId]
-        ) as [any[], any];
-        const prod = prodRows[0];
-        if (prod && result) {
-          const currentQty = Math.max(0, result.newQuantity - parsedQty);
-          const currentUnitCost = Number(prod.unit_cost || 0);
-          const addedCost = Number(vo.price || 0);
-          const totalValueBefore = currentQty * currentUnitCost;
-          const newTotalValue = totalValueBefore + addedCost;
-          const newUnitCost = result.newQuantity > 0 ? newTotalValue / result.newQuantity : 0;
-
-          await conn.query(
-            `UPDATE products SET unit_cost = ? WHERE id = ?`,
-            [newUnitCost, productId]
-          );
-        }
-      } catch (costErr) {
-        const log = createLogger(req);
-        log.error("MAC calculation failed in stock receive", costErr);
-      }
-
-      // Mark vendor_order as received
+      // Mark vendor_order as completed
       await conn.query(
-        `UPDATE vendor_orders SET status = 'received', received_by = ?, received_at = NOW(), updated_at = NOW() WHERE id = ?`,
-        [req.user!.id, vendorOrderId]
-      );
-
-      // Record vendor_purchase expense atomically
-      const expenseId = crypto.randomUUID();
-      const expenseDescription = `Vendor purchase: ${vo.item} from ${vo.vendor_name} (ref: ${vo.order_id})`;
-      await conn.query(
-        `INSERT INTO expenses (id, category, description, amount, vendor_order_id, recorded_by, notes)
-         VALUES (?, 'vendor_purchase', ?, ?, ?, ?, ?)`,
-        [expenseId, expenseDescription, Number(vo.price || 0), vendorOrderId, req.user!.id, notes ?? null]
+        `UPDATE vendor_orders SET status = 'received', updated_at = NOW() WHERE id = ?`,
+        [vendorOrderId]
       );
 
       await conn.commit();
@@ -582,7 +548,7 @@ router.post(
   "/request",
   authenticate,
   // This is a write, and it fires a Telegram alert to the admin group.
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center"),
   validate(CreateStockRequestSchema),
   async (req: Request, res: Response): Promise<void> => {
     const {
@@ -704,14 +670,20 @@ router.post(
 router.get(
   "/requests",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
-    const { status, item } = req.query as Record<string, string | undefined>;
+    const { status, item, store_id } = req.query as Record<string, string | undefined>;
     const conditions: string[] = [];
     const values:     unknown[] = [];
 
     if (status) { conditions.push("sr.status = ?");     values.push(status); }
     if (item)   { conditions.push("sr.item LIKE ?");     values.push(`%${item}%`); }
+
+    // Store managers and call center agents can only see their own requests.
+    if (req.user?.role === "store_manager" || req.user?.role === "call_center") {
+      conditions.push("sr.requested_by_user_id = ?");
+      values.push(req.user.id);
+    }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 

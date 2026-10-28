@@ -29,24 +29,19 @@ import {
   Filler,
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
+import { CHART, CHART_AXIS, CHART_TOOLTIP } from "../components/dashboard/chartTheme";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, LineElement, PointElement, Tooltip, Legend, Filler);
-ChartJS.defaults.color = "#5c6280";
+ChartJS.defaults.color = CHART_AXIS.tick;
 ChartJS.defaults.font.family = "'Inter', sans-serif";
 ChartJS.defaults.font.size = 11;
 ChartJS.defaults.plugins.legend.display = false;
 
-const tooltipStyle = {
-  backgroundColor: "#1a1d28",
-  borderColor: "#272c40",
-  borderWidth: 1,
-  padding: 10,
-  cornerRadius: 8,
-};
+const tooltipStyle = CHART_TOOLTIP;
 
-const ACCEPT_COLOR = "#16a34a"; // green
-const REJECT_COLOR = "#dc2626"; // red
-const DELIVERED_COLOR = "#2563eb"; // blue
+const ACCEPT_COLOR = CHART.green700; // natural green
+const REJECT_COLOR = CHART.red;      // deep clay red
+const DELIVERED_COLOR = CHART.gold;  // highland gold
 
 type DriverRow = {
   driver_username: string;
@@ -244,8 +239,8 @@ const DeliveryPerformancePage: React.FC = () => {
       tooltip: { ...tooltipStyle, callbacks: { label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y}` } },
     },
     scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { color: "var(--muted)" } },
-      y: { beginAtZero: true, grid: { color: "rgba(30,34,51,0.5)" }, border: { display: false }, ticks: { color: "var(--muted)", precision: 0 } },
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: CHART_AXIS.tick } },
+      y: { beginAtZero: true, grid: { color: CHART_AXIS.grid }, border: { display: false }, ticks: { color: CHART_AXIS.tick, precision: 0 } },
     },
   };
 
@@ -256,7 +251,7 @@ const DeliveryPerformancePage: React.FC = () => {
       {
         data: [s.total_assigned, s.total_rejected],
         backgroundColor: [ACCEPT_COLOR, REJECT_COLOR],
-        borderColor: "#13161f",
+        borderColor: CHART.cream,
         borderWidth: 3,
         hoverOffset: 8,
       },
@@ -393,12 +388,12 @@ const DeliveryPerformancePage: React.FC = () => {
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Delivered</p>
-            <p className="text-2xl font-black text-[#16a34a] mt-1">{fmt(s.total_delivered)}</p>
+            <p className="text-2xl font-black text-[#2e7d32] mt-1">{fmt(s.total_delivered)}</p>
             <p className="text-[10px] text-slate-500 mt-1">{s.completion_rate}% completion</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Rejected</p>
-            <p className="text-2xl font-black text-[#dc2626] mt-1">{fmt(s.total_rejected)}</p>
+            <p className="text-2xl font-black text-[#b3261e] mt-1">{fmt(s.total_rejected)}</p>
             <p className="text-[10px] text-slate-500 mt-1">{rejectRatePct}% reject rate</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
@@ -413,14 +408,14 @@ const DeliveryPerformancePage: React.FC = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Accept Rate</p>
             <div className="flex items-end gap-1 mt-1">
-              <span className="text-3xl font-black text-[#16a34a]">{acceptRatePct}%</span>
+              <span className="text-3xl font-black text-[#2e7d32]">{acceptRatePct}%</span>
               <span className="text-sm text-slate-500 pb-1">of {fmt(totalWithReject)} decisions</span>
             </div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Reject Rate</p>
             <div className="flex items-end gap-1 mt-1">
-              <span className="text-3xl font-black text-[#dc2626]">{rejectRatePct}%</span>
+              <span className="text-3xl font-black text-[#b3261e]">{rejectRatePct}%</span>
               <span className="text-sm text-slate-500 pb-1">orders drivers declined</span>
             </div>
           </div>
@@ -490,10 +485,10 @@ const DeliveryPerformancePage: React.FC = () => {
                     <tr key={d.driver_username} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 font-semibold text-slate-800">{driverDisplayName(d)}</td>
                       <td className="text-right px-4 py-3 font-medium text-slate-800">{fmt(d.accepted)}</td>
-                      <td className="text-right px-4 py-3 font-medium text-[#16a34a]">{fmt(d.delivered)}</td>
-                      <td className="text-right px-4 py-3 font-medium text-[#dc2626]">{fmt(d.rejected)}</td>
-                      <td className="text-right px-4 py-3 font-semibold text-[#16a34a]">{d.accept_rate}%</td>
-                      <td className="text-right px-4 py-3 font-semibold text-[#dc2626]">{d.reject_rate}%</td>
+                      <td className="text-right px-4 py-3 font-medium text-[#2e7d32]">{fmt(d.delivered)}</td>
+                      <td className="text-right px-4 py-3 font-medium text-[#b3261e]">{fmt(d.rejected)}</td>
+                      <td className="text-right px-4 py-3 font-semibold text-[#2e7d32]">{d.accept_rate}%</td>
+                      <td className="text-right px-4 py-3 font-semibold text-[#b3261e]">{d.reject_rate}%</td>
                       <td className="text-right px-4 py-3 font-semibold text-slate-800">{d.completion_rate}%</td>
                     </tr>
                   ))
@@ -573,7 +568,7 @@ const DeliveryPerformancePage: React.FC = () => {
                     const st: { bg: string; text: string } =
                       statusKey === "delivered" ? { bg: "bg-[#f0fdf4] text-[#166534]", text: "Delivered" }
                       : statusKey === "cancelled" ? { bg: "bg-[#fef2f2] text-[#991b1b]", text: "Cancelled" }
-                      : statusKey === "in transit" ? { bg: "bg-[#eff6ff] text-[#1d4ed8]", text: "In Transit" }
+                      : statusKey === "in transit" ? { bg: "bg-[#eff6ff] text-[#2e7d32]", text: "In Transit" }
                       : { bg: "bg-[var(--bg-deep)] text-[var(--muted)]", text: o.status };
                     return (
                       <tr key={o.order_id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
