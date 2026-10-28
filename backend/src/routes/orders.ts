@@ -181,7 +181,6 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
   }
 
   const { referral_code, items, ...fields } = parsed.data;
-  const total   = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
 
   let staffUserId = null;
@@ -215,6 +214,42 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
     ) as [any[], any];
     const customerId = custRows[0].id;
 
+    // Resolve authoritative product pricing, cost, and active status
+    const resolvedItems: Array<{
+      name: string;
+      package_size: string;
+      quantity: number;
+      unit_price: number;
+      unit_cost: number;
+      product_id: string | null;
+    }> = [];
+
+    for (const item of items) {
+      const [prodRows] = await connection.query(
+        `SELECT id, price, unit_cost, active FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? AND active = true LIMIT 1`,
+        [item.name, item.package_size]
+      ) as [any[], any];
+
+      const matched = prodRows[0];
+      const unitCost = matched ? Number(matched.unit_cost ?? 0) : 0;
+      const productId = matched ? matched.id : null;
+      // Public storefront orders always use authoritative catalog price when a matching active product exists
+      const authoritativePrice = matched && !staffUserId
+        ? Number(matched.price)
+        : Number(item.unit_price || matched?.price || 0);
+
+      resolvedItems.push({
+        name: item.name,
+        package_size: item.package_size,
+        quantity: item.quantity,
+        unit_price: authoritativePrice,
+        unit_cost: unitCost,
+        product_id: productId,
+      });
+    }
+
+    const total = resolvedItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+
     await connection.query(
       `INSERT INTO orders
          (id, source, customer_name, phone, location, city, gender, age_group,
@@ -232,22 +267,15 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
       await connection.query(
         `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, new_values)
          VALUES ('orders', ?, ?, ?, 'ORDER_CREATED', ?)`,
-        [orderId, orderId, staffUserId, JSON.stringify({ items_count: items.length, total })]
+        [orderId, orderId, staffUserId, JSON.stringify({ items_count: resolvedItems.length, total })]
       );
     }
 
-    for (const item of items) {
-      const [prodRows] = await connection.query(
-        `SELECT id, unit_cost FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? LIMIT 1`,
-        [item.name, item.package_size]
-      ) as [any[], any];
-      const unitCost = prodRows.length ? Number(prodRows[0].unit_cost) : 0;
-      const productId = prodRows.length ? prodRows[0].id : null;
-
+    for (const item of resolvedItems) {
       await connection.query(
         `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost, product_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, unitCost, productId]
+        [crypto.randomUUID(), orderId, item.name, item.package_size, item.quantity, item.unit_price, item.unit_cost, item.product_id]
       );
     }
 
@@ -560,18 +588,25 @@ router.get(
   }
 );
 
+// Valid order state machine transitions
+const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
+  "Pending":    ["Confirmed", "Processing", "In Transit", "Delivered", "Cancelled", "Issue"],
+  "Confirmed":  ["Processing", "In Transit", "Delivered", "Cancelled", "Issue"],
+  "Processing": ["In Transit", "Delivered", "Cancelled", "Issue"],
+  "In Transit": ["Delivered", "Cancelled", "Issue", "Returned"],
+  "Delivered":  ["Returned", "Cancelled", "Issue"],
+  "Issue":      ["Pending", "Confirmed", "Processing", "In Transit", "Delivered", "Cancelled", "Returned"],
+  "Returned":   [],
+  "Cancelled":  [],
+  "CANCELLED":  [],
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/orders/:id/status
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch(
   "/:id/status",
   authenticate,
-  // Roles only, and deliberately not `delivery`: this transition is the one
-  // that moves money and stock. Setting status='Delivered' fires
-  // trg_order_delivered_commission, which credits a real affiliate
-  // commission, and deducts inventory. Without a role guard any
-  // authenticated principal could mint commissions by driving orders to
-  // Delivered, then flip them to Cancelled to reverse it again.
   authorise("admin", "manager", "employee"),
   validate(UpdateStatusSchema),
   async (req: Request, res: Response): Promise<void> => {
@@ -583,9 +618,6 @@ router.patch(
       return;
     }
 
-    // customer_id and telegram_chat_id are both read below — the
-    // telegram_chat_id lookup was silently always null because the
-    // column was never selected here.
     const [currentRows] = await pool.query(
       `SELECT status, phone, customer_name, customer_id, telegram_chat_id, total
        FROM orders WHERE id = ? AND deleted_at IS NULL`,
@@ -598,72 +630,93 @@ router.patch(
       return;
     }
 
-    if (status === "Delivered" && current.status !== "Delivered") {
-      const [items] = await pool.query(
-        `SELECT oi.item_name, oi.package_size, oi.quantity, p.inventory_quantity
-         FROM   order_items oi
-         LEFT JOIN products p
-           ON  LOWER(oi.item_name) = LOWER(p.name)
-           AND oi.package_size = p.package_size
-         WHERE oi.order_id = ?`,
-        [orderId]
-      ) as [any[], any];
-
-      for (const item of items) {
-        if (item.inventory_quantity !== null && item.inventory_quantity < item.quantity) {
-          res.status(400).json({
-            success: false,
-            error:   `Insufficient stock for ${item.item_name} (${item.package_size}). Available: ${item.inventory_quantity}, needed: ${item.quantity}`,
-          });
-          return;
-        }
-      }
-
-      // Deduct stock now that the check passed
-      try {
-        await deductOrderStock(orderId, (req as any).user?.id ?? null);
-      } catch (stockErr: any) {
+    if (current.status !== status) {
+      const allowedNext = VALID_ORDER_TRANSITIONS[current.status as string];
+      if (allowedNext && !allowedNext.includes(status)) {
         res.status(400).json({
           success: false,
-          error: `Stock deduction failed: ${stockErr.message}`,
-        });
-        return;
-      }
-    } else if (
-      (status === "Cancelled" || status === "Issue" || status === "Returned") &&
-      current.status === "Delivered"
-    ) {
-      // A "Returned" order comes back as Delivered stock, so it needs the
-      // same restoration as a cancellation. The commission reversal trigger
-      // treats all three void statuses identically.
-      try {
-        await restoreOrderStock(orderId, (req as any).user?.id ?? null);
-      } catch (stockErr: any) {
-        res.status(400).json({
-          success: false,
-          error: `Stock restoration failed: ${stockErr.message}`,
+          error: `Invalid status transition from "${current.status}" to "${status}". Allowed transitions: ${allowedNext.join(", ") || "none (terminal state)"}`,
         });
         return;
       }
     }
 
-    await pool.query(
-      `UPDATE orders SET status = ?, notes = IFNULL(?, notes), updated_at = NOW() WHERE id = ?`,
-      [status, note, orderId]
-    );
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
 
-    // Record in order_status_history for timeline tracking
-    await pool.query(
-      `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [crypto.randomUUID(), orderId, current.status, status, (req as any).user?.username ?? 'system', note ?? null]
-    );
+      if (status === "Delivered" && current.status !== "Delivered") {
+        const [items] = await conn.query(
+          `SELECT oi.item_name, oi.package_size, oi.quantity, p.inventory_quantity
+           FROM   order_items oi
+           LEFT JOIN products p
+             ON  (oi.product_id IS NOT NULL AND oi.product_id = p.id)
+             OR  (oi.product_id IS NULL AND LOWER(oi.item_name) = LOWER(p.name) AND oi.package_size = p.package_size)
+           WHERE oi.order_id = ?`,
+          [orderId]
+        ) as [any[], any];
 
-    await pool.query(
-      `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, new_values)
-       VALUES ('orders', ?, ?, ?, 'ORDER_STATUS_UPDATED', ?)`,
-      [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ status })]
-    );
+        for (const item of items) {
+          if (item.inventory_quantity !== null && item.inventory_quantity !== undefined && item.inventory_quantity < item.quantity) {
+            await conn.rollback();
+            res.status(400).json({
+              success: false,
+              error: `Insufficient stock for ${item.item_name} (${item.package_size}). Available: ${item.inventory_quantity}, needed: ${item.quantity}`,
+            });
+            return;
+          }
+        }
+
+        try {
+          await deductOrderStock(orderId, (req as any).user?.id ?? null, conn);
+        } catch (stockErr: any) {
+          await conn.rollback();
+          res.status(400).json({
+            success: false,
+            error: `Stock deduction failed: ${stockErr.message}`,
+          });
+          return;
+        }
+      } else if (current.status === "Delivered" && status !== "Delivered") {
+        // Any transition away from Delivered (Returned, Cancelled, Issue) restores stock inside the same transaction
+        try {
+          await restoreOrderStock(orderId, (req as any).user?.id ?? null, conn);
+        } catch (stockErr: any) {
+          await conn.rollback();
+          res.status(400).json({
+            success: false,
+            error: `Stock restoration failed: ${stockErr.message}`,
+          });
+          return;
+        }
+      }
+
+      await conn.query(
+        `UPDATE orders SET status = ?, notes = IFNULL(?, notes), updated_at = NOW() WHERE id = ?`,
+        [status, note ?? null, orderId]
+      );
+
+      await conn.query(
+        `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        [crypto.randomUUID(), orderId, current.status, status, (req as any).user?.username ?? "system", note ?? null]
+      );
+
+      await conn.query(
+        `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, old_values, new_values)
+         VALUES ('orders', ?, ?, ?, 'ORDER_STATUS_UPDATED', ?, ?)`,
+        [orderId, orderId, (req as any).user?.id ?? "system", JSON.stringify({ status: current.status }), JSON.stringify({ status })]
+      );
+
+      await conn.commit();
+    } catch (txErr) {
+      await conn.rollback();
+      log.error("Failed to update order status transactionally", txErr);
+      res.status(500).json({ success: false, error: "Internal server error" });
+      return;
+    } finally {
+      conn.release();
+    }
 
     void mirrorOrderStatusToSheets({
       orderId, oldStatus: current.status as string | null,
@@ -902,6 +955,173 @@ router.delete(
 
     log.info("Order archived", { orderId: req.params.id });
     res.json({ success: true, data: { message: "Order archived." } });
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/orders/:id/payment  — update payment status & record payment
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch(
+  "/:id/payment",
+  authenticate,
+  authorise("admin", "manager", "employee"),
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    const orderId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { payment_status, amount, method, transaction_ref, notes } = req.body as {
+      payment_status?: string;
+      amount?: number;
+      method?: string;
+      transaction_ref?: string;
+      notes?: string;
+    };
+
+    const validStatuses = ["Pending", "Paid", "Partial", "Refunded", "Failed"];
+    if (!payment_status || !validStatuses.includes(payment_status)) {
+      res.status(400).json({
+        success: false,
+        error: `payment_status must be one of: ${validStatuses.join(", ")}`,
+      });
+      return;
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [orderRows] = await conn.query(
+        `SELECT id, total, payment_status FROM orders WHERE id = ? AND deleted_at IS NULL`,
+        [orderId]
+      ) as [any[], any];
+      if (!orderRows.length) {
+        await conn.rollback();
+        res.status(404).json({ success: false, error: "Order not found" });
+        return;
+      }
+
+      const oldPaymentStatus = orderRows[0].payment_status;
+      await conn.query(
+        `UPDATE orders SET payment_status = ?, updated_at = NOW() WHERE id = ?`,
+        [payment_status, orderId]
+      );
+
+      if (amount !== undefined || transaction_ref || method) {
+        await conn.query(
+          `INSERT INTO payments (id, order_id, amount, method, status, transaction_ref, notes, recorded_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [
+            crypto.randomUUID(),
+            orderId,
+            amount ?? Number(orderRows[0].total || 0),
+            method ?? "manual",
+            payment_status,
+            transaction_ref ?? null,
+            notes ?? null,
+            (req as any).user?.id ?? "system",
+          ]
+        ).catch(() => {});
+      }
+
+      await conn.query(
+        `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, old_values, new_values)
+         VALUES ('orders', ?, ?, ?, 'ORDER_PAYMENT_UPDATED', ?, ?)`,
+        [
+          orderId,
+          orderId,
+          (req as any).user?.id ?? "system",
+          JSON.stringify({ payment_status: oldPaymentStatus }),
+          JSON.stringify({ payment_status, amount, method, transaction_ref }),
+        ]
+      );
+
+      await conn.commit();
+      log.info("Order payment status updated", { orderId, payment_status });
+      res.json({ success: true, data: { id: orderId, payment_status } });
+    } catch (err) {
+      await conn.rollback();
+      log.error("Failed to update order payment status", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    } finally {
+      conn.release();
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/orders/payment/callback  — idempotent payment webhook handler
+// ─────────────────────────────────────────────────────────────────────────────
+router.post(
+  "/payment/callback",
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    const { order_id, transaction_ref, amount, status = "Paid", provider = "telebirr" } = req.body as {
+      order_id?: string;
+      transaction_ref?: string;
+      amount?: number;
+      status?: string;
+      provider?: string;
+    };
+
+    if (!order_id || !transaction_ref) {
+      res.status(400).json({ success: false, error: "order_id and transaction_ref are required" });
+      return;
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // Idempotency check on transaction_ref
+      const [existingPayment] = await conn.query(
+        `SELECT id, status FROM payments WHERE transaction_ref = ? LIMIT 1`,
+        [transaction_ref]
+      ) as [any[], any];
+
+      if (existingPayment.length > 0) {
+        await conn.rollback();
+        res.json({
+          success: true,
+          idempotent_replay: true,
+          data: { order_id, transaction_ref, payment_id: existingPayment[0].id },
+        });
+        return;
+      }
+
+      const [orderRows] = await conn.query(
+        `SELECT id, total, payment_status FROM orders WHERE id = ? AND deleted_at IS NULL`,
+        [order_id]
+      ) as [any[], any];
+
+      if (!orderRows.length) {
+        await conn.rollback();
+        res.status(404).json({ success: false, error: "Order not found" });
+        return;
+      }
+
+      const paymentId = crypto.randomUUID();
+      const normalizedStatus = status === "Paid" || status === "SUCCESS" ? "Paid" : "Pending";
+
+      await conn.query(
+        `INSERT INTO payments (id, order_id, amount, method, status, transaction_ref, recorded_by, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'webhook', NOW())`,
+        [paymentId, order_id, amount ?? Number(orderRows[0].total || 0), provider, normalizedStatus, transaction_ref]
+      ).catch(() => {});
+
+      await conn.query(
+        `UPDATE orders SET payment_status = ?, updated_at = NOW() WHERE id = ?`,
+        [normalizedStatus, order_id]
+      );
+
+      await conn.commit();
+      log.info("Payment callback processed", { order_id, transaction_ref, normalizedStatus });
+      res.json({ success: true, data: { order_id, transaction_ref, payment_status: normalizedStatus } });
+    } catch (err) {
+      await conn.rollback();
+      log.error("Failed to process payment callback", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    } finally {
+      conn.release();
+    }
   }
 );
 

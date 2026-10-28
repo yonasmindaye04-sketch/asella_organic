@@ -37,7 +37,7 @@ export default function LowStockTable() {
             </p>
           </div>
           <Link
-            to="/dashboard/stock-alerts"
+            to="/dashboard/stock-alert"
             className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-0.5"
           >
             Restock

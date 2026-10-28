@@ -374,7 +374,9 @@ export function RevenueChart({
                   data: revenueData,
                   borderColor: "#059669",
                   backgroundColor: (ctx: any) => {
-                    const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 230);
+                    const canvasCtx = ctx?.chart?.ctx;
+                    if (!canvasCtx) return "rgba(5, 150, 105, 0.16)";
+                    const g = canvasCtx.createLinearGradient(0, 0, 0, 230);
                     g.addColorStop(0, "rgba(5, 150, 105, 0.24)");
                     g.addColorStop(1, "rgba(5, 150, 105, 0.01)");
                     return g;
@@ -393,7 +395,9 @@ export function RevenueChart({
                   data: profitData,
                   borderColor: "#0ea5e9",
                   backgroundColor: (ctx: any) => {
-                    const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 230);
+                    const canvasCtx = ctx?.chart?.ctx;
+                    if (!canvasCtx) return "rgba(14, 165, 233, 0.12)";
+                    const g = canvasCtx.createLinearGradient(0, 0, 0, 230);
                     g.addColorStop(0, "rgba(14, 165, 233, 0.16)");
                     g.addColorStop(1, "rgba(14, 165, 233, 0.0)");
                     return g;

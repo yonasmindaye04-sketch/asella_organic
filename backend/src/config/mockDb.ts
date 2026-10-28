@@ -1562,7 +1562,7 @@ export const store: MockStore = {
       price: 27500,
       status: "Received",
       notes: "Grade A organic sun-dried leaves from Asella",
-      created_at: daysAgo(12),
+      created_at: daysAgo(1),
     },
     {
       id: "vo-002",
@@ -1573,7 +1573,7 @@ export const store: MockStore = {
       price: 19500,
       status: "Ordered",
       notes: "Scheduled arrival this Friday",
-      created_at: daysAgo(4),
+      created_at: daysAgo(0),
     },
   ],
 
@@ -1589,7 +1589,7 @@ export const store: MockStore = {
       requested_by: "Dawit Tadesse",
       delivery_date: daysAgo(-3).slice(0, 10),
       notes: "High customer demand in Addis Ababa branch",
-      created_at: daysAgo(2),
+      created_at: daysAgo(0),
     },
     {
       id: "sr-002",
@@ -1598,11 +1598,11 @@ export const store: MockStore = {
       package_size: "30 Gummies",
       stock_available: 8,
       qty_needed: 40,
-      status: "ordered",
+      status: "pending",
       requested_by: "Meron Bekele",
       delivery_date: daysAgo(-5).slice(0, 10),
-      notes: "Restock order placed with supplier",
-      created_at: daysAgo(4),
+      notes: "Restock order needed urgently",
+      created_at: daysAgo(1),
     },
   ],
 
@@ -1618,7 +1618,7 @@ export const store: MockStore = {
       reference_id: "ORD-20261025-A101",
       notes: null,
       created_by: "00000000-0000-0000-0000-000000000004",
-      created_at: daysAgo(1),
+      created_at: daysAgo(0),
     },
     {
       id: "im-002",
@@ -1631,7 +1631,7 @@ export const store: MockStore = {
       reference_id: "ORD-20260928-E505",
       notes: null,
       created_by: "00000000-0000-0000-0000-000000000003",
-      created_at: daysAgo(2),
+      created_at: daysAgo(1),
     },
   ],
 
@@ -1859,9 +1859,94 @@ export async function executeMockQuery(
     return [{ affectedRows: 1 }, []];
   }
 
+  // ── 2a. Affiliates & Referrals (must run before staff_users / customers due to JOINs & subqueries) ──
+  if (sqlLower.includes("as total_affiliates") && sqlLower.includes("as active_affiliates")) {
+    const activeAffs = store.affiliate_profiles.filter((a) => !a.deleted_at);
+    const enabledAffs = activeAffs.filter((a) => Boolean(a.is_active));
+    const referredCusts = store.customers.filter((c) => Boolean(c.referred_by_affiliate_id)).length;
+    const validComms = store.commissions.filter((c) => c.status !== "reversed");
+    const paidComms = store.commissions.filter((c) => c.status === "paid");
+    const pendingComms = store.commissions.filter((c) => c.status === "pending");
+    const reversedComms = store.commissions.filter((c) => c.status === "reversed");
+    return [
+      [
+        {
+          total_affiliates: activeAffs.length,
+          active_affiliates: enabledAffs.length,
+          total_referred_customers: referredCusts,
+          total_commissions_generated: validComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
+          total_paid: paidComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
+          total_pending: pendingComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
+          pending_count: pendingComms.length,
+          total_reversed: reversedComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
+          clawback_pending: 0,
+        },
+      ],
+      [],
+    ];
+  }
+
+  if (sqlLower.includes("from referral_configs")) {
+    return [store.referral_configs.filter((r) => r.is_active), []];
+  }
+
+  if (sqlLower.includes("from affiliate_commission_rules")) {
+    const id = params[0];
+    return [store.affiliate_commission_rules.filter((r) => r.affiliate_id === id), []];
+  }
+
+  if (sqlLower.includes("from affiliate_profiles")) {
+    const activeAffs = store.affiliate_profiles
+      .filter((a) => !a.deleted_at)
+      .map((a) => {
+        const custs = store.customers.filter((c) => c.referred_by_affiliate_id === a.id);
+        const comms = store.commissions.filter((c) => c.affiliate_id === a.id && c.status !== "reversed");
+        const paidComms = comms.filter((c) => c.status === "paid");
+        const pendingComms = comms.filter((c) => c.status === "pending");
+        return {
+          ...a,
+          full_name: a.full_name || "Affiliate Partner",
+          identifier: a.email || a.referral_code,
+          affiliate_type: a.user_id ? "staff" : "external",
+          total_customers: custs.length,
+          total_commissions_count: comms.length,
+          total_commissions_amount: comms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
+          paid_commissions_amount: paidComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
+          pending_commissions_amount: pendingComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
+          pending_count: pendingComms.length,
+          paid_count: paidComms.length,
+        };
+      });
+    if (sqlLower.includes("where ap.id = ?") || sqlLower.includes("where id = ?")) {
+      return [activeAffs.filter((a) => a.id === params[0]), []];
+    }
+    if (sqlLower.includes("where ap.user_id = ?") || sqlLower.includes("where user_id = ?")) {
+      return [activeAffs.filter((a) => a.user_id === params[0]), []];
+    }
+    return [activeAffs, []];
+  }
+
+  if (sqlLower.includes("from referral_commissions") || sqlLower.includes("from commissions")) {
+    if (sqlLower.startsWith("select count(*)")) {
+      return [[{ total: store.commissions.length, count: store.commissions.length }], []];
+    }
+    const enriched = store.commissions.map((c) => {
+      const aff = store.affiliate_profiles.find((a) => a.id === c.affiliate_id);
+      const ord = store.orders.find((o) => o.id === c.order_id);
+      return {
+        ...c,
+        affiliate_name: aff?.full_name ?? "Affiliate",
+        referral_code: aff?.referral_code ?? "SELAM10",
+        customer_name: ord?.customer_name ?? "Customer",
+        customer_phone: ord?.phone ?? "+251911234567",
+      };
+    });
+    return [enriched, []];
+  }
+
   // Staff login / lookup
   if (sqlLower.includes("from staff_users")) {
-    if (sqlLower.includes("count(*)")) {
+    if (sqlLower.startsWith("select count(*)")) {
       const activeStaff = store.staff_users.filter((u) => !u.deleted_at);
       return [[{ total: activeStaff.length, count: activeStaff.length }], []];
     }
@@ -1889,15 +1974,24 @@ export async function executeMockQuery(
       return [user ? [user] : [], []];
     }
     // Staff list with order metrics
+    const hasDateWindow = sqlLower.includes("created_at between ? and ?");
+    const fromDate = hasDateWindow && params[0] ? String(params[0]).slice(0, 10) : null;
+    const toDate = hasDateWindow && params[1] ? String(params[1]).slice(0, 10) : null;
+
     const enriched = store.staff_users
       .filter((u) => !u.deleted_at)
       .map((u) => {
-        const staffOrders = store.orders.filter(
-          (o) => o.created_by_staff_id === u.id && !o.deleted_at
-        );
+        const staffOrders = store.orders.filter((o) => {
+          if (o.created_by_staff_id !== u.id || o.deleted_at) return false;
+          if (fromDate && toDate) {
+            const d = String(o.created_at || "").slice(0, 10);
+            return d >= fromDate && d <= toDate;
+          }
+          return true;
+        });
         const delivered = staffOrders.filter((o) => o.status === "Delivered");
         const valid = staffOrders.filter(
-          (o) => o.status !== "Cancelled" && o.status !== "CANCELLED"
+          (o) => !["Cancelled", "CANCELLED", "Returned", "Issue"].includes(o.status)
         );
         return {
           ...u,
@@ -1907,6 +2001,27 @@ export async function executeMockQuery(
         };
       });
     return [enriched, []];
+  }
+
+  if (sqlLower.includes("update staff_users")) {
+    const id = params[params.length - 1];
+    const u = store.staff_users.find((s) => s.id === id && !s.deleted_at);
+    if (u) {
+      if (sqlLower.includes("deleted_at = now()")) {
+        u.deleted_at = daysAgo(0);
+        u.active = 0;
+      } else {
+        let pIdx = 0;
+        if (sqlLower.includes("full_name = ?")) u.full_name = params[pIdx++];
+        if (sqlLower.includes("role = ?")) u.role = params[pIdx++];
+        if (sqlLower.includes("email = ?")) u.email = params[pIdx++];
+        if (sqlLower.includes("phone = ?")) u.phone = params[pIdx++];
+        if (sqlLower.includes("telegram_username = ?")) (u as any).telegram_username = params[pIdx++];
+        if (sqlLower.includes("active = ?")) u.active = params[pIdx++] ? 1 : 0;
+      }
+      u.updated_at = daysAgo(0);
+    }
+    return [{ affectedRows: u ? 1 : 0 }, []];
   }
 
   if (sqlLower.includes("insert into staff_users")) {
@@ -1940,7 +2055,7 @@ export async function executeMockQuery(
     // Low stock query
     if (sqlLower.includes("inventory_quantity <= low_stock_threshold")) {
       list = list.filter((p) => Number(p.inventory_quantity) <= Number(p.low_stock_threshold));
-      if (sqlLower.includes("count(")) {
+      if (sqlLower.startsWith("select count(")) {
         return [[{ total: list.length }], []];
       }
       return [list, []];
@@ -2028,7 +2143,7 @@ export async function executeMockQuery(
     }
 
     // Count query
-    if (sqlLower.includes("count(")) {
+    if (sqlLower.startsWith("select count(")) {
       return [[{ total: list.length, count: list.length }], []];
     }
 
@@ -2071,6 +2186,33 @@ export async function executeMockQuery(
   }
 
   // ── 4. Orders & Order Items ───────────────────────────────────────────────
+  // Staff top products query (FROM order_items oi JOIN orders o)
+  if (sqlLower.includes("from order_items oi") && sqlLower.includes("join orders o")) {
+    const staffId = params[0];
+    const staffOrderIds = new Set(
+      store.orders
+        .filter((o) => o.created_by_staff_id === staffId && !o.deleted_at && o.status !== "Cancelled")
+        .map((o) => o.id)
+    );
+    const map = new Map<string, { item_name: string; package_size: string; qty: number; revenue: number; order_count: number }>();
+    for (const item of store.order_items) {
+      if (!staffOrderIds.has(item.order_id)) continue;
+      const key = `${item.item_name}__${item.package_size}`;
+      const cur = map.get(key) || {
+        item_name: item.item_name,
+        package_size: item.package_size,
+        qty: 0,
+        revenue: 0,
+        order_count: 0,
+      };
+      cur.qty += Number(item.quantity || 1);
+      cur.revenue += Number(item.quantity || 1) * Number(item.unit_price || 0);
+      cur.order_count += 1;
+      map.set(key, cur);
+    }
+    return [Array.from(map.values()).sort((a, b) => b.revenue - a.revenue), []];
+  }
+
   if (sqlLower.includes("from orders")) {
     let list = store.orders.filter((o) => !o.deleted_at);
 
@@ -2113,6 +2255,55 @@ export async function executeMockQuery(
           [],
         ];
       }
+      if (sqlLower.includes("group by date(o.created_at)")) {
+        const byDate = new Map<string, { date: string; orders: number; revenue: number }>();
+        for (const o of staffOrders) {
+          const d = String(o.created_at || "").slice(0, 10);
+          const cur = byDate.get(d) || { date: d, orders: 0, revenue: 0 };
+          cur.orders += 1;
+          if (o.status !== "Cancelled" && o.status !== "CANCELLED") {
+            cur.revenue += Number(o.total || 0);
+          }
+          byDate.set(d, cur);
+        }
+        return [Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date)), []];
+      }
+      if (sqlLower.includes("group by o.source")) {
+        const bySrc = new Map<string, { source: string; orders: number; revenue: number }>();
+        for (const o of staffOrders) {
+          const s = String(o.source || "Website");
+          const cur = bySrc.get(s) || { source: s, orders: 0, revenue: 0 };
+          cur.orders += 1;
+          if (o.status !== "Cancelled" && o.status !== "CANCELLED") {
+            cur.revenue += Number(o.total || 0);
+          }
+          bySrc.set(s, cur);
+        }
+        return [Array.from(bySrc.values()).sort((a, b) => b.revenue - a.revenue), []];
+      }
+      if (sqlLower.includes("group by o.city")) {
+        const byCity = new Map<string, { city: string; orders: number; revenue: number }>();
+        for (const o of staffOrders) {
+          const c = String(o.city || "Addis Ababa");
+          const cur = byCity.get(c) || { city: c, orders: 0, revenue: 0 };
+          cur.orders += 1;
+          if (o.status !== "Cancelled" && o.status !== "CANCELLED") {
+            cur.revenue += Number(o.total || 0);
+          }
+          byCity.set(c, cur);
+        }
+        return [Array.from(byCity.values()).sort((a, b) => b.revenue - a.revenue), []];
+      }
+      if (sqlLower.includes("group by hour(o.created_at)")) {
+        const byHour = new Map<number, { hour: number; orders: number }>();
+        for (const o of staffOrders) {
+          const h = new Date(o.created_at).getHours() || 10;
+          const cur = byHour.get(h) || { hour: h, orders: 0 };
+          cur.orders += 1;
+          byHour.set(h, cur);
+        }
+        return [Array.from(byHour.values()).sort((a, b) => a.hour - b.hour), []];
+      }
       return [staffOrders, []];
     }
 
@@ -2141,8 +2332,36 @@ export async function executeMockQuery(
       list = list.filter((o) => String(o.created_at || "").slice(0, 10) <= toDate);
     }
 
-    if (sqlLower.includes("count(*)")) {
-      return [[{ count: list.length, total: list.length }], []];
+    if (sqlLower.includes("status not in ('cancelled', 'cancelled', 'returned', 'issue')") || sqlLower.includes("status not in ('cancelled','cancelled')")) {
+      list = list.filter((o) => !["Cancelled", "CANCELLED", "Returned", "Issue"].includes(o.status));
+    }
+
+    if (sqlLower.includes("status = 'pending'")) {
+      list = list.filter((o) => String(o.status || "").toLowerCase() === "pending");
+    }
+
+    if (sqlLower.startsWith("select count(*)")) {
+      return [[{ count: list.length, total: list.length, cnt: list.length }], []];
+    }
+
+    if (sqlLower.includes("'new_order' as category")) {
+      const notifOrders = list.map((o) => ({
+        id: o.id,
+        category: "new_order",
+        title: `New Order from ${o.customer_name}`,
+        body: `Source: ${o.source} | City: ${o.city || "N/A"} | Total: ${o.total || 0} ETB | Status: ${o.status}`,
+        created_at: o.created_at,
+        metadata: {
+          order_id: o.id,
+          customer_name: o.customer_name,
+          phone: o.phone,
+          city: o.city,
+          source: o.source,
+          status: o.status,
+          total: o.total,
+        },
+      }));
+      return [notifOrders, []];
     }
 
     const enriched = list.map((o) => {
@@ -2254,7 +2473,7 @@ export async function executeMockQuery(
 
   if (sqlLower.includes("vw_customer_insights")) {
     const insights = computeCustomerInsights();
-    if (sqlLower.includes("count(*)")) {
+    if (sqlLower.startsWith("select count(*)")) {
       return [[{ total: insights.length }], []];
     }
     if (sqlLower.includes("total_customers") && sqlLower.includes("total_net_value")) {
@@ -2313,7 +2532,7 @@ export async function executeMockQuery(
   }
 
   if (sqlLower.includes("from customer_activity")) {
-    if (sqlLower.includes("count(*)")) {
+    if (sqlLower.startsWith("select count(*)")) {
       return [[{ total: store.customer_activity.length }], []];
     }
     const enriched = store.customer_activity.map((a) => {
@@ -2329,60 +2548,6 @@ export async function executeMockQuery(
 
   if (sqlLower.includes("from customer_ratings")) {
     return [store.customer_ratings, []];
-  }
-
-  // ── 6. Affiliates & Referrals ─────────────────────────────────────────────
-  if (sqlLower.includes("from referral_configs")) {
-    return [store.referral_configs.filter((r) => r.is_active), []];
-  }
-
-  if (sqlLower.includes("from affiliate_profiles")) {
-    const activeAffs = store.affiliate_profiles
-      .filter((a) => !a.deleted_at)
-      .map((a) => {
-        const custs = store.customers.filter((c) => c.referred_by_affiliate_id === a.id);
-        const comms = store.commissions.filter((c) => c.affiliate_id === a.id && c.status !== "reversed");
-        const paidComms = comms.filter((c) => c.status === "paid");
-        const pendingComms = comms.filter((c) => c.status === "pending");
-        return {
-          ...a,
-          total_customers: custs.length,
-          total_commissions_count: comms.length,
-          total_commissions_amount: comms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
-          paid_commissions_amount: paidComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
-          pending_commissions_amount: pendingComms.reduce((s, c) => s + Number(c.commission_amount || 0), 0),
-        };
-      });
-    if (sqlLower.includes("where ap.id = ?") || sqlLower.includes("where id = ?")) {
-      return [activeAffs.filter((a) => a.id === params[0]), []];
-    }
-    if (sqlLower.includes("where ap.user_id = ?") || sqlLower.includes("where user_id = ?")) {
-      return [activeAffs.filter((a) => a.user_id === params[0]), []];
-    }
-    return [activeAffs, []];
-  }
-
-  if (sqlLower.includes("from affiliate_commission_rules")) {
-    const id = params[0];
-    return [store.affiliate_commission_rules.filter((r) => r.affiliate_id === id), []];
-  }
-
-  if (sqlLower.includes("from commissions")) {
-    if (sqlLower.includes("count(*)")) {
-      return [[{ total: store.commissions.length, count: store.commissions.length }], []];
-    }
-    const enriched = store.commissions.map((c) => {
-      const aff = store.affiliate_profiles.find((a) => a.id === c.affiliate_id);
-      const ord = store.orders.find((o) => o.id === c.order_id);
-      return {
-        ...c,
-        affiliate_name: aff?.full_name ?? "Affiliate",
-        referral_code: aff?.referral_code ?? "SELAM10",
-        customer_name: ord?.customer_name ?? "Customer",
-        customer_phone: ord?.phone ?? "+251911234567",
-      };
-    });
-    return [enriched, []];
   }
 
   // ── 7. Expenses, Vendor Orders, Stock Movements & Requests ────────────────
@@ -2466,27 +2631,89 @@ export async function executeMockQuery(
   }
 
   if (sqlLower.includes("from vendor_orders")) {
-    if (sqlLower.includes("count(*)")) {
-      return [[{ total: store.vendor_orders.length, cnt: store.vendor_orders.length }], []];
+    let list = [...store.vendor_orders];
+    if (sqlLower.includes("created_at >= ?") && params[0]) {
+      const sinceDate = String(params[0]).slice(0, 10);
+      list = list.filter((vo) => String(vo.created_at || "").slice(0, 10) >= sinceDate);
     }
-    return [store.vendor_orders, []];
+    if (sqlLower.includes("count(*)")) {
+      return [[{ total: list.length, cnt: list.length, count: list.length }], []];
+    }
+    if (sqlLower.includes("'vendor' as category")) {
+      return [
+        list.map((vo) => ({
+          id: vo.id,
+          category: "vendor",
+          title: `Vendor Purchase: ${vo.vendor_name}`,
+          body: `Item: ${vo.item} | Amount: ${vo.amount} | Status: ${vo.status}`,
+          created_at: vo.created_at,
+          metadata: {
+            vendor_order_id: vo.id,
+            vendor_name: vo.vendor_name,
+            item: vo.item,
+            amount: vo.amount,
+            price: vo.price,
+            status: vo.status,
+          },
+        })),
+        [],
+      ];
+    }
+    return [list, []];
   }
 
   if (sqlLower.includes("from stock_requests")) {
-    if (sqlLower.includes("count(*)")) {
-      return [[{ total: store.stock_requests.length, cnt: store.stock_requests.length }], []];
+    let list = [...store.stock_requests];
+    if (sqlLower.includes("created_at >= ?") && params[0]) {
+      const sinceDate = String(params[0]).slice(0, 10);
+      list = list.filter((sr) => String(sr.created_at || "").slice(0, 10) >= sinceDate);
     }
-    return [store.stock_requests, []];
+    if (sqlLower.includes("status = 'pending'")) {
+      list = list.filter((sr) => String(sr.status || "").toLowerCase() === "pending");
+    }
+    if (sqlLower.includes("count(*)")) {
+      return [[{ total: list.length, cnt: list.length, count: list.length }], []];
+    }
+    if (sqlLower.includes("'stock_request' as category")) {
+      return [
+        list.map((sr) => ({
+          id: sr.id,
+          category: "stock_request",
+          title: `Stock Request: ${sr.item}`,
+          body: `${sr.requested_by || "Staff"} needs ${sr.qty_needed} units${
+            sr.package_size ? ` of ${sr.package_size}` : ""
+          }${sr.delivery_date ? ` by ${sr.delivery_date}` : ""} (current stock: ${sr.stock_available})`,
+          created_at: sr.created_at,
+          metadata: {
+            request_id: sr.id,
+            item: sr.item,
+            package_size: sr.package_size,
+            qty_needed: sr.qty_needed,
+            stock_available: sr.stock_available,
+            status: sr.status,
+            requested_by: sr.requested_by,
+            delivery_date: sr.delivery_date,
+          },
+        })),
+        [],
+      ];
+    }
+    return [list, []];
   }
 
   if (sqlLower.includes("from inventory_movements")) {
     if (sqlLower.includes("units_sold_30d")) {
       return [[{ units_sold_30d: 18, units_restocked_30d: 80, units_lost_30d: 0 }], []];
     }
-    if (sqlLower.includes("count(*)")) {
-      return [[{ total: store.inventory_movements.length, cnt: store.inventory_movements.length }], []];
+    let list = [...store.inventory_movements];
+    if (sqlLower.includes("created_at >= ?") && params[0]) {
+      const sinceDate = String(params[0]).slice(0, 10);
+      list = list.filter((m) => String(m.created_at || "").slice(0, 10) >= sinceDate);
     }
-    const enriched = store.inventory_movements.map((m) => {
+    if (sqlLower.includes("count(*)")) {
+      return [[{ total: list.length, cnt: list.length, count: list.length }], []];
+    }
+    const enriched = list.map((m) => {
       const p = store.products.find((prod) => prod.id === m.product_id);
       return {
         ...m,

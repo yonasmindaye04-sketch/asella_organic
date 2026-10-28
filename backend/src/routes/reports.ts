@@ -15,7 +15,7 @@ router.get(
     try {
       const { from, to } = req.query as Record<string, string | undefined>;
       
-      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED')";
+      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED', 'Returned', 'Issue')";
       let dateWhereExpenses = "voided_at IS NULL AND category != 'vendor_purchase'";
       
       const paramsOrders: unknown[] = [];
@@ -121,7 +121,7 @@ router.get(
       const { from, to } = req.query as Record<string, string | undefined>;
       
       // Fetch the JSON payload first by re-using the logic (we just fetch from our own DB)
-      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED')";
+      let dateWhereOrders = "deleted_at IS NULL AND status NOT IN ('Cancelled', 'CANCELLED', 'Returned', 'Issue')";
       let dateWhereExpenses = "voided_at IS NULL AND category != 'vendor_purchase'";
       const paramsOrders: unknown[] = [];
       const paramsExpenses: unknown[] = [];

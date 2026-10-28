@@ -30,6 +30,7 @@
 import pool from "../config/db.js";
 import { sendLowStockAlert } from "./telegram.js";
 import { mirrorStockMovementToSheets } from "./sheets.js";
+import { clearApiCache } from "../middleware/apiCache.js";
 import crypto from "crypto";
 import type { PoolConnection } from "mysql2/promise";
 
@@ -159,6 +160,7 @@ export async function recordMovement(
     );
 
     if (useOwnTransaction) await conn.commit();
+    clearApiCache();
 
     const belowThreshold = finalQty <= product.low_stock_threshold;
 
@@ -204,6 +206,38 @@ export async function recordMovement(
 
 // ─── Batch helper (used when delivering an entire order) ──────────────────
 
+async function resolveOrderItemsWithProducts(conn: PoolConnection, orderId: string): Promise<Array<{ quantity: number; product_id: string }>> {
+  const [rawItems] = await conn.query(
+    `SELECT product_id, item_name, package_size, quantity FROM order_items WHERE order_id = ?`,
+    [orderId]
+  ) as [any[], any];
+
+  const resolved: Array<{ quantity: number; product_id: string }> = [];
+
+  for (const item of rawItems) {
+    let matchedId: string | null = null;
+    if (item.product_id) {
+      const [byId] = await conn.query(
+        `SELECT id FROM products WHERE id = ? AND active = true LIMIT 1`,
+        [item.product_id]
+      ) as [any[], any];
+      if (byId[0]?.id) matchedId = byId[0].id;
+    }
+    if (!matchedId && item.item_name) {
+      const [byName] = await conn.query(
+        `SELECT id FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? AND active = true LIMIT 1`,
+        [item.item_name, item.package_size]
+      ) as [any[], any];
+      if (byName[0]?.id) matchedId = byName[0].id;
+    }
+    if (matchedId) {
+      resolved.push({ quantity: Number(item.quantity), product_id: matchedId });
+    }
+  }
+
+  return resolved;
+}
+
 /**
  * Deduct stock for all items in an order in a single transaction.
  * Called by the orders route when status transitions to "Delivered".
@@ -212,34 +246,26 @@ export async function recordMovement(
  * for each item successfully matched to a product.
  */
 export async function deductOrderStock(
-  orderId:     string,
-  performedBy: string | null
+  orderId:      string,
+  performedBy:  string | null,
+  existingConn?: PoolConnection
 ): Promise<{ productId: string; newQuantity: number; belowThreshold: boolean }[]> {
-  const conn = await pool.getConnection();
+  const useOwnTransaction = !existingConn;
+  const conn = existingConn ?? (await pool.getConnection());
 
   try {
-    await conn.beginTransaction();
+    if (useOwnTransaction) await conn.beginTransaction();
 
-    // Resolve product_id for each order item via name + package_size match
-    const [items] = await conn.query(
-      `SELECT oi.quantity, p.id AS product_id
-       FROM   order_items oi
-       JOIN   products p
-         ON   LOWER(oi.item_name) = LOWER(p.name)
-        AND   oi.package_size = p.package_size
-       WHERE  oi.order_id = ?
-         AND  p.active = true`,
-      [orderId]
-    ) as [any[], any];
+    const items = await resolveOrderItemsWithProducts(conn, orderId);
 
     const results: { productId: string; newQuantity: number; belowThreshold: boolean }[] = [];
 
     for (const item of items) {
       const result = await recordMovement(
         {
-          productId:     item.product_id as string,
+          productId:     item.product_id,
           type:          "sale",
-          changeAmount:  -(item.quantity as number),
+          changeAmount:  -item.quantity,
           performedBy,
           referenceId:   orderId,
           referenceType: "order",
@@ -249,53 +275,45 @@ export async function deductOrderStock(
       );
 
       results.push({
-        productId:     item.product_id,
-        newQuantity:   result.newQuantity,
+        productId:      item.product_id,
+        newQuantity:    result.newQuantity,
         belowThreshold: result.belowThreshold,
       });
     }
 
-    await conn.commit();
+    if (useOwnTransaction) await conn.commit();
     return results;
   } catch (err) {
-    await conn.rollback();
+    if (useOwnTransaction) await conn.rollback();
     throw err;
   } finally {
-    conn.release();
+    if (useOwnTransaction) conn.release();
   }
 }
 
 /**
  * Restore stock for all items in an order in a single transaction.
- * Called by the orders route when status transitions FROM "Delivered" TO "Cancelled" or "Issue".
+ * Called by the orders route when status transitions FROM "Delivered" TO "Cancelled", "Issue", or "Returned".
  */
 export async function restoreOrderStock(
-  orderId:     string,
-  performedBy: string | null
+  orderId:      string,
+  performedBy:  string | null,
+  existingConn?: PoolConnection
 ): Promise<void> {
-  const conn = await pool.getConnection();
+  const useOwnTransaction = !existingConn;
+  const conn = existingConn ?? (await pool.getConnection());
 
   try {
-    await conn.beginTransaction();
+    if (useOwnTransaction) await conn.beginTransaction();
 
-    // Resolve product_id for each order item
-    const [items] = await conn.query(
-      `SELECT oi.quantity, p.id AS product_id
-       FROM   order_items oi
-       JOIN   products p
-         ON   LOWER(oi.item_name) = LOWER(p.name)
-        AND   oi.package_size = p.package_size
-       WHERE  oi.order_id = ?
-         AND  p.active = true`,
-      [orderId]
-    ) as [any[], any];
+    const items = await resolveOrderItemsWithProducts(conn, orderId);
 
     for (const item of items) {
       await recordMovement(
         {
-          productId:     item.product_id as string,
+          productId:     item.product_id,
           type:          "return",
-          changeAmount:  item.quantity as number, // positive to restore
+          changeAmount:  item.quantity, // positive to restore
           performedBy,
           referenceId:   orderId,
           referenceType: "order",
@@ -305,11 +323,12 @@ export async function restoreOrderStock(
       );
     }
 
-    await conn.commit();
+    if (useOwnTransaction) await conn.commit();
   } catch (err) {
-    await conn.rollback();
+    if (useOwnTransaction) await conn.rollback();
     throw err;
   } finally {
-    conn.release();
+    if (useOwnTransaction) conn.release();
   }
 }
+

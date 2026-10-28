@@ -55,9 +55,10 @@ const DailyHighlights: React.FC = () => {
     api.get<any[]>('/api/products?limit=200').then(res => {
       if (res.success && res.data) {
         const matched = highlightsMapping.map(m => {
-          const product = res.data!.find((p: any) =>
+          const candidates = res.data!.filter((p: any) =>
             p.name.toLowerCase().includes(m.searchKey.toLowerCase())
           );
+          const product = candidates.find((p: any) => Boolean(p.featured)) || candidates[0];
           if (!product) return null;
           return {
             id: product.id,

@@ -39,10 +39,11 @@ export default function EmployeePerformance({ from, to }: EmployeePerformancePro
         const activeStaff: StaffProfile[] = Array.isArray(staffData) ? staffData : [];
 
         const perfData = activeStaff
+          .filter((staff) => staff && (staff.full_name || (staff as any).username || (staff as any).name))
           .map((staff, i) => ({
-            id: (staff as any).id || "",
-            name: staff.full_name,
-            role: (staff as any).role || "employee",
+            id: (staff as any).id || `staff-${i}`,
+            name: String(staff.full_name || (staff as any).username || (staff as any).name || "Staff Member"),
+            role: String((staff as any).role || "employee"),
             placed: Number((staff as any).orders_placed_count || 0),
             delivered: Number((staff as any).orders_delivered_count || 0),
             revenue: Number((staff as any).revenue_generated || 0),
@@ -99,7 +100,7 @@ export default function EmployeePerformance({ from, to }: EmployeePerformancePro
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold uppercase text-xs shrink-0"
                     style={{ backgroundColor: p.color }}
                   >
-                    {p.name.charAt(0)}
+                    {(p.name || "S").charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">

@@ -30,7 +30,12 @@
  * In development the Vite dev server proxies /api to the backend, and in
  * production .env.production sets VITE_API_URL to the public API host.
  */
-const BASE_URL = import.meta.env.VITE_API_URL ?? "";
+const rawEnvUrl = import.meta.env.VITE_API_URL ?? "";
+const isCustomProdDomain =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "asellaorganic.com" ||
+    window.location.hostname === "www.asellaorganic.com");
+const BASE_URL = isCustomProdDomain ? rawEnvUrl : "";
 
 // ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
@@ -50,12 +55,40 @@ interface ApiResponse<T = unknown> {
 const ACCESS_TOKEN_KEY = "asella_access_token";
 const REFRESH_TOKEN_KEY = "asella_refresh_token";
 
+function getStoredToken(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key) || localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredToken(key: string, val: string): void {
+  try {
+    sessionStorage.setItem(key, val);
+    localStorage.setItem(key, val);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function clearStoredTokens(): void {
+  try {
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 async function doRefresh(): Promise<boolean> {
   try {
-    const storedRefresh = sessionStorage.getItem(REFRESH_TOKEN_KEY);
+    const storedRefresh = getStoredToken(REFRESH_TOKEN_KEY);
     const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
       method: "POST",
       credentials: "include",
@@ -66,10 +99,10 @@ async function doRefresh(): Promise<boolean> {
     try {
       const json = await res.json();
       if (json?.data?.token) {
-        sessionStorage.setItem(ACCESS_TOKEN_KEY, json.data.token);
+        setStoredToken(ACCESS_TOKEN_KEY, json.data.token);
       }
       if (json?.data?.refreshToken) {
-        sessionStorage.setItem(REFRESH_TOKEN_KEY, json.data.refreshToken);
+        setStoredToken(REFRESH_TOKEN_KEY, json.data.refreshToken);
       }
     } catch {
       // ignore body parse errors
@@ -88,7 +121,7 @@ async function request<T>(
   extraHeaders?: Record<string, string>,
 ): Promise<ApiResponse<T>> {
   const isFormData = body instanceof FormData;
-  const storedToken = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(ACCESS_TOKEN_KEY) : null;
+  const storedToken = getStoredToken(ACCESS_TOKEN_KEY);
   const options: RequestInit = {
     method,
     credentials: "include", // Send HttpOnly cookies automatically
@@ -125,8 +158,7 @@ async function request<T>(
       return request<T>(method, path, body, false, extraHeaders);
     } else {
       localStorage.removeItem('user');
-      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+      clearStoredTokens();
       window.dispatchEvent(new Event('asella:session-expired'));
       return { success: false, error: "Session expired." };
     }
@@ -172,8 +204,8 @@ export const auth = {
   login: async (username: string, password: string) => {
     const res = await api.post<{ token: string; refreshToken: string; user: StaffProfile }>("/api/auth/login", { username, password });
     if (res.success && res.data) {
-      if (res.data.token) sessionStorage.setItem(ACCESS_TOKEN_KEY, res.data.token);
-      if (res.data.refreshToken) sessionStorage.setItem(REFRESH_TOKEN_KEY, res.data.refreshToken);
+      if (res.data.token) setStoredToken(ACCESS_TOKEN_KEY, res.data.token);
+      if (res.data.refreshToken) setStoredToken(REFRESH_TOKEN_KEY, res.data.refreshToken);
     }
     return res;
   },
@@ -182,10 +214,9 @@ export const auth = {
    * Log out. The backend clears both cookies and revokes the refresh token.
    */
   logout: async () => {
-    const storedRefresh = sessionStorage.getItem(REFRESH_TOKEN_KEY);
+    const storedRefresh = getStoredToken(REFRESH_TOKEN_KEY);
     const res = await api.post<void>("/api/auth/logout", storedRefresh ? { refreshToken: storedRefresh } : {});
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    clearStoredTokens();
     return res;
   },
 
@@ -784,3 +815,65 @@ export const sms = {
   setConsent: (to: string, action: 'opt-in' | 'opt-out' | 'hard-opt-out') =>
     api.post('/api/sms/consent', { to, action }),
 };
+
+// ─── Notifications helpers ────────────────────────────────────────────────────
+
+export type NotificationCategory = 'all' | 'low_stock' | 'stock_request' | 'new_order' | 'vendor';
+
+export interface NotificationItem {
+  id: string;
+  category: Exclude<NotificationCategory, 'all'>;
+  title: string;
+  body: string;
+  created_at: string;
+  read?: boolean;
+  metadata: Record<string, any>;
+}
+
+export interface NotificationSummary {
+  low_stock: number;
+  stock_request: number;
+  new_order: number;
+  vendor: number;
+  total: number;
+}
+
+export const notificationsApi = {
+  list: (params: { since?: string; category?: string; limit?: number; unread?: boolean } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') qs.set(k, String(v));
+    });
+    return api.get<NotificationItem[]>(`/api/notifications?${qs.toString()}`);
+  },
+
+  unreadCounts: (since?: string) => {
+    const qs = since ? `?since=${encodeURIComponent(since)}` : '';
+    return api.get<NotificationSummary>(`/api/notifications/unread-counts${qs}`);
+  },
+
+  summary: (since?: string) => {
+    const qs = since ? `?since=${encodeURIComponent(since)}` : '';
+    return api.get<NotificationSummary>(`/api/notifications/summary${qs}`);
+  },
+
+  markRead: (payload: {
+    id?: string;
+    ids?: string[];
+    items?: Array<{ id: string; category?: string }>;
+    category?: string;
+    all?: boolean;
+    since?: string;
+  }) => api.post<NotificationSummary>('/api/notifications/read', payload),
+
+  markAllRead: (
+    payload: {
+      category?: string;
+      since?: string;
+      ids?: string[];
+      items?: Array<{ id: string; category?: string }>;
+    } = {}
+  ) => api.post<NotificationSummary>('/api/notifications/mark-all-read', { all: true, ...payload }),
+};
+
+

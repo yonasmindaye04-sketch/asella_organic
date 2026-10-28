@@ -24,7 +24,7 @@ import {
 } from "../schemas/index.js";
 import { sendLowStockAlert } from "../lib/telegram.js";
 import { createLogger }      from "../lib/logger.js";
-import { apiCache }          from "../middleware/apiCache.js";
+import { apiCache, clearApiCache } from "../middleware/apiCache.js";
 import { ALLOWED_TAGS, isDuplicate, mergedActive } from "../lib/productRules.js";
 
 // Helper for application-level data quality validation
@@ -208,6 +208,8 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
           active: Boolean(row.active),
           variants: []
         });
+      } else if (Boolean(row.featured)) {
+        groupsMap.get(baseName).featured = true;
       }
       
       // Push the variant using the extracted size (or 'Default Size' if still empty)
@@ -218,6 +220,7 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
         unit_cost: row.unit_cost,
         inventory_quantity: row.inventory_quantity,
         low_stock_threshold: row.low_stock_threshold,
+        featured: Boolean(row.featured),
         active: Boolean(row.active)
       });
     }
@@ -422,11 +425,12 @@ router.post(
       ) as [any[], any];
 
       await pool.query(
-        `INSERT INTO audit_log (table_name, actor, action, old_values, new_values)
-         VALUES ('products', ?, 'INSERT', NULL, ?)`,
-        [req.user!.id, JSON.stringify({ name: d.name, price: d.price })]
+        `INSERT INTO audit_log (table_name, record_id, actor, action, old_values, new_values)
+         VALUES ('products', ?, ?, 'INSERT', NULL, ?)`,
+        [newId, req.user!.id, JSON.stringify({ name: d.name, price: d.price, unit_cost: d.unit_cost ?? 0 })]
       ).catch(() => {});
 
+      clearApiCache();
       log.info("Product created", { productId: newId, name: d.name });
       res.status(201).json({ success: true, data: newRows[0] });
     } catch (err: any) {
@@ -453,7 +457,10 @@ router.patch(
     try {
       const fields  = req.body as Record<string, unknown>;
 
-      const [existingRows] = await pool.query(`SELECT name, image_url, package_size, active FROM products WHERE id = ?`, [req.params.id]) as [any[], any];
+      const [existingRows] = await pool.query(
+        `SELECT name, image_url, package_size, price, unit_cost, featured, tag, active, inventory_quantity, low_stock_threshold FROM products WHERE id = ?`,
+        [req.params.id]
+      ) as [any[], any];
       if (!existingRows[0]) {
         res.status(404).json({ success: false, error: "Product not found" });
         return;
@@ -503,11 +510,12 @@ router.patch(
       );
 
       await pool.query(
-        `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
-         VALUES ('products', ?, ?, 'UPDATE', ?)`,
-        [req.params.id, req.user!.id, JSON.stringify(fields)]
+        `INSERT INTO audit_log (table_name, record_id, actor, action, old_values, new_values)
+         VALUES ('products', ?, ?, 'UPDATE', ?, ?)`,
+        [req.params.id, req.user!.id, JSON.stringify(existingRows[0]), JSON.stringify(fields)]
       ).catch(() => {});
 
+      clearApiCache();
       log.info("Product updated", { productId: req.params.id });
       res.json({ success: true, data: { message: "Product updated." } });
     } catch (err: any) {
@@ -542,6 +550,7 @@ router.delete(
         return;
       }
 
+      clearApiCache();
       log.info("Product archived", { productId: req.params.id });
       res.json({ success: true, data: { message: "Product archived." } });
     } catch (err) {
@@ -603,6 +612,7 @@ router.post(
       );
 
       await connection.commit();
+      clearApiCache();
 
       if (newQty <= product.low_stock_threshold) {
         void sendLowStockAlert({
@@ -708,15 +718,16 @@ router.post(
         const id = crypto.randomUUID();
         await connection.query(
           `INSERT INTO products
-             (id, name, package_size, price, inventory_quantity,
+             (id, name, package_size, price, unit_cost, inventory_quantity,
               low_stock_threshold, active, image_url, description,
               tag, featured)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             product.name,
             product.package_size,
             product.price,
+            (product as any).unit_cost ?? 0,
             product.inventory_quantity ?? 0,
             product.low_stock_threshold ?? 5,
             product.active ?? true,
@@ -730,6 +741,7 @@ router.post(
       }
 
       await connection.commit();
+      clearApiCache();
       log.info("Bulk product creation", { count: created.length });
       res.status(201).json({
         success: true,

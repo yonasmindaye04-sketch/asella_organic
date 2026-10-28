@@ -82,7 +82,7 @@ router.get(
                 (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id AND status = 'Delivered'${dateFilterStr}) AS orders_delivered_count,
                 (SELECT COALESCE(SUM(total),0) FROM orders
                  WHERE created_by_staff_id = staff_users.id
-                   AND status NOT IN ('Cancelled','CANCELLED')${dateFilterStr}) AS revenue_generated
+                   AND status NOT IN ('Cancelled','CANCELLED','Returned','Issue')${dateFilterStr}) AS revenue_generated
          FROM staff_users ${where}
          ORDER BY created_at DESC
          LIMIT ? OFFSET ?`,
@@ -144,10 +144,10 @@ router.get(
         `SELECT
            COUNT(*)                                                         AS total_orders,
            SUM(o.status = 'Delivered')                                      AS delivered,
-           SUM(o.status IN ('Cancelled','CANCELLED'))                       AS cancelled,
-           SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED'))       AS pending,
-           COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue,
-           COALESCE(AVG(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total END),0)         AS avg_order_value,
+           SUM(o.status IN ('Cancelled','CANCELLED','Returned','Issue'))    AS cancelled,
+           SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED','Returned','Issue')) AS pending,
+           COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue,
+           COALESCE(AVG(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total END),0)         AS avg_order_value,
            MIN(o.created_at)                                                AS first_order_at,
            MAX(o.created_at)                                                AS last_order_at
          FROM orders o
@@ -174,7 +174,7 @@ router.get(
       const [revenueRows] = await pool.query(
         `SELECT DATE(o.created_at) AS date,
                 COUNT(*)            AS orders,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
          WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
          GROUP BY DATE(o.created_at)
@@ -186,7 +186,7 @@ router.get(
       const [channelRows] = await pool.query(
         `SELECT o.source,
                 COUNT(*) AS orders,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
          WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
          GROUP BY o.source
@@ -205,7 +205,7 @@ router.get(
          JOIN orders o ON o.id = oi.order_id
          WHERE o.created_by_staff_id = ?
            AND o.deleted_at IS NULL
-           AND o.status NOT IN ('Cancelled','CANCELLED')${dateFilter.replace(/o\./g, "o.")}
+           AND o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue')${dateFilter.replace(/o\./g, "o.")}
          GROUP BY oi.item_name, oi.package_size
          ORDER BY revenue DESC
          LIMIT 10`,
@@ -216,7 +216,7 @@ router.get(
       const [cityRows] = await pool.query(
         `SELECT o.city,
                 COUNT(*) AS orders,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
+                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED','Returned','Issue') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
          WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
          GROUP BY o.city
@@ -424,6 +424,17 @@ router.patch(
         res.status(404).json({ success: false, error: "Staff member not found." });
         return;
       }
+
+      // Immediately revoke refresh tokens if staff member is deactivated or role is changed
+      if (active === false || role !== undefined) {
+        await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [staffId]).catch(() => {});
+      }
+
+      await pool.query(
+        `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
+         VALUES ('staff_users', ?, ?, 'STAFF_UPDATED', ?)`,
+        [staffId, req.user!.id, JSON.stringify({ full_name, role, email, phone, telegram_username, active })]
+      ).catch(() => {});
 
       log.info("Staff updated", { staffId: req.params.id });
       res.json({ success: true, data: { message: "Staff updated." } });

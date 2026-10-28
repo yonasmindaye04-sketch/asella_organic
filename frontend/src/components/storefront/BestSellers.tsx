@@ -13,6 +13,7 @@ interface Variant {
   inventory_quantity: number;
   low_stock_threshold: number;
   active: boolean;
+  featured?: boolean;
 }
 
 interface GroupedProduct {
@@ -30,9 +31,14 @@ const ProductCard: React.FC<{ product: GroupedProduct }> = ({ product }) => {
   const dispatch = useDispatch();
   const { t } = useLanguage();
   
-  // Default to first variant
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
-  const selectedVariant = product.variants[selectedVariantIndex];
+  // Default to the featured variant if one exists, otherwise first variant
+  const defaultIdx = useMemo(() => {
+    const featIdx = product.variants.findIndex((v) => v.featured);
+    return featIdx >= 0 ? featIdx : 0;
+  }, [product.variants]);
+
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(defaultIdx);
+  const selectedVariant = product.variants[selectedVariantIndex] || product.variants[0];
   
   const productImageUrl = resolveProductImage(product.image_url, product.name);
   const isOutOfStock = selectedVariant.inventory_quantity <= 0;
@@ -236,7 +242,7 @@ const BestSellers: React.FC = () => {
             ))}
           </div>
         ) : error || products.length === 0 ? (
-          /* Empty State */
+          /* Empty State with Retry */
           <div className="text-center py-20">
             <span className="material-symbols-outlined text-highland-gold text-5xl mb-4 block animate-breathe">
               eco
@@ -244,9 +250,31 @@ const BestSellers: React.FC = () => {
             <p className="font-display-lg font-semibold text-obsidian dark:text-white text-lg mb-2">
               {t('bestSellers.comingSoon')}
             </p>
-            <p className="font-sans text-slate-700 dark:text-slate-300 text-base">
+            <p className="font-sans text-slate-700 dark:text-slate-300 text-base mb-4">
               {t('bestSellers.comingSoonDesc')}
             </p>
+            {error && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setError(null);
+                  api.get<GroupedProduct[]>('/api/products/grouped?sort=sales')
+                    .then((res) => {
+                      if (res.success && res.data && res.data.length > 0) {
+                        setProducts(res.data);
+                      } else {
+                        setError('No products found');
+                      }
+                    })
+                    .catch(() => setError('Failed to load products'))
+                    .finally(() => setLoading(false));
+                }}
+                className="px-5 py-2 rounded-lg bg-highland-gold text-obsidian font-mono font-bold text-xs uppercase tracking-wider hover:bg-highland-gold-light transition-colors"
+              >
+                Retry Loading Catalog
+              </button>
+            )}
           </div>
         ) : (
           /* Product Cards — responsive horizontally scrollable 3-row grid */

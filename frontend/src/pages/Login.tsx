@@ -14,11 +14,10 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const performLogin = async (userStr: string, passStr: string) => {
     setLoading(true);
     try {
-      const res = await auth.login(username, password);
+      const res = await auth.login(userStr.trim(), passStr);
       if (res.success && res.data) {
         dispatch(
           setCredentials({
@@ -26,25 +25,27 @@ const Login: React.FC = () => {
           })
         );
         toast('Welcome back!', 'success');
-        // Affiliates land in their own portal, never the staff dashboard.
         navigate(res.data.user.role === 'affiliate' ? '/affiliate' : '/dashboard');
       } else {
         toast(res.error || 'Login failed', 'error');
       }
-    } 
-    catch (err: any) {
+    } catch (err: any) {
       toast('Invalid credentials or network error', 'error');
-    } 
-    finally {
+    } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performLogin(username, password);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#081d0b] relative overflow-hidden font-sans">
       <div className="relative z-10 w-full max-w-md px-6">
         {/* Logo */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#d5ad6d] mb-4">
             <span className="material-symbols-outlined text-[#081d0b] text-4xl">eco</span>
           </div>
@@ -54,9 +55,9 @@ const Login: React.FC = () => {
 
         {/* Card */}
         <div className="w-full mt-4">
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="login-username" className="block text-sm font-mono font-black uppercase tracking-widest text-[#8ff59c] mb-3 ml-1 drop-shadow-md">
+              <label htmlFor="login-username" className="block text-sm font-mono font-black uppercase tracking-widest text-[#8ff59c] mb-2.5 ml-1 drop-shadow-md">
                 Email or Username
               </label>
               <div className="relative">
@@ -66,14 +67,14 @@ const Login: React.FC = () => {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="EMP-001 or Email"
-                  className="w-full px-6 py-5 bg-[#0a2410]/50 backdrop-blur-md border-[3px] border-[#3e6b45] rounded-2xl text-white font-bold placeholder-[#5b9e65] text-lg focus:outline-none focus:border-[#d5ad6d] focus:ring-2 focus:ring-[#d5ad6d]/50 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
+                  placeholder="admin"
+                  className="w-full px-6 py-4 bg-[#0a2410]/50 backdrop-blur-md border-[3px] border-[#3e6b45] rounded-2xl text-white font-bold placeholder-[#5b9e65] text-lg focus:outline-none focus:border-[#d5ad6d] focus:ring-2 focus:ring-[#d5ad6d]/50 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="login-password" className="block text-sm font-mono font-black uppercase tracking-widest text-[#8ff59c] mb-3 ml-1 drop-shadow-md">
+              <label htmlFor="login-password" className="block text-sm font-mono font-black uppercase tracking-widest text-[#8ff59c] mb-2.5 ml-1 drop-shadow-md">
                 Password
               </label>
               <div className="relative">
@@ -84,14 +85,14 @@ const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-6 py-5 bg-[#0a2410]/50 backdrop-blur-md border-[3px] border-[#3e6b45] rounded-2xl text-white font-bold placeholder-[#5b9e65] text-lg focus:outline-none focus:border-[#d5ad6d] focus:ring-2 focus:ring-[#d5ad6d]/50 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
+                  className="w-full px-6 py-4 bg-[#0a2410]/50 backdrop-blur-md border-[3px] border-[#3e6b45] rounded-2xl text-white font-bold placeholder-[#5b9e65] text-lg focus:outline-none focus:border-[#d5ad6d] focus:ring-2 focus:ring-[#d5ad6d]/50 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-5 top-1/2 -translate-y-1/2 text-[#5b9e65] hover:text-[#8ff59c] transition-colors focus:outline-none flex items-center justify-center p-2 rounded-full hover:bg-[#1a4023] z-10"
                 >
-                  <span className="material-symbols-outlined text-[28px]">
+                  <span className="material-symbols-outlined text-[26px]">
                     {showPassword ? "visibility_off" : "visibility"}
                   </span>
                 </button>
@@ -102,7 +103,7 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-[#d5ad6d] text-[#081d0b] rounded-xl font-extrabold text-lg tracking-wide hover:bg-[#e6bf7e] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#d5ad6d] text-[#081d0b] rounded-xl font-extrabold text-lg tracking-wide hover:bg-[#e6bf7e] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -110,9 +111,7 @@ const Login: React.FC = () => {
                     Authenticating…
                   </>
                 ) : (
-                  <>
-                    Access Portal
-                  </>
+                  <>Access Portal</>
                 )}
               </button>
             </div>

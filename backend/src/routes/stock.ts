@@ -389,7 +389,7 @@ router.post(
 
       // Fetch the vendor order
       const [voRows] = await conn.query(
-        `SELECT id, order_id, product_id, vendor_name, item, amount, status
+        `SELECT id, order_id, product_id, vendor_name, item, amount, price, status
          FROM vendor_orders
          WHERE id = ?
          FOR UPDATE`,
@@ -459,10 +459,44 @@ router.post(
         conn
       );
 
-      // Mark vendor_order as completed
+      // Update Moving Average Cost (products.unit_cost)
+      try {
+        const [prodRows] = await conn.query(
+          `SELECT inventory_quantity, unit_cost FROM products WHERE id = ?`,
+          [productId]
+        ) as [any[], any];
+        const prod = prodRows[0];
+        if (prod && result) {
+          const currentQty = Math.max(0, result.newQuantity - parsedQty);
+          const currentUnitCost = Number(prod.unit_cost || 0);
+          const addedCost = Number(vo.price || 0);
+          const totalValueBefore = currentQty * currentUnitCost;
+          const newTotalValue = totalValueBefore + addedCost;
+          const newUnitCost = result.newQuantity > 0 ? newTotalValue / result.newQuantity : 0;
+
+          await conn.query(
+            `UPDATE products SET unit_cost = ? WHERE id = ?`,
+            [newUnitCost, productId]
+          );
+        }
+      } catch (costErr) {
+        const log = createLogger(req);
+        log.error("MAC calculation failed in stock receive", costErr);
+      }
+
+      // Mark vendor_order as received
       await conn.query(
-        `UPDATE vendor_orders SET status = 'received', updated_at = NOW() WHERE id = ?`,
-        [vendorOrderId]
+        `UPDATE vendor_orders SET status = 'received', received_by = ?, received_at = NOW(), updated_at = NOW() WHERE id = ?`,
+        [req.user!.id, vendorOrderId]
+      );
+
+      // Record vendor_purchase expense atomically
+      const expenseId = crypto.randomUUID();
+      const expenseDescription = `Vendor purchase: ${vo.item} from ${vo.vendor_name} (ref: ${vo.order_id})`;
+      await conn.query(
+        `INSERT INTO expenses (id, category, description, amount, vendor_order_id, recorded_by, notes)
+         VALUES (?, 'vendor_purchase', ?, ?, ?, ?, ?)`,
+        [expenseId, expenseDescription, Number(vo.price || 0), vendorOrderId, req.user!.id, notes ?? null]
       );
 
       await conn.commit();

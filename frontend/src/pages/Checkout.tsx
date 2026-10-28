@@ -77,7 +77,70 @@ const Checkout: React.FC = () => {
     total:    number;
   } | null>(null);
 
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() =>
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `chk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  );
+
   useEffect(() => { saveCart(cart); }, [cart]);
+
+  // Reconcile localStorage cart against live catalog prices & active/stock status
+  useEffect(() => {
+    if (!products || products.length === 0 || cart.length === 0) return;
+    let changed = false;
+    const notices: string[] = [];
+
+    const reconciled = cart
+      .map((item) => {
+        const live = products.find(
+          (p: any) =>
+            p.id === item.product_id ||
+            (p.name.toLowerCase() === item.name.toLowerCase() &&
+              p.package_size === item.package_size)
+        );
+        if (!live || live.active === 0 || (live.active as unknown) === false) {
+          changed = true;
+          notices.push(`${item.name} (${item.package_size}) is no longer available and was removed.`);
+          return null;
+        }
+        const livePrice = Number(live.price);
+        const liveStock = Number(live.inventory_quantity ?? 999);
+        if (liveStock <= 0) {
+          changed = true;
+          notices.push(`${item.name} (${item.package_size}) is currently out of stock and was removed.`);
+          return null;
+        }
+        let nextQty = item.quantity;
+        if (item.quantity > liveStock) {
+          changed = true;
+          nextQty = liveStock;
+          notices.push(`${item.name} quantity adjusted to available stock (${liveStock}).`);
+        }
+        if (livePrice !== item.unit_price) {
+          changed = true;
+          notices.push(`${item.name} price updated to ETB ${livePrice}.`);
+        }
+        if (nextQty !== item.quantity || livePrice !== item.unit_price) {
+          return {
+            ...item,
+            product_id: live.id,
+            unit_price: livePrice,
+            quantity: nextQty,
+          };
+        }
+        return item;
+      })
+      .filter(Boolean) as CartItem[];
+
+    if (changed) {
+      setCart(reconciled);
+      if (notices.length > 0) {
+        setCartNotice(notices.join(' '));
+      }
+    }
+  }, [products]);
 
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0),
@@ -140,9 +203,12 @@ const Checkout: React.FC = () => {
     try {
       const res = await fetch('/api/v1/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({
-          source:        'website/online',
+          source:        'website',
           order_type:    'delivery',
           customer_name: form.customer_name.trim(),
           phone:         form.phone.trim(),
@@ -164,8 +230,13 @@ const Checkout: React.FC = () => {
         throw new Error(data.error ?? `Order failed (${res.status})`);
       }
 
-      setConfirmation({ orderId: data.data.id, total });
+      setConfirmation({ orderId: data.data.id, total: Number(data.data.total ?? total) });
       setCart([]);
+      setIdempotencyKey(
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `chk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+      );
       toast('Order placed successfully!');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Order failed';
@@ -232,6 +303,19 @@ const Checkout: React.FC = () => {
               <h2 className="text-xl font-semibold text-stone-800 mb-4">
                 Your cart ({cart.length})
               </h2>
+
+              {cartNotice && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-2">
+                  <span>{cartNotice}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCartNotice(null)}
+                    className="text-amber-600 hover:text-amber-900 font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
 
               {cart.length === 0 ? (
                 <div className="text-center py-12">
