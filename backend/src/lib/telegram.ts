@@ -438,33 +438,29 @@ export async function sendDetailsToGroupAsReply(
     ? items
         .map(
           (i: any) =>
-            `• ${i.name || i.item_name || "Item"} ` +
-            `[${i.package_size || i.size || "Std"}] × ${i.quantity ?? 1}`
+            `- ${i.name || i.item_name || "Item"} [${i.package_size || i.size || "Std"}] x ${i.quantity ?? 1}`
         )
         .join("\n")
     : "No items listed";
 
+  const botUser = process.env.TELEGRAM_BOT_USERNAME || "bot";
   const text = [
-    ` *Order Details — for ${driverDisplayName}*`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ` *Order ID:* \`${order.id ?? "N/A"}\``,
-    ` *Customer:* ${order.customer_name ?? "N/A"}`,
-    ` *Phone:* ${order.phone ?? "N/A"}`,
-    ` *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ` *Items:*`,
+    `Order Assigned - ${driverDisplayName}`,
+    `----------------------------------`,
+    `Order ID: ${order.id ?? "N/A"}`,
+    `City: ${order.city ?? "Addis Ababa"}`,
+    `Total: ETB ${order.total ?? 0}`,
+    `----------------------------------`,
+    `Items:`,
     itemsSummary,
-    `━━━━━━━━━━━━━━━━━━`,
-    ` *Total:* ETB ${order.total ?? 0}`,
-    ` *Notes:* ${order.notes ?? "None"}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    `_To receive future details privately, send /start to this bot in a private chat._`,
+    `----------------------------------`,
+    `Customer contact details are protected.`,
+    `Please start a private chat with the bot (@${botUser}) by sending /start, or view customer details in the Delivery Portal (/dashboard/tracking).`,
   ].join("\n");
 
   const body: Record<string, unknown> = {
-    chat_id:    groupChatId,
+    chat_id: groupChatId,
     text,
-    parse_mode: "Markdown",
   };
   if (replyToMessageId) {
     body.reply_to_message_id = replyToMessageId;
