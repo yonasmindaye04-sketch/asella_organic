@@ -56,6 +56,17 @@ async function req(method, path, body, token, headers = {}) {
   return { status: res.status, body: await res.json().catch(() => ({})) };
 }
 
+function makeResetToken(userId) {
+  const payload = {
+    userId,
+    exp: Date.now() + 15 * 60 * 1000,
+    nonce: crypto.randomBytes(16).toString("hex"),
+  };
+  const b64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", JWT_SECRET).update(b64).digest("base64url");
+  return `${b64}.${sig}`;
+}
+
 let loginIpCounter = 1;
 async function login(u, p, userObj) {
   // Use unique IP header to avoid triggering the 10-login-per-5m rate limit in repeated test runs
@@ -421,6 +432,25 @@ async function run() {
         await conn.query("UPDATE staff_users SET active = true WHERE id IN (?)", [otherAdminIds]);
       }
     }
+
+    // ── 9c. RESET TOKEN DEDUPLICATION IN DATABASE (F-11) ─────────────────
+    console.log("\n── 9c. Reset token deduplication in database (F-11)");
+    const rToken = makeResetToken(userMap["employee"].id);
+    const firstReset = await req("PUT", "/api/auth/reset-password", {
+      token: rToken,
+      new_password: "NewPassForEmp123!",
+    });
+    check("First reset with token → 200", firstReset.status, 200);
+
+    const replayReset = await req("PUT", "/api/auth/reset-password", {
+      token: rToken,
+      new_password: "ReplayPass123!",
+    });
+    check("Replay reset token → 400 (F-11)", replayReset.status, 400);
+
+    const tokenHash = crypto.createHash("sha256").update(rToken).digest("hex");
+    const [dbRows] = await conn.query("SELECT 1 FROM used_reset_tokens WHERE token_hash = ?", [tokenHash]);
+    check("Used token recorded in DB table (F-11)", dbRows.length > 0, true);
 
     // ── 10. MASS ASSIGNMENT ───────────────────────────────────────────────
     console.log("\n── 10. Mass assignment protection");

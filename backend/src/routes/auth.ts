@@ -31,8 +31,6 @@ import { createLogger } from "../lib/logger.js";
 const router = Router();
 
 const DUMMY_HASH   = "$2b$12$invalidhashpadding00000000000000000000000000";
-const usedResetTokens = new Set<string>();
-setInterval(() => usedResetTokens.clear(), 20 * 60 * 1_000);
 
 // ── Cookie config ─────────────────────────────────────────────────────────────
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -318,7 +316,15 @@ router.put("/reset-password", validate(ResetConfirmSchema),
     const log = createLogger(req);
     const { token, new_password } = req.body as { token: string; new_password: string };
 
-    if (usedResetTokens.has(token)) {
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    // Check if token was already used (DB-persisted, multi-process safe - F-11)
+    const [existing] = await pool.query(
+      `SELECT 1 FROM used_reset_tokens WHERE token_hash = ? LIMIT 1`,
+      [tokenHash]
+    ) as [any[], any];
+
+    if (existing.length > 0) {
       res.status(400).json({ success: false, error: "Token already used" });
       return;
     }
@@ -330,7 +336,14 @@ router.put("/reset-password", validate(ResetConfirmSchema),
       return;
     }
 
-    usedResetTokens.add(token);
+    // Persist token consumption immediately with 15-minute expiration
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1_000);
+    await pool.query(
+      `INSERT INTO used_reset_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE used_at = CURRENT_TIMESTAMP`,
+      [tokenHash, userId, expiresAt]
+    );
+
     const hash = await bcrypt.hash(new_password, 12);
     const [result] = await pool.query(
       `UPDATE staff_users SET password_hash = ?, updated_at = NOW()
@@ -345,6 +358,9 @@ router.put("/reset-password", validate(ResetConfirmSchema),
 
     // Revoke all refresh tokens after password change
     await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [userId]).catch(() => {});
+
+    // Invalidate active session cache
+    invalidateUserStatusCache(userId);
 
     await audit(userId, "RESET_CONFIRM", "password changed via token");
     log.info("Password reset confirmed", { userId });
