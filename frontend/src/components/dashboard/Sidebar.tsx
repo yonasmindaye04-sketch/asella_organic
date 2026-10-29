@@ -228,7 +228,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               <SectionLabel>Partners &amp; Supply</SectionLabel>
               <ul className="sidebar-nav-group">
                 <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Orders" />
-                <NavItem to="/dashboard/vendor" icon="local_shipping" label="Vendor Purchase" />
+                {isAdminOrManager && (
+                  <NavItem to="/dashboard/vendor" icon="local_shipping" label="Vendor Purchase" />
+                )}
               </ul>
             </>
           )}

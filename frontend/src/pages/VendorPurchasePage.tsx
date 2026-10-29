@@ -6,6 +6,9 @@
  *   Tab 2 — "Order History": manage vendor orders with approve/receive/cancel
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import type { RootState } from '../store';
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 
@@ -108,8 +111,16 @@ const VendorPurchasePage: React.FC = () => {
       if (statusFilter) url += `status=${statusFilter}&`;
       if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
       const res = await api.get<VendorOrder[]>(url);
-      if (res.success && res.data) setOrders(res.data);
-    } catch { /* ignore */ }
+      if (res.success && res.data) {
+        setOrders(res.data);
+      } else if (!res.success && (res.error?.includes('Forbidden') || res.error?.includes('403'))) {
+        setIsForbidden(true);
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 403 || err?.status === 403) {
+        setIsForbidden(true);
+      }
+    }
     setLoading(false);
   }, [statusFilter, searchQuery]);
 
@@ -203,6 +214,28 @@ const VendorPurchasePage: React.FC = () => {
   const formatCurrency = (n: number) => `${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`;
 
   // ─── Render ────────────────────────────────────────────────────
+
+  if (!isManagerOrAdmin || isForbidden) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-md mx-auto py-16 px-4 text-center">
+          <div className="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-200 dark:border-amber-800">
+            <span className="material-symbols-outlined text-2xl">lock</span>
+          </div>
+          <h2 className="text-lg font-bold text-[var(--fg)] mb-2">Access Restricted</h2>
+          <p className="text-[var(--muted)] text-sm mb-6">
+            Vendor purchase management is restricted to administrators and managers.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-semibold transition"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -92,7 +92,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager"),
   async (req: Request, res: Response): Promise<void> => {
     const { status, search } = req.query as Record<string, string | undefined>;
 

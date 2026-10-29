@@ -131,12 +131,14 @@ const Sidebar: React.FC = () => {
                         Bulk Orders
                       </Link>
                     </li>
-                    <li>
-                      <Link to="/dashboard/vendor" className={link('/dashboard/vendor')}>
-                        <span className={icon('/dashboard/vendor')}>local_shipping</span>
-                        Vendor Purchase
-                      </Link>
-                    </li>
+                    {isAdminOrManager && (
+                      <li>
+                        <Link to="/dashboard/vendor" className={link('/dashboard/vendor')}>
+                          <span className={icon('/dashboard/vendor')}>local_shipping</span>
+                          Vendor Purchase
+                        </Link>
+                      </li>
+                    )}
                   </ul>
                 </div>
               )}
