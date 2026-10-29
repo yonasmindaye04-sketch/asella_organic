@@ -65,3 +65,8 @@ project.md
 readme.md
 report.md
 asella-organic-web-afd3fbe2eab3.json
+
+# Temporary scratch / patch scripts
+patch-*.cjs
+check_*.mjs
+create-*.cjs
