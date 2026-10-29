@@ -13,7 +13,7 @@ export interface Product {
   featured: number;
   tag: string;
   inventory_quantity: number;
-  low_stock_threshold: number;
+  low_stock_threshold?: number;
   active: number;
 }
 
@@ -23,7 +23,7 @@ export interface Variant {
   package_size: string;
   price: string | number;
   inventory_quantity: number;
-  low_stock_threshold: number;
+  low_stock_threshold?: number;
   active: boolean | number;
 }
 

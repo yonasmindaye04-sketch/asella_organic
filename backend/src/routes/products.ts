@@ -110,7 +110,7 @@ router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => 
     let joinClause = "LEFT JOIN product_groups g ON g.id = p.product_group_id";
     const selectFields = `p.id, p.product_group_id, g.name AS group_name,
                           p.name, p.package_size, p.price, p.description, p.image_url,
-                          p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active`;
+                          p.featured, p.tag, p.inventory_quantity, p.active`;
     
     if (req.query.sort === "sales") {
       joinClause += ` LEFT JOIN (
@@ -181,7 +181,7 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
 
     const selectFields = `p.id, p.product_group_id, p.name, p.package_size, p.price,
                           p.description, p.image_url, p.featured, p.tag,
-                          p.inventory_quantity, p.low_stock_threshold, p.active,
+                          p.inventory_quantity, p.active,
                           g.name AS group_name, g.description AS group_description,
                           g.image_url AS group_image_url, g.featured AS group_featured,
                           g.tag AS group_tag, g.active AS group_active`;
@@ -235,7 +235,6 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
         price: row.price,
 
         inventory_quantity: row.inventory_quantity,
-        low_stock_threshold: row.low_stock_threshold,
         featured: Boolean(row.featured),
         active: Boolean(row.active),
       });
@@ -431,7 +430,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     const [rows] = await pool.query(
       `SELECT p.id, p.product_group_id, g.name AS group_name,
               p.name, p.package_size, p.price, p.description, p.image_url,
-              p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold
+              p.featured, p.tag, p.inventory_quantity
        FROM products p
        LEFT JOIN product_groups g ON g.id = p.product_group_id
        WHERE p.id = ? AND p.active = true`,
