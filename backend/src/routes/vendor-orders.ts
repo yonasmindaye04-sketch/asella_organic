@@ -138,7 +138,7 @@ router.get(
 router.post(
   "/",
   authenticate,
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager"),
   validate(CreateVendorOrderSchema),
   async (req: Request, res: Response): Promise<void> => {
     const body = req.body as z.infer<typeof CreateVendorOrderSchema>;

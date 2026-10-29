@@ -293,10 +293,9 @@ async function run() {
     check("employee: GET /api/reports/pl→403",     (await req("GET", "/api/reports/pl", null, et)).status, 403);
     check("employee: GET /api/admin/audit-log→403",(await req("GET", "/api/admin/audit-log", null, et)).status, 403);
     check("employee: GET /api/stock→200",          (await req("GET", "/api/stock", null, et)).status, 200);
-    // Finding F-12: Employee can create purchase orders today (status 201)
+    // Finding F-12: Employee cannot create purchase orders (403 expected)
     const empPO = await req("POST", "/api/vendor-orders", { vendor_name:"Test Vendor", item:"Packaging Box", amount:"100", price:500 }, et);
-    check("employee: POST /vendor-orders (status=201 today, F-12)", empPO.status, 201);
-    if (empPO.status === 201) console.log("  ⚠️  FINDING F-12: employee can create vendor purchase orders");
+    check("employee: POST /vendor-orders→403 (F-12)", empPO.status, 403);
 
     // ── 8. unit_cost ON PUBLIC ENDPOINTS (F-08) ───────────────────────────
     console.log("\n── 8. unit_cost data over-exposure (F-08)");
