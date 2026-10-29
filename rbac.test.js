@@ -298,18 +298,26 @@ async function run() {
     const trackData = trackRes.body?.data || {};
     const leaksStaffId   = trackData.created_by_staff_id !== undefined;
     const leaksStaffName = trackData.created_by_staff_name !== undefined;
-    const leaksPhone     = trackData.phone !== undefined;
-    const leaksNotes     = trackData.notes !== undefined;
-    if (leaksStaffId || leaksStaffName) {
-      console.log(`  ❗ CONFIRMED FINDING F-09: track exposes staff id=${trackData.created_by_staff_id}, name=${trackData.created_by_staff_name}`);
-    }
-    if (leaksPhone || leaksNotes) {
-      console.log(`  ⚠️  TRACKING ENUMERATION RISK: exposes customer phone=${trackData.phone}, notes=${trackData.notes}`);
-    }
-    // Expected secure state: neither created_by_staff_id nor created_by_staff_name should be exposed
+    const phoneMasked = typeof trackData.phone === "string" && trackData.phone.includes("••••••") && trackData.phone.endsWith("122") && !trackData.phone.includes("+251911001122");
+    const leaksHistoryChangedBy = Array.isArray(trackData.history) && trackData.history.some(h => h.changed_by !== undefined);
+
     check("GET /api/orders/track/:id hides staff info (F-09 fix)", !leaksStaffId && !leaksStaffName, true);
-    // Enumeration / PII assessment check (reported to user; fix deferred per policy):
+    check("GET /api/orders/track/:id masks customer phone", phoneMasked, true);
+    check("GET /api/orders/track/:id removes history.changed_by", !leaksHistoryChangedBy, true);
+    check("GET /api/orders/track/:id returns city and coarsened location", typeof trackData.city === "string" && typeof trackData.location === "string", true);
     check("GET /api/orders/track/:id responds with tracking payload", trackRes.status, 200);
+
+    // Rate limit test: 30 requests within 15 min per IP allowed, 31st rejected with 429
+    const rateLimitIp = `10.88.99.${Math.floor(Date.now() / 1000) % 250}`;
+    let hitRateLimit = false;
+    for (let i = 0; i < 31; i++) {
+      const r = await req("GET", `/api/orders/track/${KNOWN.orderIdA}`, null, null, { "x-forwarded-for": rateLimitIp });
+      if (r.status === 429) {
+        hitRateLimit = true;
+        break;
+      }
+    }
+    check("GET /api/orders/track/:id rate limit 30 req/15min returns 429", hitRateLimit, true);
 
     // ── 2. UNAUTHENTICATED BLOCKED ───────────────────────────────────────
     console.log("\n── 2. Unauthenticated → 401");

@@ -39,7 +39,7 @@ import { sanitizeObject, randomId }   from "../lib/security.js";
 import { createLogger }               from "../lib/logger.js";
 import { deductOrderStock, restoreOrderStock }           from "../lib/inventory.js";
 import { resolveOrderItems, OrderItemResolutionError }  from "../lib/orderItems.js";
-import { orderRateLimit } from "../middleware/rateLimit.js";
+import { orderRateLimit, orderTrackRateLimit } from "../middleware/rateLimit.js";
 import jwt from "jsonwebtoken";
 
 const router = Router();
@@ -395,7 +395,26 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
 // GET /api/orders  — paginated list (authenticated)
 // Query params: ?page ?limit ?status ?city ?search ?source ?from ?to
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
+function maskPhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const trimmed = phone.trim();
+  const last3 = trimmed.slice(-3);
+  if (trimmed.startsWith("+251")) {
+    return `+251 •••••• ${last3}`;
+  }
+  if (trimmed.startsWith("0")) {
+    return `09••••• ${last3}`;
+  }
+  return `•••••• ${last3}`;
+}
+
+function coarsenLocation(location: string | null | undefined): string {
+  if (!location) return "";
+  const parts = location.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
+  return parts[0] || "";
+}
+
+router.get("/track/:id", orderTrackRateLimit, async (req: Request, res: Response): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const orderId = rawId?.trim();
 
@@ -429,7 +448,7 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
     ) as [any[], any];
 
     const [history] = await pool.query(
-      `SELECT old_status, new_status, note, changed_by, created_at AS timestamp
+      `SELECT old_status, new_status, note, created_at AS timestamp
        FROM order_status_history
        WHERE order_id = ?
        ORDER BY created_at DESC`,
@@ -440,6 +459,8 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
       success: true,
       data: {
         ...order,
+        phone: maskPhone(order.phone),
+        location: coarsenLocation(order.location),
         items,
         history,
       },

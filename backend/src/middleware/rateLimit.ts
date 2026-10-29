@@ -116,6 +116,24 @@ export async function orderRateLimit(req: Request, res: Response, next: NextFunc
  * 10 per 5 minutes per IP leaves ample room for a customer retrying a receipt
  * and for staff bulk-entry, and caps the abuse at ~10 MB per 5 minutes.
  */
+/**
+ * Public order tracking limiter.
+ * 30 requests per 15 minutes per IP to prevent order ID enumeration and protect customer PII.
+ */
+const trackCache = makeCache(15 * 60 * 1_000);
+
+export async function orderTrackRateLimit(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const allowed = await check(trackCache, "track", getRateLimitKey(req), 30, 15 * 60 * 1_000);
+  if (!allowed) {
+    res.status(429).json({
+      success: false,
+      error: "Too many tracking requests. Please wait a few minutes and try again.",
+    });
+    return;
+  }
+  next();
+}
+
 const uploadCache = makeCache(5 * 60 * 1_000);
 
 export async function uploadRateLimit(req: Request, res: Response, next: NextFunction): Promise<void> {
