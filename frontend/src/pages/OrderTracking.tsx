@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import ReceiptPrinter from '../components/tracking/ReceiptPrinter';
-import { api } from '../services/api';
+import { api, BASE_URL } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 
 interface OrderItem {
@@ -100,6 +100,44 @@ const getSourceKey = (order: Order) => isFranchiseOrder(order) ? '_franchise' : 
 const getSourceLabel = (order: Order) => SOURCE_LABELS[getSourceKey(order)] || order.source || 'Other';
 const getSourceBadge = (order: Order) => SOURCE_BADGES[getSourceKey(order)] || SOURCE_BADGES.other;
 const isSocialSource = (order: Order) => ['telegram', 'instagram', 'facebook'].includes(getSourceKey(order));
+
+function renderNoteContent(text: string): React.ReactNode {
+  const receiptRegex = /(Receipt:\s*)(\/api\/receipts\/[a-zA-Z0-9_.-]+)/g;
+  if (!receiptRegex.test(text)) {
+    return text;
+  }
+  const parts: (string | React.ReactNode)[] = [];
+  let lastIndex = 0;
+  const regex = /(Receipt:\s*)(\/api\/receipts\/[a-zA-Z0-9_.-]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const label = match[1];
+    const path = match[2];
+    const fullUrl = `${BASE_URL}${path}`;
+    parts.push(
+      <span key={match.index}>
+        {label}
+        <a
+          href={fullUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#2e7d32] hover:text-[#1b5e20] underline font-semibold inline-flex items-center gap-0.5"
+        >
+          <span>{path}</span>
+          <span className="material-symbols-outlined text-[12px] inline leading-none">open_in_new</span>
+        </a>
+      </span>
+    );
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return <>{parts}</>;
+}
 
 const OrderTracking: React.FC = () => {
   const navigate = useNavigate();
@@ -837,7 +875,7 @@ const OrderTracking: React.FC = () => {
                           <div key={`note-${i}`} className="relative mb-3">
                             <div className="absolute -left-[18px] top-[4px] w-[11px] h-[11px] rounded-full bg-[#ddeedd] border-2 border-white shadow-[0_0_0_2px_#ddeedd]"></div>
                             <div className="text-[13px] font-bold text-[#141c15]">Note</div>
-                            <div className="text-[11px] text-[#2d3e2f] mt-[3px] py-1 px-2 bg-[#f1f8f1] rounded-[5px] border-l-[3px] border-[#43a047] whitespace-pre-wrap">{note}</div>
+                            <div className="text-[11px] text-[#2d3e2f] mt-[3px] py-1 px-2 bg-[#f1f8f1] rounded-[5px] border-l-[3px] border-[#43a047] whitespace-pre-wrap">{renderNoteContent(note)}</div>
                           </div>
                         ))}
                         {(selectedOrder.history || []).map((h, i) => (
@@ -845,7 +883,7 @@ const OrderTracking: React.FC = () => {
                             <div className="absolute -left-[18px] top-1 w-[11px] h-[11px] rounded-full bg-[#2e7d32] border-2 border-white shadow-[0_0_0_2px_#2e7d32]"></div>
                             <div className="text-[12px] font-bold text-[#141c15]">Status: {h.new_status || h.status}</div>
                             <div className="text-[11px] text-[#607d66] mt-px">{new Date(h.created_at).toLocaleString('en-GB')} {h.changed_by ? `by ${h.changed_by}` : ''}</div>
-                            {h.notes && <div className="text-[11px] text-[#2d3e2f] mt-1 p-1.5 bg-[#f1f8f1] rounded border-l-[3px] border-[#43a047] whitespace-pre-wrap">{h.notes}</div>}
+                            {h.notes && <div className="text-[11px] text-[#2d3e2f] mt-1 p-1.5 bg-[#f1f8f1] rounded border-l-[3px] border-[#43a047] whitespace-pre-wrap">{renderNoteContent(h.notes)}</div>}
                           </div>
                         ))}
                       </>

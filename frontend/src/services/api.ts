@@ -30,7 +30,7 @@
  * In development the Vite dev server proxies /api to the backend, and in
  * production .env.production sets VITE_API_URL to the public API host.
  */
-const BASE_URL = import.meta.env.VITE_API_URL ?? "";
+export const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 // ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
