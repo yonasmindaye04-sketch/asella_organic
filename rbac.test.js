@@ -45,8 +45,14 @@ async function getDb() {
   return db;
 }
 
+let reqCounter = 1;
 async function req(method, path, body, token, headers = {}) {
-  const reqHeaders = { "Content-Type": "application/json", "Origin": BASE, ...headers };
+  const reqHeaders = {
+    "Content-Type": "application/json",
+    "Origin": BASE,
+    "x-forwarded-for": `10.43.${Math.floor(reqCounter / 250)}.${reqCounter++ % 250}`,
+    ...headers
+  };
   if (token) reqHeaders["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -54,6 +60,31 @@ async function req(method, path, body, token, headers = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, body: await res.json().catch(() => ({})) };
+}
+
+function scanForbiddenKeys(obj, forbiddenKeys, path = "") {
+  let leaks = [];
+  if (!obj || typeof obj !== "object") return leaks;
+
+  if (Array.isArray(obj)) {
+    obj.forEach((item, idx) => {
+      leaks = leaks.concat(scanForbiddenKeys(item, forbiddenKeys, `${path}[${idx}]`));
+    });
+  } else {
+    for (const [key, val] of Object.entries(obj)) {
+      const currentPath = path ? `${path}.${key}` : key;
+      const keyLower = key.toLowerCase();
+      for (const f of forbiddenKeys) {
+        if (keyLower === f.toLowerCase()) {
+          leaks.push({ key, path: currentPath, value: val });
+        }
+      }
+      if (val && typeof val === "object") {
+        leaks = leaks.concat(scanForbiddenKeys(val, forbiddenKeys, currentPath));
+      }
+    }
+  }
+  return leaks;
 }
 
 function makeResetToken(userId) {
@@ -161,8 +192,9 @@ async function setupTestData() {
   const [custs] = await conn.query("SELECT id FROM customers LIMIT 1");
   KNOWN.customerId = custs[0]?.id || "cust-test-uuid";
 
-  // Create isolated orders for IDOR tests
-  createdOrderIds.push(KNOWN.orderIdA, KNOWN.orderIdCC);
+  // Create isolated orders for IDOR and data exposure tests
+  KNOWN.orderIdSM = "ORD-RBAC-SM";
+  createdOrderIds.push(KNOWN.orderIdA, KNOWN.orderIdCC, KNOWN.orderIdSM);
 
   // Order created by admin
   await conn.query(
@@ -176,6 +208,22 @@ async function setupTestData() {
     `INSERT INTO orders (id, customer_name, phone, status, total, city, location, order_type, notes, created_by_staff_id)
      VALUES (?, 'RBAC CC Order', '+251922334455', 'Pending', 300, 'Addis Ababa', 'Kazanchis', 'retail', 'CC Order Note', ?)`,
     [KNOWN.orderIdCC, userMap["call_center"].id]
+  );
+
+  // Order created by store manager
+  await conn.query(
+    `INSERT INTO orders (id, customer_name, phone, status, total, city, location, order_type, notes, created_by_staff_id)
+     VALUES (?, 'RBAC SM Order', '+251933445566', 'Pending', 400, 'Addis Ababa', 'Bole', 'retail', 'SM Order Note', ?)`,
+    [KNOWN.orderIdSM, userMap["store_manager"].id]
+  );
+
+  // Populate order_items with unit_cost so leak detector can verify whether unit_cost is leaked
+  await conn.query(
+    `INSERT INTO order_items (id, order_id, item_name, package_size, quantity, unit_price, unit_cost)
+     VALUES (?, ?, 'Organic Honey', '500g', 2, 250, 150),
+            (?, ?, 'Black Seed Oil', '100ml', 1, 300, 180),
+            (?, ?, 'Moringa Powder', '250g', 3, 200, 120)`,
+    [crypto.randomUUID(), KNOWN.orderIdA, crypto.randomUUID(), KNOWN.orderIdCC, crypto.randomUUID(), KNOWN.orderIdSM]
   );
 
   console.log("✅ Fixtures created cleanly.\n");
@@ -461,6 +509,127 @@ async function run() {
       tok.employee
     );
     check("Mass assign role field — status not 200", massAssign.status !== 200, true);
+
+    // ── 11. RECURSIVE FORBIDDEN KEYS SCAN (STEP A) ─────────────────────────
+    console.log("\n── 11. Recursive Forbidden Keys Scan (Data Over-exposure Audit)");
+    const BASE_FORBIDDEN = [
+      "unit_cost",
+      "stock_value",
+      "total_stock_value",
+      "password",
+      "password_hash",
+      "two_factor_secret",
+      "2fa_secret"
+    ];
+
+    const GUEST_FORBIDDEN = [
+      ...BASE_FORBIDDEN,
+      "created_by_staff_id",
+      "low_stock_threshold"
+    ];
+
+    const scanMatrix = [
+      {
+        role: "guest",
+        token: null,
+        forbidden: GUEST_FORBIDDEN,
+        endpoints: [
+          `/api/orders/track/${KNOWN.orderIdA}`,
+          "/api/products",
+          "/api/products/grouped",
+          `/api/products/${KNOWN.productId}`,
+        ],
+      },
+      {
+        role: "affiliate",
+        token: tok.affiliate,
+        forbidden: BASE_FORBIDDEN,
+        endpoints: [
+          "/api/affiliate/me",
+          "/api/products",
+          "/api/products/grouped",
+          `/api/products/${KNOWN.productId}`,
+        ],
+      },
+      {
+        role: "delivery",
+        token: tok.delivery,
+        forbidden: BASE_FORBIDDEN,
+        endpoints: [
+          "/api/orders",
+          `/api/orders/${KNOWN.orderIdA}`,
+          `/api/orders/track/${KNOWN.orderIdA}`,
+          "/api/products",
+          "/api/products/grouped",
+          `/api/products/${KNOWN.productId}`,
+        ],
+      },
+      {
+        role: "call_center",
+        token: tok.call_center,
+        forbidden: BASE_FORBIDDEN,
+        endpoints: [
+          "/api/orders",
+          `/api/orders/${KNOWN.orderIdCC}`,
+          `/api/orders/track/${KNOWN.orderIdCC}`,
+          "/api/products",
+          "/api/products/grouped",
+          `/api/products/${KNOWN.productId}`,
+          "/api/callcenter/me/daily-report",
+          "/api/callcenter/me/stats",
+          "/api/callcenter/me/orders",
+          "/api/callcenter/me/report",
+        ],
+      },
+      {
+        role: "store_manager",
+        token: tok.store_manager,
+        forbidden: BASE_FORBIDDEN,
+        endpoints: [
+          "/api/orders",
+          `/api/orders/${KNOWN.orderIdSM}`,
+          `/api/orders/track/${KNOWN.orderIdSM}`,
+          "/api/products",
+          "/api/products/grouped",
+          `/api/products/${KNOWN.productId}`,
+          "/api/store-report/summary?date=2026-10-29",
+        ],
+      },
+      {
+        role: "employee",
+        token: tok.employee,
+        forbidden: BASE_FORBIDDEN,
+        endpoints: [
+          "/api/orders",
+          `/api/orders/${KNOWN.orderIdA}`,
+          `/api/orders/track/${KNOWN.orderIdA}`,
+          "/api/products",
+          "/api/products/grouped",
+          `/api/products/${KNOWN.productId}`,
+          "/api/products/low-stock",
+          "/api/stock",
+          "/api/stock/low",
+          "/api/stock/summary",
+          "/api/vendor-orders",
+        ],
+      },
+    ];
+
+    for (const group of scanMatrix) {
+      for (const ep of group.endpoints) {
+        const res = await req("GET", ep, null, group.token);
+        if (res.status === 200) {
+          const leaks = scanForbiddenKeys(res.body?.data ?? res.body, group.forbidden);
+          if (leaks.length > 0) {
+            const leakSummary = leaks.map(l => `${l.key} (${l.path})`).join(", ");
+            console.log(`  ❌ LEAK [${group.role}] ${ep}: found [${leakSummary}]`);
+          }
+          check(`[${group.role}] ${ep} hides forbidden keys`, leaks.length === 0, true);
+        } else {
+          console.log(`  ⚠️  [${group.role}] ${ep} returned HTTP ${res.status}`);
+        }
+      }
+    }
 
     // ── SUMMARY ───────────────────────────────────────────────────────────
     const passed = results.filter(r => r.pass).length;
