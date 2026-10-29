@@ -144,6 +144,8 @@ async function setupTestData() {
     { role: "store_manager", username: "rbac_test_storemanager", email: "rbac_sm@test.local" },
     { role: "delivery",      username: "rbac_test_delivery",     email: "rbac_del@test.local" },
     { role: "affiliate",     username: "rbac_test_affiliate",    email: "rbac_aff@test.local" },
+    { role: "vendor",        username: "rbac_test_vendor",       email: "rbac_ven@test.local" },
+    { role: "driver",        username: "rbac_test_driver",       email: "rbac_drv@test.local" },
   ];
 
   const userMap = {};
@@ -207,12 +209,12 @@ async function setupTestData() {
   // Order created by call center (with attached receipt)
   const testReceiptDir = path.join(process.cwd(), "backend", "private", "receipts");
   if (!fs.existsSync(testReceiptDir)) fs.mkdirSync(testReceiptDir, { recursive: true });
-  const testReceiptPath = path.join(testReceiptDir, "receipt-rbac-test.png");
+  const testReceiptPath = path.join(testReceiptDir, "receipt-0123456789abcdef-1700000000000.png");
   fs.writeFileSync(testReceiptPath, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"));
 
   await conn.query(
     `INSERT INTO orders (id, customer_name, phone, status, total, city, location, order_type, notes, created_by_staff_id)
-     VALUES (?, 'RBAC CC Order', '+251922334455', 'Pending', 300, 'Addis Ababa', 'Kazanchis', 'retail', 'CC Order Note\nReceipt: /api/receipts/receipt-rbac-test.png', ?)`,
+     VALUES (?, 'RBAC CC Order', '+251922334455', 'Pending', 300, 'Addis Ababa', 'Kazanchis', 'retail', 'CC Order Note\nReceipt: /api/receipts/receipt-0123456789abcdef-1700000000000.png', ?)`,
     [KNOWN.orderIdCC, userMap["call_center"].id]
   );
 
@@ -239,7 +241,7 @@ async function setupTestData() {
 async function cleanup() {
   console.log("\n🧹 Cleaning up test fixtures from database...");
   try {
-    const testReceiptPath = path.join(process.cwd(), "backend", "private", "receipts", "receipt-rbac-test.png");
+    const testReceiptPath = path.join(process.cwd(), "backend", "private", "receipts", "receipt-0123456789abcdef-1700000000000.png");
     if (fs.existsSync(testReceiptPath)) fs.unlinkSync(testReceiptPath);
     const conn = await getDb();
     if (createdOrderIds.length > 0) {
@@ -646,15 +648,37 @@ async function run() {
       }
     }
 
-    // ── 12. RECEIPTS ACCESS CONTROL (F-04) ─────────────────────────────────
-    console.log("\n── 12. Receipts Access Control (F-04)");
-    check("receipt: unauthenticated GET /api/receipts/:file→401", (await req("GET", "/api/receipts/receipt-rbac-test.png")).status, 401);
-    check("receipt: unauthenticated legacy GET /uploads/receipt-*→401", (await req("GET", "/uploads/receipt-rbac-test.png")).status, 401);
-    check("receipt: delivery driver GET /api/receipts/:file→403", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.delivery)).status, 403);
-    check("receipt: store_manager (not creator) GET /api/receipts/:file→403", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.store_manager)).status, 403);
-    check("receipt: call_center (creator) GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.call_center)).status, 200);
-    check("receipt: employee GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.employee)).status, 200);
-    check("receipt: admin GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.admin)).status, 200);
+    // ── 12. RECEIPTS ACCESS CONTROL (F-04 / Item 2) ────────────────────────
+    console.log("\n── 12. Receipts Access Control (F-04 / Item 2)");
+    const receiptFile = "receipt-0123456789abcdef-1700000000000.png";
+    check("receipt: unauthenticated GET /api/receipts/:file→401", (await req("GET", `/api/receipts/${receiptFile}`)).status, 401);
+    check("receipt: unauthenticated legacy GET /uploads/receipt-*→401", (await req("GET", `/uploads/${receiptFile}`)).status, 401);
+    check("receipt: delivery role GET /api/receipts/:file→403", (await req("GET", `/api/receipts/${receiptFile}`, null, tok.delivery)).status, 403);
+    check("receipt: driver role GET /api/receipts/:file→403", (await req("GET", `/api/receipts/${receiptFile}`, null, tok.driver)).status, 403);
+    check("receipt: vendor role GET /api/receipts/:file→403", (await req("GET", `/api/receipts/${receiptFile}`, null, tok.vendor)).status, 403);
+    check("receipt: store_manager (not creator) GET /api/receipts/:file→403", (await req("GET", `/api/receipts/${receiptFile}`, null, tok.store_manager)).status, 403);
+    check("receipt: call_center (creator) GET /api/receipts/:file→200", (await req("GET", `/api/receipts/${receiptFile}`, null, tok.call_center)).status, 200);
+    check("receipt: employee GET /api/receipts/:file→200", (await req("GET", `/api/receipts/${receiptFile}`, null, tok.employee)).status, 200);
+
+    const adminFetchRes = await fetch(`${BASE}/api/receipts/${receiptFile}`, {
+      headers: {
+        "Origin": BASE,
+        "Authorization": `Bearer ${tok.admin}`,
+        "x-forwarded-for": `10.43.${Math.floor(reqCounter / 250)}.${reqCounter++ % 250}`,
+      }
+    });
+    check("receipt: admin GET /api/receipts/:file→200", adminFetchRes.status, 200);
+    const cacheHeader = adminFetchRes.headers.get("cache-control") || "";
+    check("receipt: no-store header present", cacheHeader.includes("no-store") && cacheHeader.includes("private"), true);
+    check("receipt: nosniff header present", adminFetchRes.headers.get("x-content-type-options"), "nosniff");
+
+    check("receipt: filename with _ gets 400", (await req("GET", "/api/receipts/receipt_0123456789abcdef_1700000000000.png", null, tok.admin)).status, 400);
+    check("receipt: filename with % gets 400", (await req("GET", "/api/receipts/receipt%250123456789abcdef-1700000000000.png", null, tok.admin)).status, 400);
+    const trav = await req("GET", "/api/receipts/..%2F..%2Fpackage.json", null, tok.admin);
+    check("receipt: ../ gets 400 or 404", trav.status === 400 || trav.status === 404, true);
+
+    const pubPath = path.join(process.cwd(), "public", "uploads", receiptFile);
+    check("receipt: file not under public/", fs.existsSync(pubPath), false);
 
     // ── 12b. RECEIPT UPLOAD FORMAT & ACCESS (Item 1) ───────────────────────
     console.log("\n── 12b. Receipt Upload Format & Access");

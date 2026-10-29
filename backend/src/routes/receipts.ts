@@ -3,11 +3,12 @@
  * Authenticated customer proof-of-payment receipt viewer.
  *
  * Rules:
- *   - Unauthenticated: 401 Unauthorized
- *   - Delivery drivers: 403 Forbidden (drivers have no business seeing customer receipts)
- *   - Affiliates: 403 Forbidden
- *   - Call center & Store manager: 403 Forbidden unless order.created_by_staff_id === req.user.id
- *   - Admin, Manager, Employee: 200 OK (authorized staff)
+ *   - Allowlist: admin, manager, employee; call_center and store_manager only for orders they created;
+ *     every other role (driver, vendor, delivery, affiliate) gets 403.
+ *   - Receipt linked to no order: admin and manager only.
+ *   - Filename regex: ^receipt-[a-f0-9]{16}-\d+\.(png|jpe?g|webp|pdf)$
+ *   - Security Headers: Cache-Control: private, no-store; X-Content-Type-Options: nosniff.
+ *   - Files stored strictly in private receipts directory (not under public/).
  */
 import { Router, Request, Response } from "express";
 import path from "path";
@@ -18,15 +19,16 @@ import { createLogger } from "../lib/logger.js";
 
 const router = Router();
 
-export const PRIVATE_RECEIPTS_DIR = path.join(process.cwd(), "private", "receipts");
-export const PUBLIC_UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+export const PRIVATE_RECEIPTS_DIR = path.resolve(process.cwd(), "private", "receipts");
 
 // Ensure private receipts directory exists
 if (!fs.existsSync(PRIVATE_RECEIPTS_DIR)) {
   fs.mkdirSync(PRIVATE_RECEIPTS_DIR, { recursive: true });
 }
 
-const SAFE_FILENAME_REGEX = /^receipt-[a-zA-Z0-9_\-]+\.(jpg|jpeg|png|webp|gif|pdf)$/i;
+export const SAFE_FILENAME_REGEX = /^receipt-[a-f0-9]{16}-\d+\.(png|jpe?g|webp|pdf)$/i;
+
+const ALLOWED_STAFF_ROLES = ["admin", "manager", "employee", "call_center", "store_manager"];
 
 export async function handleReceiptDownload(req: Request, res: Response): Promise<void> {
   const log = createLogger(req);
@@ -37,41 +39,47 @@ export async function handleReceiptDownload(req: Request, res: Response): Promis
     return;
   }
 
-  // Delivery drivers and affiliates are NOT allowed to open receipts
-  if (req.user?.role === "delivery" || req.user?.role === "affiliate") {
+  const role = req.user?.role;
+  if (!role || !ALLOWED_STAFF_ROLES.includes(role)) {
     res.status(403).json({ success: false, error: "Forbidden: role not authorized to view receipts" });
     return;
   }
 
   try {
-    // Check order association and ownership
+    // Exact-match LIKE lookup with % and _ escaped
+    const escapedFilename = filename.replace(/[%_\\]/g, "\\$&");
     const [orders] = await pool.query(
       `SELECT id, created_by_staff_id FROM orders WHERE notes LIKE ? AND deleted_at IS NULL LIMIT 1`,
-      [`%${filename}%`]
+      [`%${escapedFilename}%`]
     ) as [any[], any];
 
     const order = orders[0];
 
-    // call_center and store_manager can only view receipts for orders they created
-    if (req.user?.role === "call_center" || req.user?.role === "store_manager") {
-      if (!order || order.created_by_staff_id !== req.user.id) {
-        res.status(403).json({ success: false, error: "Forbidden: cannot view receipt for this order" });
+    // Receipt linked to no order: admin and manager only
+    if (!order) {
+      if (role !== "admin" && role !== "manager") {
+        res.status(403).json({ success: false, error: "Forbidden: only admin and manager can view unlinked receipts" });
         return;
+      }
+    } else {
+      // call_center and store_manager can only view receipts for orders they created
+      if (role === "call_center" || role === "store_manager") {
+        if (order.created_by_staff_id !== req.user.id) {
+          res.status(403).json({ success: false, error: "Forbidden: cannot view receipt for this order" });
+          return;
+        }
       }
     }
 
-    // Physical file lookup: check private folder first, fall back to legacy public uploads
-    let filePath = path.join(PRIVATE_RECEIPTS_DIR, filename);
-    if (!fs.existsSync(filePath)) {
-      const legacyPath = path.join(PUBLIC_UPLOADS_DIR, filename);
-      if (fs.existsSync(legacyPath)) {
-        filePath = legacyPath;
-      } else {
-        res.status(404).json({ success: false, error: "Receipt not found" });
-        return;
-      }
+    // Physical file lookup: strictly in private receipts folder, never under public/
+    const filePath = path.resolve(PRIVATE_RECEIPTS_DIR, filename);
+    if (!filePath.startsWith(PRIVATE_RECEIPTS_DIR) || !fs.existsSync(filePath)) {
+      res.status(404).json({ success: false, error: "Receipt not found" });
+      return;
     }
 
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.sendFile(filePath);
   } catch (err) {
     log.error("Failed to serve receipt", err);
