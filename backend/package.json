@@ -88,6 +88,7 @@
   },
   "overrides": {
     "js-yaml": "^4.1.2",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "deepmerge": "4.1.2"
   }
 }
