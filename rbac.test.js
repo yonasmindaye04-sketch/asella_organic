@@ -11,6 +11,7 @@ const mysql  = requireBackend("mysql2/promise");
 const bcrypt = requireBackend("bcryptjs");
 const dotenv = requireBackend("dotenv");
 const jwt    = requireBackend("jsonwebtoken");
+const otplib = requireBackend("otplib");
 
 dotenv.config({ path: path.join(process.cwd(), "backend", ".env") });
 
@@ -113,6 +114,14 @@ async function setupTestData() {
       [id, r.username, r.email, hash, `RBAC Test ${r.role}`, r.role]
     );
   }
+
+  const adminSecret = "KVKFKRCPNZQUYMLXOVYDSQKJKZDTSRLD";
+  await conn.query(
+    `UPDATE staff_users SET two_factor_enabled = true, two_factor_secret = ? WHERE id = ?`,
+    [adminSecret, userMap["admin"].id]
+  );
+  KNOWN.admin2faSecret = adminSecret;
+  KNOWN.adminId = userMap["admin"].id;
 
   // Create an explicitly deactivated employee to test F-10
   const deactId = crypto.randomUUID();
@@ -381,6 +390,37 @@ async function run() {
     );
     // require2FA returns 401 when x-2fa-token is missing
     check("POST /api/staff without 2FA header → returns 401 (require2FA confirmed)", createViaStaffNo2FA.status, 401);
+
+    // ── 9b. LAST ACTIVE ADMIN PROTECTION (F-13) ──────────────────────────
+    console.log("\n── 9b. Last active admin protection (F-13)");
+    const [otherAdmins] = await conn.query(
+      "SELECT id FROM staff_users WHERE role = 'admin' AND active = true AND deleted_at IS NULL AND id != ?",
+      [KNOWN.adminId]
+    );
+    const otherAdminIds = otherAdmins.map(a => a.id);
+    if (otherAdminIds.length > 0) {
+      await conn.query("UPDATE staff_users SET active = false WHERE id IN (?)", [otherAdminIds]);
+    }
+    try {
+      const valid2fa = otplib.generateSync({ secret: KNOWN.admin2faSecret });
+      const demoteRes = await req("PATCH", `/api/staff/${KNOWN.adminId}`,
+        { role: "employee" },
+        adminTok,
+        { "x-2fa-token": valid2fa }
+      );
+      check("Demote last active admin → 400 (F-13)", demoteRes.status, 400);
+
+      const deactRes = await req("PATCH", `/api/staff/${KNOWN.adminId}`,
+        { active: false },
+        adminTok,
+        { "x-2fa-token": valid2fa }
+      );
+      check("Deactivate last active admin → 400 (F-13)", deactRes.status, 400);
+    } finally {
+      if (otherAdminIds.length > 0) {
+        await conn.query("UPDATE staff_users SET active = true WHERE id IN (?)", [otherAdminIds]);
+      }
+    }
 
     // ── 10. MASS ASSIGNMENT ───────────────────────────────────────────────
     console.log("\n── 10. Mass assignment protection");

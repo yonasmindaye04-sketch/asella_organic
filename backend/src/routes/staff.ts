@@ -762,6 +762,31 @@ router.patch(
         return;
       }
 
+      // Prevent deactivating or demoting the last active administrator (F-13)
+      if (active === false || (role && role !== "admin")) {
+        const [targetRows] = await pool.query(
+          `SELECT role, active FROM staff_users WHERE id = ? AND deleted_at IS NULL`,
+          [staffId]
+        ) as [any[], any];
+
+        if (targetRows[0]?.role === "admin" && Boolean(targetRows[0]?.active)) {
+          const [adminCountRows] = await pool.query(
+            `SELECT COUNT(*) AS active_admins
+             FROM staff_users
+             WHERE role = 'admin' AND active = true AND deleted_at IS NULL AND id != ?`,
+            [staffId]
+          ) as [any[], any];
+
+          if (Number(adminCountRows[0]?.active_admins || 0) === 0) {
+            res.status(400).json({
+              success: false,
+              error: "Cannot deactivate or demote the last active administrator.",
+            });
+            return;
+          }
+        }
+      }
+
       const updates: string[] = [];
       const values:  unknown[] = [];
 
@@ -855,6 +880,29 @@ router.delete(
       if (staffId === req.user!.id) {
         res.status(400).json({ success: false, error: "Cannot deactivate your own account." });
         return;
+      }
+
+      // Prevent deactivating or deleting the last active administrator (F-13)
+      const [targetRows] = await pool.query(
+        `SELECT role, active FROM staff_users WHERE id = ? AND deleted_at IS NULL`,
+        [staffId]
+      ) as [any[], any];
+
+      if (targetRows[0]?.role === "admin" && Boolean(targetRows[0]?.active)) {
+        const [adminCountRows] = await pool.query(
+          `SELECT COUNT(*) AS active_admins
+           FROM staff_users
+           WHERE role = 'admin' AND active = true AND deleted_at IS NULL AND id != ?`,
+          [staffId]
+        ) as [any[], any];
+
+        if (Number(adminCountRows[0]?.active_admins || 0) === 0) {
+          res.status(400).json({
+            success: false,
+            error: "Cannot deactivate or delete the last active administrator.",
+          });
+          return;
+        }
       }
 
       const [result] = await pool.query(
