@@ -451,6 +451,20 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+const ORDER_SELECT_COLUMNS = `
+  o.id, o.source, o.customer_name, o.phone, o.location, o.city,
+  o.gender, o.age_group, o.order_type, o.franchise_type,
+  o.status, o.payment_status, o.total, o.notes, o.customer_id,
+  o.assigned_to, o.delivery_date, o.created_by_staff_id,
+  o.created_at, o.updated_at
+`;
+
+function getOrderItemColumns(isStaffCostAuthorized: boolean): string {
+  return isStaffCostAuthorized
+    ? "id, order_id, product_id, product_match_type, product_match_confidence, product_match_note, item_name, package_size, quantity, unit_price, unit_cost"
+    : "id, order_id, product_id, product_match_type, product_match_confidence, product_match_note, item_name, package_size, quantity, unit_price";
+}
+
 router.get("/", authenticate,
   // Roles only. The list projects `o.*`, so without a role guard any
   // authenticated principal could dump the whole customer book — name, phone,
@@ -502,8 +516,9 @@ router.get("/", authenticate,
     ) as [any[], any];
     const total = parseInt(countRows[0].count as string, 10);
 
+    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
     const [data] = await pool.query(
-      `SELECT o.*, su.full_name AS created_by_staff_name
+      `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name
        FROM orders o
        LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
        ${where}
@@ -515,7 +530,7 @@ router.get("/", authenticate,
     if (data.length > 0) {
       const orderIds = data.map(o => o.id);
       const [itemsData] = await pool.query(
-        `SELECT * FROM order_items WHERE order_id IN (?)`,
+        `SELECT ${getOrderItemColumns(isCostAuth)} FROM order_items WHERE order_id IN (?)`,
         [orderIds]
       ) as [any[], any];
       
@@ -561,8 +576,9 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
+      const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
       const [orders] = await pool.query(
-        `SELECT o.*, su.full_name AS created_by_staff_name
+        `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name
          FROM orders o
          LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
          WHERE o.id = ? AND o.deleted_at IS NULL`,
@@ -581,9 +597,9 @@ router.get(
         return;
       }
 
-      const [items]    = await pool.query(`SELECT * FROM order_items WHERE order_id = ?`, [req.params.id]) as [any[], any];
-      const [history]  = await pool.query(`SELECT * FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC`, [req.params.id]) as [any[], any];
-      const [payments] = await pool.query(`SELECT * FROM payments WHERE order_id = ? ORDER BY created_at DESC`, [req.params.id]) as [any[], any];
+      const [items]    = await pool.query(`SELECT ${getOrderItemColumns(isCostAuth)} FROM order_items WHERE order_id = ?`, [req.params.id]) as [any[], any];
+      const [history]  = await pool.query(`SELECT id, order_id, old_status, new_status, changed_by, note, created_at FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC`, [req.params.id]) as [any[], any];
+      const [payments] = await pool.query(`SELECT id, order_id, amount, payment_method, transaction_id, status, paid_at, recorded_by, notes, created_at FROM payments WHERE order_id = ? ORDER BY created_at DESC`, [req.params.id]) as [any[], any];
 
       res.json({ success: true, data: { ...order, items, history, payments } });
     } catch (err) {
