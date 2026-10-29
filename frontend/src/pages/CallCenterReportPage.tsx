@@ -530,9 +530,8 @@ const CallCenterReportPage: React.FC = () => {
                 color="text-cyan-700"
               />
             </div>
-              </div>
           </>
-        )
+        )}
         {/* ── Daily call report ─────────────────────────────────────────────── */}
         <div className="bg-[#FAF9F6] border border-[#d4ecd4] rounded-3xl w-full shadow-lg overflow-hidden">
           <div className="px-6 md:px-8 pt-6 md:pt-7 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
