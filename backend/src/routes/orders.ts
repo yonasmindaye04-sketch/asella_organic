@@ -407,11 +407,8 @@ router.get("/track/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const [orders] = await pool.query(
       `SELECT o.id, o.customer_name, o.phone, o.status, o.total, o.city, o.location,
-              o.order_type, o.notes, o.created_at, o.updated_at, o.delivery_date,
-              o.created_by_staff_id,
-              su.full_name AS created_by_staff_name
+              o.order_type, o.notes, o.created_at, o.updated_at, o.delivery_date
        FROM orders o
-       LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
        WHERE o.id = ? AND o.deleted_at IS NULL
        LIMIT 1`,
       [orderId]
