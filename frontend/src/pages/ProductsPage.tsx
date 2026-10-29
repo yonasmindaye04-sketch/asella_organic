@@ -792,8 +792,8 @@ function ProductsTab({ onReloadStock }: ProductsTabProps) {
     setLoading(true);
     try {
       const url = showArchived
-        ? '/api/products?limit=500&active=false'
-        : '/api/products?limit=500';
+        ? '/api/products/admin-catalog?limit=500&active=false'
+        : '/api/products/admin-catalog?limit=500';
       const res = await api.get<Product[]>(url);
       if (res.success && res.data) setProducts(res.data);
     } finally {

@@ -109,7 +109,7 @@ router.get("/", apiCache, async (req: Request, res: Response): Promise<void> => 
     let orderByClause = "ORDER BY p.featured DESC, p.name ASC";
     let joinClause = "LEFT JOIN product_groups g ON g.id = p.product_group_id";
     const selectFields = `p.id, p.product_group_id, g.name AS group_name,
-                          p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
+                          p.name, p.package_size, p.price, p.description, p.image_url,
                           p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active`;
     
     if (req.query.sort === "sales") {
@@ -180,7 +180,7 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const selectFields = `p.id, p.product_group_id, p.name, p.package_size, p.price,
-                          p.unit_cost, p.description, p.image_url, p.featured, p.tag,
+                          p.description, p.image_url, p.featured, p.tag,
                           p.inventory_quantity, p.low_stock_threshold, p.active,
                           g.name AS group_name, g.description AS group_description,
                           g.image_url AS group_image_url, g.featured AS group_featured,
@@ -225,7 +225,7 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
           variants: [],
         });
       } else if (Boolean(row.featured)) {
-        groupsMap.get(baseName).featured = true;
+        groupsMap.get(key)!.featured = true;
       }
 
       groupsMap.get(key).variants.push({
@@ -233,7 +233,7 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
         name: row.name,
         package_size: row.package_size || "Standard",
         price: row.price,
-        unit_cost: row.unit_cost,
+
         inventory_quantity: row.inventory_quantity,
         low_stock_threshold: row.low_stock_threshold,
         featured: Boolean(row.featured),
@@ -375,12 +375,62 @@ router.get(
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/products/:id
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/products/admin-catalog (Admin/Manager only, includes unit_cost)
+router.get(
+  "/admin-catalog",
+  authenticate,
+  authorise("admin", "manager"),
+  async (req: Request, res: Response): Promise<void> => {
+    const log = createLogger(req);
+    try {
+      const { search, tag, limit, active } = req.query as Record<string, string | undefined>;
+      const conditions: string[] = ["p.deleted_at IS NULL"];
+      const params: unknown[] = [];
+
+      if (active === "false") {
+        conditions.push("p.active = false");
+      } else if (active === "true") {
+        conditions.push("p.active = true");
+      }
+
+      if (search) {
+        conditions.push("(p.name LIKE ? OR p.description LIKE ?)");
+        params.push(`%${search}%`, `%${search}%`);
+      }
+      if (tag) {
+        conditions.push("p.tag = ?");
+        params.push(tag);
+      }
+
+      const where = `WHERE ${conditions.join(" AND ")}`;
+      const limitNum = Math.min(1000, Math.max(1, parseInt(limit || "500", 10)));
+
+      const [rows] = await pool.query(
+        `SELECT p.id, p.product_group_id, g.name AS group_name,
+                p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
+                p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold, p.active
+         FROM products p
+         LEFT JOIN product_groups g ON g.id = p.product_group_id
+         ${where}
+         ORDER BY p.name ASC
+         LIMIT ?`,
+        [...params, limitNum]
+      ) as [any[], any];
+
+      res.json({ success: true, data: rows });
+    } catch (err) {
+      log.error("Failed to fetch admin products", err);
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
     const [rows] = await pool.query(
       `SELECT p.id, p.product_group_id, g.name AS group_name,
-              p.name, p.package_size, p.price, p.unit_cost, p.description, p.image_url,
+              p.name, p.package_size, p.price, p.description, p.image_url,
               p.featured, p.tag, p.inventory_quantity, p.low_stock_threshold
        FROM products p
        LEFT JOIN product_groups g ON g.id = p.product_group_id
