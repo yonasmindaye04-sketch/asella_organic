@@ -23,7 +23,7 @@ interface SiteAssetOverride {
   asset_key: string;
   url: string;
   alt_text: string | null;
-  updated_at: string;
+  updated_at?: string;
 }
 
 interface SiteAssetsValue {

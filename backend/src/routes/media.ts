@@ -73,7 +73,7 @@ interface SiteAssetRow {
   asset_key: string;
   url: string;
   alt_text: string | null;
-  updated_at: string;
+
 }
 
 /** GET /media — public. Returns only the slots that have been overridden. */
@@ -87,7 +87,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     res.setHeader("Cache-Control", "no-store");
 
     const [rows] = await pool.query(
-      "SELECT asset_key, url, alt_text, updated_at FROM site_assets ORDER BY asset_key"
+      "SELECT asset_key, url, alt_text FROM site_assets ORDER BY asset_key"
     ) as [SiteAssetRow[], any];
 
     res.json({ success: true, data: rows });

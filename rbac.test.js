@@ -210,6 +210,9 @@ async function run() {
     const mediaRes = await req("GET", "/api/media");
     // Policy decision 3: GET /api/media is intentionally public for storefront site assets.
     check("GET /api/media (intentional public→200)", mediaRes.status, 200);
+    const mediaItems = Array.isArray(mediaRes.body?.data) ? mediaRes.body.data : [];
+    const mediaLeaksInternal = mediaItems.some(i => i.updated_at !== undefined || i.updated_by !== undefined);
+    check("GET /api/media exposes only public fields (F-01)", !mediaLeaksInternal, true);
 
     // ── 1c. PUBLIC ORDER TRACKING ENUMERATION & PII LEAK TEST ────────────
     console.log("\n── 1c. Public order tracking enumeration & PII exposure (F-09 & guest risk)");
