@@ -260,6 +260,7 @@ async function run() {
     check("GET /api/reports/pl (no tok→401)",   (await req("GET", "/api/reports/pl")).status, 401);
     check("GET /api/staff (no tok→401)",        (await req("GET", "/api/staff")).status, 401);
     check("GET /api/admin/audit-log (no→401)",  (await req("GET", "/api/admin/audit-log")).status, 401);
+    check("GET /api/telegram/info (no tok→401) (F-02)", (await req("GET", "/api/telegram/info")).status, 401);
     check("Tampered token→401",                 (await req("GET", "/api/orders", null, "eyJ.TAMPERED.sig")).status, 401);
 
     const deactToken = jwt.sign(
@@ -312,6 +313,7 @@ async function run() {
     check("employee: POST /api/products→403",      (await req("POST", "/api/products", { name:"X", package_size:"1g", price:10 }, et)).status, 403);
     check("employee: GET /api/reports/pl→403",     (await req("GET", "/api/reports/pl", null, et)).status, 403);
     check("employee: GET /api/admin/audit-log→403",(await req("GET", "/api/admin/audit-log", null, et)).status, 403);
+    check("employee: GET /api/telegram/info→403 (F-02)",(await req("GET", "/api/telegram/info", null, et)).status, 403);
     check("employee: GET /api/stock→200",          (await req("GET", "/api/stock", null, et)).status, 200);
     // Finding F-12: Employee cannot create purchase orders (403 expected)
     const empPO = await req("POST", "/api/vendor-orders", { vendor_name:"Test Vendor", item:"Packaging Box", amount:"100", price:500 }, et);

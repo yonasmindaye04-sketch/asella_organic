@@ -2475,7 +2475,7 @@ router.get("/health", async (_req: Request, res: Response): Promise<void> => {
 });
 
 // GET /api/telegram/info — Bot metadata
-router.get("/info", async (_req: Request, res: Response): Promise<void> => {
+router.get("/info", authenticate, authorise("admin", "manager"), async (_req: Request, res: Response): Promise<void> => {
   try {
     const me = await getBotMe();
     if (!me || !me.ok) {
