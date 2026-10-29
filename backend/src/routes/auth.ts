@@ -10,22 +10,23 @@
  *   + POST /auth/logout now also clears both cookies.
  *   + GET  /auth/me — returns current user profile from cookie or Bearer token.
  *   + All console.error replaced with structured logger.
+ *   + Removed duplicate legacy /auth/staff routes (POST, GET, PATCH, DELETE)
+ *     to enforce strict 2FA via /api/staff (Fixes F-05, F-06, F-07).
  */
 
 import { Router, Request, Response, CookieOptions } from "express";
 import bcrypt   from "bcryptjs";
 import crypto   from "crypto";
 import pool     from "../config/db.js";
-import { authenticate, authorise, issueTokens } from "../middleware/auth.js";
+import { authenticate, issueTokens } from "../middleware/auth.js";
 import { loginRateLimit } from "../middleware/rateLimit.js";
 import { validate }       from "../middleware/validate.js";
 import {
   LoginSchema, ResetRequestSchema,
-  ResetConfirmSchema, CreateStaffSchema,
+  ResetConfirmSchema,
 } from "../schemas/index.js";
 import { generateResetToken, verifyResetToken, sanitizeInput } from "../lib/security.js";
 import { createLogger } from "../lib/logger.js";
-import { entityIdParam } from "../lib/ids.js";
 
 const router = Router();
 
@@ -393,110 +394,6 @@ router.patch("/change-password", authenticate,
     await audit(user.id, "RESET_CONFIRM", "password changed by user");
     log.info("User changed their password", { userId: user.id });
     res.json({ success: true, data: { message: "Password changed successfully." } });
-  }
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Staff sub-routes (kept in auth.ts for backward-compat — also available in staff.ts)
-// ─────────────────────────────────────────────────────────────────────────────
-
-router.post("/staff", authenticate, authorise("admin"), validate(CreateStaffSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    const { username, password, full_name, role, email, phone } = req.body as {
-      username: string; password: string; full_name: string;
-      role: string; email?: string; phone?: string;
-    };
-
-    const [existing] = await pool.query(
-      `SELECT id FROM staff_users WHERE username = ?`, [username]
-    ) as [any[], any];
-    if (existing.length > 0) {
-      res.status(409).json({ success: false, error: "Username already exists" });
-      return;
-    }
-
-    const hash  = await bcrypt.hash(password, 12);
-    const newId = crypto.randomUUID();
-
-    await pool.query(
-      `INSERT INTO staff_users (id, username, password_hash, full_name, role, email, phone)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [newId, username, hash, full_name, role, email ?? null, phone ?? null]
-    );
-
-    await audit(req.user!.id, "STAFF_CREATED", `created ${username} role=${role}`);
-    res.status(201).json({ success: true, data: { id: newId, username, full_name, role } });
-  }
-);
-
-router.get("/staff", authenticate, authorise("admin", "manager"),
-  async (_req: Request, res: Response): Promise<void> => {
-    const [rows] = await pool.query(
-      `SELECT id, username, full_name, role, email, phone, active, created_at
-       FROM staff_users WHERE deleted_at IS NULL ORDER BY role, full_name`
-    ) as [any[], any];
-    res.json({ success: true, data: rows });
-  }
-);
-
-router.patch("/staff/:id", authenticate, authorise("admin"),
-  async (req: Request, res: Response): Promise<void> => {
-    const staffId = entityIdParam(req.params.id);
-    if (!staffId) {
-      res.status(400).json({ success: false, error: "Invalid staff ID" });
-      return;
-    }
-    const { full_name, email, phone, role, active } = req.body as {
-      full_name?: string; email?: string; phone?: string; role?: string; active?: boolean;
-    };
-    const updates: string[] = [];
-    const values:  unknown[] = [];
-
-    for (const [field, val] of Object.entries({ full_name, email, phone, role, active })) {
-      if (val !== undefined) { updates.push(`${field} = ?`); values.push(val); }
-    }
-    if (updates.length === 0) {
-      res.status(400).json({ success: false, error: "No valid fields to update" });
-      return;
-    }
-
-    values.push(staffId);
-    const [result] = await pool.query(
-      `UPDATE staff_users SET ${updates.join(", ")}, updated_at = NOW()
-       WHERE id = ? AND deleted_at IS NULL`,
-      values
-    ) as [any, any];
-
-    if (result.affectedRows === 0) {
-      res.status(404).json({ success: false, error: "Staff not found" });
-      return;
-    }
-    res.json({ success: true, data: { message: "Staff updated." } });
-  }
-);
-
-router.delete("/staff/:id", authenticate, authorise("admin"),
-  async (req: Request, res: Response): Promise<void> => {
-    const staffId = entityIdParam(req.params.id);
-    if (!staffId) {
-      res.status(400).json({ success: false, error: "Invalid staff ID" });
-      return;
-    }
-    if (staffId === req.user!.id) {
-      res.status(400).json({ success: false, error: "Cannot deactivate your own account" });
-      return;
-    }
-    const [result] = await pool.query(
-      `UPDATE staff_users SET active = false, deleted_at = NOW(), updated_at = NOW()
-       WHERE id = ? AND deleted_at IS NULL`,
-      [staffId]
-    ) as [any, any];
-
-    if (result.affectedRows === 0) {
-      res.status(404).json({ success: false, error: "Staff not found" });
-      return;
-    }
-    res.json({ success: true, data: { message: "Staff deactivated." } });
   }
 );
 
