@@ -70,3 +70,5 @@ asella-organic-web-afd3fbe2eab3.json
 patch-*.cjs
 check_*.mjs
 create-*.cjs
+
+backend/private/
