@@ -71,72 +71,71 @@ export default function EmployeePerformance({ from, to }: EmployeePerformancePro
         <div>
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 className="text-sm font-semibold text-[var(--fg)]">
                 Staff Sales Performance
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-xs text-[var(--muted)] mt-0.5">
                 Click any team member to inspect order breakdown
               </p>
             </div>
-            <span className="material-symbols-outlined text-[18px] text-zinc-400">leaderboard</span>
+            <span className="material-symbols-outlined text-[18px] text-[var(--muted)]">leaderboard</span>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center h-48 text-zinc-400 text-xs">
-              Loading staff metrics...
+            <div className="flex items-center justify-center h-48 text-[var(--muted)] text-xs">
+              Loading staff metrics…
             </div>
           ) : performers.length > 0 ? (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {performers.map((p, i) => (
                 <div
                   key={p.id || p.name}
                   onClick={() => setSelected(p)}
-                  className="flex items-center gap-3 group cursor-pointer rounded-lg p-2.5 border border-zinc-200/70 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/50 hover:border-emerald-500/40 transition-all"
+                  className="group cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-card)] p-3 hover:border-emerald-500/40 hover:bg-[var(--bg-card-hover)] transition-all"
                 >
-                  <span className="text-xs font-bold text-zinc-400 w-4 text-center tabular-nums shrink-0">
-                    {i + 1}
-                  </span>
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold uppercase text-xs shrink-0"
-                    style={{ backgroundColor: p.color }}
-                  >
-                    {(p.name || "S").charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100">
-                        {p.name}
-                      </p>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2 tabular-nums">
-                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                  <div className="flex items-start gap-3">
+                    <span className="text-[11px] font-bold text-[var(--muted)] w-4 text-center shrink-0">
+                      {i + 1}
+                    </span>
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold uppercase text-xs shrink-0"
+                      style={{ backgroundColor: p.color }}
+                    >
+                      {(p.name || "S").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold truncate text-[var(--fg)]">
+                          {p.name}
+                        </p>
+                        <span className="text-xs font-bold text-[var(--fg)] shrink-0 ml-2 tabular-nums">
                           {p.revenue.toLocaleString()} ETB
                         </span>
-                        <span className="material-symbols-outlined text-[14px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                          open_in_new
-                        </span>
                       </div>
+                      <p className="text-[10px] text-[var(--muted)] capitalize truncate">
+                        {p.role}
+                      </p>
                     </div>
-                    <div className="h-1.5 rounded-full bg-zinc-200/70 dark:bg-zinc-800 overflow-hidden">
+                  </div>
+                  <div className="mt-2.5">
+                    <div className="h-1.5 rounded-full bg-[var(--bg-deep)] overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-700 ease-out"
                         style={{
-                          width: `${Math.max((p.revenue / maxRevenue) * 100, 6)}%`,
+                          width: `${Math.max((p.revenue / maxRevenue) * 100, 4)}%`,
                           backgroundColor: p.color,
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-500 tabular-nums">
-                      <span className="capitalize">{p.role}</span>
-                      <span>
-                        {p.placed} orders · {p.delivered} delivered
-                      </span>
+                    <div className="flex justify-end mt-1 text-[10px] text-[var(--muted)] tabular-nums">
+                      {p.placed} orders · {p.delivered} delivered
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 gap-2 text-zinc-400">
+            <div className="flex flex-col items-center justify-center h-48 gap-2 text-[var(--muted)]">
               <span className="material-symbols-outlined text-[28px] opacity-40">person_off</span>
               <p className="text-xs">No staff activity found</p>
             </div>

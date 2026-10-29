@@ -190,20 +190,20 @@ export default function NotificationsPage() {
                       <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${style.dot}`} />
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#112415] truncate">{n.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-[#112415] truncate">{n.title}</p>
+                            <p className="text-xs text-gray-700 mt-0.5 leading-relaxed font-medium">{n.body}</p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <span className={`inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wide ${style.badge}`}>
+                              {n.category.replace('_', ' ')}
+                            </span>
+                            <p className="text-[11px] text-gray-600 mt-1 whitespace-nowrap font-semibold">{timeAgo(n.created_at)}</p>
+                          </div>
                         </div>
-                        <div className="flex-shrink-0 text-right">
-                          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${style.badge}`}>
-                            {n.category.replace('_', ' ')}
-                          </span>
-                          <p className="text-[11px] text-gray-400 mt-1 whitespace-nowrap">{timeAgo(n.created_at)}</p>
-                        </div>
-                      </div>
 
                       {/* Metadata chips */}
                       {n.metadata && Object.keys(n.metadata).length > 0 && (

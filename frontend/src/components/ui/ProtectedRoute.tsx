@@ -19,6 +19,7 @@ const STORE_MANAGER_ALLOWED_PATHS = [
   '/dashboard/stock-request',
   '/dashboard/store-report',
   '/dashboard/notifications',
+  '/dashboard/tracking',
 ];
 
 /** Call center agents have their own four-screen workspace. */

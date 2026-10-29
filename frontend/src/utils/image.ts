@@ -132,11 +132,18 @@ function convertCloudStorageUrl(url: string): string | null {
 
 /**
  * Appends ?w=&q= to a local /image/* URL so the backend optimizer picks it up.
+ * Source images have been pre-converted to WebP (see scripts/convert-images.js),
+ * so the file extension is rewritten to .webp. The backend ignores ?w=&q=
+ * params and serves the file as-is, which is already small (~5-30KB).
+ * Preserves any existing query parameters by appending with &.
  * External URLs are returned unchanged.
  */
 export function optimizeLocalUrl(src: string, width = 800, quality = 78): string {
   if (!src || !src.startsWith('/image/')) return src;
-  return `${src}?w=${width}&q=${quality}`;
+  // Serve pre-converted WebP version when available
+  const webpSrc = src.replace(/\.(png|jpg|jpeg)$/i, '.webp');
+  const sep = webpSrc.includes('?') ? '&' : '?';
+  return `${webpSrc}${sep}w=${width}&q=${quality}`;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

@@ -159,6 +159,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 <NavItem to="/dashboard/new-order" icon="add_shopping_cart" label="New Sales Order" />
                 <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Sales Order" />
                 <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
+                <NavItem
+                  to="/dashboard/tracking"
+                  icon="route"
+                  label="Order Tracking"
+                  badge={pendingCount}
+                  badgeVariant="amber"
+                />
               </ul>
 
               <Divider />

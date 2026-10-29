@@ -1,12 +1,21 @@
 # Asella Organic
 
-Premium organic health products, ethically sourced from Ethiopian highland farms and delivered with care.
+> Premium cold-processed organic health products, ethically sourced from Ethiopian highland farms and delivered with care.
 
-## Products
-https://asellaorganic.com/products
+Asella Organic provides 100% natural, chemical-free herbal and wellness supplements including Moringa, Black Seed Oil, Turmeric, Chia Seeds, Frankincense, and Myrrh.
 
-## About
-https://asellaorganic.com/about
+## Core Resources
 
-## Contact
-https://asellaorganic.com/contact
+- [Homepage](https://asellaorganic.com/): Official storefront and brand introduction.
+- [Product Catalog](https://asellaorganic.com/#products): Browse all organic wellness products and package sizes.
+- [Our Story](https://asellaorganic.com/#story): Ethical highland farming, community impact, and sustainable harvesting.
+- [Order Products](https://asellaorganic.com/#hero): Place single or bulk wholesale orders.
+- [Contact Us](https://asellaorganic.com/#contact): Customer support, WhatsApp, Telegram, and inquiries.
+
+## Documentation & Machine-Readable Data
+
+- [Full LLM Documentation](https://asellaorganic.com/llms-full.txt): Comprehensive product specifications, dosages, and company details.
+- [AI Catalog](https://asellaorganic.com/ai-catalog.json): Machine-readable Agentic Resource Discovery (ARD) catalog.
+- [Telegram Mini App](https://asellaorganic.com/tma): Direct ordering via Telegram bot.
+- [Privacy Policy](https://asellaorganic.com/privacy): Data handling and customer privacy guidelines.
+- [Terms of Service](https://asellaorganic.com/terms): Store policies, payments, and delivery terms.

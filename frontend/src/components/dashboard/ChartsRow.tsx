@@ -674,7 +674,7 @@ export function TopProducts({
       metricMode === "etb" ? b.totalEtb - a.totalEtb : b.totalQty - a.totalQty
     );
 
-    const top4 = allSorted.slice(0, 4).map((p, idx) => ({
+    const top5 = allSorted.slice(0, 5).map((p, idx) => ({
       ...p,
       color: PRODUCT_COLORS[idx % PRODUCT_COLORS.length],
       seriesEtb: p.bucketEtb.slice(firstIdx, lastIdx + 1),
@@ -684,24 +684,19 @@ export function TopProducts({
     const totalEtbAll = allSorted.reduce((s, p) => s + p.totalEtb, 0);
     const totalQtyAll = allSorted.reduce((s, p) => s + p.totalQty, 0);
 
-    const chartDatasets = top4.map((p) => ({
+    const chartDatasets = top5.map((p) => ({
       label: p.name,
       data: metricMode === "etb" ? p.seriesEtb : p.seriesQty,
-      borderColor: p.color,
-      backgroundColor: p.color + "18",
-      borderWidth: 2.2,
-      tension: 0.35,
-      pointRadius: 3.5,
-      pointBackgroundColor: p.color,
-      pointBorderColor: CHART.cream,
-      pointBorderWidth: 1.5,
-      pointHoverRadius: 5.5,
-      fill: false,
+      backgroundColor: p.color,
+      borderRadius: 6,
+      maxBarThickness: 28,
+      barPercentage: 0.7,
+      categoryPercentage: 0.8,
     }));
 
     return {
       labels: trimmedLabels,
-      topProductsList: top4,
+      topProductsList: top5,
       datasets: chartDatasets,
       grandTotalEtb: totalEtbAll,
       grandTotalQty: totalQtyAll,
@@ -756,7 +751,7 @@ export function TopProducts({
         {/* Multi-line Trend Chart */}
         <div className="h-[195px] relative">
           {topProductsList.length > 0 ? (
-            <Line
+            <Bar
               data={{
                 labels,
                 datasets,
@@ -764,7 +759,7 @@ export function TopProducts({
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: { mode: "index", intersect: false },
+                interaction: { mode: "nearest" as const, intersect: true },
                 plugins: {
                   legend: { display: false },
                   tooltip: {
@@ -786,8 +781,7 @@ export function TopProducts({
                     ticks: { color: CHART_AXIS.tick, font: { size: 11, weight: 500 } },
                   },
                   y: {
-                    beginAtZero: false,
-                    grace: "10%",
+                    beginAtZero: true,
                     grid: { color: CHART_AXIS.grid },
                     border: { display: false },
                     ticks: {

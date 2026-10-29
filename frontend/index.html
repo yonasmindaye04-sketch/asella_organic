@@ -1,23 +1,88 @@
 <!DOCTYPE html>
-<!--
-  CSP NOTICE — READ BEFORE ADDING ANY <script> TAG:
-  This site's Content-Security-Policy (set in .htaccess via postbuild.js) has
-  NO 'unsafe-inline' in script-src by design. Any inline <script>...</script>
-  block will be silently blocked in production even if it works fine locally
-  (local dev servers do not enforce the CSP header from .htaccess).
-
-  Rule: every script added to this file MUST use an external file via src=.
-  Put the file in frontend/public/ — Vite copies it to dist/ root as-is.
-  See DEPLOYMENT_GOTCHAS.md §6 for full details.
--->
 <html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!-- Critical inline font-face + above-the-fold CSS.
+         All fonts are self-hosted via fonts.gstatic.com woff2 URLs so the hero
+         text (Outfit 700) and body text (DM Sans) render immediately with no
+         invisible-text period. styleSrc 'unsafe-inline' permits this <style> tag. -->
+    <style>
+      @font-face {
+        font-family: 'Outfit';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtqUYLknw.woff2') format('woff2');
+        ascent-override: 0.716;
+        descent-override: 0.207;
+        line-gap-override: 0.0;
+        size-adjust: 100%;
+      }
+      @font-face {
+        font-family: 'DM Sans';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu0-K6z9mXg.woff2') format('woff2');
+        ascent-override: 0.716;
+        descent-override: 0.207;
+        line-gap-override: 0.0;
+        size-adjust: 100%;
+      }
+      @font-face {
+        font-family: 'DM Mono';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://fonts.gstatic.com/s/dmmono/v16/aFTU7PB1QTsUX8KYthqQBK6PYK0.woff2') format('woff2');
+        ascent-override: 0.716;
+        descent-override: 0.207;
+        line-gap-override: 0.0;
+        size-adjust: 100%;
+      }
+      @font-face {
+        font-family: 'Material Symbols Outlined';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('https://fonts.gstatic.com/s/materialsymbolsoutlined/v382/kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzByHX9rA6RzaxHMPdY43zj-jCxv3fzvRNU22ZXGJpEpjC_1v-p_4MrImHCIJIZrDCvHOejbdhzrA.woff2') format('woff2');
+        ascent-override: 0.716;
+        descent-override: 0.207;
+        line-gap-override: 0.0;
+        size-adjust: 100%;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { font-family: 'DM Sans', system-ui, -apple-system, sans-serif; }
+      body { margin: 0; }
+      #hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 90vh;
+      }
+      #hero h1 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        line-height: 1.05;
+        margin-bottom: 1.5rem;
+      }
+      #hero .text-highland-gold { color: #C5A059; }
+      .font-heading { font-family: 'Outfit', sans-serif; }
+      .text-highland-gold { color: #C5A059; }
+    </style>
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d1f10" />
     <title>Asella Organic — Premium Organic Health Products</title>
     <meta name="description" content="Asella Organic offers premium, cold-processed organic health products including Moringa, Black Seed Oil, and Turmeric. Shop our high-quality natural supplements." />
+
+    <!-- Agentic Resource Discovery & LLM Documentation -->
+    <link rel="ard" href="/ai-catalog.json" />
+    <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLM Summary" />
+    <link rel="alternate" type="text/markdown" href="/llms-full.txt" title="Full LLM Documentation" />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -34,26 +99,85 @@
     <meta property="og:image" content="https://asellaorganic.com/icons/icon-512.png" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- Google Fonts — synchronous but non-blocking paint via display=swap -->
+    <!-- Schema.org Structured Data (JSON-LD) for SEO and Agentic Browsing -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://asellaorganic.com/#organization",
+          "name": "Asella Organic",
+          "url": "https://asellaorganic.com/",
+          "logo": "https://asellaorganic.com/icons/icon-512.png",
+          "description": "Ethical Ethiopian highland organic health products and herbal supplements.",
+          "sameAs": [
+            "https://t.me/asella_organic",
+            "https://www.facebook.com/share/1FkhkuGamB/",
+            "https://www.instagram.com/asella_organic",
+            "https://www.tiktok.com/@asellaorganic"
+          ],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+251910011818",
+            "contactType": "customer service",
+            "areaServed": "ET",
+            "availableLanguage": ["en", "am", "om"]
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://asellaorganic.com/#website",
+          "url": "https://asellaorganic.com/",
+          "name": "Asella Organic",
+          "description": "Premium cold-processed organic health products from Ethiopian highlands.",
+          "publisher": { "@id": "https://asellaorganic.com/#organization" }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Google Fonts — preconnect so font downloads start early -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Critical Outfit font preload — hero text (weight 700) uses this file -->
+    <link rel="preload" as="font" href="https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtqUYLknw.woff2" type="font/woff2" crossorigin>
+
+    <!-- Non-render-blocking font stylesheets via preload + async activation script -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&family=Outfit:wght@700;800;900&display=swap"
-      rel="stylesheet"
+      crossorigin
     />
-
-    <!-- Material Symbols — deferred so it never blocks first paint -->
     <link
-  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=swap"
-  rel="stylesheet"
-/>
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=swap"
+      crossorigin
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&family=Outfit:wght@700;800;900&display=swap"
+        crossorigin
+      />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=swap"
+        crossorigin
+      />
+    </noscript>
 
+    <!-- Async stylesheet activation (CSP-safe, external file) -->
+    <script src="/async-css.js" defer></script>
 
     <!-- Polyfill for older browsers (.at) — external file required by CSP -->
-    <script src="/polyfills.js"></script>
+    <script src="/polyfills.js" defer></script>
 
-    <!-- Telegram WebApp SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Telegram WebApp SDK — deferred so it never blocks first paint -->
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   </head>
   <body>
     <div id="root"></div>

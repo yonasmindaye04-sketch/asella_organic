@@ -131,6 +131,7 @@ const Header: React.FC = () => {
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="w-10 h-10 rounded-full border border-border bg-white dark:bg-obsidian flex items-center justify-center text-obsidian dark:text-white shadow-sm"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           >
             <span className="material-symbols-outlined text-2xl">{mobileMenuOpen ? 'close' : 'menu'}</span>
           </button>

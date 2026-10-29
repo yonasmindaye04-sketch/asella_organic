@@ -7,7 +7,6 @@ import { TelegramProvider } from './context/TelegramContext';
 import { SiteAssetsProvider } from './context/SiteAssetsContext';
 import LoadingSpinner       from './components/ui/LoadingSpinner';
 import TopProgressBar       from './components/ui/TopProgressBar';
-import './telegram/miniApp.css';
 
 const Storefront           = lazy(() => import('./pages/Storefront'));
 const Checkout             = lazy(() => import('./pages/Checkout'));

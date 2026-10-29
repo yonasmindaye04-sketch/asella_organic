@@ -62,6 +62,10 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   const [errored, setErrored] = useState(isKnownBadUrl(src));
 
+  // Determine width/height from aspectRatio for explicit dimensions
+  const aspectW = aspectRatio >= 1 ? Math.round(aspectRatio * 100) : 100;
+  const aspectH = aspectRatio >= 1 ? 100 : Math.round(100 / aspectRatio);
+
   // Some image hosts support resizing via query params (e.g.
   // ?w=400, ?w=800). We try to auto-append width hints when the
   // host is recognized (Cloudinary, Googleusercontent). Otherwise we
@@ -93,6 +97,8 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
       <img
         src={errored ? PLACEHOLDER_SVG : src}
         alt={alt}
+        width={aspectW}
+        height={aspectH}
         loading={eager ? 'eager' : 'lazy'}
         decoding={decoding}
         fetchPriority={fetchPriority}

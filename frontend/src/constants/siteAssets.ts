@@ -40,27 +40,31 @@ export interface SiteAssetSlot {
 
 export const SITE_ASSET_SLOTS: SiteAssetSlot[] = [
   // ── Home › Shop by Category ─────────────────────────────────────────────
-  { key: 'category.powders',       section: 'Shop by Category', label: 'Powders',       defaultUrl: '/image/products/Moringa 200g,500g and 1kg.png',                              width: 224, quality: 78 },
-  { key: 'category.oils',          section: 'Shop by Category', label: 'Oils',          defaultUrl: '/image/products/Blackseed Oil ( 30ml ).JPG',                                     width: 224, quality: 78 },
-  { key: 'category.seeds',         section: 'Shop by Category', label: 'Seeds',         defaultUrl: '/image/products/Chiaseed 250g and 1kg.png',                                      width: 224, quality: 78 },
-  { key: 'category.supplements',   section: 'Shop by Category', label: 'Supplements',   defaultUrl: '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png',                      width: 224, quality: 78 },
-  { key: 'category.herbsSpices',   section: 'Shop by Category', label: 'Herbs & Spices',defaultUrl: '/image/products/Erid Turmeric ( 220g ).png',                                        width: 224, quality: 78 },
-  { key: 'category.essentialOils', section: 'Shop by Category', label: 'Essential Oils',defaultUrl: '/image/products/Frankincense Oil  30ml and 60 ml.jpeg',                            width: 224, quality: 78 },
-  { key: 'category.naturalBeauty', section: 'Shop by Category', label: 'Natural Beauty',defaultUrl: '/image/products/Qasil Powder ( 200g ).png',                                         width: 224, quality: 78 },
-  { key: 'category.wellness',      section: 'Shop by Category', label: 'Wellness',      defaultUrl: '/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).png',                    width: 224, quality: 78 },
+  // Source images pre-converted to WebP at 224px (scripts/convert-images.js).
+  { key: 'category.powders',       section: 'Shop by Category', label: 'Powders',       defaultUrl: '/image/products/Moringa 200g,500g and 1kg.webp',                              width: 224, quality: 78 },
+  { key: 'category.oils',          section: 'Shop by Category', label: 'Oils',          defaultUrl: '/image/products/Blackseed Oil ( 30ml ).webp',                                     width: 224, quality: 78 },
+  { key: 'category.seeds',         section: 'Shop by Category', label: 'Seeds',         defaultUrl: '/image/products/Chiaseed 250g and 1kg.webp',                                      width: 224, quality: 78 },
+  { key: 'category.supplements',   section: 'Shop by Category', label: 'Supplements',   defaultUrl: '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).webp',                      width: 224, quality: 78 },
+  { key: 'category.herbsSpices',   section: 'Shop by Category', label: 'Herbs & Spices',defaultUrl: '/image/products/Erid Turmeric ( 220g ).webp',                                        width: 224, quality: 78 },
+  { key: 'category.essentialOils', section: 'Shop by Category', label: 'Essential Oils',defaultUrl: '/image/products/Frankincense Oil  30ml and 60 ml.webp',                            width: 224, quality: 78 },
+  { key: 'category.naturalBeauty', section: 'Shop by Category', label: 'Natural Beauty',defaultUrl: '/image/products/Qasil Powder ( 200g ).webp',                                         width: 224, quality: 78 },
+  { key: 'category.wellness',      section: 'Shop by Category', label: 'Wellness',      defaultUrl: '/image/products/Himalaya ashwagandha tablet 120 ( 250 mg ).webp',                    width: 224, quality: 78 },
 
   // ── Home › Daily Highlights carousel ─────────────────────────────────────
-  { key: 'highlight.moringa',      section: 'Daily Highlights', label: 'Moringa',       defaultUrl: '/image/dailyimages/Moringa Powder.png',        width: 600, quality: 75 },
-  { key: 'highlight.shilajitGel',  section: 'Daily Highlights', label: 'Shilajit Gel',  defaultUrl: '/image/dailyimages/Shilajit.png',              width: 600, quality: 75 },
-  { key: 'highlight.ashwagandhaPowder', section: 'Daily Highlights', label: 'Ashwagandha Powder', defaultUrl: '/image/dailyimages/Ashwegenda powder.png', width: 600, quality: 75 },
-  { key: 'highlight.ashwagandhaTablet', section: 'Daily Highlights', label: 'Ashwagandha Tablet', defaultUrl: '/image/dailyimages/Aswhwegnda Tablet.png',   width: 600, quality: 75 },
-  { key: 'highlight.blackseedOil', section: 'Daily Highlights', label: 'Blackseed Oil', defaultUrl: '/image/dailyimages/Black seed  oil.png',       width: 600, quality: 75 },
-  { key: 'highlight.chiaSeed',     section: 'Daily Highlights', label: 'Chia Seed',     defaultUrl: '/image/dailyimages/Chiaseed.png',              width: 600, quality: 75 },
-  { key: 'highlight.frankincense', section: 'Daily Highlights', label: 'Frankincense Oil', defaultUrl: '/image/dailyimages/Franchinses Oil.png',      width: 600, quality: 75 },
-  { key: 'highlight.hibiscus',     section: 'Daily Highlights', label: 'Hibiscus',      defaultUrl: '/image/dailyimages/Hibscus.png',               width: 600, quality: 75 },
-  { key: 'highlight.kerebeOil',    section: 'Daily Highlights', label: 'Kerebe Oil',    defaultUrl: '/image/dailyimages/Kerbe Oil.png',             width: 600, quality: 75 },
-  { key: 'highlight.kesilPowder',  section: 'Daily Highlights', label: 'Kesil Powder',  defaultUrl: '/image/dailyimages/Kesil Powder.png',          width: 600, quality: 75 },
-  { key: 'highlight.turmeric',     section: 'Daily Highlights', label: 'Turmeric',      defaultUrl: '/image/dailyimages/Turemic Erid.png',          width: 600, quality: 75 },
+  // Cards render at w-400px (ProductCard). Source images are pre-converted to
+  // WebP at 400px width (see scripts/convert-images.js), so the backend
+  // optimizer's ignored ?w=&q= params no longer matter — files are ~15KB each.
+  { key: 'highlight.moringa',      section: 'Daily Highlights', label: 'Moringa',       defaultUrl: '/image/dailyimages/Moringa Powder.webp',        width: 400, quality: 75 },
+  { key: 'highlight.shilajitGel',  section: 'Daily Highlights', label: 'Shilajit Gel',  defaultUrl: '/image/dailyimages/Shilajit.webp',              width: 400, quality: 75 },
+  { key: 'highlight.ashwagandhaPowder', section: 'Daily Highlights', label: 'Ashwagandha Powder', defaultUrl: '/image/dailyimages/Ashwegenda powder.webp', width: 400, quality: 75 },
+  { key: 'highlight.ashwagandhaTablet', section: 'Daily Highlights', label: 'Ashwagandha Tablet', defaultUrl: '/image/dailyimages/Aswhwegnda Tablet.webp',   width: 400, quality: 75 },
+  { key: 'highlight.blackseedOil', section: 'Daily Highlights', label: 'Blackseed Oil', defaultUrl: '/image/dailyimages/Black seed  oil.webp',       width: 400, quality: 75 },
+  { key: 'highlight.chiaSeed',     section: 'Daily Highlights', label: 'Chia Seed',     defaultUrl: '/image/dailyimages/Chiaseed.webp',              width: 400, quality: 75 },
+  { key: 'highlight.frankincense', section: 'Daily Highlights', label: 'Frankincense Oil', defaultUrl: '/image/dailyimages/Franchinses Oil.webp',      width: 400, quality: 75 },
+  { key: 'highlight.hibiscus',     section: 'Daily Highlights', label: 'Hibiscus',      defaultUrl: '/image/dailyimages/Hibscus.webp',               width: 400, quality: 75 },
+  { key: 'highlight.kerebeOil',    section: 'Daily Highlights', label: 'Kerebe Oil',    defaultUrl: '/image/dailyimages/Kerbe Oil.webp',             width: 400, quality: 75 },
+  { key: 'highlight.kesilPowder',  section: 'Daily Highlights', label: 'Kesil Powder',  defaultUrl: '/image/dailyimages/Kesil Powder.webp',          width: 400, quality: 75 },
+  { key: 'highlight.turmeric',     section: 'Daily Highlights', label: 'Turmeric',      defaultUrl: '/image/dailyimages/Turemic Erid.webp',          width: 400, quality: 75 },
 ];
 
 /** key -> slot, for O(1) lookups from the storefront. */

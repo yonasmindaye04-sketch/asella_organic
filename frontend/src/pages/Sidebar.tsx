@@ -19,6 +19,7 @@ const Sidebar: React.FC = () => {
   const [notifCount,   setNotifCount]   = useState(0);
 
   const role        = user?.role ?? 'guest';
+  const isAdminOrManager = role === 'admin' || role === 'manager';
   const displayName = user?.name ?? 'Staff';
   const displayRole =
     role === 'admin'       ? 'Super Admin'  :

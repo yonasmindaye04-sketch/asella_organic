@@ -108,6 +108,7 @@ ErrorDocument 404 /offline.html
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
   Header always set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
 
   # X-Frame-Options must NOT be DENY. The Telegram Mini App renders inside
   # Telegram's webview and is explicitly allowed by the CSP `frame-ancestors`

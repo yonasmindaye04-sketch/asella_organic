@@ -73,6 +73,11 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 // ─── Component ───────────────────────────────────────────────────
 
 const VendorPurchasePage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isManagerOrAdmin = user?.role === "admin" || user?.role === "manager";
+  const [isForbidden, setIsForbidden] = useState(false);
+
   const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
 
   // --- Form state ---

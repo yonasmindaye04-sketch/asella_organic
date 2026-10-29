@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const cspConfigPath = path.resolve(__dirname, '../../csp-config.js');
 const distDir = path.resolve(__dirname, '../dist');
+const distIndexPath = path.join(distDir, 'index.html');
 const htaccessPath = path.join(distDir, '.htaccess');
 const swPath = path.join(distDir, 'sw.js');
 
@@ -56,6 +57,64 @@ if (fs.existsSync(htaccessPath)) {
   console.warn('⚠️  dist/.htaccess not found. Skipping.');
 }
 
+// 2b. Move render-blocking <link rel="stylesheet">, <link rel="preconnect">,
+// and <link rel="preload" as="font"> tags to the top of <head>. Vite injects
+// CSS links at the end of <head> (after scripts), which delays first paint.
+// Preconnect to cross-origin font hosts must come *before* the stylesheet
+// that uses them. Font preloads must come before render-blocking CSS so the
+// font download starts immediately instead of waiting for CSS to load.
+// All references are external (src/href based) so this is CSP safe.
+if (fs.existsSync(distIndexPath)) {
+  let html = fs.readFileSync(distIndexPath, 'utf8');
+
+  // Mask out <noscript> blocks so fallback stylesheets inside <noscript> are not extracted
+  const noscriptBlocks = [];
+  let processedHtml = html.replace(/<noscript>[\s\S]*?<\/noscript>/gi, (match) => {
+    noscriptBlocks.push(match);
+    return `<!--__NOSCRIPT_PLACEHOLDER_${noscriptBlocks.length - 1}__-->`;
+  });
+
+  // Extract preconnect links (must come first), font preloads, and stylesheet links.
+  const preconnectRe = /<link[^>]+rel=["']preconnect["'][^>]*>/gi;
+  const preloadFontRe = /<link[^>]+rel=["']preload["'][^>]*as=["']font["'][^>]*>/gi;
+  const stylesheetRe = /<link[^>]+rel=["']stylesheet["'][^>]*>/gi;
+  const preconnects = [...processedHtml.matchAll(preconnectRe)].map(m => m[0]);
+  const preloadFonts = [...processedHtml.matchAll(preloadFontRe)].map(m => m[0]);
+  const stylesheets = [...processedHtml.matchAll(stylesheetRe)].map(m => m[0]);
+
+  if (preconnects.length === 0 && preloadFonts.length === 0 && stylesheets.length === 0) {
+    console.log('ℹ️  No preconnect/preload-font/stylesheet links found in dist/index.html.');
+  } else {
+    // Remove all from their current positions.
+    processedHtml = processedHtml.replace(preconnectRe, '');
+    processedHtml = processedHtml.replace(preloadFontRe, '');
+    processedHtml = processedHtml.replace(stylesheetRe, '');
+
+    // Restore noscript blocks intact
+    noscriptBlocks.forEach((block, idx) => {
+      processedHtml = processedHtml.replace(`<!--__NOSCRIPT_PLACEHOLDER_${idx}__-->`, block);
+    });
+
+    // Insert right after the opening <head> tag: preconnects first, then font preloads,
+    // then app stylesheets (render-blocking, but positioned early so download starts immediately).
+    const headInsert = processedHtml.indexOf('<head>');
+    if (headInsert !== -1) {
+      const insertPos = headInsert + '<head>'.length;
+      const block = [
+        ...preconnects,
+        ...preloadFonts,
+        ...stylesheets,
+      ].join('\n');
+      const blockWithNewlines = '\n' + block + '\n';
+      processedHtml = processedHtml.slice(0, insertPos) + blockWithNewlines + processedHtml.slice(insertPos);
+      fs.writeFileSync(distIndexPath, processedHtml);
+      console.log('✅ Moved ' + preconnects.length + ' preconnect + ' + preloadFonts.length + ' font preload + ' + stylesheets.length + ' stylesheet link(s) to top of dist/index.html head (render-blocking fix).');
+    } else {
+      console.warn('⚠️  No <head> tag found in dist/index.html. Skipping link reorder.');
+    }
+  }
+}
+
 // 3. Update sw.js __VERSION__
 if (fs.existsSync(swPath)) {
   const hash = crypto.randomBytes(4).toString('hex');
@@ -81,7 +140,6 @@ if (fs.existsSync(swPath)) {
 // Blocked pattern (no src=):
 //   <script>...code...</script>                         ← CSP violation!
 
-const distIndexPath = path.join(distDir, 'index.html');
 if (fs.existsSync(distIndexPath)) {
   const html = fs.readFileSync(distIndexPath, 'utf8');
 
@@ -97,6 +155,7 @@ if (fs.existsSync(distIndexPath)) {
 
   // Filter out empty self-closing variants that Vite may emit for edge cases.
   const violations = inlineMatches.filter(tag => {
+    if (/type=["\']application\/(ld\+json|json)["\']/i.test(tag)) return false;
     // Strip the opening/closing tags and check if there is actual content.
     const inner = tag.replace(/^<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
     return inner.length > 0;

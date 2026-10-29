@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agenticresourcediscovery.org/schema/v1/ai-catalog.json",
+  "entries": [
+    {
+      "identifier": "urn:air:asellaorganic:homepage",
+      "displayName": "Asella Organic Homepage",
+      "type": "text/html",
+      "name": "Asella Organic Homepage",
+      "description": "Main storefront landing page for premium organic health products.",
+      "url": "https://asellaorganic.com/",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:products",
+      "displayName": "Product Catalog",
+      "type": "text/html",
+      "name": "Product Catalog",
+      "description": "Browse all available organic products including Moringa, Black Seed Oil, Turmeric, and more.",
+      "url": "https://asellaorganic.com/#products",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:story",
+      "displayName": "Our Story",
+      "type": "text/html",
+      "name": "Our Story",
+      "description": "Information about Asella Organic's mission and Ethiopian highland sourcing.",
+      "url": "https://asellaorganic.com/#story",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:contact",
+      "displayName": "Contact Information",
+      "type": "text/html",
+      "name": "Contact Information",
+      "description": "Contact details, phone, email, and location for Asella Organic.",
+      "url": "https://asellaorganic.com/#contact",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:order",
+      "displayName": "Order Products",
+      "type": "text/html",
+      "name": "Order Products",
+      "description": "Place an order for organic health products.",
+      "url": "https://asellaorganic.com/#hero",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:privacy-policy",
+      "displayName": "Privacy Policy",
+      "type": "text/html",
+      "name": "Privacy Policy",
+      "description": "Privacy policy for Asella Organic.",
+      "url": "https://asellaorganic.com/privacy",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:terms-of-service",
+      "displayName": "Terms of Service",
+      "type": "text/html",
+      "name": "Terms of Service",
+      "description": "Terms of service for Asella Organic.",
+      "url": "https://asellaorganic.com/terms",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:telegram-mini-app",
+      "displayName": "Asella Organic Telegram Mini App",
+      "type": "text/html",
+      "name": "Asella Organic Telegram Mini App",
+      "description": "Standalone Telegram Mini App for shopping within Telegram.",
+      "url": "https://asellaorganic.com/tma",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:api-products",
+      "displayName": "Products API",
+      "type": "application/json",
+      "name": "Products API",
+      "description": "REST API endpoint for fetching product listings.",
+      "url": "https://asellaorganic.com/api/products",
+      "contentType": "application/json",
+      "authRequired": false
+    },
+    {
+      "identifier": "urn:air:asellaorganic:api-affiliate-track-click",
+      "displayName": "Affiliate Click Tracking API",
+      "type": "application/json",
+      "name": "Affiliate Click Tracking API",
+      "description": "Track affiliate referral link clicks.",
+      "url": "https://asellaorganic.com/api/affiliate/track-click",
+      "contentType": "application/json",
+      "authRequired": false,
+      "method": "POST"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:llms-txt",
+      "displayName": "llms.txt",
+      "type": "text/markdown",
+      "name": "llms.txt",
+      "description": "Markdown file describing Asella Organic resources for LLMs.",
+      "url": "https://asellaorganic.com/llms.txt",
+      "contentType": "text/markdown",
+      "language": "en"
+    }
+  ],
+  "tools": [],
+  "agents": []
+}

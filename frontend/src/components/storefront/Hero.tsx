@@ -59,17 +59,17 @@ const Hero: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-center items-center gap-4 lg:gap-6 mb-14 lg:mb-20 w-full max-w-4xl mx-auto px-4 md:px-0">
           
           <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-gentle-bounce">
-            <span className="material-symbols-outlined text-base lg:text-xl">shopping_cart</span>
+            <span className="material-symbols-outlined w-5 h-5 lg:w-6 lg:h-6 text-base lg:text-xl flex-shrink-0">shopping_cart</span>
             {t('hero.btn.order')}
           </button>
 
           <a href="#story" className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
-            <span className="material-symbols-outlined text-base lg:text-xl">info</span>
+            <span className="material-symbols-outlined w-5 h-5 lg:w-6 lg:h-6 text-base lg:text-xl flex-shrink-0">info</span>
             {t('hero.btn.about')}
           </a>
 
           <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
-            <span className="material-symbols-outlined text-base lg:text-xl">inventory_2</span>
+            <span className="material-symbols-outlined w-5 h-5 lg:w-6 lg:h-6 text-base lg:text-xl flex-shrink-0">inventory_2</span>
             {t('hero.btn.bulk')}
           </button>
         </div>
@@ -81,7 +81,7 @@ const Hero: React.FC = () => {
             {/* Stat 1 */}
             <div className="flex flex-1 min-w-[200px] justify-center items-center gap-4">
               <div className="w-14 h-14 bg-highland-gold/10 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-highland-gold" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
+                <span className="material-symbols-outlined w-8 h-8 text-[28px] text-highland-gold flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian dark:text-white leading-none">17+</div>
@@ -92,7 +92,7 @@ const Hero: React.FC = () => {
             {/* Stat 2 */}
             <div className="flex flex-1 min-w-[200px] justify-center items-center gap-4">
               <div className="w-14 h-14 bg-highland-gold/10 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-highland-gold" style={{ fontVariationSettings: "'FILL' 1" }}>groups</span>
+                <span className="material-symbols-outlined w-8 h-8 text-[28px] text-highland-gold flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>groups</span>
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian dark:text-white leading-none">5000+</div>
@@ -103,7 +103,7 @@ const Hero: React.FC = () => {
             {/* Stat 3 */}
             <div className="flex flex-1 min-w-[200px] justify-center items-center gap-4">
               <div className="w-14 h-14 bg-highland-gold/10 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-highland-gold" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                <span className="material-symbols-outlined w-8 h-8 text-[28px] text-highland-gold flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian dark:text-white leading-none">100%</div>
@@ -114,7 +114,7 @@ const Hero: React.FC = () => {
             {/* Stat 4 */}
             <div className="flex flex-1 min-w-[200px] justify-center items-center gap-4">
               <div className="w-14 h-14 bg-highland-gold/10 rounded-2xl flex items-center justify-center">
-                <span className="material-symbols-outlined text-[28px] text-highland-gold" style={{ fontVariationSettings: "'FILL' 1" }}>agriculture</span>
+                <span className="material-symbols-outlined w-8 h-8 text-[28px] text-highland-gold flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>agriculture</span>
               </div>
               <div className="text-left">
                 <div className="text-3xl lg:text-4xl font-extrabold text-obsidian dark:text-white leading-none">10</div>
