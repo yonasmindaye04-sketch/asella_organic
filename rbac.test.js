@@ -114,6 +114,16 @@ async function setupTestData() {
     );
   }
 
+  // Create an explicitly deactivated employee to test F-10
+  const deactId = crypto.randomUUID();
+  createdStaffIds.push(deactId);
+  await conn.query(
+    `INSERT INTO staff_users (id, username, email, password_hash, full_name, role, active, must_change_password)
+     VALUES (?, 'rbac_test_deactivated', 'rbac_deact@test.local', ?, 'RBAC Deactivated', 'employee', false, false)`,
+    [deactId, hash]
+  );
+  KNOWN.deactivatedUserId = deactId;
+
   // Set up affiliate profile so /api/affiliate/me succeeds
   const affProfileId = crypto.randomUUID();
   createdAffiliateProfileIds.push(affProfileId);
@@ -228,6 +238,13 @@ async function run() {
     check("GET /api/staff (no tok→401)",        (await req("GET", "/api/staff")).status, 401);
     check("GET /api/admin/audit-log (no→401)",  (await req("GET", "/api/admin/audit-log")).status, 401);
     check("Tampered token→401",                 (await req("GET", "/api/orders", null, "eyJ.TAMPERED.sig")).status, 401);
+
+    const deactToken = jwt.sign(
+      { id: KNOWN.deactivatedUserId, username: "rbac_test_deactivated", role: "employee", jti: crypto.randomBytes(16).toString("hex") },
+      process.env.JWT_SECRET || "fallback_secret",
+      { expiresIn: "1h" }
+    );
+    check("Deactivated user token→401 (F-10)",   (await req("GET", "/api/orders", null, deactToken)).status, 401);
 
     // ── 3. AFFILIATE ISOLATION ───────────────────────────────────────────
     console.log("\n── 3. Affiliate cannot reach staff routes");

@@ -20,7 +20,7 @@ import crypto         from "crypto";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import qrcode         from "qrcode";
 import pool           from "../config/db.js";
-import { authenticate, authorise } from "../middleware/auth.js";
+import { authenticate, authorise, invalidateUserStatusCache } from "../middleware/auth.js";
 import { require2FA }  from "../middleware/2fa.js";
 import { createLogger } from "../lib/logger.js";
 import { entityIdParam } from "../lib/ids.js";
@@ -785,6 +785,10 @@ router.patch(
         return;
       }
 
+      invalidateUserStatusCache(staffId);
+      if (active === false) {
+        await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [staffId]).catch(() => {});
+      }
       log.info("Staff updated", { staffId: req.params.id });
       res.json({ success: true, data: { message: "Staff updated." } });
     } catch (err) {
@@ -873,6 +877,7 @@ router.delete(
         [staffId, req.user!.id, JSON.stringify({ deleted: staffId })]
       ).catch(() => {});
 
+      invalidateUserStatusCache(staffId);
       log.info("Staff soft-deleted", { staffId });
       res.json({ success: true, data: { message: "Staff deactivated." } });
     } catch (err) {

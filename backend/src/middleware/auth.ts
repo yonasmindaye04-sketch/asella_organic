@@ -7,6 +7,9 @@
  *     FIRST, and falls back to the Authorization: Bearer header if absent.
  *     → Browser clients using cookies work automatically.
  *     → Existing API / Postman / mobile clients using Bearer are unaffected.
+ *   + Re-checks user active status and deletion status with a short (30s)
+ *     in-memory LRU cache to instantly invalidate deactivated users without
+ *     hitting the DB on every single request (F-10).
  *
  * Usage:
  *   router.get("/orders",   authenticate, authorise("admin","manager"), handler)
@@ -17,6 +20,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt    from "jsonwebtoken";
 import pool   from "../config/db.js";
 import crypto from "crypto";
+import { LRUCache } from "lru-cache";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,12 +31,33 @@ export interface TokenPayload {
   jti:      string;
 }
 
+interface UserStatusCacheEntry {
+  exists: boolean;
+  active: boolean;
+  role: TokenPayload["role"];
+}
+
 declare global {
   namespace Express {
     interface Request {
       user?:      TokenPayload;
       requestId:  string;           // set by requestId middleware
     }
+  }
+}
+
+// ── In-Memory Active Status Cache (30s TTL) ───────────────────────────────────
+
+export const userStatusCache = new LRUCache<string, UserStatusCacheEntry>({
+  max: 1000,
+  ttl: 1000 * 30, // 30 seconds
+});
+
+export function invalidateUserStatusCache(userId?: string): void {
+  if (userId) {
+    userStatusCache.delete(userId);
+  } else {
+    userStatusCache.clear();
   }
 }
 
@@ -101,6 +126,41 @@ export async function authenticate(
     }
   } catch {
     // If table doesn't exist yet, proceed — non-blocking
+  }
+
+  // Re-check user active & deletion status in DB with 30s LRU cache (F-10)
+  try {
+    let status = userStatusCache.get(payload.id);
+    if (!status) {
+      const [userRows] = await pool.query(
+        `SELECT active, deleted_at, role FROM staff_users WHERE id = ? LIMIT 1`,
+        [payload.id]
+      ) as [any[], any];
+
+      if (userRows.length === 0) {
+        status = { exists: false, active: false, role: payload.role };
+      } else {
+        const u = userRows[0];
+        status = {
+          exists: true,
+          active: Boolean(u.active) && u.deleted_at === null,
+          role: u.role,
+        };
+      }
+      userStatusCache.set(payload.id, status);
+    }
+
+    if (!status.exists || !status.active) {
+      res.status(401).json({ success: false, error: "Account is inactive or has been disabled." });
+      return;
+    }
+
+    // Keep payload role synchronized in memory if role changed in DB
+    if (status.role && status.role !== payload.role) {
+      payload.role = status.role;
+    }
+  } catch (err) {
+    console.error("[authenticate] Error verifying user status:", err);
   }
 
   req.user = payload;

@@ -18,7 +18,7 @@ import { Router, Request, Response, CookieOptions } from "express";
 import bcrypt   from "bcryptjs";
 import crypto   from "crypto";
 import pool     from "../config/db.js";
-import { authenticate, issueTokens } from "../middleware/auth.js";
+import { authenticate, issueTokens, invalidateUserStatusCache } from "../middleware/auth.js";
 import { loginRateLimit } from "../middleware/rateLimit.js";
 import { validate }       from "../middleware/validate.js";
 import {
@@ -232,6 +232,7 @@ router.post("/logout", authenticate,
     res.clearCookie("refresh_token", { ...CLEAR_OPTS, path: "/api/auth" });
 
     await audit(user.id, "LOGOUT", `jti=${user.jti}`);
+    invalidateUserStatusCache(user.id);
     log.info("Staff logout", { userId: user.id });
 
     res.json({ success: true, data: { message: "Logged out successfully." } });
