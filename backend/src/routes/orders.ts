@@ -1,4 +1,4 @@
-﻿/**
+/**
  * src/routes/orders.ts
  * Asella Organic — Orders Routes (MySQL)
  *
@@ -579,7 +579,7 @@ router.get(
       }
 
       // call_center agents can only read orders they created
-      if (req.user?.role === "call_center" && order.created_by_staff_id !== req.user.id) {
+      if ((req.user?.role === "call_center" || req.user?.role === "store_manager") && order.created_by_staff_id !== req.user.id) {
         res.status(403).json({ success: false, error: "Forbidden" });
         return;
       }
