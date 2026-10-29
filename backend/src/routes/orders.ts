@@ -462,7 +462,7 @@ const ORDER_SELECT_COLUMNS = `
 function getOrderItemColumns(isStaffCostAuthorized: boolean): string {
   return isStaffCostAuthorized
     ? "id, order_id, product_id, product_match_type, product_match_confidence, product_match_note, item_name, package_size, quantity, unit_price, unit_cost"
-    : "id, order_id, product_id, product_match_type, product_match_confidence, product_match_note, item_name, package_size, quantity, unit_price";
+    : "id, order_id, product_id, item_name, package_size, quantity, unit_price";
 }
 
 router.get("/", authenticate,
@@ -599,9 +599,14 @@ router.get(
 
       const [items]    = await pool.query(`SELECT ${getOrderItemColumns(isCostAuth)} FROM order_items WHERE order_id = ?`, [req.params.id]) as [any[], any];
       const [history]  = await pool.query(`SELECT id, order_id, old_status, new_status, changed_by, note, created_at FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC`, [req.params.id]) as [any[], any];
-      const [payments] = await pool.query(`SELECT id, order_id, amount, payment_method, transaction_id, status, paid_at, recorded_by, notes, created_at FROM payments WHERE order_id = ? ORDER BY created_at DESC`, [req.params.id]) as [any[], any];
+      
+      const responseData: Record<string, any> = { ...order, items, history };
+      if (req.user?.role !== "delivery") {
+        const [payments] = await pool.query(`SELECT id, order_id, amount, payment_method, transaction_id, status, paid_at, recorded_by, notes, created_at FROM payments WHERE order_id = ? ORDER BY created_at DESC`, [req.params.id]) as [any[], any];
+        responseData.payments = payments;
+      }
 
-      res.json({ success: true, data: { ...order, items, history, payments } });
+      res.json({ success: true, data: responseData });
     } catch (err) {
       log.error("Failed to fetch order", err);
       res.status(500).json({ success: false, error: "Internal server error" });
