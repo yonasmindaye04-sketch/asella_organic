@@ -12,6 +12,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { authenticate } from "./middleware/auth.js";
 import path from "path";
 
 import helmet from "helmet";
@@ -38,6 +39,7 @@ import adminRoutes          from "./routes/admin.js";
 import expenseRoutes        from "./routes/expenses.js";
 import videoRoutes          from "./routes/videos.js";
 import mediaRoutes          from "./routes/media.js";
+import receiptsRouter, { handleReceiptDownload } from "./routes/receipts.js";
 import reportRoutes         from "./routes/reports.js";
 import storeReportRoutes    from "./routes/store-report.js";
 import customerRoutes       from "./routes/customers.js";
@@ -108,6 +110,16 @@ const frontendPublicCandidates = [
 ];
 const FRONTEND_DIST_DIR   = frontendDistCandidates.find((d) => existsSync(d))   ?? FRONTEND_DIST_FALLBACK;
 const FRONTEND_PUBLIC_DIR = frontendPublicCandidates.find((d) => existsSync(d)) ?? FRONTEND_PUBLIC_FALLBACK;
+
+// Intercept legacy receipt paths before express.static to enforce authentication
+app.get("/uploads/:filename", (req: Request, res: Response, next: NextFunction) => {
+  if (req.params.filename.startsWith("receipt-")) {
+    return cookieParser()(req, res, () => {
+      authenticate(req, res, () => handleReceiptDownload(req, res));
+    });
+  }
+  next();
+});
 
 app.use(express.static(path.join(process.cwd(), "public")));
 if (existsSync(FRONTEND_PUBLIC_DIR)) {
@@ -322,6 +334,7 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/expenses",     expenseRoutes],
   ["/videos",       videoRoutes],
   ["/media",        mediaRoutes],
+  ["/receipts",     receiptsRouter],
   ["/reports",      reportRoutes],
   ["/store-report", storeReportRoutes],
   ["/customers",    customerRoutes],

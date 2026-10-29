@@ -8,6 +8,7 @@ import { fileTypeFromBuffer } from "file-type";
 import cloudinary from "../lib/cloudinary.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { uploadRateLimit } from "../middleware/rateLimit.js";
+import { PRIVATE_RECEIPTS_DIR } from "./receipts.js";
 
 const router = Router();
 
@@ -84,13 +85,13 @@ router.post("/receipt", uploadRateLimit, upload.single("receipt"), async (req: R
     // 2. Generate a safe filename and manually force the verified extension
     const uniqueSuffix = crypto.randomBytes(8).toString("hex") + "-" + Date.now();
     const safeFilename = `receipt-${uniqueSuffix}.${fileType.ext}`;
-    const fullPath = path.join(UPLOADS_DIR, safeFilename);
+    const fullPath = path.join(PRIVATE_RECEIPTS_DIR, safeFilename);
 
     // 3. Write buffer to disk safely
     await fs.promises.writeFile(fullPath, req.file.buffer);
 
-    // Return the public URL
-    const fileUrl = `/uploads/${safeFilename}`;
+    // Return the authenticated receipt URL
+    const fileUrl = `/api/receipts/${safeFilename}`;
     res.status(200).json({ success: true, data: { url: fileUrl } });
   } catch (error) {
     console.error("[Upload] Error processing file:", error);

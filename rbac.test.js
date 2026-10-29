@@ -1,3 +1,4 @@
+import fs from "fs";
 // rbac.test.js
 // Usage: node rbac.test.js
 // Target: LOCAL backend only. Never run against production.
@@ -203,10 +204,15 @@ async function setupTestData() {
     [KNOWN.orderIdA, userMap["admin"].id]
   );
 
-  // Order created by call center
+  // Order created by call center (with attached receipt)
+  const testReceiptDir = path.join(process.cwd(), "backend", "private", "receipts");
+  if (!fs.existsSync(testReceiptDir)) fs.mkdirSync(testReceiptDir, { recursive: true });
+  const testReceiptPath = path.join(testReceiptDir, "receipt-rbac-test.png");
+  fs.writeFileSync(testReceiptPath, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"));
+
   await conn.query(
     `INSERT INTO orders (id, customer_name, phone, status, total, city, location, order_type, notes, created_by_staff_id)
-     VALUES (?, 'RBAC CC Order', '+251922334455', 'Pending', 300, 'Addis Ababa', 'Kazanchis', 'retail', 'CC Order Note', ?)`,
+     VALUES (?, 'RBAC CC Order', '+251922334455', 'Pending', 300, 'Addis Ababa', 'Kazanchis', 'retail', 'CC Order Note\nReceipt: /api/receipts/receipt-rbac-test.png', ?)`,
     [KNOWN.orderIdCC, userMap["call_center"].id]
   );
 
@@ -233,6 +239,8 @@ async function setupTestData() {
 async function cleanup() {
   console.log("\n🧹 Cleaning up test fixtures from database...");
   try {
+    const testReceiptPath = path.join(process.cwd(), "backend", "private", "receipts", "receipt-rbac-test.png");
+    if (fs.existsSync(testReceiptPath)) fs.unlinkSync(testReceiptPath);
     const conn = await getDb();
     if (createdOrderIds.length > 0) {
       await conn.query("DELETE FROM order_status_history WHERE order_id IN (?)", [createdOrderIds]).catch(() => {});
@@ -637,6 +645,16 @@ async function run() {
         }
       }
     }
+
+    // ── 12. RECEIPTS ACCESS CONTROL (F-04) ─────────────────────────────────
+    console.log("\n── 12. Receipts Access Control (F-04)");
+    check("receipt: unauthenticated GET /api/receipts/:file→401", (await req("GET", "/api/receipts/receipt-rbac-test.png")).status, 401);
+    check("receipt: unauthenticated legacy GET /uploads/receipt-*→401", (await req("GET", "/uploads/receipt-rbac-test.png")).status, 401);
+    check("receipt: delivery driver GET /api/receipts/:file→403", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.delivery)).status, 403);
+    check("receipt: store_manager (not creator) GET /api/receipts/:file→403", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.store_manager)).status, 403);
+    check("receipt: call_center (creator) GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.call_center)).status, 200);
+    check("receipt: employee GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.employee)).status, 200);
+    check("receipt: admin GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.admin)).status, 200);
 
     // ── SUMMARY ───────────────────────────────────────────────────────────
     const passed = results.filter(r => r.pass).length;
