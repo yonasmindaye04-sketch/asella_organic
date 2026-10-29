@@ -106,6 +106,7 @@ router.get(
     }
 
     const where = `WHERE ${conditions.join(" AND ")}`;
+    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
 
     try {
       const [rows] = await pool.query(
@@ -126,8 +127,7 @@ router.get(
              WHEN p.inventory_quantity <= p.low_stock_threshold        THEN 'low'
              ELSE 'ok'
            END AS stock_status,
-           -- stock value
-           (p.inventory_quantity * COALESCE(p.unit_cost, 0)) AS stock_value,
+           ${isCostAuth ? "(p.inventory_quantity * COALESCE(p.unit_cost, 0)) AS stock_value," : ""}
            -- last movement
            (SELECT im.created_at
             FROM   inventory_movements im
@@ -162,13 +162,14 @@ router.get(
   "/summary",
   authenticate,
   authorise("admin", "manager", "employee"),
-  async (_req: Request, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
     try {
       const [[summary]] = await pool.query(
         `SELECT
            COUNT(*)                                                          AS total_products,
            SUM(inventory_quantity)                                           AS total_units,
-           SUM(inventory_quantity * COALESCE(unit_cost, 0))                  AS total_stock_value,
+           ${isCostAuth ? "SUM(inventory_quantity * COALESCE(unit_cost, 0)) AS total_stock_value," : ""}
            SUM(CASE WHEN inventory_quantity = 0 THEN 1 ELSE 0 END)         AS out_of_stock_count,
            SUM(CASE WHEN inventory_quantity > 0
                     AND inventory_quantity <= low_stock_threshold / 2
@@ -194,16 +195,22 @@ router.get(
          WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
       ) as [any[], any];
 
+      const responseData: Record<string, unknown> = {
+        ...summary,
+        ...movStats,
+      };
+      if (isCostAuth) {
+        responseData.total_stock_value = Number(summary.total_stock_value ?? 0);
+      } else {
+        delete responseData.total_stock_value;
+      }
+
       res.json({
         success: true,
-        data: {
-          ...summary,
-          total_stock_value:  Number(summary.total_stock_value ?? 0),
-          ...movStats,
-        },
+        data: responseData,
       });
     } catch (err) {
-      const log = createLogger(_req);
+      const log = createLogger(req);
       log.error("Failed to fetch stock summary", err);
       res.status(500).json({ success: false, error: "Internal server error" });
     }

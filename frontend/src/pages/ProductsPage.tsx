@@ -9,6 +9,8 @@
  * Both tabs read/write the same `products` table via the backend.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 import { resolveProductImage } from '../utils/image';
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -40,7 +42,7 @@ interface StockItem {
   tag:                 string | null;
   image_url:           string | null;
   stock_status:        'ok' | 'low' | 'critical' | 'out_of_stock';
-  stock_value:         number;
+  stock_value?:        number;
   last_movement_at:    string | null;
   last_movement_type:  string | null;
 }
@@ -48,7 +50,7 @@ interface StockItem {
 interface StockSummary {
   total_products:    number;
   total_units:       number;
-  total_stock_value: number;
+  total_stock_value?: number;
   out_of_stock_count: number;
   critical_count:    number;
   low_count:         number;
@@ -967,6 +969,8 @@ interface StockTabProps {
 }
 
 function StockTab({ reloadKey }: StockTabProps) {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
   const [items,     setItems]    = useState<StockItem[]>([]);
   const [summary,   setSummary]  = useState<StockSummary | null>(null);
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -1013,11 +1017,11 @@ function StockTab({ reloadKey }: StockTabProps) {
     <div>
       {/* KPI Cards */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className={`grid grid-cols-2 ${isManagerOrAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-3 mb-6`}>
           {[
             { label: 'Total Products', value: summary.total_products, icon: 'inventory_2', iconBg: 'bg-blue-500' },
             { label: 'Total Units', value: summary.total_units, icon: 'tag', iconBg: 'bg-emerald-500' },
-            { label: 'Stock Value', value: `${summary.total_stock_value} ETB`, icon: 'payments', iconBg: 'bg-amber-500' },
+            ...(isManagerOrAdmin ? [{ label: 'Stock Value', value: `${summary.total_stock_value?.toLocaleString() ?? 0} ETB`, icon: 'payments', iconBg: 'bg-amber-500' }] : []),
             { label: 'Out of Stock', value: summary.out_of_stock_count, icon: 'warning', iconBg: 'bg-red-500' },
           ].map((k, i) => (
             <div key={i} className="card p-4 bg-white rounded-2xl shadow-sm border border-gray-100 transition-all hover:-translate-y-1 hover:shadow-md">
@@ -1083,7 +1087,7 @@ function StockTab({ reloadKey }: StockTabProps) {
                       <th className="px-4 py-3 text-center">Current Qty</th>
                       <th className="px-4 py-3 text-center">Threshold</th>
                       <th className="px-4 py-3 text-center">Status</th>
-                      <th className="px-4 py-3 text-right">Stock Value</th>
+                      {isManagerOrAdmin && <th className="px-4 py-3 text-right">Stock Value</th>}
                       <th className="px-4 py-3 text-center">Last Movement</th>
                       <th className="px-4 py-3 text-center">Adjust</th>
                     </tr>
@@ -1116,9 +1120,11 @@ function StockTab({ reloadKey }: StockTabProps) {
                               {STATUS_LABELS[item.stock_status]}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-sm text-gray-600">
-                            {Number(item.stock_value).toLocaleString()} ETB
-                          </td>
+                          {isManagerOrAdmin && (
+                            <td className="px-4 py-3 text-right font-mono text-sm text-gray-600">
+                              {Number(item.stock_value ?? 0).toLocaleString()} ETB
+                            </td>
+                          )}
                           <td className="px-4 py-3 text-center text-xs text-gray-400">
                             <div>{fmtDate(item.last_movement_at)}</div>
                             {item.last_movement_type && (
