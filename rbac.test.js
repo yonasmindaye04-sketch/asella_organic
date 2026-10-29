@@ -334,6 +334,10 @@ async function run() {
     check("delivery: GET /api/customers→403",         (await req("GET", "/api/customers", null, dt)).status, 403);
     check("delivery: GET /api/reports/pl→403",        (await req("GET", "/api/reports/pl", null, dt)).status, 403);
 
+    const delivOrderDetail = await req("GET", `/api/orders/${KNOWN.orderIdA}`, null, dt);
+    check("delivery: GET /orders/:id responds 200", delivOrderDetail.status, 200);
+    check("delivery: GET /orders/:id has no payments key", delivOrderDetail.body?.data?.payments === undefined, true);
+
     // ── 5. CALL CENTER IDOR CHECK ────────────────────────────────────────
     console.log("\n── 5. Call center — owns only own orders");
     const cct = tok.call_center;
@@ -366,6 +370,7 @@ async function run() {
     // Finding F-12: Employee cannot create purchase orders (403 expected)
     const empPO = await req("POST", "/api/vendor-orders", { vendor_name:"Test Vendor", item:"Packaging Box", amount:"100", price:500 }, et);
     check("employee: POST /vendor-orders→403 (F-12)", empPO.status, 403);
+    check("employee: GET /api/vendor-orders→403", (await req("GET", "/api/vendor-orders", null, et)).status, 403);
 
     // ── 8. unit_cost ON PUBLIC ENDPOINTS (F-08) ───────────────────────────
     console.log("\n── 8. unit_cost data over-exposure (F-08)");
@@ -519,7 +524,10 @@ async function run() {
       "password",
       "password_hash",
       "two_factor_secret",
-      "2fa_secret"
+      "2fa_secret",
+      "product_match_type",
+      "product_match_confidence",
+      "product_match_note"
     ];
 
     const GUEST_FORBIDDEN = [
@@ -610,7 +618,6 @@ async function run() {
           "/api/stock",
           "/api/stock/low",
           "/api/stock/summary",
-          "/api/vendor-orders",
         ],
       },
     ];
