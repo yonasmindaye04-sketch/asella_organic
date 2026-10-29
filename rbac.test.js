@@ -656,6 +656,48 @@ async function run() {
     check("receipt: employee GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.employee)).status, 200);
     check("receipt: admin GET /api/receipts/:file→200", (await req("GET", "/api/receipts/receipt-rbac-test.png", null, tok.admin)).status, 200);
 
+    // ── 12b. RECEIPT UPLOAD FORMAT & ACCESS (Item 1) ───────────────────────
+    console.log("\n── 12b. Receipt Upload Format & Access");
+    const heicBuf = Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, 0x00, 0x00, 0x00, 0x00, 0x6d, 0x69, 0x66, 0x31, 0x68, 0x65, 0x69, 0x63]);
+    const heicForm = new FormData();
+    heicForm.append("receipt", new Blob([heicBuf], { type: "image/heic" }), "test.heic");
+    const heicRes = await fetch(`${BASE}/api/upload/receipt`, {
+      method: "POST",
+      body: heicForm,
+      headers: {
+        "Origin": BASE,
+        "x-forwarded-for": `10.43.${Math.floor(reqCounter / 250)}.${reqCounter++ % 250}`,
+      },
+    });
+    const heicJson = await heicRes.json().catch(() => ({}));
+    check("upload: HEIC format rejected with 400", heicRes.status, 400);
+    check("upload: HEIC error message clear", typeof heicJson.error === "string" && heicJson.error.includes("Unsupported image format"), true);
+
+    const validPngBuf = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+    const validPngForm = new FormData();
+    validPngForm.append("receipt", new Blob([validPngBuf], { type: "image/png" }), "receipt.png");
+    const pngUploadRes = await fetch(`${BASE}/api/upload/receipt`, {
+      method: "POST",
+      body: validPngForm,
+      headers: {
+        "Origin": BASE,
+        "x-forwarded-for": `10.43.${Math.floor(reqCounter / 250)}.${reqCounter++ % 250}`,
+      },
+    });
+    const pngUploadJson = await pngUploadRes.json().catch(() => ({}));
+    check("upload: valid PNG uploads with 200", pngUploadRes.status, 200);
+    check("upload: valid PNG returns receipt URL", typeof pngUploadJson?.data?.url === "string" && pngUploadJson.data.url.startsWith("/api/receipts/receipt-"), true);
+
+    let uploadedAdminOpenStatus = 0;
+    if (pngUploadJson?.data?.url) {
+      const openRes = await req("GET", pngUploadJson.data.url, null, tok.admin);
+      uploadedAdminOpenStatus = openRes.status;
+      const uploadedFileBasename = path.basename(pngUploadJson.data.url);
+      const uploadedFilePath = path.join(process.cwd(), "backend", "private", "receipts", uploadedFileBasename);
+      if (fs.existsSync(uploadedFilePath)) fs.unlinkSync(uploadedFilePath);
+    }
+    check("upload: admin can open uploaded receipt", uploadedAdminOpenStatus, 200);
+
     // ── SUMMARY ───────────────────────────────────────────────────────────
     const passed = results.filter(r => r.pass).length;
     const failed = results.filter(r => !r.pass).length;

@@ -74,11 +74,35 @@ router.post("/receipt", uploadRateLimit, upload.single("receipt"), async (req: R
   }
 
   try {
-    // 1. Inspect "magic bytes" to guarantee it is actually an image
+    // 1. Inspect "magic bytes" to guarantee verified file type
     const fileType = await fileTypeFromBuffer(req.file.buffer);
     
-    if (!fileType || !fileType.mime.startsWith("image/")) {
-      res.status(400).json({ success: false, error: "Invalid or corrupt image file" });
+    if (!fileType) {
+      res.status(400).json({ success: false, error: "Invalid or corrupt file: unable to determine file type" });
+      return;
+    }
+
+    const ext = fileType.ext.toLowerCase();
+    const mime = fileType.mime.toLowerCase();
+
+    // Explicitly reject unsupported/problematic formats with a clear message
+    const rejectedFormats = ["heic", "heif", "avif", "bmp", "tif", "tiff"];
+    if (rejectedFormats.includes(ext) || rejectedFormats.some(f => mime.includes(f))) {
+      const displayFormat = ext.toUpperCase();
+      res.status(400).json({
+        success: false,
+        error: `Unsupported image format (${displayFormat}). Please upload a JPEG, PNG, or WebP image (or PDF).`
+      });
+      return;
+    }
+
+    // Allowed formats: jpg, jpeg, png, webp, pdf
+    const allowedExtensions = ["jpg", "jpeg", "png", "webp", "pdf"];
+    if (!allowedExtensions.includes(ext)) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid file type. Only JPG, PNG, WebP, and PDF files are accepted."
+      });
       return;
     }
 
