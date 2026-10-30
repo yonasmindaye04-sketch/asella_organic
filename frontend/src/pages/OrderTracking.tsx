@@ -102,13 +102,13 @@ const getSourceBadge = (order: Order) => SOURCE_BADGES[getSourceKey(order)] || S
 const isSocialSource = (order: Order) => ['telegram', 'instagram', 'facebook'].includes(getSourceKey(order));
 
 function renderNoteContent(text: string): React.ReactNode {
-  const receiptRegex = /(Receipt:\s*)(\/api\/receipts\/[a-zA-Z0-9_.-]+)/g;
+  const receiptRegex = /(Receipt:\s*)(\/(?:api\/receipts\/|uploads\/receipt-)[a-zA-Z0-9_.-]+)/g;
   if (!receiptRegex.test(text)) {
     return text;
   }
   const parts: (string | React.ReactNode)[] = [];
   let lastIndex = 0;
-  const regex = /(Receipt:\s*)(\/api\/receipts\/[a-zA-Z0-9_.-]+)/g;
+  const regex = /(Receipt:\s*)(\/(?:api\/receipts\/|uploads\/receipt-)[a-zA-Z0-9_.-]+)/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
