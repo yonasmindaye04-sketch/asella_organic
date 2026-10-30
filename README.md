@@ -1,50 +1,70 @@
 # Asella Organic
 
-Asella Organic is a premium e-commerce platform for selling organic agricultural products, featuring a modern React frontend and a secure Node.js/Express backend.
+Asella Organic is a full-stack e-commerce, inventory, and operations platform for premium organic agricultural products, featuring a modern React 19 frontend, an Express 5 backend, automated Telegram bot delivery dispatches, and accrual accounting.
 
 ---
 
-##  Pre-Deployment Checklist (Must-Haves)
+## Documentation Catalog & Index
 
-Before deploying this application to a live production environment (e.g., VPS, Heroku, Vercel, DigitalOcean), you **MUST** ensure the following items are configured correctly. Failure to do so may result in security vulnerabilities, broken features, or data loss.
+To keep the codebase maintainable and organized, technical documentation is categorized below:
 
-### 1.  Environment Variables (`.env`)
-You must configure a production `.env` file for the backend. Never commit this file to GitHub!
-- [ ] **`NODE_ENV=production`**: This is critical. It enables secure cookies (`Secure` flag), turns off verbose error stack traces, and optimizes Express performance.
-- [ ] **`FRONTEND_URL`**: Must be set to your exact live domain (e.g., `https://asellaorganic.com`). If this is wrong, CORS will block all frontend API requests.
-- [ ] **`JWT_SECRET`**: Must be a long, cryptographically secure random string (e.g., generated via `openssl rand -hex 64`). DO NOT use a simple password.
-- [ ] **`TELEGRAM_BOT_TOKEN`**: Ensure you have created a production Telegram bot via BotFather and provided the token.
-- [ ] **`TELEGRAM_WEBHOOK_SECRET`**: A random string used to verify that incoming webhooks are actually coming from Telegram.
-- [ ] **`CLOUDINARY_URL` / API Keys**: Required for image and receipt uploads to function.
+### Architecture & System Design
+- [Architecture Overview](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/architecture.md): High-level system topology, module interaction, and request lifecycle.
+- [Database Schema (v2)](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/database.md): Entity definitions, relations, parent-variant catalog structure, and views.
+- [Accounting & Inventory Design](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/ACCOUNTING_AND_INVENTORY_SYSTEM_DESIGN.md): Cost of Goods Sold (COGS), Moving Average Cost (MAC), and double-entry stock movement ledger.
+- [Architecture Decision Records](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/decision.md): Historical architectural decisions and rationales.
 
-### 2. 🗄️ Database Readiness
-- [ ] **MySQL Production Database**: Ensure you are connecting to a production-grade MySQL database (not local SQLite).
-- [ ] **Run Migrations**: Ensure the schema files in `backend/db/sql/` are applied to the live database (see `backend/deployment guide.md`). The bulk fixture scripts (`004_dummy_data`, `027`–`030`, `032`) have been removed — there is no seeded admin and no dummy orders.
-- [ ] **Create the First Admin**: There is no default admin any more. Bootstrap one explicitly, with your own password:
+### Deployment & Runbooks
+- [Production Deployment Guide](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/backend/deployment%20guide.md): The authoritative production runbook for cPanel, Node 24 Selector, Passenger, and LiteSpeed.
+- [Deployment Gotchas & Incidents](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/DEPLOYMENT_GOTCHAS.md): Documented historical deployment traps, CSP rules, and service worker cache policies.
+- [Telegram Mini App & Cloudflare Runbook](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/MINIAPP_CLOUDFLARE_RUNBOOK.md): Tunnel configuration, Telegram bot registration, and webhook handling.
+
+### Development, Standards & Operations
+- [Development Setup Guide](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/setup.md): Local development environment configuration, database seeding, and bot testing.
+- [Agent Operating Manual](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/agent.md): Operating instructions, safety protocols, and port rules for AI assistants.
+- [Code Rules & Standards](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/rule.md): Coding guidelines, strict zero-emoji policy, and security conventions.
+- [Customer Service Guide](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/CUSTOMER_SERVICE_GUIDE.md): Operational guide for call center agents and support staff.
+- [Security Review](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/SECURITY_REVIEW.md): Audit findings, RBAC matrix, and vulnerability remediations.
+- [Changelog](file:///c:/Users/MrYoYo/Desktop/project/asella_organic/CHANGELOG.md): Historical record of platform changes.
+
+---
+
+## Pre-Deployment Checklist
+
+Before deploying this application to the production server, ensure the following items are configured:
+
+### 1. Environment Variables (cPanel Node.js App)
+Configure environment variables in **cPanel -> Setup Node.js App** (not in `.env` directly):
+- `NODE_ENV=production`: Enables secure cookies, suppresses verbose stack traces, and optimizes Express.
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed origins (e.g. `https://www.asellaorganic.com,https://asellaorganic.com`).
+- `JWT_SECRET`: Minimum 32-character cryptographically secure random string.
+- `TELEGRAM_BOT_TOKEN`: Production Telegram bot token from BotFather.
+- `TELEGRAM_WEBHOOK_SECRET`: Secret token used to authenticate Telegram webhook payloads.
+- `CLOUDINARY_URL` / Cloudinary credentials: Required for product photography and receipt uploads.
+
+### 2. Database Readiness
+- Connect to MariaDB 10.11+ using character set `utf8mb3` / `utf8mb3_unicode_ci`.
+- Execute migrations in `backend/db/sql/` following the production deployment guide.
+- Bootstrap the first admin explicitly:
   ```bash
   cd backend
   INITIAL_ADMIN_PASSWORD='<strong-password>' ADMIN_USERNAME=your_admin ADMIN_EMAIL=you@example.com node create-admin.js
   ```
-  It refuses weak passwords and an invalid role. **Set up 2FA immediately** after the first sign-in.
-- [ ] **Automated Backups**: Configure daily automated SQL dumps for your MySQL database. 
+  Set up TOTP two-factor authentication immediately upon initial sign-in.
 
-### 3. 🌐 Infrastructure & Security
-- [ ] **HTTPS / SSL Certificate**: the site **must** be served over HTTPS. Because the authentication system uses `HttpOnly` and `Secure` cookies, login will **completely fail** on a production server without HTTPS.
-- [ ] **ECAE Certificate**: Ensure your quality certificates are uploaded and correctly linked in the storefront for customer trust.
-- [ ] **PM2 / Process Manager**: Do not run the backend using `npm run dev`. Compile it using `npm run build` and run it using a process manager like PM2 (`pm2 start dist/server.js`) so it restarts automatically if it crashes.
-
-### 4. 🧪 Final Testing
-- [ ] **Test a Full Order Flow**: Place a test order as a customer, upload a dummy receipt, and ensure the Telegram Bot notifies the staff group.
-- [ ] **Test Authentication**: Ensure staff login works and that cookies are successfully set in the browser's developer tools.
+### 3. Infrastructure & Security
+- **HTTPS Enforcement:** The site must be served strictly over HTTPS. Session cookies use `Secure` and `SameSite=Strict`.
+- **Process Manager:** Production backend is executed by Passenger (`dist/server.js`) under CloudLinux Node.js Selector (Node 24).
+- **Static Frontend:** Frontend build artifacts reside in `~/public_html/`. Never overwrite `public_html/.htaccess`.
 
 ---
 
-## 💻 Local Development Setup
+## Local Development Setup
 
 ### Prerequisites
-- Node.js (v18+)
-- MySQL (v8.0+)
-- npm
+- Node.js (v20.x or v24.x LTS)
+- MySQL 8.0+ or MariaDB 10.5+
+- npm (v10+)
 
 ### Installation
 
@@ -58,7 +78,7 @@ You must configure a production `.env` file for the backend. Never commit this f
    ```bash
    cd backend
    npm install
-   # Copy .env.example to .env and configure your local MySQL credentials
+   # Configure backend/.env
    npm run dev
    ```
 
@@ -66,6 +86,5 @@ You must configure a production `.env` file for the backend. Never commit this f
    ```bash
    cd frontend
    npm install
-   # Copy .env.example to .env (set )
    npm run dev
    ```

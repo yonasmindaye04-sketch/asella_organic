@@ -6,7 +6,7 @@
 - **Node.js:** 20.x or 24.x LTS
 - **npm:** 10.x or higher
 - **MySQL:** 8.0+ or MariaDB 10.5+
-- **PM2:** For production daemon process management
+- **Process Management:** Passenger (cPanel Node.js Selector) for production execution; tsx/npm scripts for local development
 - **Telegram Account & Bot:** Created via `@BotFather` on Telegram
 
 ---
