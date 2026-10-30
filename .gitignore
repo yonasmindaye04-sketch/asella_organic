@@ -47,9 +47,19 @@ temp/
 # OS
 Thumbs.db
 
-# Testing
+# Testing & Playwright artifacts
 .nyc_output/
 coverage/
+playwright-report/
+test-results/
+
+# AI Studio artifacts
+.aistudio/
+
+# Local database dumps
+*.sql
+!backend/db/sql/*.sql
+!rebuild-archived-20261027/*.sql
 
 # Private / Local
 local.ts
