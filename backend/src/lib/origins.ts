@@ -25,7 +25,7 @@ export const allowedOrigins = (
 
 export function isAllowedOrigin(origin: string): boolean {
   if (!isProduction && devOriginPattern.test(origin)) return true;
-  if (previewOriginPattern.test(origin)) return true;
+  if (!isProduction && previewOriginPattern.test(origin)) return true;
   return allowedOrigins.some((allowed) => origin === allowed);
 }
 
