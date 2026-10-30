@@ -214,7 +214,7 @@ async function setupTestData() {
 
   await conn.query(
     `INSERT INTO orders (id, customer_name, phone, status, total, city, location, order_type, notes, created_by_staff_id)
-     VALUES (?, 'RBAC CC Order', '+251922334455', 'Pending', 300, 'Addis Ababa', 'Kazanchis', 'retail', 'CC Order Note\nReceipt: /api/receipts/receipt-0123456789abcdef-1700000000000.png', ?)`,
+     VALUES (?, 'RBAC CC Order', '0712345678', 'Pending', 300, 'Addis Ababa', 'Kazanchis', 'retail', 'CC Order Note\nReceipt: /api/receipts/receipt-0123456789abcdef-1700000000000.png', ?)`,
     [KNOWN.orderIdCC, userMap["call_center"].id]
   );
 
@@ -306,6 +306,13 @@ async function run() {
     check("GET /api/orders/track/:id removes history.changed_by", !leaksHistoryChangedBy, true);
     check("GET /api/orders/track/:id returns city and coarsened location", typeof trackData.city === "string" && typeof trackData.location === "string", true);
     check("GET /api/orders/track/:id responds with tracking payload", trackRes.status, 200);
+
+    const trackCCRes = await req("GET", `/api/orders/track/${KNOWN.orderIdCC}`);
+    const trackCCData = trackCCRes.body?.data || {};
+    const ccPhoneMasked = typeof trackCCData.phone === "string" && trackCCData.phone.startsWith("0") && trackCCData.phone.endsWith("678") && !trackCCData.phone.includes("0712345678");
+    const ccNotesReceiptStripped = typeof trackCCData.notes === "string" && !trackCCData.notes.includes("Receipt:") && trackCCData.notes.includes("CC Order Note");
+    check("GET /api/orders/track/:id masks 07... local phone generically", ccPhoneMasked, true);
+    check("GET /api/orders/track/:id strips Receipt: line from notes", ccNotesReceiptStripped, true);
 
     // Rate limit test: 30 requests within 15 min per IP allowed, 31st rejected with 429
     const rateLimitIp = `10.88.99.${Math.floor(Date.now() / 1000) % 250}`;

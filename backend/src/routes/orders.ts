@@ -398,20 +398,52 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
 function maskPhone(phone: string | null | undefined): string {
   if (!phone) return "";
   const trimmed = phone.trim();
-  const last3 = trimmed.slice(-3);
-  if (trimmed.startsWith("+251")) {
-    return `+251 •••••• ${last3}`;
+  if (trimmed.length <= 3) return "•••";
+
+  // Match optional country code prefix (e.g. +251, +1, etc.)
+  const intlMatch = trimmed.match(/^(\+\d{1,3})[\s.-]?(.*)$/);
+  if (intlMatch) {
+    const prefix = intlMatch[1];
+    const rest = intlMatch[2].replace(/[\s.-]/g, "");
+    if (rest.length <= 3) return `${prefix} •••`;
+    const last3 = rest.slice(-3);
+    const maskedLen = Math.max(rest.length - 3, 4);
+    return `${prefix} ${"•".repeat(maskedLen)} ${last3}`;
   }
-  if (trimmed.startsWith("0")) {
-    return `09••••• ${last3}`;
+
+  // Local phone number (e.g. 09..., 07..., or other local format)
+  const digits = trimmed.replace(/[\s.-]/g, "");
+  if (digits.length <= 3) return "•••";
+  const last3 = digits.slice(-3);
+  if (digits.startsWith("0")) {
+    const maskedLen = Math.max(digits.length - 4, 4);
+    return `0${"•".repeat(maskedLen)}${last3}`;
   }
-  return `•••••• ${last3}`;
+  const maskedLen = Math.max(digits.length - 3, 4);
+  return `${"•".repeat(maskedLen)}${last3}`;
 }
 
-function coarsenLocation(location: string | null | undefined): string {
-  if (!location) return "";
+function coarsenLocation(location: string | null | undefined, city?: string | null | undefined): string {
+  if (!location) return city || "";
+  // Split on delimiters (commas, semicolons, newlines)
   const parts = location.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
-  return parts[0] || "";
+  let broader = parts.length > 0 ? parts[0] : location.trim();
+  // Strip specific house/door/building/apartment numbers like "House 12", "H.No 45", "Bldg 3", etc.
+  broader = broader.replace(/\b(house|h\.?no|building|bldg|apt|apartment|flat|door)\s*#?\s*\d+[a-z]?\b/gi, "").trim();
+  if (!broader || /^\d+$/.test(broader)) {
+    return city || parts[parts.length - 1] || location.trim();
+  }
+  return broader;
+}
+
+function stripReceiptFromNotes(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  const filtered = notes
+    .split(/\r?\n/)
+    .filter((line) => !line.trim().toLowerCase().startsWith("receipt:"))
+    .join("\n")
+    .trim();
+  return filtered || null;
 }
 
 router.get("/track/:id", orderTrackRateLimit, async (req: Request, res: Response): Promise<void> => {
@@ -460,7 +492,8 @@ router.get("/track/:id", orderTrackRateLimit, async (req: Request, res: Response
       data: {
         ...order,
         phone: maskPhone(order.phone),
-        location: coarsenLocation(order.location),
+        location: coarsenLocation(order.location, order.city),
+        notes: stripReceiptFromNotes(order.notes),
         items,
         history,
       },
