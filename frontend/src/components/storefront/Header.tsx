@@ -75,38 +75,38 @@ const Header: React.FC = () => {
         
         {/* Logo - Top Left Corner */}
         <Link to="/" className="flex items-center shrink-0 flex-1">
-          <span className="font-comfortaa text-[20px] md:text-[24px] font-black text-obsidian dark:text-white tracking-tight uppercase select-none flex items-center gap-2">
+          <span className="font-comfortaa text-[20px] md:text-[24px] font-black text-obsidian dark:text-white tracking-tight uppercase select-none flex items-center gap-2 whitespace-nowrap">
             <span className="material-symbols-outlined text-[#4caf50] text-[32px]">eco</span>
             Asella Organic
           </span>
         </Link>
 
         {/* Center Links */}
-        <div className="hidden md:flex items-center gap-10 lg:gap-12 flex-1 justify-center">
-          <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+        <div className="hidden xl:flex items-center gap-5 xl:gap-12 flex-1 justify-center">
+          <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group whitespace-nowrap">
             {t('nav.home')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
-          <a href="#products" onClick={(e) => handleNavClick(e, '#products')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <a href="#products" onClick={(e) => handleNavClick(e, '#products')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group whitespace-nowrap">
             {t('nav.products')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
-          <a href="#story" onClick={(e) => handleNavClick(e, '#story')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <a href="#story" onClick={(e) => handleNavClick(e, '#story')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group whitespace-nowrap">
             {t('nav.about')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
-          <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group whitespace-nowrap">
             {t('nav.contact')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </a>
-          <Link to="/track" className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group">
+          <Link to="/track" className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold transition-colors uppercase tracking-[0.15em] relative group whitespace-nowrap">
             {t('nav.trackOrder')}
             <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-highland-gold transition-all duration-300 group-hover:w-full"></span>
           </Link>
         </div>
 
         {/* Right Actions */}
-        <div className="hidden md:flex items-center gap-4 shrink-0 flex-1 justify-end">
+        <div className="hidden xl:flex items-center gap-4 shrink-0 flex-1 justify-end">
           
           {/* Language Toggle */}
           {renderLanguageToggle()}
@@ -126,7 +126,7 @@ const Header: React.FC = () => {
         </div>
 
         {/* Mobile Toggle */}
-        <div className="md:hidden flex items-center gap-3">
+        <div className="xl:hidden flex items-center gap-3">
           {renderLanguageToggle()}
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -140,7 +140,7 @@ const Header: React.FC = () => {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-[72px] left-0 w-full bg-white dark:bg-obsidian border-b border-border shadow-lg animate-in slide-in-from-top-2 duration-200 py-4 px-6 flex flex-col gap-4">
+        <div className="xl:hidden absolute top-[72px] left-0 w-full bg-white dark:bg-obsidian border-b border-border shadow-lg animate-in slide-in-from-top-2 duration-200 py-4 px-6 flex flex-col gap-4">
           <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.home')}</a>
           <a href="#products" onClick={(e) => handleNavClick(e, '#products')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.products')}</a>
           <a href="#story" onClick={(e) => handleNavClick(e, '#story')} className="text-base font-bold text-obsidian dark:text-white hover:text-highland-gold uppercase tracking-widest py-2 border-b border-parchment-mid">{t('nav.about')}</a>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../LanguageContext';
+import ViewOnMap from './ViewOnMap';
 
 const ContactSection: React.FC = () => {
   const { t } = useLanguage();
@@ -44,10 +45,10 @@ const ContactSection: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-stretch">
+        <div className="grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-16">
           
           {/* Left Column */}
-          <div className="space-y-10 flex flex-col justify-center">
+          <div className="space-y-10 flex flex-col">
             
             {/* Customer Support */}
             <div>
@@ -56,9 +57,9 @@ const ContactSection: React.FC = () => {
                 {t('contact.supportTitle')}
               </h3>
               
-              <div className="space-y-4">
+              <div className="flex flex-wrap gap-4">
                 {/* Amharic */}
-                <div className="flex items-center justify-between p-4 bg-white dark:bg-obsidian rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-grow basis-[280px] xl:basis-[calc(50%-8px)] min-w-0 items-center justify-between p-4 bg-white dark:bg-obsidian rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
                   <div>
                     <p className="text-sm font-mono text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">{t('contact.amharicSupport')}</p>
                     <p className="text-lg font-bold text-obsidian dark:text-white font-mono">+251 909 122 623</p>
@@ -69,7 +70,7 @@ const ContactSection: React.FC = () => {
                 </div>
 
                 {/* Afaan Oromoo */}
-                <div className="flex items-center justify-between p-4 bg-white dark:bg-obsidian rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-grow basis-[280px] xl:basis-[calc(50%-8px)] min-w-0 items-center justify-between p-4 bg-white dark:bg-obsidian rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
                   <div>
                     <p className="text-sm font-mono text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-1">{t('contact.oromooSupport')}</p>
                     <p className="text-lg font-bold text-obsidian dark:text-white font-mono">+251 942 223 999</p>
@@ -83,47 +84,44 @@ const ContactSection: React.FC = () => {
 
             {/* Locations */}
             <div className="grid sm:grid-cols-2 gap-6 pt-4 border-t border-border">
-              <div className="bg-white dark:bg-obsidian p-5 rounded-2xl border border-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-highland-gold text-[20px]">storefront</span>
-                  <h4 className="font-bold text-obsidian dark:text-white text-base">{t('contact.storePiasaTitle')}</h4>
-                </div>
-                <p className="text-base text-slate-900 dark:text-slate-300 mb-3 leading-relaxed">
-                  {t('contact.storePiasaDesc')}
-                </p>
-                <a href="https://maps.app.goo.gl/mssptHZ9dAXRCbCh7" className="inline-flex items-center gap-1.5 text-sm font-mono font-bold uppercase tracking-wider text-highland-gold hover:text-highland-gold-light transition-colors">
-                  <span className="material-symbols-outlined text-[14px]">explore</span>
-                  {t('contact.directions')}
-                </a>
-              </div>
+              <ViewOnMap
+                title={t('contact.storePiasaTitle')}
+                address={t('contact.storePiasaDesc')}
+                mapQuery="Piasa Store, Piazza Giorgis, Ethel Apartment, Addis Ababa, Ethiopia"
+                directionsUrl="https://maps.app.goo.gl/mssptHZ9dAXRCbCh7"
+                viewOnMapLabel={t('contact.viewOnMap')}
+                triggerLabel={t('contact.directions')}
+                directionsLabel={t('contact.directions')}
+                closeLabel={t('contact.closeMap')}
+                icon={<span className="material-symbols-outlined text-highland-gold text-[20px]">storefront</span>}
+              />
 
-              <div className="bg-white dark:bg-obsidian p-5 rounded-2xl border border-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-highland-gold text-[20px]">apartment</span>
-                  <h4 className="font-bold text-obsidian dark:text-white text-base">{t('contact.officeTitle')}</h4>
-                </div>
-                <p className="text-base text-slate-900 dark:text-slate-300 mb-3 leading-relaxed">
-                  {t('contact.officeDesc')}
-                </p>
-                <a href="https://maps.app.goo.gl/qUfZBHcAL2784skT6?g_st=ic" className="inline-flex items-center gap-1.5 text-sm font-mono font-bold uppercase tracking-wider text-highland-gold hover:text-highland-gold-light transition-colors">
-                  <span className="material-symbols-outlined text-[14px]">map</span>
-                  {t('contact.visitUs')}
-                </a>
-              </div>
+              <ViewOnMap
+                title={t('contact.officeTitle')}
+                address={t('contact.officeDesc')}
+                mapQuery="Asella Organic Head Office, Addis Ababa, Ethiopia"
+                directionsUrl="https://maps.app.goo.gl/qUfZBHcAL2784skT6?g_st=ic"
+                viewOnMapLabel={t('contact.viewOnMap')}
+                triggerLabel={t('contact.visitUs')}
+                triggerIcon="map"
+                directionsLabel={t('contact.directions')}
+                closeLabel={t('contact.closeMap')}
+                icon={<span className="material-symbols-outlined text-highland-gold text-[20px]">apartment</span>}
+              />
             </div>
           </div>
 
           {/* Right Column: Appointment Form */}
-          <div className="bg-obsidian dark:bg-[#0A0A0A] rounded-[32px] p-6 md:p-8 text-white shadow-xl flex flex-col justify-center border border-highland-gold/20 relative overflow-hidden">
+          <div className="self-start mx-auto max-w-[460px] w-full bg-obsidian dark:bg-[#0A0A0A] rounded-[32px] p-6 md:p-6 text-white shadow-xl flex flex-col border border-highland-gold/20 relative overflow-hidden">
             {/* Subtle background glow */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-highland-gold/5 rounded-full blur-2xl pointer-events-none"></div>
             
-            <h3 className="text-2xl md:text-3xl font-display-lg font-bold mb-6 flex items-center gap-3 relative z-10">
-              <span className="material-symbols-outlined text-highland-gold text-[28px] md:text-[32px]">calendar_month</span>
+            <h3 className="text-xl md:text-2xl font-display-lg font-bold mb-5 flex items-center gap-2 relative z-10">
+              <span className="material-symbols-outlined text-highland-gold text-[24px] md:text-[28px]">calendar_month</span>
               {t('contact.formTitle')}
             </h3>
 
-            <form className="space-y-4 relative z-10" onSubmit={handleSubmit}>
+            <form className="space-y-3 relative z-10" onSubmit={handleSubmit}>
               {status === 'success' && (
                 <div className="bg-green-500/10 border border-green-500/30 text-green-400 p-3 rounded-xl text-base mb-4">
                   {t('contact.formSuccess')}
@@ -143,7 +141,7 @@ const ContactSection: React.FC = () => {
                   value={formData.full_name}
                   onChange={e => setFormData(p => ({...p, full_name: e.target.value}))}
                   placeholder={t('contact.fullNamePlaceholder')}
-                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-sans" 
+                  className="w-full px-4 py-2 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-sans" 
                 />
               </div>
 
@@ -155,7 +153,7 @@ const ContactSection: React.FC = () => {
                   value={formData.phone_number}
                   onChange={e => setFormData(p => ({...p, phone_number: e.target.value}))}
                   placeholder={t('contact.phonePlaceholder')}
-                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
+                  className="w-full px-4 py-2 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
                 />
               </div>
 
@@ -166,7 +164,7 @@ const ContactSection: React.FC = () => {
                   value={formData.email}
                   onChange={e => setFormData(p => ({...p, email: e.target.value}))}
                   placeholder={t('contact.emailPlaceholder')}
-                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
+                  className="w-full px-4 py-2 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
                 />
               </div>
 
@@ -178,7 +176,7 @@ const ContactSection: React.FC = () => {
                   required
                   value={formData.preferred_date}
                   onChange={e => setFormData(p => ({...p, preferred_date: e.target.value}))}
-                  className="w-full px-4 py-2.5 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
+                  className="w-full px-4 py-2 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-mono" 
                 />
               </div>
 
@@ -186,7 +184,7 @@ const ContactSection: React.FC = () => {
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full py-3 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white font-mono font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-base uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white font-mono font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? t('common.sending') : t('common.submit')}
                   {!loading && <span className="material-symbols-outlined text-[16px]">arrow_forward</span>}

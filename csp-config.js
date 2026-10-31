@@ -36,7 +36,14 @@ module.exports = {
   ],
   fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
   // YouTube product videos are embedded in the storefront and dashboard.
-  frameSrc: ["https://www.youtube.com", "https://youtube.com", "https://www.youtube-nocookie.com"],
+  // Google Maps is used by the storefront "View on Map" location card.
+  frameSrc: [
+    "https://www.youtube.com",
+    "https://youtube.com",
+    "https://www.youtube-nocookie.com",
+    "https://maps.google.com",
+    "https://www.google.com",
+  ],
   objectSrc: ["'none'"],
   frameAncestors: [
     "'self'",

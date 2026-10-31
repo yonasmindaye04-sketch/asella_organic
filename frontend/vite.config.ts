@@ -62,6 +62,10 @@ export default defineConfig({
     __SW_BUILD_ID__: JSON.stringify(swBuildId),
   },
   resolve: {
+    // motion/framer-motion is hoisted to the monorepo root while React lives in
+    // frontend/node_modules. Without dedupe the dep optimizer cannot resolve
+    // the "react" peer from framer-motion and the whole app fails to boot.
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
     },
