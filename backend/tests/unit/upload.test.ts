@@ -18,7 +18,8 @@ import path from "path";
 import fs from "fs";
 import app from "../../src/app.js";
 
-const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+import { PRIVATE_RECEIPTS_DIR } from "../../src/routes/receipts.js";
+const UPLOADS_DIR = PRIVATE_RECEIPTS_DIR;
 
 // Build a tiny valid PNG (1×1 transparent) as a Buffer
 const TINY_PNG = Buffer.from(
@@ -49,7 +50,7 @@ describe("POST /api/upload/receipt", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.url).toMatch(/^\/uploads\/receipt-[a-f0-9]+-\d+\.png$/);
+    expect(res.body.data.url).toMatch(/^\/api\/receipts\/receipt-[a-f0-9]+-\d+\.png$/);
   });
 
   it("rejects non-image files (mimetype not image/*)", async () => {
@@ -100,8 +101,8 @@ describe("POST /api/upload/receipt", () => {
       .attach("receipt", TINY_PNG, { filename: "written.png", contentType: "image/png" });
 
     expect(res.status).toBe(200);
-    const url: string = res.body.data.url;
-    const filename = url.replace("/uploads/", "");
+    const url = res.body.data.url;
+    const filename = url.replace("/api/receipts/", "");
     const writtenPath = path.join(UPLOADS_DIR, filename);
     expect(fs.existsSync(writtenPath)).toBe(true);
     expect(fs.statSync(writtenPath).size).toBe(TINY_PNG.length);

@@ -23,25 +23,31 @@ const DashboardLayoutInner: React.FC<DashboardLayoutProps> = ({ children }) => {
   const canViewTeamPerformance = user?.role === 'admin' || user?.role === 'manager';
 
   return (
-    <div className="flex h-screen overflow-hidden antialiased bg-[#f8fafc] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 relative">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(!isSidebarOpen)} />
+    <div className="flex h-screen overflow-hidden antialiased bg-[#f8fafc] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 relative print:h-auto print:overflow-visible print:bg-white print:block">
+      <div className="print:hidden">
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(!isSidebarOpen)} />
+      </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden relative z-[1] min-w-0">
-        <TopHeader isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <main className="flex-1 flex flex-col overflow-hidden relative z-[1] min-w-0">
-          <div className="flex-1 overflow-y-auto min-w-0">
+      <div className="flex flex-1 flex-col overflow-hidden relative z-[1] min-w-0 print:h-auto print:overflow-visible print:block">
+        <div className="print:hidden">
+          <TopHeader isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        </div>
+        <main className="flex-1 flex flex-col overflow-hidden relative z-[1] min-w-0 print:h-auto print:overflow-visible print:block">
+          <div className="flex-1 overflow-y-auto min-w-0 print:h-auto print:overflow-visible print:block">
             {children}
           </div>
         </main>
       </div>
 
       {canViewTeamPerformance && (
-        <TeamPerformancePanel
-          open={open}
-          onClose={closePanel}
-          from={range.from}
-          to={range.to}
-        />
+        <div className="print:hidden">
+          <TeamPerformancePanel
+            open={open}
+            onClose={closePanel}
+            from={range.from}
+            to={range.to}
+          />
+        </div>
       )}
     </div>
   );

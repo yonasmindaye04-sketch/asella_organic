@@ -28,4 +28,4 @@ CREATE TABLE IF NOT EXISTS call_center_daily_reports (
     KEY idx_call_center_daily_report_date (report_date),
     CONSTRAINT fk_call_center_daily_report_staff
         FOREIGN KEY (staff_id) REFERENCES staff_users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB;

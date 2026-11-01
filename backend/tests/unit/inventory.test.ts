@@ -33,6 +33,7 @@ const TEST_PRODUCT = {
 };
 
 beforeAll(async () => {
+  await pool.query("SET @asella_stock_movement = 1;");
   // Seed the test product with sufficient stock
   await pool.query(
     `INSERT INTO products (id, name, package_size, price, inventory_quantity, low_stock_threshold, active)
@@ -63,6 +64,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   // Reset the test product's stock to the canonical value before each test
+  await pool.query("SET @asella_stock_movement = 1;");
   await pool.query(
     `UPDATE products SET inventory_quantity = ? WHERE id = ?`,
     [TEST_PRODUCT.inventory_quantity, TEST_PRODUCT.id]
@@ -229,6 +231,7 @@ describe("recordMovement — product not found", () => {
 
 describe("deductOrderStock", () => {
   beforeAll(async () => {
+  await pool.query("SET @asella_stock_movement = 1;");
     // Create a test order with our test product
     await pool.query(
       `INSERT INTO orders (id, source, customer_name, phone, city, total, status, order_type, created_at)

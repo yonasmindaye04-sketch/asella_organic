@@ -22,12 +22,25 @@ if (process.env.REDIS_URL) {
   redisClient.connect().catch((err: any) => console.error("[Redis] Rate limit connection error:", err));
 }
 
+/**
+ * A counter bucket with an absolute window end.
+ *
+ * The window is FIXED, not sliding: the expiry is set when the bucket is
+ * created and never extended. A sliding TTL would mean that a client which
+ * keeps polling (the dashboard polls notifications every minute) refreshes
+ * the bucket forever and can never escape a 429 it has already triggered.
+ */
+interface RateBucket {
+  count: number;
+  expiresAt: number;
+}
+
 function makeCache(ttlMs: number) {
-  return new LRUCache<string, number>({ max: 10_000, ttl: ttlMs });
+  return new LRUCache<string, RateBucket>({ max: 10_000, ttl: ttlMs });
 }
 
 async function check(
-  cache: LRUCache<string, number>,
+  cache: LRUCache<string, RateBucket>,
   prefix: string,
   key: string,
   max: number,
@@ -47,11 +60,19 @@ async function check(
     }
   }
 
-  // Memory fallback
+  // Memory fallback — fixed window
+  const now = Date.now();
   const existing = cache.get(key);
-  const current  = (existing !== undefined ? existing : 0) + 1;
-  cache.set(key, current);
-  return current <= max;
+  let bucket: RateBucket;
+
+  if (!existing || existing.expiresAt <= now) {
+    bucket = { count: 1, expiresAt: now + ttlMs };
+  } else {
+    bucket = { count: existing.count + 1, expiresAt: existing.expiresAt };
+  }
+
+  cache.set(key, bucket, { ttl: ttlMs });
+  return bucket.count <= max;
 }
 
 function getIp(req: Request): string {

@@ -8,6 +8,10 @@
  * It never changes item_name, package_size, quantity, unit_price,
  * unit_cost, orders.total, or any historical snapshot.
  *
+ * orders.total is only ever touched when --apply-totals is passed
+ * explicitly; without that flag the script only records the mismatch in
+ * order_total_audit (status 'open') and leaves the order book alone.
+ *
  * Usage:
  *   node backend/scripts/data-migrations/map-order-items.cjs --database asella_organic_v2 \
  *     --csv backend/data/catalog-legacy-decisions.csv
@@ -46,6 +50,14 @@ const csvPath = arg("--csv", path.resolve(__dirname, "../../data/catalog-legacy-
 const database = arg("--database", process.env.DB_NAME || "asella_organic_v2");
 const apply = flag("--apply");
 const clearOrphans = flag("--clear-orphans");
+// Recomputing orders.total is DESTRUCTIVE to historical accounting and is
+// OFF by default. The historical line prices on some orders are "smeared"
+// (a 120,950 ETB order whose lines add up to 11,611,200 ETB), so silently
+// overwriting orders.total corrupts the order book. The mismatch is always
+// recorded in order_total_audit with status 'open'; only an explicit
+// --apply-totals flag (after the line prices have been reviewed by a human)
+// changes orders.total.
+const applyTotals = flag("--apply-totals");
 
 const REQUIRED_HEADERS = [
   "legacy_name", "legacy_size", "items", "null_pid", "active_pid", "inactive_pid",
@@ -185,6 +197,7 @@ async function main() {
     unresolvedMapRows: 0,
     auditRows: 0,
     recomputedTotals: 0,
+    totalMismatches: 0,
     orphanProductIds: 0,
     orphanItems: 0,
     orphanItemsCleared: 0,
@@ -349,28 +362,21 @@ async function main() {
     }
     stats.fallbackMapped = fallbackMapped;
 
-    // Record order-total mismatches and recompute where accounting math is wrong.
-    // orders.total is set to the sum of line items (quantity × unit_price)
-    // whenever it differs; audit rows are marked 'applied'.
-    const [recomputeResult] = await conn.query(
-      `UPDATE orders o
-       JOIN (
-         SELECT oi.order_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS line_total
-         FROM order_items oi
-         GROUP BY oi.order_id
-       ) lt ON o.id = lt.order_id
-       SET o.total = lt.line_total, o.updated_at = NOW()
-       WHERE ABS(o.total - lt.line_total) > 0.01`
-    );
-    stats.recomputedTotals = recomputeResult.affectedRows || 0;
-
-    // Record order-total mismatches in the audit table.
+    // Record order-total mismatches.
+    //
+    // READ-ONLY BY DEFAULT. orders.total is never overwritten unless
+    // --apply-totals was passed explicitly, because the historical line
+    // prices are not trustworthy enough to recompute an order total from
+    // (see the smeared-order examples in REBUILD-PLAN.md).
+    //
+    // The audit row is written BEFORE any recompute so that old_total
+    // always holds the value orders.total had when the audit was taken.
     const [auditResult] = await conn.query(
       `INSERT INTO order_total_audit
          (id, order_id, old_total, line_total, status, reason)
        SELECT UUID(), x.id, x.total, x.line_total,
-              IF(ABS(x.total - x.line_total) > 0.01, 'applied', 'open'),
-              'Recomputed from line items (quantity × unit_price)'
+              IF(ABS(x.total - x.line_total) > 0.01, 'open', 'open'),
+              'Mismatch between orders.total and the sum of line items (quantity x unit_price); total left unchanged for review'
        FROM (
          SELECT o.id, o.total,
                 ROUND(SUM(oi.quantity * oi.unit_price), 2) AS line_total
@@ -384,6 +390,31 @@ async function main() {
          status = VALUES(status)`
     );
     stats.auditRows = auditResult.affectedRows || 0;
+
+    if (applyTotals) {
+      const [recomputeResult] = await conn.query(
+        `UPDATE orders o
+         JOIN (
+           SELECT oi.order_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS line_total
+           FROM order_items oi
+           GROUP BY oi.order_id
+         ) lt ON o.id = lt.order_id
+         SET o.total = lt.line_total, o.updated_at = NOW()
+         WHERE ABS(o.total - lt.line_total) > 0.01`
+      );
+      stats.recomputedTotals = recomputeResult.affectedRows || 0;
+      await conn.query(
+        `UPDATE order_total_audit
+            SET status = 'applied',
+                reason  = 'Recomputed from line items (quantity x unit_price)'
+          WHERE ABS(old_total - line_total) > 0.01`
+      );
+    } else {
+      const [mismatch] = await conn.query(
+        `SELECT COUNT(*) n FROM order_total_audit WHERE ABS(old_total - line_total) > 0.01`);
+      stats.recomputedTotals = 0;
+      stats.totalMismatches = mismatch[0].n;
+    }
 
     // Historical order items may point at product ids that were deleted from
     // products (legacy pr0000... rows). Snapshot fields stay untouched;

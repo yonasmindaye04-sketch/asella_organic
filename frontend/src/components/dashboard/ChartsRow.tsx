@@ -121,7 +121,36 @@ function buildDynamicBuckets(
     return buckets;
   }
 
-  // 3. 1M or Custom > 10 days -> Divide into 6 to 8 clean intervals
+  // 3. Ranges longer than ~6 weeks -> calendar-month buckets.
+  //    One-off expenses (salary, rent...) are booked on a single day, so
+  //    splitting a multi-month range into ~15 day slices puts the whole
+  //    expense into an interval that may contain almost no revenue and
+  //    renders a misleading negative net profit. Monthly buckets compare
+  //    each expense with the revenue of the month it belongs to.
+  if (diffDays > 45) {
+    const buckets: TimeBucket[] = [];
+    const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    const spansYears = startDate.getFullYear() !== endDate.getFullYear();
+
+    while (cursor <= lastMonth) {
+      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1, 0, 0, 0, 0);
+      const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999);
+      const bStart = Math.max(monthStart.getTime(), startDate.getTime());
+      const bEnd = Math.min(monthEnd.getTime(), endDate.getTime());
+      buckets.push({
+        label: spansYears
+          ? `${SHORT_MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`
+          : SHORT_MONTHS[cursor.getMonth()],
+        startMs: bStart,
+        endMs: bEnd,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return buckets;
+  }
+
+  // 4. 1M or Custom > 10 days -> Divide into 6 to 8 clean intervals
   const bucketCount = Math.min(8, Math.max(5, Math.ceil(diffDays / 5)));
   const totalMs = endDate.getTime() - startDate.getTime();
   const stepMs = totalMs / bucketCount;
@@ -135,7 +164,9 @@ function buildDynamicBuckets(
     const label =
       dStart.getMonth() === dEnd.getMonth() && dStart.getDate() === dEnd.getDate()
         ? `${SHORT_MONTHS[dStart.getMonth()]} ${dStart.getDate()}`
-        : `${SHORT_MONTHS[dStart.getMonth()]} ${dStart.getDate()}–${dEnd.getDate()}`;
+        : `${SHORT_MONTHS[dStart.getMonth()]} ${dStart.getDate()}–${
+            dStart.getMonth() === dEnd.getMonth() ? "" : `${SHORT_MONTHS[dEnd.getMonth()]} `
+          }${dEnd.getDate()}`;
     buckets.push({ label, startMs: bStart, endMs: bEnd });
   }
   return buckets;

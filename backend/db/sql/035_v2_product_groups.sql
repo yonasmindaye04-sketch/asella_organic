@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS product_groups (
   updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_product_groups_slug (slug),
   UNIQUE KEY uq_product_groups_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB;
 
 -- ── 2. Variant columns on the existing products table ───────────────
 

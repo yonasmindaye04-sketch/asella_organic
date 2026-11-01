@@ -265,14 +265,10 @@ export async function initBotConfiguration(): Promise<boolean> {
     const botUser = me.result;
     console.log(`[telegram] Verified bot @${botUser.username} (ID: ${botUser.id}). Syncing configuration...`);
 
-    // 1. Set commands for autocompletion (Strict zero emojis)
+    // 1. Set commands for autocompletion — focused on start & account link for drivers/staff
     await setMyCommands([
-      { command: "start",  description: "Start Asella Organic bot & open store" },
-      { command: "store",  description: "Open Asella Organic Mini App store" },
-      { command: "shop",   description: "Browse catalog & place order" },
-      { command: "track",  description: "Track your active delivery" },
-      { command: "orders", description: "View your order history" },
-      { command: "help",   description: "Customer support and assistance" },
+      { command: "start", description: "Start the bot & open driver/staff portal" },
+      { command: "link",  description: "Link your phone number (drivers & staff)" },
     ]);
 
     // 2. Set description shown before clicking Start

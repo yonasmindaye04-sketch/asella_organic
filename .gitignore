@@ -81,4 +81,11 @@ patch-*.cjs
 check_*.mjs
 create-*.cjs
 
+# Local Windows scripts
+start-mariadb.bat
+stop-mariadb.bat
+
+# Exports
+exports/
+
 backend/private/

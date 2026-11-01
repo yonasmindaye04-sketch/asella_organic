@@ -113,7 +113,8 @@ const FRONTEND_PUBLIC_DIR = frontendPublicCandidates.find((d) => existsSync(d)) 
 
 // Intercept legacy receipt paths before express.static to enforce authentication
 app.get("/uploads/:filename", (req: Request, res: Response, next: NextFunction) => {
-  if (req.params.filename.startsWith("receipt-")) {
+  const filename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
+  if (filename && filename.startsWith("receipt-")) {
     return cookieParser()(req, res, () => {
       authenticate(req, res, () => handleReceiptDownload(req, res));
     });

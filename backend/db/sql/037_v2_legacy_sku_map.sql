@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS legacy_sku_map (
   CONSTRAINT fk_legacy_sku_product
     FOREIGN KEY (target_product_id) REFERENCES products(id)
     ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB;
 
 INSERT IGNORE INTO migrations_log (filename) VALUES ('037_v2_legacy_sku_map.sql');
 

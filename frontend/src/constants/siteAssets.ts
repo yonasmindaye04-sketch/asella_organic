@@ -55,16 +55,16 @@ export const SITE_ASSET_SLOTS: SiteAssetSlot[] = [
   // WebP at 400px width (see scripts/convert-images.js), so the backend
   // optimizer's ignored ?w=&q= params no longer matter — files are ~15KB each.
   { key: 'highlight.moringa',      section: 'Daily Highlights', label: 'Moringa',       defaultUrl: '/image/dailyimages/Moringa Powder.webp',        width: 400, quality: 75 },
-  { key: 'highlight.shilajitGel',  section: 'Daily Highlights', label: 'Shilajit Gel',  defaultUrl: '/image/dailyimages/Shilajit.webp',              width: 400, quality: 75 },
+  { key: 'highlight.shilajitGel',  section: 'Daily Highlights', label: 'Shilajit Tablet', defaultUrl: '/image/dailyimages/Shilajit.webp',              width: 400, quality: 75 },
   { key: 'highlight.ashwagandhaPowder', section: 'Daily Highlights', label: 'Ashwagandha Powder', defaultUrl: '/image/dailyimages/Ashwegenda powder.webp', width: 400, quality: 75 },
   { key: 'highlight.ashwagandhaTablet', section: 'Daily Highlights', label: 'Ashwagandha Tablet', defaultUrl: '/image/dailyimages/Aswhwegnda Tablet.webp',   width: 400, quality: 75 },
   { key: 'highlight.blackseedOil', section: 'Daily Highlights', label: 'Blackseed Oil', defaultUrl: '/image/dailyimages/Black seed  oil.webp',       width: 400, quality: 75 },
   { key: 'highlight.chiaSeed',     section: 'Daily Highlights', label: 'Chia Seed',     defaultUrl: '/image/dailyimages/Chiaseed.webp',              width: 400, quality: 75 },
   { key: 'highlight.frankincense', section: 'Daily Highlights', label: 'Frankincense Oil', defaultUrl: '/image/dailyimages/Franchinses Oil.webp',      width: 400, quality: 75 },
-  { key: 'highlight.hibiscus',     section: 'Daily Highlights', label: 'Hibiscus',      defaultUrl: '/image/dailyimages/Hibscus.webp',               width: 400, quality: 75 },
+  { key: 'highlight.hibiscus',     section: 'Daily Highlights', label: 'Kerkede Leafe', defaultUrl: '/image/dailyimages/Hibscus.webp',               width: 400, quality: 75 },
   { key: 'highlight.kerebeOil',    section: 'Daily Highlights', label: 'Kerebe Oil',    defaultUrl: '/image/dailyimages/Kerbe Oil.webp',             width: 400, quality: 75 },
   { key: 'highlight.kesilPowder',  section: 'Daily Highlights', label: 'Kesil Powder',  defaultUrl: '/image/dailyimages/Kesil Powder.webp',          width: 400, quality: 75 },
-  { key: 'highlight.turmeric',     section: 'Daily Highlights', label: 'Turmeric',      defaultUrl: '/image/dailyimages/Turemic Erid.webp',          width: 400, quality: 75 },
+  { key: 'highlight.turmeric',     section: 'Daily Highlights', label: 'Erde',          defaultUrl: '/image/dailyimages/Turemic Erid.webp',          width: 400, quality: 75 },
 ];
 
 /** key -> slot, for O(1) lookups from the storefront. */

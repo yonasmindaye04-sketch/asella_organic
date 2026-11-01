@@ -61,7 +61,7 @@ This document summarizes three common production failure modes in this codebase 
 3. **Broken Image URLs**: Users pasted Google Drive (`drive.google.com/file/d/.../view`) share links directly into the `image_url` column instead of providing a direct CDN path. These links return an HTML preview page, not an image.
 
 **The Fix**:
-- We left the `pr0000...` items in the DB but deactivated them (`active = 0`).
+- We left the `pr0000...` items in the DB but deactivated them (`active = 0`). **They were finally deleted on 2026-11-01** by `backend/db/sql/053_delete_legacy_products.sql`, once every order line had been remapped to a real catalogue variant — the `products` table now holds only real products (36 variants in 23 groups).
 - Added a `active_unique` generated column mapping `active = 1` to `1` and `active = 0` to `NULL`.
 - Added a `UNIQUE INDEX (name, package_size, active_unique)` so only ONE active product per name/size can exist (`018_unique_product_constraint.sql`).
 - Updated `add_products.ts` to require an explicit `--force` flag and normalize names before checking for duplicates.

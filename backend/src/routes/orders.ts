@@ -404,7 +404,7 @@ function maskPhone(phone: string | null | undefined): string {
   const intlMatch = trimmed.match(/^(\+\d{1,3})[\s.-]?(.*)$/);
   if (intlMatch) {
     const prefix = intlMatch[1];
-    const rest = intlMatch[2].replace(/[\s.-]/g, "");
+    const rest = (intlMatch[2] ?? "").replace(/[\s.-]/g, "");
     if (rest.length <= 3) return `${prefix} •••`;
     const last3 = rest.slice(-3);
     const maskedLen = Math.max(rest.length - 3, 4);
@@ -427,7 +427,7 @@ function coarsenLocation(location: string | null | undefined, city?: string | nu
   if (!location) return city || "";
   // Split on delimiters (commas, semicolons, newlines)
   const parts = location.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
-  let broader = parts.length > 0 ? parts[0] : location.trim();
+  let broader = (parts.length > 0 ? parts[0] : location.trim()) ?? "";
   // Strip specific house/door/building/apartment numbers like "House 12", "H.No 45", "Bldg 3", etc.
   broader = broader.replace(/\b(house|h\.?no|building|bldg|apt|apartment|flat|door)\s*#?\s*\d+[a-z]?\b/gi, "").trim();
   if (!broader || /^\d+$/.test(broader)) {

@@ -114,7 +114,23 @@ const OrderForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0 || !items[0].name) return;
+    if (items.length === 0) return;
+
+    // Every line must reference a real catalog variant. A blank row used to be
+    // submitted as "Custom Item" / "Standard" with a 1 ETB price, which put
+    // fake products into the orders and broke stock deduction.
+    const incompleteRow = items.findIndex(item => !item.name || !item.packageSize);
+    if (incompleteRow !== -1) {
+      toast(t('orderForm.incompleteItemError'), 'error');
+      return;
+    }
+    const unmatchedRow = items.findIndex(
+      item => !products.some(p => p.name === item.name && p.package_size === item.packageSize)
+    );
+    if (unmatchedRow !== -1) {
+      toast(t('orderForm.unmatchedItemError'), 'error');
+      return;
+    }
     
     setSubmitting(true);
     try {
@@ -139,8 +155,8 @@ const OrderForm: React.FC = () => {
         const qty = Number(item.qty);
         return { 
           product_id: product?.id,
-          name: item.name || 'Custom Item', 
-          package_size: item.packageSize || 'Standard', 
+          name: item.name, 
+          package_size: item.packageSize, 
           quantity: isNaN(qty) || qty < 1 ? 1 : qty, 
           unit_price: product ? Math.max(Number(product.price), 1) : 1
         };

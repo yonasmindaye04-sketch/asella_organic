@@ -786,4 +786,51 @@
 .storefront-page .border-parchment-mid,
 .storefront-page .border-white\/20 {
   border-color: transparent !important;
-}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Print Media Styling (fixes blank pages on P&L and reports)
+   ══════════════════════════════════════════════════════════════ */
+@media print {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Force UI chrome (sidebar, top header, nav, modals) to disappear completely */
+  .print\:hidden,
+  header,
+  nav,
+  aside,
+  .sidebar-root,
+  .sidebar-collapsed,
+  button:not(.print\:inline-block) {
+    display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Expand all scroll containers so content flows onto print pages without clipping */
+  * {
+    overflow: visible !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+}

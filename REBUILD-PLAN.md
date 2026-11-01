@@ -1,8 +1,24 @@
 # Asella Organic - Clean Catalog & Database Rebuild Plan
 
-**Status:** Rehearsed locally; schema migrated into `backend/db/sql/` (migrations 035–043), scripts moved to `backend/scripts/data-migrations/`, validation in `backend/tests/db-validation/`  
-**Date:** 2026-10-27  
+**Status:** Rehearsed locally; schema migrated into `backend/db/sql/` (migrations 035–053), scripts moved to `backend/scripts/data-migrations/`, validation in `backend/tests/db-validation/`  
+**Date:** 2026-11-01 (applied to the local `asella_organic_db`)  
 **Goal:** Replace the current inconsistent catalog/order data with a clean product-group + variant model, preserve historical orders, and keep the old database as a rollback.
+
+---
+
+## Current state (2026-11-01)
+
+The rebuild is applied to the local database `asella_organic_db` and validated.
+
+| | State |
+|---|---|
+| Products | **36** catalogue variants in **23** groups — every one has a group, a SKU, a size and an image. **0** legacy rows (deleted by `053`). |
+| Active | 26 variants / 20 groups / **980 units** (3 new variants stay inactive until the physical count is done). |
+| Orders | 416 orders, 633 lines, **632 linked** to a real variant; 1 line (Ashwagandha Powder 220 g, a discontinued size) stays as a historical snapshot with `product_match_type = 'discontinued'`. |
+| Order totals | The 43.5M ETB phantom is gone: `SUM(quantity × unit_price)` is **1,581,000** against `orders.total` **1,652,700**. 127 of the 137 smeared orders reconcile exactly; 10 remain `open` because their items were edited after the total was set. |
+| Exports | The `exports/` folder held a **different, corrupted** dataset (1,183 orders, totals recomputed from the smeared lines). It was deleted — regenerate with `node backend/export-csv.cjs` when a report is actually needed. |
+
+Backups before every step: `C:\Users\Za\AppData\Local\Temp\opencode\asella-backup-<timestamp>\asella_organic_db.sql`.
 
 ---
 
@@ -37,7 +53,7 @@ The real production dump (`asellafs_organic (1).sql`, generated 2026-10-26) was 
 - **137 orders** recorded in `order_total_audit`; all still `open`, no totals changed.
 - **0** snapshot mismatches and **0** order-total changes versus the production dump.
 - The four application views (`vw_affiliate_dashboard`, `vw_customer_insights`, `vw_inventory_summary`, `vw_low_stock`) were recreated from the production migrations; `vw_customer_insights` returns **1,022** rows. The phpMyAdmin dump had exported them as empty stand-in tables.
-- One zero-cost active variant remains: **`Hibscus Dry Leafe / 400g`** (17 units, `unit_cost = 0`).
+- The former zero-cost active variant is resolved: **`Kerkede Leafe / 400g`** (17 units, `unit_cost = 1200`, `verified = 1`).
 - 23 orders have no order items; this is historical data, not a rebuild failure.
 
 **Nothing in this rehearsal touched production or the existing local `asella_organic` database.**
@@ -59,7 +75,12 @@ Apply in order on the host database `asellafs_organic_v2`:
 9. `backend/scripts/data-migrations/map-order-items.cjs --apply --clear-orphans` — map history + audit totals
 10. `backend/db/sql/042_v2_order_item_fk.sql` — order_items.product_id FK
 11. `backend/db/sql/043_v2_views.sql` — recreate the 4 application views
-12. `backend/tests/db-validation/06_validate.sql` — validate all checks pass
+12. `backend/db/sql/049_align_catalog_collations.sql` — align catalogue collations, rebuild both FKs
+13. `backend/db/sql/050_complete_legacy_product_sizes.sql` — complete the legacy rows before they are purged
+14. `backend/db/sql/051_repair_smeared_order_item_prices.sql` — rebuild the 137 smeared orders
+15. `backend/db/sql/052_reconcile_april20_orders.sql` — close the last two provable orders
+16. `backend/db/sql/053_delete_legacy_products.sql` — purge the legacy pr0000 product rows
+17. `backend/tests/db-validation/06_validate.sql` — validate all checks pass
 
 ---
 
@@ -72,12 +93,12 @@ Change `decision` from `REVIEW` to `MAP` only after the business confirms. Chang
 
 Pending confirmations:
 - None — all 4 former REVIEW size-substitution rows (Pumpkin Seed 100g, Ashwagandha Powder 250g/100g/220g) are now LEAVE_NULL. Sizes are kept as-is; no substitutions are applied.
+  - Updated 2026-11-01: Pumpkin Seed 100g and Ashwagandha Powder 100g/250g were confirmed available and added to the catalog, so those 3 rows are now `MAP`. Only Ashwagandha Powder 220g stays `LEAVE_NULL` (220g is not a confirmed size).
 
 ### Zero-cost variant
 
-- `Hibscus Dry Leafe / 400g` is active with `unit_cost = 0`. Supply the real landed cost,
-  set `verified = 1`, and re-export the catalog before the production import. Do not use
-  `--allow-unverified` as a workaround.
+- Resolved 2026-11-01: the group **`Hibscus Dry Leafe`** was renamed to **`Kerkede Leafe`** (business confirmed they are the same product). The old name is kept as an alias, the group id is preserved, and all 243 historical order lines now point at the Kerkede Leafe variants.
+- `Kerkede Leafe / 400g` is active with 17 units and `unit_cost = 1200` (`verified = 1`).
 
 ### Order totals
 
@@ -89,7 +110,7 @@ Pending confirmations:
 ## Guardrails (unchanged)
 
 - **Do not run `026_repair_catalog.sql`.** It was written for a different dataset.
-- **Do not delete the old `pr0000...` products.** They are historical references.
+- **The old `pr0000...` products are gone** (deleted 2026-11-01 by `053_delete_legacy_products.sql` after every order line had been remapped). Do not restore them; the mapping decisions live in `legacy_sku_map` and `backend/data/catalog-legacy-decisions.csv`.
 - **Do not update `orders.total`** until the line prices have been reviewed.
 - **Do not import the local synthetic data into production.**
 - Keep `asellafs_organic` untouched and read-only after the final backup until the new database is signed off.
@@ -100,7 +121,7 @@ Pending confirmations:
 
 Current production audit:
 
-- **26 active products**, **980 units**, 1 zero-cost product (`Hibscus Dry Leafe / 400g`).
+- **26 active products**, **980 units**, 0 zero-cost products (`Kerkede Leafe / 400g` landed cost confirmed at 1200).
 - **1,981 order items**:
   - 398 have `product_id = NULL`
   - 660 point to inactive `pr0000...` products
@@ -198,7 +219,7 @@ Cleaner naming, but requires rewriting every foreign key and code path. Defer un
 - Do not rewrite historical `unit_price` or `orders.total` without approval. Keep an audit table of any reconstructed values.
 - Opening stock = physical count. Create `initial_stock` movements so the ledger starts consistent.
 - Unit cost = real landed cost, not `price * 0.55`.
-- Preserve old `pr0000...` products as inactive legacy variants if needed for foreign-key history. Do not delete them until all history is remapped and validated.
+- The old `pr0000...` products were kept as inactive legacy variants while the history was being remapped, and are deleted by `053_delete_legacy_products.sql` once every order line points at a real catalogue variant (only the discontinued Ashwagandha Powder 220 g line stays unlinked, as a historical snapshot).
 
 ---
 
@@ -327,7 +348,7 @@ Confirm whether to keep as inactive legacy variants or leave unlinked:
 - Qasil Powder → Kesil Powder?
 - Turmeric Powder → Erde?
 - Hibiscus Dry Leafe → Hibiscus Dry Leaf?
-- Kerkede Leafe → Hibscus Dry Leafe (is Kerkede = Hibiscus?)
+- Kerkede Leafe → Hibscus Dry Leafe (is Kerkede = Hibiscus?) — **resolved 2026-11-01**: same product, catalog renamed to `Kerkede Leafe`, old name kept as an alias.
 - Ashewagenda → Ashwagandha?
 - Kerbe Raw / myrrh Kerbe Raw → Asella Kerbe Raw?
 
@@ -337,13 +358,16 @@ Confirm whether to keep as inactive legacy variants or leave unlinked:
 
 ### Zero-cost variant
 
-- `Hibscus Dry Leafe / 400g` is active with 17 units and `unit_cost = 0`. Supply the real landed cost before the production import. The production import must **not** use `--allow-unverified` for this row.
+- `Kerkede Leafe / 400g` is active with 17 units and `unit_cost = 1200` (`verified = 1`). The production import must still not use `--allow-unverified` as a workaround for unverified rows.
 
-### Order totals
+### Order totals — **repaired 2026-11-01**
 
-- 83 smeared orders, 53 line-total-high, 1 order-total-high (137 total).
-- For the smeared orders: reconstruct line prices from the catalog, or leave historical values and flag them?
-- `ORD-20260526-0001`: is the correct total **110,250** or **2,900**? The order has one line at 2,900.
+The "43.5M ETB" was never real revenue. It was `SUM(quantity * unit_price)` over 137 orders whose `order_items.unit_price` held the whole order total instead of a unit price. `orders.total` was correct throughout and was never modified.
+
+- `051_repair_smeared_order_item_prices.sql` rebuilt the line prices from the historical price of each `(item_name, package_size)` pair, taken from the orders whose lines already added up. 125 orders then matched `orders.total` exactly.
+- `052_reconcile_april20_orders.sql` closed 2 more: the 20 April orders bought `Ashwagandha Powder 100 g x4` at 1,000.00, but the variant was added to the catalogue later at 1,200.00 and had no historical anchor.
+- Result: audit mismatches **137 → 10**, sum of absolute diffs **43,750,150.00 → 179,500.00**, line sum **45,188,150.00 → 1,581,000.00** against `orders.total` 1,652,700.00.
+- The 10 remaining orders had items edited after the total was set (the `order_status_history` notes say "Items modified: ..."). Their total is what was billed before the edit; the current lines cannot reproduce it. They stay `open` in `order_total_audit` — 4 of them are Cancelled. Do not force them: changing `orders.total` would rewrite revenue, and changing line prices would fabricate prices.
 
 ---
 
@@ -409,7 +433,7 @@ WHERE active = 1 AND unit_cost = 0;
 1. Approve the rehearsed schema (`product_groups` + `products`) and the mapping policy.
 2. Confirm the business decisions above, especially:
    - the 26 `REVIEW` rows (293 items);
-   - the real landed cost for `Hibscus Dry Leafe / 400g`;
+   - the landed cost for `Kerkede Leafe / 400g` (resolved: 1200);
    - nulling the 35 orphan `order_items.product_id` values;
    - the order-total policy for the 137 mismatched orders.
 3. Build `asellafs_organic_v2` on the host from the 2026-10-26 dump and verify the row counts.
@@ -423,4 +447,4 @@ WHERE active = 1 AND unit_cost = 0;
    - `06_validate.sql`.
 5. Patch the application code to use variant/group IDs and update `/api/products/grouped`, `inventory.ts`, `stock.ts`, and the frontend hooks.
 
-Do not run 026, do not delete the old `pr0000` products, and do not update `orders.total` until the new catalog and mapping are validated.
+Do not run 026, and do not update `orders.total` until the new catalog and mapping are validated. The old `pr0000` products were deleted on 2026-11-01 by `053_delete_legacy_products.sql`, after every order line had been remapped to a real catalogue variant.

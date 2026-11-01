@@ -29,16 +29,16 @@ const categoryCards = [
 
 const highlightsMapping = [
   { assetKey: 'highlight.moringa',          searchKey: 'Moringa',                    tagKey: 'trending' },
-  { assetKey: 'highlight.shilajitGel',      searchKey: 'Shilajit Gel',               tagKey: 'bestseller' },
+  { assetKey: 'highlight.shilajitGel',      searchKey: 'Shilajit',                   tagKey: 'bestseller' },
   { assetKey: 'highlight.ashwagandhaPowder',searchKey: 'Ashewagenda powder',         tagKey: 'organic' },
   { assetKey: 'highlight.ashwagandhaTablet',searchKey: 'Ashewagenda (Himalya) Tablet', tagKey: 'supplement' },
   { assetKey: 'highlight.blackseedOil',     searchKey: 'Blackseed Oil',              tagKey: 'pure' },
   { assetKey: 'highlight.chiaSeed',         searchKey: 'Chia Seed',                  tagKey: 'superfood' },
   { assetKey: 'highlight.frankincense',     searchKey: 'Frankincense Oil',           tagKey: 'essential' },
-  { assetKey: 'highlight.hibiscus',         searchKey: 'Hibiscus',                   tagKey: 'herbal' },
+  { assetKey: 'highlight.hibiscus',         searchKey: 'Kerkede Leafe',              tagKey: 'herbal' },
   { assetKey: 'highlight.kerebeOil',        searchKey: 'Kerebe',                     tagKey: 'aromatic' },
   { assetKey: 'highlight.kesilPowder',      searchKey: 'Kesil Powder',               tagKey: 'natural' },
-  { assetKey: 'highlight.turmeric',         searchKey: 'Turmeric',                   tagKey: 'spice' },
+  { assetKey: 'highlight.turmeric',         searchKey: 'Erde',                       tagKey: 'spice' },
 ];
 
 

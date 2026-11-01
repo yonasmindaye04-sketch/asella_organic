@@ -32,7 +32,7 @@ const ALLOWED_STAFF_ROLES = ["admin", "manager", "employee", "call_center", "sto
 
 export async function handleReceiptDownload(req: Request, res: Response): Promise<void> {
   const log = createLogger(req);
-  const { filename } = req.params;
+  const filename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
 
   if (!filename || !SAFE_FILENAME_REGEX.test(filename)) {
     res.status(400).json({ success: false, error: "Invalid receipt filename" });
@@ -64,7 +64,7 @@ export async function handleReceiptDownload(req: Request, res: Response): Promis
     } else {
       // call_center and store_manager can only view receipts for orders they created
       if (role === "call_center" || role === "store_manager") {
-        if (order.created_by_staff_id !== req.user.id) {
+        if (order.created_by_staff_id !== req.user?.id) {
           res.status(403).json({ success: false, error: "Forbidden: cannot view receipt for this order" });
           return;
         }

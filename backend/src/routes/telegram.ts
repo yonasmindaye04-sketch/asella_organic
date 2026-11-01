@@ -219,21 +219,27 @@ const ORDER_HELP = [
 
 async function sendRoleMenu(chatId: number): Promise<void> {
   const storeUrl = getStoreUrl();
-  await sendWithButtons(chatId,
-    "*Welcome to Asella Organic*\n\nPlease select an option:",
+  const buttons: Array<Array<{ text: string; callback_data?: string; web_app?: { url: string } }>> = [
     [
-      [
-        { text: "Open Organic Store", web_app: { url: storeUrl } },
-      ],
-      [
-        { text: "Customer Menu", callback_data: "role:customer" },
-        { text: "Driver Login", callback_data: "role:driver" },
-      ],
-      [
-        { text: "Staff Login", callback_data: "role:staff" },
-        { text: "Vendor Menu", callback_data: "role:vendor" },
-      ],
-    ]
+      { text: "🚚 Driver Login", callback_data: "role:driver" },
+      { text: "👤 Staff Login", callback_data: "role:staff" },
+    ],
+    [
+      { text: "📱 Link Account (/link)", callback_data: "role:link_info" },
+    ],
+  ];
+
+  if (storeUrl && storeUrl.startsWith("https://")) {
+    buttons.push([{ text: "🌿 Open Store (Mini App)", web_app: { url: storeUrl } }]);
+  }
+
+  await sendWithButtons(chatId,
+    "*Asella Organic — Driver & Staff Portal*\n\n" +
+    "Welcome! This bot is used for *delivery driver order assignments* and operations.\n\n" +
+    "• *Drivers:* Tap *Driver Login* or send `/link <phone>` to receive order assignments.\n" +
+    "• *Staff:* Tap *Staff Login* to manage orders.\n\n" +
+    "For online customer shopping, please use the Mini App button below or our official website.",
+    buttons
   );
 }
 
@@ -822,6 +828,17 @@ async function handleCallback(query: any): Promise<void> {
       return;
     }
 
+    if (data === "role:link_info") {
+      await answerCallbackQuery(callbackQueryId);
+      await sendSimpleMessage(chatId,
+        "📱 *How to Link Your Account*\n\n" +
+        "Send `/link` followed by your phone number:\n\n" +
+        "`/link +251911234567`\n\n" +
+        "Drivers: Once linked, assigned delivery orders will appear here automatically."
+      );
+      return;
+    }
+
     if (data === "role:driver") {
       userState.set(chatId, { step: "awaiting_driver_username", data: {} });
       await answerCallbackQuery(callbackQueryId);
@@ -897,7 +914,18 @@ async function handleCallback(query: any): Promise<void> {
     // ── Main menu navigation ──────────────────────────────────────
     if (data === "menu_order") {
       await answerCallbackQuery(callbackQueryId);
-      await startOrderFlow(chatId);
+      const storeUrl = getStoreUrl();
+      if (storeUrl && storeUrl.startsWith("https://")) {
+        await sendWithButtons(chatId,
+          "🛒 *Online Store*\n\n" +
+          "To ensure accurate product selection, current stock, and instant tracking, please place all orders through our online store:",
+          [[{ text: "🌿 Open Online Store", web_app: { url: storeUrl } }]]
+        );
+      } else {
+        await sendSimpleMessage(chatId,
+          "🛒 *Online Store*\n\nPlease place your orders directly through our website to ensure 100% accurate items and delivery."
+        );
+      }
       return;
     }
 

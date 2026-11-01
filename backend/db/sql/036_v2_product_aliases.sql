@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS product_aliases (
   CONSTRAINT fk_product_alias_group
     FOREIGN KEY (product_group_id) REFERENCES product_groups(id)
     ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB;
 
 INSERT IGNORE INTO migrations_log (filename) VALUES ('036_v2_product_aliases.sql');
 

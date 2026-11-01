@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS catalog_import (
   verified            TINYINT(1)   NOT NULL DEFAULT 0,
   notes               TEXT         NULL,
   imported_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB;
 
 INSERT IGNORE INTO migrations_log (filename) VALUES ('040_v2_catalog_import.sql');
 

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scheduled Maintenance | Asella Organic</title>
+  <link rel="icon" type="image/png" href="frontend/public/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark: #0a140e;
+      --bg-gradient: radial-gradient(circle at 50% 20%, #153322 0%, #0d1f10 50%, #070d09 100%);
+      --accent-green: #34d399;
+      --highland-gold: #c5a880;
+      --text-main: #f5f5f0;
+      --text-muted: #9bb1a1;
+      --border-subtle: rgba(197, 168, 128, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: var(--bg-dark);
+      background-image: var(--bg-gradient);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2.5rem 1.5rem 1.75rem;
+      text-align: center;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient atmospheric glow */
+    body::before {
+      content: "";
+      position: absolute;
+      top: -140px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(850px, 95vw);
+      height: 520px;
+      background: radial-gradient(ellipse at center, rgba(52, 211, 153, 0.12) 0%, rgba(197, 168, 128, 0.05) 45%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(60px);
+    }
+
+    header {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Brand Logo / Header */
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Comfortaa', cursive, sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    .brand .gold {
+      color: var(--highland-gold);
+    }
+
+    .brand .material-symbols-outlined {
+      color: var(--accent-green);
+      font-size: 1.75rem;
+      animation: leafPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes leafPulse {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.08) rotate(3deg); }
+    }
+
+    /* Full-Screen Open Flow (No Card / No Box Container) */
+    main.container {
+      position: relative;
+      z-index: 1;
+      max-width: 840px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: auto 0;
+      padding: 1.5rem 0;
+    }
+
+    /* Main Heading */
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2.4rem, 5.5vw, 4.25rem);
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.25rem;
+      color: #ffffff;
+      text-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Description */
+    .description {
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      font-weight: 400;
+      color: var(--text-muted);
+      line-height: 1.65;
+      max-width: 620px;
+      margin-bottom: 3.5rem;
+    }
+
+    /* Open Countdown (No Box) */
+    .countdown-wrapper {
+      width: 100%;
+      max-width: 620px;
+      margin-bottom: 3.5rem;
+    }
+
+    .countdown {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 1.5rem;
+    }
+
+    .time-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 90px;
+    }
+
+    .time-val {
+      font-family: 'Outfit', 'DM Mono', monospace;
+      font-size: clamp(3.2rem, 7.5vw, 5rem);
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .time-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-weight: 600;
+      color: var(--highland-gold);
+      margin-top: 0.65rem;
+    }
+
+    .time-separator {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      color: rgba(197, 168, 128, 0.35);
+      line-height: 1;
+      user-select: none;
+    }
+
+    .countdown-sub {
+      margin-top: 1.35rem;
+      font-size: 0.825rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(255, 255, 255, 0.45);
+      font-weight: 500;
+    }
+
+    /* Urgent Contact Bar */
+    .contact-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      padding-top: 2rem;
+      border-top: 1px solid var(--border-subtle);
+      width: 100%;
+      max-width: 540px;
+    }
+
+    .contact-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 1.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .contact-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+    }
+
+    .contact-link:hover {
+      color: var(--accent-green);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .contact-link .material-symbols-outlined {
+      color: var(--highland-gold);
+      font-size: 1.25rem;
+    }
+
+    /* Footer */
+    footer {
+      position: relative;
+      z-index: 1;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.35);
+      letter-spacing: 0.05em;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 600px) {
+      .countdown {
+        gap: 0.75rem;
+      }
+      .time-unit {
+        min-width: 65px;
+      }
+      .contact-links {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Brand Header -->
+  <header>
+    <div class="brand">
+      <span class="material-symbols-outlined">eco</span>
+      <span>Asella <span class="gold">Organic</span></span>
+    </div>
+  </header>
+
+  <!-- Open Full-Screen Main Content -->
+  <main class="container">
+    <h1>We’ll be back shortly</h1>
+
+    <p class="description">
+      We’re making some improvements to give you a faster, better experience. Thank you for your patience.
+    </p>
+
+    <!-- Seamless Full-Width Countdown -->
+    <div class="countdown-wrapper">
+      <div class="countdown" id="timer">
+        <div class="time-unit">
+          <span class="time-val" id="hours">02</span>
+          <span class="time-label">Hours</span>
+        </div>
+        <span class="time-separator">:</span>
+        <div class="time-unit">
+          <span class="time-val" id="minutes">45</span>
+          <span class="time-label">Minutes</span>
+        </div>
+        <span class="time-separator">:</span>
+        <div class="time-unit">
+          <span class="time-val" id="seconds">00</span>
+          <span class="time-label">Seconds</span>
+        </div>
+      </div>
+      <p class="countdown-sub">Estimated time remaining</p>
+    </div>
+
+    <!-- Contact Info -->
+    <section class="contact-section">
+      <span>Need help urgently?</span>
+      <div class="contact-links">
+        <a class="contact-link" href="mailto:support@asellaorganic.com">
+          <span class="material-symbols-outlined">mail</span>
+          support@asellaorganic.com
+        </a>
+        <a class="contact-link" href="tel:+251909122623">
+          <span class="material-symbols-outlined">call</span>
+          +251 909 122 623
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    &copy; <span id="year"></span> Asella Organic. All rights reserved. &bull; Asella, Ethiopia
+  </footer>
+
+  <!-- Live Countdown Timer -->
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Default duration: 2 hours and 45 minutes from load
+    const TARGET_TIME = new Date().getTime() + (2 * 60 * 60 * 1000) + (45 * 60 * 1000);
+
+    function updateCountdown() {
+      const now = new Date().getTime();
+      const distance = TARGET_TIME - now;
+
+      if (distance <= 0) {
+        document.getElementById("hours").textContent = "00";
+        document.getElementById("minutes").textContent = "00";
+        document.getElementById("seconds").textContent = "00";
+        return;
+      }
+
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      document.getElementById("hours").textContent = String(hours).padStart(2, "0");
+      document.getElementById("minutes").textContent = String(minutes).padStart(2, "0");
+      document.getElementById("seconds").textContent = String(seconds).padStart(2, "0");
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  </script>
+</body>
+</html>

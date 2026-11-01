@@ -190,6 +190,8 @@ const translations: Record<Language, Record<string, string>> = {
     'orderForm.successMessage': 'Order submitted successfully!',
     'orderForm.errorMessage': 'Failed to submit order',
     'orderForm.errorOccurred': 'An error occurred',
+    'orderForm.incompleteItemError': 'Select an item and a package size for every row',
+    'orderForm.unmatchedItemError': 'One of the selected items is no longer available. Please choose again',
 
     // Tracking
     'tracking.subtitle': 'Order Tracking',
@@ -382,6 +384,8 @@ const translations: Record<Language, Record<string, string>> = {
     'orderForm.successMessage': 'ትዕዛዙ በተሳካ ሁኔታ ገብቷል!',
     'orderForm.errorMessage': 'ትዕዛዙን ማስገባት አልተቻለም',
     'orderForm.errorOccurred': 'ስህተት ተከስቷል',
+    'orderForm.incompleteItemError': 'በየሆንታ አምርጭ የእቃና የማሸጊያ መጠን ይምረጡ',
+    'orderForm.unmatchedItemError': 'ከተመረጡት እቃዎች አንዱ አሁል ተደርሷል። እባክዎ እንደገና ይምረጡ',
     'tracking.subtitle': 'ትዕዛዝ መከታተያ',
     'tracking.title': 'ትዕዛዝዎን ይከታተሉ',
     'tracking.desc': 'የጥቅልዎን የአሁናዊ ሁኔታ ዝመናዎችን ለማግኘት የትዕዛዝ መለያዎን ከዚህ በታች ያስገቡ።',
@@ -572,6 +576,8 @@ const translations: Record<Language, Record<string, string>> = {
     'orderForm.successMessage': 'Ajajni milkaa\'inaan ergameera!',
     'orderForm.errorMessage': 'Ajaja erguun hin danda\'amne',
     'orderForm.errorOccurred': 'Dogoggorri uumameera',
+    'orderForm.incompleteItemError': 'Tokkicha armaa fi hammee saamsamaa fili',
+    'orderForm.unmatchedItemError': 'Armaan gabaaf qabame meeshaan tokko hin argamne. Dursa deebi\'i',
     'tracking.subtitle': 'Hordoffii Ajajaa',
     'tracking.title': 'Ajaja Kee Hordofi',
     'tracking.desc': 'Haala paakeejii keetii yeroo dhugaa keessatti hordofuuf Eenyummeessaa Ajajaa kee armaan gaditti galchi.',

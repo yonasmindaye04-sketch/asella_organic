@@ -128,13 +128,23 @@ export async function recordMovement(
     const finalQty = newQty;
 
     // ── 3. Update products.inventory_quantity ────────────────────
-    await conn.query(
-      `UPDATE products
-       SET    inventory_quantity = ?,
-              updated_at = NOW()
-       WHERE  id = ?`,
-      [finalQty, options.productId]
-    );
+    // The trg_prevent_direct_stock_update trigger (migration 046) rejects
+    // any inventory_quantity UPDATE that does not come from this function.
+    // The session variable is the opt-in; it is scoped to this connection and
+    // is revoked again immediately, so it can never leak to another request
+    // that later reuses the same pooled connection.
+    await conn.query("SET @asella_stock_movement = 1");
+    try {
+      await conn.query(
+        `UPDATE products
+         SET    inventory_quantity = ?,
+                updated_at = NOW()
+         WHERE  id = ?`,
+        [finalQty, options.productId]
+      );
+    } finally {
+      await conn.query("SET @asella_stock_movement = 0");
+    }
 
     // ── 4. Update / insert stock snapshot (fast read model) ──────
     await conn.query(

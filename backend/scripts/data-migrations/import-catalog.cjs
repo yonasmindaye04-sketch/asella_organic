@@ -187,6 +187,7 @@ async function main() {
     rows: rows.length,
     groupsCreated: 0,
     groupsUpdated: 0,
+    groupsRenamed: 0,
     variantsInserted: 0,
     variantsUpdated: 0,
     movements: 0,
@@ -308,17 +309,70 @@ async function main() {
             );
             groupName = group.name;
           }
-
-          await conn.query(
-            `UPDATE product_groups
-             SET name = ?, slug = ?, description = ?, image_url = ?,
-                 featured = ?, tag = ?, active = ?, updated_at = NOW()
-             WHERE id = ?`,
-            [groupName, groupSlug, description, imageUrl, featured ? 1 : 0, tag, groupActive ? 1 : 0, group.id]
-          );
-          stats.groupsUpdated++;
-          group = { ...group, name: groupName, slug: groupSlug };
         } else {
+          // Rename fallback.
+          //
+          // A deliberate rename in the CSV (for example "Hibscus Dry Leafe" ->
+          // "Kerkede Leafe") does not match the existing group by name or slug,
+          // so without this branch the import would create a second group and
+          // orphan the old variants.
+          //
+          // A rename is recognised in two ways, both driven by the CSV:
+          //   1. an alias of the row is already registered on an existing group
+          //      (the previous name was kept as an alias);
+          //   2. the NAME of an existing group is listed as an alias of the row
+          //      (the previous name was the group's own name).
+          //
+          // In both cases that group is renamed to the CSV name and keeps its
+          // id, so every product and every order_items.product_id link that
+          // points at it stays valid.
+          const aliasList = String(row.aliases || "")
+            .split("|")
+            .map(a => a.trim())
+            .filter(Boolean);
+
+          if (aliasList.length) {
+            const placeholders = aliasList.map(() => "?").join(", ");
+            const [candidates] = await conn.query(
+              `SELECT g.id, g.name, g.slug, a.alias AS matched_alias, 'alias' AS matched_via
+                 FROM product_groups g
+                 JOIN product_aliases a ON a.product_group_id = g.id
+                WHERE a.alias IN (${placeholders})
+               UNION
+               SELECT g.id, g.name, g.slug, g.name AS matched_alias, 'name' AS matched_via
+                 FROM product_groups g
+                WHERE g.name IN (${placeholders})`,
+              [...aliasList, ...aliasList]
+            );
+
+            const distinctIds = [...new Set(candidates.map(c => c.id))];
+            if (distinctIds.length > 1) {
+              throw new Error(
+                `Row ${row.__row}: aliases ${aliasList.join(", ")} match more than one group ` +
+                `(${distinctIds.join(", ")}). Resolve the CSV.`
+              );
+            }
+
+            if (distinctIds.length === 1) {
+              const match = candidates.find(c => c.id === distinctIds[0]);
+              const [nameConflict] = await conn.query(
+                `SELECT id FROM product_groups WHERE name = ? AND id <> ? LIMIT 1`,
+                [groupName, match.id]
+              );
+              if (nameConflict.length) {
+                throw new Error(`Row ${row.__row}: group name "${groupName}" is already used by another group.`);
+              }
+              group = match;
+              stats.groupsRenamed++;
+              stats.warnings.push(
+                `Row ${row.__row}: renamed group "${group.name}" -> "${groupName}" ` +
+                `(matched by ${group.matched_via} "${group.matched_alias}")`
+              );
+            }
+          }
+        }
+
+        if (!group) {
           const id = crypto.randomUUID();
           await conn.query(
             `INSERT INTO product_groups
@@ -328,6 +382,16 @@ async function main() {
           );
           stats.groupsCreated++;
           group = { id, name: groupName, slug: groupSlug };
+        } else {
+          await conn.query(
+            `UPDATE product_groups
+             SET name = ?, slug = ?, description = ?, image_url = ?,
+                 featured = ?, tag = ?, active = ?, updated_at = NOW()
+             WHERE id = ?`,
+            [groupName, groupSlug, description, imageUrl, featured ? 1 : 0, tag, groupActive ? 1 : 0, group.id]
+          );
+          stats.groupsUpdated++;
+          group = { ...group, name: groupName, slug: groupSlug };
         }
 
         groupCache.set(groupSlug, group);
@@ -390,23 +454,34 @@ async function main() {
       sku = candidate;
 
       if (product) {
-        await conn.query(
-          `UPDATE products SET
-             product_group_id = ?, name = ?, package_size = ?, sku = ?,
-             size_value = ?, size_unit = ?, sort_order = ?,
-             price = ?, unit_cost = ?, description = ?, image_url = ?,
-             featured = ?, tag = ?, inventory_quantity = ?,
-             low_stock_threshold = ?, active = ?, deleted_at = NULL, updated_at = NOW()
-           WHERE id = ?`,
-          [
-            group.id, variantName, packageSize, sku,
-            size.value, size.unit, size.sortOrder,
-            price, unitCost, description, imageUrl,
-            featured ? 1 : 0, tag, openingStock,
-            lowStock, variantActive ? 1 : 0,
-            productId,
-          ]
-        );
+        // The trg_prevent_direct_stock_update trigger (migration 046) rejects
+        // any inventory_quantity UPDATE that does not come through the stock
+        // ledger. This import is a legitimate opening-balance writer: it sets
+        // the quantity AND records the matching 'initial_stock' movement and
+        // stock snapshot below, so it opts in through the same session flag
+        // recordMovement() uses. The flag is revoked again immediately.
+        await conn.query("SET @asella_stock_movement = 1");
+        try {
+          await conn.query(
+            `UPDATE products SET
+               product_group_id = ?, name = ?, package_size = ?, sku = ?,
+               size_value = ?, size_unit = ?, sort_order = ?,
+               price = ?, unit_cost = ?, description = ?, image_url = ?,
+               featured = ?, tag = ?, inventory_quantity = ?,
+               low_stock_threshold = ?, active = ?, deleted_at = NULL, updated_at = NOW()
+             WHERE id = ?`,
+            [
+              group.id, variantName, packageSize, sku,
+              size.value, size.unit, size.sortOrder,
+              price, unitCost, description, imageUrl,
+              featured ? 1 : 0, tag, openingStock,
+              lowStock, variantActive ? 1 : 0,
+              productId,
+            ]
+          );
+        } finally {
+          await conn.query("SET @asella_stock_movement = 0");
+        }
         stats.variantsUpdated++;
       } else {
         await conn.query(

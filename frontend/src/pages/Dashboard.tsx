@@ -15,6 +15,7 @@ import AffiliateLeaderboard from "../components/dashboard/AffiliateLeaderboard";
 import {
   TimeRangeSelector,
   getRangeDates,
+  formatLocalDate,
 } from "../components/dashboard/TimeRangeSelector";
 import type { TimeRange } from "../components/dashboard/TimeRangeSelector";
 import { api } from "../services/api";
@@ -23,6 +24,7 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   day: "Today",
   week: "Last 7 Days",
   month: "Last 30 Days",
+  all: "All Time",
   custom: "Custom Range",
 };
 
@@ -31,8 +33,8 @@ export default function DashboardPage() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeRange, setActiveRange] = useState<TimeRange>("month");
-  const [dateRange, setDateRange] = useState(() => getRangeDates("month"));
+  const [activeRange, setActiveRange] = useState<TimeRange>("all");
+  const [dateRange, setDateRange] = useState(() => getRangeDates("all"));
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +75,21 @@ export default function DashboardPage() {
     setActiveRange(range);
     setDateRange({ from, to });
   };
+
+  // For "All Time" the API query has no date filter, so derive the chart
+  // window from the records that actually exist. Otherwise the charts would
+  // default to the last 30 days and render an empty line.
+  const chartRange = useMemo(() => {
+    if (activeRange !== "all" || orders.length === 0) return dateRange;
+    const times = orders
+      .map((o) => new Date(o.created_at).getTime())
+      .filter((t) => Number.isFinite(t) && t > 0);
+    if (times.length === 0) return dateRange;
+    return {
+      from: formatLocalDate(new Date(Math.min(...times))),
+      to: formatLocalDate(new Date(Math.max(...times))),
+    };
+  }, [activeRange, orders, dateRange]);
 
   // Compute accurate KPI metrics from filtered orders & expenses
   const kpiMetrics = useMemo(() => {
@@ -183,8 +200,8 @@ export default function DashboardPage() {
             orders={orders}
             expenses={expenses}
             activeRange={activeRange}
-            from={dateRange.from}
-            to={dateRange.to}
+            from={chartRange.from}
+            to={chartRange.to}
           />
         </div>
         <div className="xl:col-span-1">
@@ -198,8 +215,8 @@ export default function DashboardPage() {
           <TopProducts
             orders={orders}
             activeRange={activeRange}
-            from={dateRange.from}
-            to={dateRange.to}
+            from={chartRange.from}
+            to={chartRange.to}
           />
         </div>
         <div className="xl:col-span-1">

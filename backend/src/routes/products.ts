@@ -383,6 +383,9 @@ router.get(
     const log = createLogger(req);
     try {
       const { search, tag, limit, active } = req.query as Record<string, string | undefined>;
+      // Every row in products is a real catalogue variant now: the legacy
+      // pr0000... rows were deleted by migration 053, so there is nothing
+      // to filter out here any more.
       const conditions: string[] = ["p.deleted_at IS NULL"];
       const params: unknown[] = [];
 

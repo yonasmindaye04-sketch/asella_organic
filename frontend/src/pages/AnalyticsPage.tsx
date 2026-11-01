@@ -10,15 +10,9 @@ const AnalyticsPage: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  const [dateRange, setDateRange] = useState(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-      from: firstDay.toISOString().split('T')[0],
-      to: lastDay.toISOString().split('T')[0],
-    };
-  });
+  // Default to the full history. The API treats an empty from/to as
+  // "no date filter", which keeps older orders visible on first load.
+  const [dateRange, setDateRange] = useState(() => ({ from: '', to: '' }));
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -62,7 +56,7 @@ const AnalyticsPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto py-6 px-4">
+      <div className="max-w-4xl mx-auto py-6 px-4 print:max-w-none print:w-full print:p-0 print:m-0">
         {/* Header */}
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 print:hidden">
           <div>
@@ -129,7 +123,7 @@ const AnalyticsPage: React.FC = () => {
             <span className="material-symbols-outlined animate-spin text-4xl text-gray-400">sync</span>
           </div>
         ) : data ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:border-none print:shadow-none print:overflow-visible">
             <div className="p-6">
               
               {/* Sales Overview */}

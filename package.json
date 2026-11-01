@@ -16,13 +16,23 @@
     "test:ui": "playwright test --ui",
     "test:smoke": "playwright test tests/dashboard/navigation.spec.ts",
     "test:public": "playwright test --project=public",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "audit": "npm audit"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0"
   },
   "overrides": {
-    "deepmerge": "4.1.2"
+    "deepmerge": "4.1.2",
+    "@eslint/config-array": {
+      "minimatch": "^11.0.1"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    },
+    "eslint": {
+      "minimatch": "^11.0.1"
+    }
   },
   "dependencies": {
     "nodemailer": "^10.2.1"

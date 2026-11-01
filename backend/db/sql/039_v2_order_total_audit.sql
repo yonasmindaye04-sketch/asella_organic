@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS order_total_audit (
   CONSTRAINT fk_order_total_audit_order
     FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB;
 
 INSERT IGNORE INTO migrations_log (filename) VALUES ('039_v2_order_total_audit.sql');
 

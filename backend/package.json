@@ -17,6 +17,8 @@
     "telegram:poll": "tsx src/scripts/telegram-poll.ts",
     "db:migrate": "node migrate.cjs",
     "db:migrate:reset": "node migrate.cjs --reset",
+    "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& ../start-mariadb.bat\"",
+    "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& ../stop-mariadb.bat\"",
     "prepare": "",
     "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc --noEmit"

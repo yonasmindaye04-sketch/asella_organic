@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export type TimeRange = 'day' | 'week' | 'month' | 'custom';
+export type TimeRange = 'day' | 'week' | 'month' | 'all' | 'custom';
 
 export function formatLocalDate(d: Date): string {
   const year = d.getFullYear();
@@ -26,6 +26,10 @@ export function getRangeDates(range: TimeRange, customFrom?: string, customTo?: 
     start.setDate(now.getDate() - 29);
     return { from: formatLocalDate(start), to };
   }
+  if (range === 'all') {
+    // No from/to means the API returns every record (no date filter).
+    return { from: '', to: '' };
+  }
   // custom
   const defaultFrom = new Date(now);
   defaultFrom.setDate(now.getDate() - 14);
@@ -46,6 +50,7 @@ const RANGES: { id: TimeRange; label: string }[] = [
   { id: 'day', label: 'Day' },
   { id: 'week', label: 'Week' },
   { id: 'month', label: '1M' },
+  { id: 'all', label: 'All' },
   { id: 'custom', label: 'Custom' },
 ];
 
