@@ -85,6 +85,9 @@ create-*.cjs
 start-mariadb.bat
 stop-mariadb.bat
 
+# Archives
+*.zip
+
 # Exports
 exports/
 
