@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // Force same-origin relative API requests (/api/*) when building for the unified full-stack server
-process.env.VITE_API_URL = ''
+
 
 /**
  * Per-build id appended to the service worker URL as a query string.
