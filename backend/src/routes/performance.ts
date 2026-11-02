@@ -146,14 +146,15 @@ function resolveWindow(query: Record<string, string | undefined>): {
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-  const isoDay = (d: Date): string => {
-    // toISOString().split("T")[0] is `string | undefined` under noUncheckedIndexedAccess.
-    const day = d.toISOString().split("T")[0];
-    return day ?? d.toISOString().slice(0, 10);
+  const formatLocalYMD = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
-  const to   = query.to   ?? isoDay(last);
-  const from = query.from ?? isoDay(first);
+  const to   = query.to   ?? formatLocalYMD(last);
+  const from = query.from ?? formatLocalYMD(first);
 
   return {
     from,
@@ -207,7 +208,7 @@ router.get(
                 su.id             AS staff_id,
                 COALESCE(su.full_name, da.driver_username) AS full_name,
                 su.username       AS staff_username,
-                'delivery'        AS role,
+                COALESCE(su.role, 'delivery') AS role,
                 COALESCE(su.active, 1) AS active,
                 su.telegram_username
          FROM (
@@ -219,6 +220,8 @@ router.get(
                 ON su.deleted_at IS NULL
                AND ((su.telegram_username IS NOT NULL AND LOWER(su.telegram_username) = LOWER(da.driver_username))
                     OR su.username = da.driver_username)
+         WHERE (su.role IS NULL OR su.role NOT IN ('admin', 'manager'))
+           AND LOWER(da.driver_username) NOT IN ('aga_na', 'yona64', 'asella_organic_support')
 
          UNION
 
@@ -227,7 +230,7 @@ router.get(
                 su.id             AS staff_id,
                 su.full_name      AS full_name,
                 su.username       AS staff_username,
-                'delivery'        AS role,
+                su.role           AS role,
                 su.active         AS active,
                 su.telegram_username
          FROM staff_users su
@@ -339,6 +342,15 @@ router.get(
            FROM staff_users su
            JOIN orders o ON o.deleted_at IS NULL
              AND (
+               o.created_at BETWEEN ? AND ?
+               OR (o.delivery_date IS NOT NULL AND o.delivery_date BETWEEN DATE(?) AND DATE(?))
+               OR EXISTS (
+                 SELECT 1 FROM order_status_history osh_win
+                 WHERE osh_win.order_id = o.id
+                   AND osh_win.created_at BETWEEN ? AND ?
+               )
+             )
+             AND (
                o.assigned_to LIKE CONCAT('%', su.username, '%')
                OR (su.telegram_username IS NOT NULL AND su.telegram_username != '' AND o.assigned_to LIKE CONCAT('%', su.telegram_username, '%'))
                OR EXISTS (
@@ -361,7 +373,13 @@ router.get(
              AND su.deleted_at IS NULL
          ) sub
          GROUP BY sub.driver_key`,
-        [params[0], params[1], params[0], params[1]]
+        [
+          params[0], params[1],
+          params[0], params[1],
+          params[0], params[1],
+          params[0], params[1],
+          params[0], params[1],
+        ]
       ) as [any[], any];
 
       // ── 6. Delivery rejections ───────────────────────────────────────────
@@ -429,7 +447,9 @@ router.get(
       // staff identity is used, so the panel shows a real name; otherwise the
       // handle stands in and the row is flagged unlinked.
       for (const d of driverRoster) {
+        if (d.role === "admin" || d.role === "manager") continue;
         const handle     = (d.driver_username ?? d.staff_username ?? "") as string;
+        if (!handle || ["aga_na", "yona64", "asella_organic_support"].includes(handle.toLowerCase())) continue;
         const delivery   =
           deliveryByUser.get(handle.toLowerCase())
           || (d.staff_username ? deliveryByUser.get(String(d.staff_username).toLowerCase()) : null)
@@ -452,7 +472,7 @@ router.get(
           id:                d.staff_id ?? `driver:${handle}`,
           name:              d.full_name ?? `@${handle}`,
           username:          d.staff_username ?? handle,
-          role:              "delivery",
+          role:              d.role || "delivery",
           team:              "delivery",
           active:            d.active === null || d.active === undefined ? true : Boolean(d.active),
           telegram_username: handle,

@@ -164,21 +164,28 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
   const [selected, setSelected] = useState<Member | null>(null);
   const [rangePreset, setRangePreset] = useState<RangePreset>(initialFrom && initialTo ? "this_month" : "all");
 
+  const formatLocalYMD = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const computedRange = useMemo(() => {
     if (rangePreset === "all") return { from: "", to: "", label: "All Time (Complete History)" };
     const now = new Date();
     if (rangePreset === "this_month") {
-      const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+      const first = formatLocalYMD(new Date(now.getFullYear(), now.getMonth(), 1));
+      const last  = formatLocalYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
       return { from: first, to: last, label: "Current Month" };
     }
     if (rangePreset === "last_month") {
-      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
-      const last  = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
+      const first = formatLocalYMD(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      const last  = formatLocalYMD(new Date(now.getFullYear(), now.getMonth(), 0));
       return { from: first, to: last, label: "Previous Month" };
     }
-    const first = new Date(now.getTime() - 90 * 86400000).toISOString().split("T")[0];
-    const last  = now.toISOString().split("T")[0];
+    const first = formatLocalYMD(new Date(now.getTime() - 90 * 86400000));
+    const last  = formatLocalYMD(now);
     return { from: first, to: last, label: "Last 90 Days" };
   }, [rangePreset]);
 
