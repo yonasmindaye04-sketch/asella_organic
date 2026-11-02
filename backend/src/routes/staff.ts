@@ -288,7 +288,7 @@ router.get(
       // Sourced from delivery_assignments (Telegram bot claims) as well as
       // order_status_history & assigned_to for delivery staff (e.g. Twedros).
       let delivery: Record<string, number> | null = null;
-      if (staffUser.role === 'delivery' || staffUser.telegram_username) {
+      if (staffUser.role === 'delivery' || staffUser.role === 'driver' || staffUser.telegram_username) {
         const tgUsername = staffUser.telegram_username ?? "";
         const uName = staffUser.username;
         const fromDate = `${from ?? "1970-01-01"} 00:00:00`;

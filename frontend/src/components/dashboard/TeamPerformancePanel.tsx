@@ -578,7 +578,7 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
                                       style={{ color: teamColor }}
                                     >
                                       {m.team === "call_center" ? "Call Centre"
-                                        : m.team === "delivery" ? "Delivery" : "Staff"}
+                                        : m.team === "delivery" ? "Delivery" : m.role === "store_manager" ? "Substore" : "Staff"}
                                     </span>
                                   </td>
                                 )}

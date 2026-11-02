@@ -895,12 +895,12 @@ function ProductsTab({ onReloadStock }: ProductsTabProps) {
                 )}
                 {/* Badges */}
                 <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
-                  {!p.active && (
+                  {!p.active ? (
                     <span className="text-[10px] font-bold uppercase text-orange-700 drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]">Archived</span>
-                  )}
-                  {p.featured && p.active && (
+                  ) : null}
+                  {Boolean(p.featured) && Boolean(p.active) ? (
                     <span className="text-[10px] font-bold uppercase text-amber-700 drop-shadow-[0_1px_2px_rgba(255,255,255,0.95)]">Featured</span>
-                  )}
+                  ) : null}
                 </div>
                 {/* Stock quick badge */}
                 <div className="absolute bottom-2 right-2">

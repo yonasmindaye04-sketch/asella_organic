@@ -53,8 +53,8 @@ const router = Router();
 // have to hardcode a second copy of this table.
 const TEAMS = [
   { key: "call_center", label: "Call Centre",       icon: "headset_mic",    roles: ["call_center"] },
-  { key: "delivery",    label: "Delivery",          icon: "local_shipping", roles: ["delivery"] },
-  { key: "employee",    label: "Staff / Employee",  icon: "badge",          roles: ["employee"] },
+  { key: "delivery",    label: "Delivery",          icon: "local_shipping", roles: ["delivery", "driver"] },
+  { key: "employee",    label: "Staff / Substore",  icon: "badge",          roles: ["employee", "store_manager"] },
 ] as const;
 
 type TeamKey = (typeof TEAMS)[number]["key"] | "all";
@@ -231,7 +231,7 @@ router.get(
                 su.active         AS active,
                 su.telegram_username
          FROM staff_users su
-         WHERE su.role = 'delivery'
+         WHERE su.role IN ('delivery', 'driver')
            AND su.deleted_at IS NULL`,
         params
       ) as [any[], any];
@@ -357,7 +357,7 @@ router.get(
              WHERE new_status = 'Delivered'
              GROUP BY order_id
            ) dh ON dh.order_id = o.id
-           WHERE su.role = 'delivery'
+           WHERE su.role IN ('delivery', 'driver')
              AND su.deleted_at IS NULL
          ) sub
          GROUP BY sub.driver_key`,

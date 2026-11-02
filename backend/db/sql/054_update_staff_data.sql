@@ -45,7 +45,7 @@ BEGIN
 
   -- kalkidan mosisa
   INSERT INTO staff_users (id, full_name, username, role, email, phone, active, telegram_username, telegram_chat_id, created_at, updated_at, must_change_password, two_factor_enabled, password_hash, deleted_at, two_factor_secret, deleted_by, deleted_at_ip, deleted_reason)
-  VALUES ('3de58632-19da-4ca0-9576-7306783905d4', 'kalkidan mosisa', 'kalkidan', 'employee', 'kalkidan@asellaorganic.com', NULL, 1, 'kalu_lu', '6145130083', '2026-07-20 12:38:18', '2026-08-12 14:58:56', 0, 0, '$2b$12$cylCGXTT0n90BGuq8RRuv.vOkXCVMcldMcutO.zixLiIJrg9OnI06', NULL, NULL, NULL, NULL, NULL)
+  VALUES ('3de58632-19da-4ca0-9576-7306783905d4', 'kalkidan mosisa', 'kalkidan', 'delivery', 'kalkidan@asellaorganic.com', NULL, 1, 'kalu_lu', '6145130083', '2026-07-20 12:38:18', '2026-08-12 14:58:56', 0, 0, '$2b$12$cylCGXTT0n90BGuq8RRuv.vOkXCVMcldMcutO.zixLiIJrg9OnI06', NULL, NULL, NULL, NULL, NULL)
   ON DUPLICATE KEY UPDATE
     full_name = VALUES(full_name), username = VALUES(username), role = VALUES(role), email = VALUES(email),
     phone = VALUES(phone), active = VALUES(active), telegram_username = VALUES(telegram_username),
@@ -100,7 +100,7 @@ BEGIN
 
   -- Red
   INSERT INTO staff_users (id, full_name, username, role, email, phone, active, telegram_username, telegram_chat_id, created_at, updated_at, must_change_password, two_factor_enabled, password_hash, deleted_at, two_factor_secret, deleted_by, deleted_at_ip, deleted_reason)
-  VALUES ('a0000003-0000-0000-0000-000000000003', 'Red', 'red.staff', 'employee', 'red@asellaorganic.com', NULL, 1, NULL, NULL, '2026-06-29 13:31:13', '2026-07-04 10:35:41', 0, 0, '$2b$12$9I//Z7rdwdXB5cgOIv/J7uRnnlHSP25eglNcllhCGjWuAIz6Kbj6y', NULL, NULL, NULL, NULL, NULL)
+  VALUES ('a0000003-0000-0000-0000-000000000003', 'Red', 'red.staff', 'store_manager', 'red@asellaorganic.com', NULL, 1, NULL, NULL, '2026-06-29 13:31:13', '2026-07-04 10:35:41', 0, 0, '$2b$12$9I//Z7rdwdXB5cgOIv/J7uRnnlHSP25eglNcllhCGjWuAIz6Kbj6y', NULL, NULL, NULL, NULL, NULL)
   ON DUPLICATE KEY UPDATE
     full_name = VALUES(full_name), username = VALUES(username), role = VALUES(role), email = VALUES(email),
     phone = VALUES(phone), active = VALUES(active), telegram_username = VALUES(telegram_username),
@@ -155,7 +155,7 @@ BEGIN
 
   -- Messay Nebo
   INSERT INTO staff_users (id, full_name, username, role, email, phone, active, telegram_username, telegram_chat_id, created_at, updated_at, must_change_password, two_factor_enabled, password_hash, deleted_at, two_factor_secret, deleted_by, deleted_at_ip, deleted_reason)
-  VALUES ('a0000008-0000-0000-0000-000000000008', 'Messay Nebo', 'mesay.manager', 'admin', 'mesay@asellaorganic.com', NULL, 1, NULL, '336797279', '2026-06-29 13:31:13', '2026-08-01 13:19:49', 0, 0, '$2b$12$MqIPDCBwyDRP1rXDEjnGGOaTtCe0wLMkQdygATjwQaKY.uKDARi0G', NULL, NULL, NULL, NULL, NULL)
+  VALUES ('a0000008-0000-0000-0000-000000000008', 'Messay Nebo', 'mesay.manager', 'manager', 'mesay@asellaorganic.com', NULL, 1, NULL, '336797279', '2026-06-29 13:31:13', '2026-08-01 13:19:49', 0, 0, '$2b$12$MqIPDCBwyDRP1rXDEjnGGOaTtCe0wLMkQdygATjwQaKY.uKDARi0G', NULL, NULL, NULL, NULL, NULL)
   ON DUPLICATE KEY UPDATE
     full_name = VALUES(full_name), username = VALUES(username), role = VALUES(role), email = VALUES(email),
     phone = VALUES(phone), active = VALUES(active), telegram_username = VALUES(telegram_username),

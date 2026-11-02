@@ -179,8 +179,18 @@ const UserManagementPage: React.FC = () => {
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-4"><span className="px-3 py-1 text-[#112415] text-[10px] font-bold uppercase tracking-wider rounded-full">
-                      {u.role === 'delivery' ? 'driver' : u.role}</span></td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full ${
+                        u.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                        u.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                        u.role === 'store_manager' ? 'bg-amber-100 text-amber-800' :
+                        u.role === 'delivery' || u.role === 'driver' ? 'bg-emerald-100 text-emerald-800' :
+                        u.role === 'call_center' ? 'bg-cyan-100 text-cyan-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {u.role === 'delivery' ? 'driver' : u.role === 'store_manager' ? 'substore manager' : u.role === 'employee' ? 'staff' : u.role}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => handleOpenModal(u)} className="text-gray-400 hover:text-[#4ade80] transition px-2">
                         <span className="material-symbols-outlined text-lg">edit</span>
@@ -221,10 +231,11 @@ const UserManagementPage: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Role</label>
                 <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full border rounded-lg px-3 py-2">
-                  <option value="employee">Staff / Employee</option>
+                  <option value="employee">Staff</option>
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
-                  <option value="delivery">Driver</option>
+                  <option value="delivery">Driver / Delivery</option>
+                  <option value="store_manager">Substore Manager</option>
                   <option value="call_center">Call Center Agent</option>
                 </select>
               </div>
