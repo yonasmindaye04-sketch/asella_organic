@@ -32,6 +32,10 @@
 # ── 2. SPA fallback — serve index.html for client-side routes ─────
 <IfModule mod_rewrite.c>
   RewriteBase /
+  # Never rewrite missing static assets (scripts, styles, images, fonts, maps) to index.html
+  RewriteCond %{REQUEST_URI} \\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|otf|eot|ico|json|map)$ [NC]
+  RewriteRule ^ - [R=404,L]
+
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]

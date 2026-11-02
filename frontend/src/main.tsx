@@ -24,6 +24,18 @@ window.addEventListener('unhandledrejection', (event) => {
   getSentry().captureException(event.reason);
 });
 
+// Handle dynamic chunk load failures (e.g. when a new deployment invalidates old chunk hashes)
+window.addEventListener('vite:preloadError', (event) => {
+  console.warn('[Vite] Chunk preload error detected, reloading to fetch new build assets...', event);
+  const storageKey = 'asella_vite_preload_error_reload';
+  const lastReload = sessionStorage.getItem(storageKey);
+  const now = Date.now();
+  if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+    sessionStorage.setItem(storageKey, String(now));
+    window.location.reload();
+  }
+});
+
 // PWA: register the service worker for offline catalog + install-to-home-screen.
 // Only runs in production builds (see src/lib/sw-register.ts).
 registerServiceWorker();
