@@ -24,7 +24,7 @@ const DashboardLayoutInner: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen overflow-hidden antialiased bg-[#f8fafc] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 relative print:h-auto print:overflow-visible print:bg-white print:block">
-      <div className="print:hidden">
+      <div className="print:hidden h-full flex flex-col shrink-0">
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 

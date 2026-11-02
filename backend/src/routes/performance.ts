@@ -131,8 +131,17 @@ function pct(part: number, whole: number): number {
  * opens on.
  */
 function resolveWindow(query: Record<string, string | undefined>): {
-  from: string; to: string; params: unknown[];
+  from: string; to: string; params: unknown[]; dateRange: [string, string];
 } {
+  if (query.range === "all" || query.from === "all" || (!query.from && !query.to)) {
+    return {
+      from: "All Time",
+      to: "",
+      params: ["1970-01-01 00:00:00", "2099-12-31 23:59:59"],
+      dateRange: ["1970-01-01", "2099-12-31"],
+    };
+  }
+
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -151,6 +160,7 @@ function resolveWindow(query: Record<string, string | undefined>): {
     to,
     // Start of `from` 00:00:00 through end of `to` 23:59:59.
     params: [`${from} 00:00:00`, `${to} 23:59:59`],
+    dateRange: [from, to],
   };
 }
 
@@ -167,7 +177,7 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const { from, to, params } = resolveWindow(req.query as Record<string, string | undefined>);
+      const { from, to, params, dateRange } = resolveWindow(req.query as Record<string, string | undefined>);
 
       // ── 1. Sales roster ──────────────────────────────────────────────────
       // Every non-deleted call centre agent and employee. Left-joined to the
@@ -240,7 +250,7 @@ router.get(
            FROM call_center_daily_reports
            WHERE report_date BETWEEN ? AND ?
            GROUP BY staff_id`,
-          [from, to]
+          dateRange
         ) as [any[], any];
         callRows = rows;
       } catch {

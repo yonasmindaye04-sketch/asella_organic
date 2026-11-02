@@ -152,7 +152,9 @@ function RateBar({ value, label }: { value: number; label?: string }) {
 
 // ── Main panel ──────────────────────────────────────────────────────────────
 
-export default function TeamPerformancePanel({ open, onClose, from, to }: Props) {
+type RangePreset = "all" | "this_month" | "last_month" | "last_90";
+
+export default function TeamPerformancePanel({ open, onClose, from: initialFrom, to: initialTo }: Props) {
   const [data, setData]       = useState<PerformancePayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -160,6 +162,25 @@ export default function TeamPerformancePanel({ open, onClose, from, to }: Props)
   const [sortKey, setSortKey] = useState<SortKey>("workload");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<Member | null>(null);
+  const [rangePreset, setRangePreset] = useState<RangePreset>(initialFrom && initialTo ? "this_month" : "all");
+
+  const computedRange = useMemo(() => {
+    if (rangePreset === "all") return { from: "", to: "", label: "All Time (Complete History)" };
+    const now = new Date();
+    if (rangePreset === "this_month") {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      const last  = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+      return { from: first, to: last, label: "Current Month" };
+    }
+    if (rangePreset === "last_month") {
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
+      const last  = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
+      return { from: first, to: last, label: "Previous Month" };
+    }
+    const first = new Date(now.getTime() - 90 * 86400000).toISOString().split("T")[0];
+    const last  = now.toISOString().split("T")[0];
+    return { from: first, to: last, label: "Last 90 Days" };
+  }, [rangePreset]);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -167,7 +188,11 @@ export default function TeamPerformancePanel({ open, onClose, from, to }: Props)
     setError(null);
     try {
       let url = "/api/performance/teams";
-      if (from && to) url += `?from=${from}&to=${to}`;
+      if (computedRange.from && computedRange.to) {
+        url += `?from=${computedRange.from}&to=${computedRange.to}`;
+      } else {
+        url += "?range=all";
+      }
       const res = await api.get<PerformancePayload>(url);
       if (res.success && res.data) {
         setData(res.data);
@@ -179,7 +204,7 @@ export default function TeamPerformancePanel({ open, onClose, from, to }: Props)
     } finally {
       setLoading(false);
     }
-  }, [from, to]);
+  }, [computedRange.from, computedRange.to]);
 
   // Only fetch when the panel is actually open — it is a drawer, not a
   // permanent part of the dashboard, and this query is not cheap.
@@ -299,26 +324,55 @@ export default function TeamPerformancePanel({ open, onClose, from, to }: Props)
         aria-label="Team performance"
       >
         {/* ── Header ───────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3 px-4 sm:px-6 py-3.5 border-b border-[var(--border)] shrink-0">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0"
-            style={{ background: accent }}
-          >
-            <span className="material-symbols-outlined text-[19px]">monitoring</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-[var(--border)] shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0"
+              style={{ background: accent }}
+            >
+              <span className="material-symbols-outlined text-[19px]">monitoring</span>
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-extrabold text-[var(--fg)] truncate">Team Performance</h2>
+              <p className="text-[10.5px] text-[var(--muted)]">
+                {computedRange.label}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-[15px] font-extrabold text-[var(--fg)] truncate">Team Performance</h2>
-            <p className="text-[10.5px] text-[var(--muted)]">
-              {from && to ? `${from} → ${to}` : "Current month"}
-            </p>
+
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <div className="flex items-center gap-1 bg-[var(--bg-deep)] p-1 rounded-lg border border-[var(--border)]">
+              {(
+                [
+                  { key: "all", label: "All Time" },
+                  { key: "this_month", label: "This Month" },
+                  { key: "last_month", label: "Last Month" },
+                  { key: "last_90", label: "90 Days" },
+                ] as const
+              ).map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => setRangePreset(preset.key)}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors ${
+                    rangePreset === preset.key
+                      ? "bg-[var(--bg-card)] text-[var(--fg)] shadow-sm"
+                      : "text-[var(--muted)] hover:text-[var(--fg)]"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-deep)] transition-colors shrink-0"
+              title="Close panel"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-deep)] transition-colors shrink-0"
-            title="Close panel"
-          >
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
         </div>
 
         {/* ── Tabs ────────────────────────────────────────────────────── */}
@@ -586,8 +640,8 @@ export default function TeamPerformancePanel({ open, onClose, from, to }: Props)
           staffName={selected.name}
           staffRole={selected.team === "delivery" ? "delivery" : selected.role}
           staffColor={TEAM_COLOR[selected.team] ?? TEAM_COLOR.employee}
-          from={from}
-          to={to}
+          from={computedRange.from || undefined}
+          to={computedRange.to || undefined}
           onClose={() => setSelected(null)}
         />
       )}
