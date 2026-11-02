@@ -130,7 +130,7 @@ router.get(
 
       // ── 1. Staff info ────────────────────────────────────────────
       const [staffRows] = await pool.query(
-        `SELECT id, full_name, role, email, phone, telegram_username, created_at
+        `SELECT id, full_name, username, role, email, phone, telegram_username, created_at
          FROM staff_users WHERE id = ? AND deleted_at IS NULL`,
         [staffId]
       ) as [any[], any];
@@ -138,6 +138,46 @@ router.get(
         res.status(404).json({ success: false, error: "Staff member not found" });
         return;
       }
+
+      const staffUser = staffRows[0];
+      const staffUsername = staffUser.username;
+      const staffTg = staffUser.telegram_username ?? "";
+
+      // Order attribution condition for this staff member across:
+      //  1. created_by_staff_id (direct creator)
+      //  2. assigned_to matching username or telegram handle
+      //  3. order_status_history changed_by matching username or telegram handle
+      //  4. delivery_assignments driver_username matching username or telegram handle
+      const staffMatchClause = `(
+        o.created_by_staff_id = ?
+        OR o.assigned_to LIKE CONCAT('%', ?, '%')
+        OR (? != '' AND o.assigned_to LIKE CONCAT('%', ?, '%'))
+        OR EXISTS (
+          SELECT 1 FROM order_status_history osh
+          WHERE osh.order_id = o.id
+            AND (
+              osh.changed_by = ?
+              OR (? != '' AND LOWER(osh.changed_by) = LOWER(?))
+            )
+        )
+        OR EXISTS (
+          SELECT 1 FROM delivery_assignments da
+          WHERE da.order_id = o.id
+            AND (
+              da.driver_username = ?
+              OR (? != '' AND LOWER(da.driver_username) = LOWER(?))
+            )
+        )
+      )`;
+      const staffMatchArgs: unknown[] = [
+        staffId,
+        staffUsername,
+        staffTg, staffTg,
+        staffUsername,
+        staffTg, staffTg,
+        staffUsername,
+        staffTg, staffTg,
+      ];
 
       // ── 2. Summary KPIs ──────────────────────────────────────────
       const [summaryRows] = await pool.query(
@@ -151,8 +191,8 @@ router.get(
            MIN(o.created_at)                                                AS first_order_at,
            MAX(o.created_at)                                                AS last_order_at
          FROM orders o
-         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}`,
-        [staffId, ...dp]
+         WHERE o.deleted_at IS NULL AND ${staffMatchClause}${dateFilter}`,
+        [...staffMatchArgs, ...dp]
       ) as [any[], any];
       const s = summaryRows[0] || {};
       const totalOrders   = Number(s.total_orders   || 0);
@@ -176,10 +216,10 @@ router.get(
                 COUNT(*)            AS orders,
                 COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
-         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         WHERE o.deleted_at IS NULL AND ${staffMatchClause}${dateFilter}
          GROUP BY DATE(o.created_at)
          ORDER BY date ASC`,
-        [staffId, ...dp]
+        [...staffMatchArgs, ...dp]
       ) as [any[], any];
 
       // ── 4. By channel / source ───────────────────────────────────
@@ -188,10 +228,10 @@ router.get(
                 COUNT(*) AS orders,
                 COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
-         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         WHERE o.deleted_at IS NULL AND ${staffMatchClause}${dateFilter}
          GROUP BY o.source
          ORDER BY revenue DESC`,
-        [staffId, ...dp]
+        [...staffMatchArgs, ...dp]
       ) as [any[], any];
 
       // ── 5. Top products ──────────────────────────────────────────
@@ -203,13 +243,13 @@ router.get(
                 COUNT(DISTINCT o.id)              AS order_count
          FROM order_items oi
          JOIN orders o ON o.id = oi.order_id
-         WHERE o.created_by_staff_id = ?
-           AND o.deleted_at IS NULL
-           AND o.status NOT IN ('Cancelled','CANCELLED')${dateFilter.replace(/o\./g, "o.")}
+         WHERE o.deleted_at IS NULL
+           AND o.status NOT IN ('Cancelled','CANCELLED')
+           AND ${staffMatchClause}${dateFilter}
          GROUP BY oi.item_name, oi.package_size
          ORDER BY revenue DESC
          LIMIT 10`,
-        [staffId, ...dp]
+        [...staffMatchArgs, ...dp]
       ) as [any[], any];
 
       // ── 6. By city ───────────────────────────────────────────────
@@ -218,98 +258,119 @@ router.get(
                 COUNT(*) AS orders,
                 COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED') THEN o.total ELSE 0 END),0) AS revenue
          FROM orders o
-         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         WHERE o.deleted_at IS NULL AND ${staffMatchClause}${dateFilter}
          GROUP BY o.city
          ORDER BY revenue DESC`,
-        [staffId, ...dp]
+        [...staffMatchArgs, ...dp]
       ) as [any[], any];
 
       // ── 7. Peak hours ─────────────────────────────────────────────
       const [hourRows] = await pool.query(
         `SELECT HOUR(o.created_at) AS hour, COUNT(*) AS orders
          FROM orders o
-         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         WHERE o.deleted_at IS NULL AND ${staffMatchClause}${dateFilter}
          GROUP BY HOUR(o.created_at)
          ORDER BY hour ASC`,
-        [staffId, ...dp]
+        [...staffMatchArgs, ...dp]
       ) as [any[], any];
 
       // ── 8. Recent orders ─────────────────────────────────────────
       const [recentRows] = await pool.query(
         `SELECT o.id, o.customer_name, o.city, o.source, o.total, o.status, o.created_at
          FROM orders o
-         WHERE o.created_by_staff_id = ? AND o.deleted_at IS NULL${dateFilter}
+         WHERE o.deleted_at IS NULL AND ${staffMatchClause}${dateFilter}
          ORDER BY o.created_at DESC
          LIMIT 15`,
-        [staffId, ...dp]
+        [...staffMatchArgs, ...dp]
       ) as [any[], any];
 
       // ── 9. Delivery workload (drivers only) ──────────────────────────
-      //
-      // Sourced from delivery_assignments, not orders.assigned_to.
-      //
-      // orders.assigned_to is the Telegram bot's raw write target and holds
-      // two incompatible shapes — the current bare handle and a legacy
-      // "@handle (chat_id)" form — so it cannot be joined reliably.
-      // delivery_assignments is the normalised table the bot also writes, one
-      // row per accepted job, with claimed_at as the timestamp. That is the
-      // same source the team rollup in routes/performance.ts uses, so a
-      // driver's numbers agree between the panel and this drill-down.
-      //
-      // The delivery timestamp comes from order_status_history, not
-      // orders.updated_at: updated_at is bumped by later edits (notes, item
-      // changes) and would silently rewrite delivery history.
+      // Sourced from delivery_assignments (Telegram bot claims) as well as
+      // order_status_history & assigned_to for delivery staff (e.g. Twedros).
       let delivery: Record<string, number> | null = null;
-      if (staffRows[0].telegram_username) {
-        const tgUsername = staffRows[0].telegram_username;
+      if (staffUser.role === 'delivery' || staffUser.telegram_username) {
+        const tgUsername = staffUser.telegram_username ?? "";
+        const uName = staffUser.username;
+        const fromDate = `${from ?? "1970-01-01"} 00:00:00`;
+        const toDate = `${to ?? "2999-12-31"} 23:59:59`;
 
         const [deliveryRows] = await pool.query(
           `SELECT
-             COUNT(o.id)                                                     AS total_assigned,
-             COALESCE(SUM(o.status = 'Delivered'), 0)                        AS delivered,
-             COALESCE(SUM(o.status IN ('Cancelled','CANCELLED')), 0)          AS cancelled,
-             COALESCE(SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED')), 0) AS pending,
-             COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED')
-                               THEN o.total ELSE 0 END), 0)                 AS revenue,
-             COALESCE(SUM(CASE WHEN o.status = 'Delivered'
-                                AND dh.delivered_at IS NOT NULL
-                                AND o.delivery_date IS NOT NULL
+             COUNT(sub.order_id)                                             AS total_assigned,
+             COALESCE(SUM(sub.status = 'Delivered'), 0)                      AS delivered,
+             COALESCE(SUM(sub.status IN ('Cancelled','CANCELLED')), 0)        AS cancelled,
+             COALESCE(SUM(sub.status NOT IN ('Delivered','Cancelled','CANCELLED')), 0) AS pending,
+             COALESCE(SUM(CASE WHEN sub.status NOT IN ('Cancelled','CANCELLED')
+                               THEN sub.total ELSE 0 END), 0)                AS revenue,
+             COALESCE(SUM(CASE WHEN sub.status = 'Delivered'
+                                AND sub.delivered_at IS NOT NULL
+                                AND sub.delivery_date IS NOT NULL
                                THEN 1 ELSE 0 END), 0)                        AS with_promised_date,
-             COALESCE(SUM(CASE WHEN o.status = 'Delivered'
-                                AND dh.delivered_at IS NOT NULL
-                                AND o.delivery_date IS NOT NULL
-                                AND DATE(dh.delivered_at) <= o.delivery_date
+             COALESCE(SUM(CASE WHEN sub.status = 'Delivered'
+                                AND sub.delivered_at IS NOT NULL
+                                AND sub.delivery_date IS NOT NULL
+                                AND DATE(sub.delivered_at) <= sub.delivery_date
                                THEN 1 ELSE 0 END), 0)                        AS on_time
-           FROM delivery_assignments da
-           JOIN orders o
-                ON o.id = da.order_id
-               AND o.deleted_at IS NULL
-           LEFT JOIN (
-             SELECT order_id, MIN(created_at) AS delivered_at
-             FROM order_status_history
-             WHERE new_status = 'Delivered'
-             GROUP BY order_id
-           ) dh ON dh.order_id = o.id
-           WHERE da.driver_username = ?
-             AND da.claimed_at BETWEEN ? AND ?`,
-          [tgUsername, `${from ?? "1970-01-01"} 00:00:00`, `${to ?? "2999-12-31"} 23:59:59`]
+           FROM (
+             -- Deliveries via delivery_assignments
+             SELECT da.order_id, o.status, o.total, o.delivery_date, dh.delivered_at
+             FROM delivery_assignments da
+             JOIN orders o ON o.id = da.order_id AND o.deleted_at IS NULL
+             LEFT JOIN (
+               SELECT order_id, MIN(created_at) AS delivered_at
+               FROM order_status_history
+               WHERE new_status = 'Delivered'
+               GROUP BY order_id
+             ) dh ON dh.order_id = o.id
+             WHERE (
+               da.driver_username = ?
+               OR (? != '' AND LOWER(da.driver_username) = LOWER(?))
+             )
+             AND da.claimed_at BETWEEN ? AND ?
+
+             UNION
+
+             -- Deliveries via order_status_history or assigned_to
+             SELECT o.id AS order_id, o.status, o.total, o.delivery_date, dh.delivered_at
+             FROM orders o
+             LEFT JOIN (
+               SELECT order_id, MIN(created_at) AS delivered_at
+               FROM order_status_history
+               WHERE new_status = 'Delivered'
+               GROUP BY order_id
+             ) dh ON dh.order_id = o.id
+             WHERE o.deleted_at IS NULL
+               AND (
+                 o.assigned_to LIKE CONCAT('%', ?, '%')
+                 OR (? != '' AND o.assigned_to LIKE CONCAT('%', ?, '%'))
+                 OR EXISTS (
+                   SELECT 1 FROM order_status_history osh
+                   WHERE osh.order_id = o.id
+                     AND (
+                       osh.changed_by = ?
+                       OR (? != '' AND LOWER(osh.changed_by) = LOWER(?))
+                     )
+                     AND osh.created_at BETWEEN ? AND ?
+                 )
+               )
+           ) sub`,
+          [
+            uName, tgUsername, tgUsername, fromDate, toDate,
+            uName, tgUsername, tgUsername, uName, tgUsername, tgUsername, fromDate, toDate,
+          ]
         ) as [any[], any];
 
         let rejected = 0;
         try {
-          // The rejections table is optional — it arrived in a later
-          // migration than the orders table, so an older database has no
-          // rows and possibly no table at all.
           const [rejRows] = await pool.query(
             `SELECT COUNT(*) AS rejected
              FROM delivery_rejections
-             WHERE driver_username = ?
+             WHERE (driver_username = ? OR (? != '' AND LOWER(driver_username) = LOWER(?)))
                AND rejected_at BETWEEN ? AND ?`,
-            [tgUsername, `${from ?? "1970-01-01"} 00:00:00`, `${to ?? "2999-12-31"} 23:59:59`]
+            [uName, tgUsername, tgUsername, fromDate, toDate]
           ) as [any[], any];
           rejected = Number(rejRows[0]?.rejected || 0);
         } catch {
-          // The rejections table may not exist on an older database.
           rejected = 0;
         }
 

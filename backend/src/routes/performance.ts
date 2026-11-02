@@ -202,12 +202,13 @@ router.get(
       // A driver with no staff record is kept, with unlinked = true, so the
       // owner can see that a working driver has no account to manage.
       const [driverRoster] = await pool.query(
-        `SELECT da.driver_username,
+        `SELECT DISTINCT
+                COALESCE(da.driver_username, su.telegram_username, su.username) AS driver_username,
                 su.id             AS staff_id,
-                su.full_name      AS full_name,
+                COALESCE(su.full_name, da.driver_username) AS full_name,
                 su.username       AS staff_username,
-                su.role           AS role,
-                su.active         AS active,
+                'delivery'        AS role,
+                COALESCE(su.active, 1) AS active,
                 su.telegram_username
          FROM (
                 SELECT DISTINCT driver_username
@@ -216,27 +217,57 @@ router.get(
          ) da
          LEFT JOIN staff_users su
                 ON su.deleted_at IS NULL
-               AND (su.telegram_username = da.driver_username
-                    OR su.username          = da.driver_username)
-         ORDER BY da.driver_username`,
+               AND ((su.telegram_username IS NOT NULL AND LOWER(su.telegram_username) = LOWER(da.driver_username))
+                    OR su.username = da.driver_username)
+
+         UNION
+
+         SELECT DISTINCT
+                COALESCE(su.telegram_username, su.username) AS driver_username,
+                su.id             AS staff_id,
+                su.full_name      AS full_name,
+                su.username       AS staff_username,
+                'delivery'        AS role,
+                su.active         AS active,
+                su.telegram_username
+         FROM staff_users su
+         WHERE su.role = 'delivery'
+           AND su.deleted_at IS NULL`,
         params
       ) as [any[], any];
 
       // ── 3. Sales aggregates (call centre + employees) ────────────────────
       const [salesRows] = await pool.query(
-        `SELECT o.created_by_staff_id AS staff_id,
-                COUNT(*)                                                        AS total_orders,
-                COALESCE(SUM(o.status = 'Delivered'), 0)                        AS delivered,
-                COALESCE(SUM(o.status IN ('Cancelled','CANCELLED')), 0)          AS cancelled,
-                COALESCE(SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED')), 0) AS pending,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED')
-                                  THEN o.total ELSE 0 END), 0)                  AS revenue
-         FROM orders o
-         WHERE o.created_by_staff_id IS NOT NULL
-           AND o.deleted_at IS NULL
-           AND o.created_at BETWEEN ? AND ?
-         GROUP BY o.created_by_staff_id`,
-        params
+        `SELECT sub.staff_id,
+                COUNT(*)                                                                AS total_orders,
+                COALESCE(SUM(sub.status = 'Delivered'), 0)                              AS delivered,
+                COALESCE(SUM(sub.status IN ('Cancelled','CANCELLED')), 0)                AS cancelled,
+                COALESCE(SUM(sub.status NOT IN ('Delivered','Cancelled','CANCELLED')), 0) AS pending,
+                COALESCE(SUM(CASE WHEN sub.status NOT IN ('Cancelled','CANCELLED')
+                                  THEN sub.total ELSE 0 END), 0)                        AS revenue
+         FROM (
+           SELECT DISTINCT su.id AS staff_id, o.id AS order_id, o.status, o.total
+           FROM staff_users su
+           JOIN orders o ON o.deleted_at IS NULL
+             AND o.created_at BETWEEN ? AND ?
+             AND (
+               o.created_by_staff_id = su.id
+               OR o.assigned_to LIKE CONCAT('%', su.username, '%')
+               OR (su.telegram_username IS NOT NULL AND su.telegram_username != '' AND o.assigned_to LIKE CONCAT('%', su.telegram_username, '%'))
+               OR EXISTS (
+                 SELECT 1 FROM order_status_history osh
+                 WHERE osh.order_id = o.id
+                   AND (
+                     osh.changed_by = su.username
+                     OR (su.telegram_username IS NOT NULL AND su.telegram_username != '' AND LOWER(osh.changed_by) = LOWER(su.telegram_username))
+                   )
+               )
+             )
+           WHERE su.role IN (?)
+             AND su.deleted_at IS NULL
+         ) sub
+         GROUP BY sub.staff_id`,
+        [params[0], params[1], SALES_ROLES]
       ) as [any[], any];
 
       // ── 4. Daily call report counts (call centre) ────────────────────────
@@ -262,35 +293,75 @@ router.get(
       // the order's created_at, so the window measures delivery work done in
       // that period and not orders that happened to be placed then.
       const [deliveryRows] = await pool.query(
-        `SELECT da.driver_username,
-                COUNT(o.id)                                                    AS total_assigned,
-                COALESCE(SUM(o.status = 'Delivered'), 0)                       AS delivered,
-                COALESCE(SUM(o.status IN ('Cancelled','CANCELLED')), 0)         AS cancelled,
-                COALESCE(SUM(o.status NOT IN ('Delivered','Cancelled','CANCELLED')), 0) AS pending,
-                COALESCE(SUM(CASE WHEN o.status NOT IN ('Cancelled','CANCELLED')
-                                  THEN o.total ELSE 0 END), 0)                 AS revenue,
-                COALESCE(SUM(CASE WHEN o.status = 'Delivered'
-                                   AND dh.delivered_at IS NOT NULL
-                                   AND o.delivery_date IS NOT NULL
-                                  THEN 1 ELSE 0 END), 0)                       AS with_promised_date,
-                COALESCE(SUM(CASE WHEN o.status = 'Delivered'
-                                   AND dh.delivered_at IS NOT NULL
-                                   AND o.delivery_date IS NOT NULL
-                                   AND DATE(dh.delivered_at) <= o.delivery_date
-                                  THEN 1 ELSE 0 END), 0)                       AS on_time
-         FROM delivery_assignments da
-         JOIN orders o
-              ON o.id = da.order_id
-             AND o.deleted_at IS NULL
-         LEFT JOIN (
-                SELECT order_id, MIN(created_at) AS delivered_at
-                FROM order_status_history
-                WHERE new_status = 'Delivered'
-                GROUP BY order_id
-         ) dh ON dh.order_id = o.id
-         WHERE da.claimed_at BETWEEN ? AND ?
-         GROUP BY da.driver_username`,
-        params
+        `SELECT sub.driver_key,
+                COUNT(*)                                                                AS total_assigned,
+                COALESCE(SUM(sub.status = 'Delivered'), 0)                              AS delivered,
+                COALESCE(SUM(sub.status IN ('Cancelled','CANCELLED')), 0)                AS cancelled,
+                COALESCE(SUM(sub.status NOT IN ('Delivered','Cancelled','CANCELLED')), 0) AS pending,
+                COALESCE(SUM(CASE WHEN sub.status NOT IN ('Cancelled','CANCELLED')
+                                  THEN sub.total ELSE 0 END), 0)                        AS revenue,
+                COALESCE(SUM(CASE WHEN sub.status = 'Delivered'
+                                   AND sub.delivered_at IS NOT NULL
+                                   AND sub.delivery_date IS NOT NULL
+                                  THEN 1 ELSE 0 END), 0)                                AS with_promised_date,
+                COALESCE(SUM(CASE WHEN sub.status = 'Delivered'
+                                   AND sub.delivered_at IS NOT NULL
+                                   AND sub.delivery_date IS NOT NULL
+                                   AND DATE(sub.delivered_at) <= sub.delivery_date
+                                  THEN 1 ELSE 0 END), 0)                                AS on_time
+         FROM (
+           SELECT
+             da.driver_username AS driver_key,
+             o.id AS order_id,
+             o.status,
+             o.total,
+             o.delivery_date,
+             dh.delivered_at
+           FROM delivery_assignments da
+           JOIN orders o ON o.id = da.order_id AND o.deleted_at IS NULL
+           LEFT JOIN (
+             SELECT order_id, MIN(created_at) AS delivered_at
+             FROM order_status_history
+             WHERE new_status = 'Delivered'
+             GROUP BY order_id
+           ) dh ON dh.order_id = o.id
+           WHERE da.claimed_at BETWEEN ? AND ?
+
+           UNION
+
+           SELECT
+             COALESCE(su.telegram_username, su.username) AS driver_key,
+             o.id AS order_id,
+             o.status,
+             o.total,
+             o.delivery_date,
+             dh.delivered_at
+           FROM staff_users su
+           JOIN orders o ON o.deleted_at IS NULL
+             AND (
+               o.assigned_to LIKE CONCAT('%', su.username, '%')
+               OR (su.telegram_username IS NOT NULL AND su.telegram_username != '' AND o.assigned_to LIKE CONCAT('%', su.telegram_username, '%'))
+               OR EXISTS (
+                 SELECT 1 FROM order_status_history osh
+                 WHERE osh.order_id = o.id
+                   AND (
+                     osh.changed_by = su.username
+                     OR (su.telegram_username IS NOT NULL AND su.telegram_username != '' AND LOWER(osh.changed_by) = LOWER(su.telegram_username))
+                   )
+                   AND osh.created_at BETWEEN ? AND ?
+               )
+             )
+           LEFT JOIN (
+             SELECT order_id, MIN(created_at) AS delivered_at
+             FROM order_status_history
+             WHERE new_status = 'Delivered'
+             GROUP BY order_id
+           ) dh ON dh.order_id = o.id
+           WHERE su.role = 'delivery'
+             AND su.deleted_at IS NULL
+         ) sub
+         GROUP BY sub.driver_key`,
+        [params[0], params[1], params[0], params[1]]
       ) as [any[], any];
 
       // ── 6. Delivery rejections ───────────────────────────────────────────
@@ -311,9 +382,9 @@ router.get(
       // ── 7. Merge into one row per person ─────────────────────────────────
       const salesById     = new Map(salesRows.map((r: any) => [r.staff_id, r]));
       const callsById     = new Map(callRows.map((r: any) => [r.staff_id, r]));
-      const deliveryByUser = new Map(deliveryRows.map((r: any) => [r.driver_username, r]));
-      const rejectsByUser  = new Map(rejectionRows.map((r: any) => [r.driver_username, r]));
-
+      const deliveryByUser = new Map(deliveryRows.map((r: any) => [String(r.driver_key).toLowerCase(), r]));
+      const rejectsByUser  = new Map(rejectionRows.map((r: any) => [String(r.driver_username).toLowerCase(), r]));
+      
       // ── 7a. Sales members ────────────────────────────────────────────────
       const members: Member[] = salesRoster.map((s: any) => {
         const sales = salesById.get(s.id);
@@ -358,9 +429,15 @@ router.get(
       // staff identity is used, so the panel shows a real name; otherwise the
       // handle stands in and the row is flagged unlinked.
       for (const d of driverRoster) {
-        const handle     = d.driver_username as string;
-        const delivery   = deliveryByUser.get(handle);
-        const rejects    = rejectsByUser.get(handle);
+        const handle     = (d.driver_username ?? d.staff_username ?? "") as string;
+        const delivery   =
+          deliveryByUser.get(handle.toLowerCase())
+          || (d.staff_username ? deliveryByUser.get(String(d.staff_username).toLowerCase()) : null)
+          || (d.telegram_username ? deliveryByUser.get(String(d.telegram_username).toLowerCase()) : null);
+        const rejects    =
+          rejectsByUser.get(handle.toLowerCase())
+          || (d.staff_username ? rejectsByUser.get(String(d.staff_username).toLowerCase()) : null)
+          || (d.telegram_username ? rejectsByUser.get(String(d.telegram_username).toLowerCase()) : null);
 
         const assigned   = num(delivery?.total_assigned);
         const delivered  = num(delivery?.delivered);
