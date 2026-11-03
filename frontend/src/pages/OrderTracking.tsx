@@ -45,6 +45,9 @@ interface Order {
   employee_id?: string;
   created_by_staff_id?: string;
   created_by_staff_name?: string;
+  affiliate_name?: string;
+  affiliate_code?: string;
+  referral_code_used?: string;
   items?: OrderItem[];
   history?: OrderHistory[];
 }
@@ -143,11 +146,10 @@ const OrderTracking: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
   const isAdmin = user?.role === 'admin';
-  // Call center agents can open Order Tracking to follow their own orders, but
-  // the backend only lets admin/manager/employee change status or items. Keep
-  // those controls off their screen instead of showing actions that would 403.
+  // Staff roles (admin, manager, employee, store_manager, call_center, delivery) can manage order status
   const isCallCenter = user?.role === 'call_center';
-  const canManageOrders = !isCallCenter;
+  const role = user?.role;
+  const canManageOrders = ['admin', 'manager', 'employee', 'store_manager', 'call_center', 'delivery'].includes(role || '');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -247,12 +249,18 @@ const OrderTracking: React.FC = () => {
         o.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
         o.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         o.phone.includes(searchTerm) ||
-        (o.city || '').toLowerCase().includes(searchTerm.toLowerCase());
+        (o.city || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.affiliate_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.affiliate_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.referral_code_used || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = !statusFilter || normalizeStatus(o.status) === statusFilter;
       const matchSource = !sourceFilter || getSourceKey(o) === sourceFilter;
       const matchFrom = !dateFrom || new Date(o.created_at) >= new Date(dateFrom);
       const matchTo = !dateTo || new Date(o.created_at) <= new Date(dateTo + 'T23:59:59');
-      const matchType = !orderTypeFilter || (orderTypeFilter === 'bulk' ? isFranchiseOrder(o) : !isFranchiseOrder(o));
+      const matchType = !orderTypeFilter || 
+        (orderTypeFilter === 'pickup' ? (o.order_type || '').toLowerCase() === 'pickup' :
+         orderTypeFilter === 'delivery' ? (o.order_type || '').toLowerCase() === 'delivery' :
+         orderTypeFilter === 'bulk' ? isFranchiseOrder(o) : !isFranchiseOrder(o));
       
       return matchSearch && matchStatus && matchSource && matchFrom && matchTo && matchType;
     });
@@ -299,6 +307,8 @@ const OrderTracking: React.FC = () => {
   useEffect(() => {
     setPage(1);
   }, [filteredOrders]);
+
+
 
   const stats = useMemo(() => {
     const activeOrders = orders.filter(o => o.status !== 'Cancelled' && o.status !== 'CANCELLED');
@@ -535,10 +545,12 @@ const OrderTracking: React.FC = () => {
     }
   };
 
+
   const doExport = () => {
+    if (!isAdmin) return;
     const csvContent = "data:text/csv;charset=utf-8," 
       + "Order ID,Customer,Phone,City,Source,Total,Status,Date\n"
-      + filteredOrders.map(o => `${o.id},${o.customer_name},${o.phone},${o.city},${getSourceLabel(o)},${o.total},${normalizeStatus(o.status)},${o.created_at}`).join("\n");
+      + filteredOrders.map(o => `${o.id},\"${(o.customer_name || '').replace(/"/g, '""')}\",${o.phone},\"${(o.city || '').replace(/"/g, '""')}\",${getSourceLabel(o)},${o.total},${normalizeStatus(o.status)},${o.created_at}`).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -597,9 +609,16 @@ const OrderTracking: React.FC = () => {
               <span className="material-symbols-outlined text-[14px]">bar_chart</span> Analytics
             </button>
           )}
-          <button onClick={doExport} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#388e3c] border-[1.5px] border-[#388e3c] text-white rounded-md text-[12px] font-bold hover:bg-[#43a047] transition whitespace-nowrap">
-            <span className="material-symbols-outlined text-[14px]">download</span> Export CSV
-          </button>
+          {isAdmin && (
+            <button
+              onClick={doExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#388e3c] border-[1.5px] border-[#388e3c] text-white rounded-md text-[12px] font-bold hover:bg-[#43a047] transition whitespace-nowrap shadow-xs cursor-pointer"
+              title="Download Orders CSV (Admin Privilege)"
+            >
+              <span className="material-symbols-outlined text-[14px]">download</span> Export CSV
+            </button>
+          )}
+
         </div>
       </header>
 
@@ -647,8 +666,10 @@ const OrderTracking: React.FC = () => {
           <option value="Sales_DB">Sales</option>
           <option value="Order_DB">Online/Guest</option>
         </select>
-        <select className="px-2 py-2 bg-[#f7faf7] border-[1.5px] border-[#ddeedd] rounded-lg text-xs font-semibold text-[#141c15] min-w-[125px] shrink-0 focus:outline-none focus:border-[#2e7d32]" value={orderTypeFilter} onChange={(e) => setOrderTypeFilter(e.target.value)}>
-          <option value="">All Orders</option>
+        <select className="px-2 py-2 bg-[#f7faf7] border-[1.5px] border-[#ddeedd] rounded-lg text-xs font-semibold text-[#141c15] min-w-[150px] shrink-0 focus:outline-none focus:border-[#2e7d32]" value={orderTypeFilter} onChange={(e) => setOrderTypeFilter(e.target.value)}>
+          <option value="">All Fulfillment Types</option>
+          <option value="pickup">Store Pickup Orders</option>
+          <option value="delivery">Delivery Orders</option>
           <option value="single">Single Orders</option>
           <option value="bulk">Bulk/Franchise</option>
         </select>
@@ -813,12 +834,27 @@ const OrderTracking: React.FC = () => {
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Phone</label><span className="text-[13px] text-[#141c15] font-medium font-mono block">{selectedOrder.phone || '—'}</span></div>
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Location</label><span className="text-[13px] text-[#141c15] font-medium block">{selectedOrder.location || '—'}</span></div>
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">City</label><span className="text-[13px] text-[#141c15] font-medium block">{selectedOrder.city || '—'}</span></div>
-                    <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Order Type</label><span className="text-[13px] text-[#141c15] font-medium block">{selectedOrder.order_type || '—'}</span></div>
+                    <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Order Type</label><span className={`text-[13px] font-bold block ${(selectedOrder.order_type || '').toLowerCase() === 'pickup' ? 'text-emerald-700' : 'text-[#141c15]'}`}>{(selectedOrder.order_type || '').toUpperCase() || '—'}</span></div>
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Submitted</label><span className="text-[12px] text-[#141c15] font-medium block">{new Date(selectedOrder.created_at).toLocaleString('en-GB')}</span></div>
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Delivery</label><span className="text-[12px] text-[#141c15] font-medium block">{selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString('en-GB') : '—'}</span></div>
                     <div><label className="block text-[10px] font-extrabold uppercase tracking-wide text-[#607d66] mb-px">Placed By</label><span className="text-[13px] text-[#141c15] font-medium block">{selectedOrder.created_by_staff_name || '—'}</span></div>
                   </div>
                 </div>
+
+                {/* Affiliate Referral Block (for pickup & online orders) */}
+                {(selectedOrder.affiliate_name || selectedOrder.affiliate_code || selectedOrder.referral_code_used) && (
+                  <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wide flex items-center gap-1.5 text-amber-800 mb-1">
+                      <span className="material-symbols-outlined text-[14px]">handshake</span> Affiliate Referral Attribution
+                    </div>
+                    <div className="text-xs font-semibold">
+                      Affiliate: <span className="font-bold">{selectedOrder.affiliate_name || 'Registered Affiliate'}</span>
+                    </div>
+                    <div className="text-[11px] text-amber-700 font-mono mt-0.5">
+                      Referral Code Used: <span className="font-bold">{selectedOrder.affiliate_code || selectedOrder.referral_code_used}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Items Section */}
                 <div>

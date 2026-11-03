@@ -10,6 +10,9 @@ export interface ReceiptData {
   total: number;
   items: { name: string; package_size: string; quantity: number; unit_price: number }[];
   date: string;
+  cashier?: string;
+  paymentMethod?: string;
+  discount?: number;
 }
 
 interface OrderReceiptProps {
@@ -125,8 +128,14 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                   </div>
                   <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <span style={{ fontWeight: 800 }}>Cashier</span>
-                    <span style={{ fontWeight: 500 }}>manager</span>
+                    <span style={{ fontWeight: 500 }}>{data.cashier || 'manager'}</span>
                   </div>
+                  {data.paymentMethod && (
+                    <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <span style={{ fontWeight: 800 }}>Payment</span>
+                      <span style={{ fontWeight: 500, textTransform: 'uppercase' }}>{data.paymentMethod}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Thin Dashed Line */}
@@ -165,6 +174,12 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ data, onClose }) => {
                 {/* Bold Line Above Total */}
                 <div style={{ borderTop: '2px solid #000', margin: '4px 0 2px' }}></div>
 
+                {Boolean(data.discount && data.discount > 0) && (
+                  <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0', color: '#166534', fontWeight: 600 }}>
+                    <span>Discount</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>- {Number(data.discount).toLocaleString()} ETB</span>
+                  </div>
+                )}
                 <div className="no-break" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, padding: '2px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <span>TOTAL</span>
                   <span style={{ whiteSpace: 'nowrap' }}>{Number(data.total).toLocaleString()} ETB</span>

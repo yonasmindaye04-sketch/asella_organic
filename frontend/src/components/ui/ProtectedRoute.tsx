@@ -14,20 +14,19 @@ interface ProtectedRouteProps {
  * other endpoint, so this is defence-in-depth rather than the real boundary.
  */
 const STORE_MANAGER_ALLOWED_PATHS = [
-  '/dashboard/new-order',
-  '/dashboard/bulk-orders',
-  '/dashboard/stock-request',
-  '/dashboard/store-report',
-  '/dashboard/notifications',
+  '/dashboard/pos',
   '/dashboard/tracking',
+  '/dashboard/notifications',
+  '/dashboard/bulk-orders',
+  '/dashboard/store-report',
+  '/dashboard/stock-request',
 ];
 
-/** Call center agents have their own four-screen workspace. */
+/** Call center agents have access to POS, Tracking, Notifications, and Reporting Channel. */
 const CALL_CENTER_ALLOWED_PATHS = [
-  '/dashboard/new-order',
-  '/dashboard/bulk-orders',
-  '/dashboard/stock-request',
+  '/dashboard/pos',
   '/dashboard/tracking',
+  '/dashboard/notifications',
   '/dashboard/call-center',
 ];
 
@@ -62,7 +61,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
   if (user?.role === 'call_center') {
     const path = location.pathname.replace(/\/+$/, '') || '/';
     if (!CALL_CENTER_ALLOWED_PATHS.includes(path)) {
-      return <Navigate to="/dashboard/new-order" replace />;
+      return <Navigate to="/dashboard/pos" replace />;
     }
   }
 
@@ -71,7 +70,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
   if (user?.role === 'store_manager') {
     const path = location.pathname.replace(/\/+$/, '') || '/';
     if (!STORE_MANAGER_ALLOWED_PATHS.includes(path)) {
-      return <Navigate to="/dashboard/new-order" replace />;
+      return <Navigate to="/dashboard/pos" replace />;
     }
   }
 

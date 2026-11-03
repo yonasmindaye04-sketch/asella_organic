@@ -12,7 +12,7 @@
       @font-face {
         font-family: 'Outfit';
         font-style: normal;
-        font-weight: 700;
+        font-weight: 700 800;
         font-display: swap;
         src: url('https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtqUYLknw.woff2') format('woff2');
         ascent-override: 0.716;
@@ -79,13 +79,24 @@
     <title>Asella Organic — Premium Organic Health Products</title>
     <meta name="description" content="Asella Organic offers premium, cold-processed organic health products including Moringa, Black Seed Oil, and Turmeric. Shop our high-quality natural supplements." />
 
-    <!-- Agentic Resource Discovery & LLM Documentation -->
-    <link rel="ard" href="/ai-catalog.json" />
+    <!-- WebMCP & Agentic Browsing Metadata -->
+    <meta name="agentic-browsing" content="enabled" />
+    <meta name="agent-capability" content="read, navigate, action" />
+    <meta name="ai-agent" content="index, follow, interact" />
+
+    <!-- Agentic Resource Discovery (ARD) & Machine-Readable Catalogs -->
+    <link rel="ard" href="/.well-known/ai-catalog.json" type="application/json" />
+    <link rel="agent-catalog" href="/.well-known/ai-catalog.json" type="application/json" />
+    <link rel="alternate" type="application/json" href="/.well-known/ai-catalog.json" title="AI Resource Catalog" />
+    <link rel="alternate" type="application/json" href="/.well-known/ard.json" title="ARD Specification" />
+    <link rel="alternate" type="text/markdown" href="/.well-known/llms.txt" title="LLM Summary" />
     <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLM Summary" />
     <link rel="alternate" type="text/markdown" href="/llms-full.txt" title="Full LLM Documentation" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
-    <!-- PWA -->
+    <!-- PWA & Mobile Web App -->
     <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Asella Organic" />
@@ -131,7 +142,65 @@
           "url": "https://asellaorganic.com/",
           "name": "Asella Organic",
           "description": "Premium cold-processed organic health products from Ethiopian highlands.",
-          "publisher": { "@id": "https://asellaorganic.com/#organization" }
+          "publisher": { "@id": "https://asellaorganic.com/#organization" },
+          "potentialAction": [
+            {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://asellaorganic.com/#products?search={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            },
+            {
+              "@type": "OrderAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://asellaorganic.com/#products",
+                "actionPlatform": [
+                  "http://schema.org/DesktopWebPlatform",
+                  "http://schema.org/MobileWebPlatform"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "@type": "ItemList",
+          "@id": "https://asellaorganic.com/#catalog",
+          "name": "Featured Organic Health Products",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Black Seed Oil",
+              "url": "https://asellaorganic.com/#products"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Chia Seeds",
+              "url": "https://asellaorganic.com/#products"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Frankincense Resin",
+              "url": "https://asellaorganic.com/#products"
+            },
+            {
+              "@type": "ListItem",
+              "position": 4,
+              "name": "Myrrh Oil",
+              "url": "https://asellaorganic.com/#products"
+            },
+            {
+              "@type": "ListItem",
+              "position": 5,
+              "name": "Moringa Powder",
+              "url": "https://asellaorganic.com/#products"
+            }
+          ]
         }
       ]
     }
@@ -176,8 +245,6 @@
     <!-- Polyfill for older browsers (.at) — external file required by CSP -->
     <script src="/polyfills.js" defer></script>
 
-    <!-- Telegram WebApp SDK — deferred so it never blocks first paint -->
-    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   </head>
   <body>
     <div id="root"></div>

@@ -554,10 +554,20 @@ router.get("/", authenticate,
       values.push(req.user.id);
     }
 
-    // Store managers can only see orders they created themselves.
+    // Store managers can see orders they created themselves, all pickup orders, or orders at their store location
     if (req.user?.role === "store_manager") {
-      conditions.push("o.created_by_staff_id = ?");
-      values.push(req.user.id);
+      const [mgrRows] = await pool.query(
+        `SELECT location FROM staff_users WHERE id = ? LIMIT 1`,
+        [req.user.id]
+      ) as [any[], any];
+      const storeLoc = mgrRows[0]?.location?.trim();
+      if (storeLoc) {
+        conditions.push("(o.created_by_staff_id = ? OR LOWER(COALESCE(o.order_type, '')) LIKE '%pickup%' OR o.location LIKE ? OR o.city LIKE ?)");
+        values.push(req.user.id, `%${storeLoc}%`, `%${storeLoc}%`);
+      } else {
+        conditions.push("(o.created_by_staff_id = ? OR LOWER(COALESCE(o.order_type, '')) LIKE '%pickup%')");
+        values.push(req.user.id);
+      }
     }
 
     const where   = `WHERE ${conditions.join(" AND ")}`;
@@ -572,9 +582,12 @@ router.get("/", authenticate,
 
     const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
     const [data] = await pool.query(
-      `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name
+      `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name,
+              c.referral_code_used, ap.full_name AS affiliate_name, ap.referral_code AS affiliate_code
        FROM orders o
        LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
+       LEFT JOIN customers c ON c.id = o.customer_id
+       LEFT JOIN affiliate_profiles ap ON ap.id = c.referred_by_affiliate_id
        ${where}
        ORDER BY o.created_at DESC LIMIT ? OFFSET ?`,
       [...values, limitNum, offset]
@@ -632,9 +645,12 @@ router.get(
     try {
       const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
       const [orders] = await pool.query(
-        `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name
+        `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name,
+                c.referral_code_used, ap.full_name AS affiliate_name, ap.referral_code AS affiliate_code
          FROM orders o
          LEFT JOIN staff_users su ON su.id = o.created_by_staff_id
+         LEFT JOIN customers c ON c.id = o.customer_id
+         LEFT JOIN affiliate_profiles ap ON ap.id = c.referred_by_affiliate_id
          WHERE o.id = ? AND o.deleted_at IS NULL`,
         [req.params.id]
       ) as [any[], any];
@@ -646,7 +662,13 @@ router.get(
       }
 
       // call_center agents can only read orders they created
-      if ((req.user?.role === "call_center" || req.user?.role === "store_manager") && order.created_by_staff_id !== req.user.id) {
+      if (req.user?.role === "call_center" && order.created_by_staff_id !== req.user.id) {
+        res.status(403).json({ success: false, error: "Forbidden" });
+        return;
+      }
+
+      // store_manager can read orders they created OR any pickup order
+      if (req.user?.role === "store_manager" && order.created_by_staff_id !== req.user.id && !(order.order_type || "").toLowerCase().includes("pickup")) {
         res.status(403).json({ success: false, error: "Forbidden" });
         return;
       }
@@ -695,7 +717,7 @@ router.patch(
   // commission, and deducts inventory. Without a role guard any
   // authenticated principal could mint commissions by driving orders to
   // Delivered, then flip them to Cancelled to reverse it again.
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center", "delivery"),
   validate(UpdateStatusSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
@@ -706,11 +728,9 @@ router.patch(
       return;
     }
 
-    // customer_id and telegram_chat_id are both read below — the
-    // telegram_chat_id lookup was silently always null because the
-    // column was never selected here.
+    // customer_id, telegram_chat_id, created_by_staff_id, and order_type
     const [currentRows] = await pool.query(
-      `SELECT status, phone, customer_name, customer_id, telegram_chat_id, total
+      `SELECT status, phone, customer_name, customer_id, telegram_chat_id, total, created_by_staff_id, order_type
        FROM orders WHERE id = ? AND deleted_at IS NULL`,
       [orderId]
     ) as [any[], any];
@@ -720,6 +740,8 @@ router.patch(
       res.status(404).json({ success: false, error: "Order not found" });
       return;
     }
+
+    // Authorized staff roles (admin, manager, employee, store_manager, call_center, delivery) can update status on orders.
 //this is the part where we check if the status is being changed to "Delivered" and if the current status is not "Delivered". 
 // If so, we check the inventory for each item in the order to ensure there is sufficient stock. If any item has insufficient stock, 
 // we return a 400 error with a message indicating which item is out of stock. If all items have sufficient stock, we proceed to deduct the stock for the order. 
@@ -922,7 +944,7 @@ router.patch(
 router.patch(
   "/:id/items",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager"),
   validate(UpdateItemsSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
@@ -943,13 +965,20 @@ router.patch(
 
       // 0. Fetch the order's current status — stock is only live once Delivered
       const [orderRows] = await connection.query(
-        `SELECT status FROM orders WHERE id = ? AND deleted_at IS NULL`,
+        `SELECT status, created_by_staff_id, order_type FROM orders WHERE id = ? AND deleted_at IS NULL`,
         [orderId]
       ) as [any[], any];
 
       if (!orderRows.length) {
         await connection.rollback();
         res.status(404).json({ success: false, error: "Order not found" });
+        return;
+      }
+
+      // store_manager can edit items on orders they created OR any pickup order
+      if (req.user?.role === "store_manager" && orderRows[0].created_by_staff_id !== req.user.id && !(orderRows[0].order_type || "").toLowerCase().includes("pickup")) {
+        await connection.rollback();
+        res.status(403).json({ success: false, error: "Forbidden: store managers can only edit items on pickup orders or self-created orders" });
         return;
       }
 

@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://asellaorganic.com/sitemap.xml
-LLMs-Txt: https://asellaorganic.com/llms.txt
+Sitemap: https://www.asellaorganic.com/sitemap.xml
+LLMs-Txt: https://www.asellaorganic.com/llms.txt
+ARD-Catalog: https://www.asellaorganic.com/.well-known/ai-catalog.json
+ARD-Manifest: https://www.asellaorganic.com/.well-known/ard.json

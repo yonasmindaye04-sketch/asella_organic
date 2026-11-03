@@ -73,9 +73,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const isStaffOrAdmin = role === 'employee' || role === 'staff' || role === 'admin' || role === 'manager';
   const isAdminOrManager = role === 'admin' || role === 'manager';
 
-  /** Only close the drawer on mobile; desktop keeps the rail open. */
+  /** Only close the drawer on mobile / small window; desktop keeps the rail open. */
   const handleMobileNav = () => {
-    if (window.innerWidth < 768) onClose?.();
+    if (window.innerWidth < 1024) onClose?.();
   };
 
   const NavItem: React.FC<{
@@ -134,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 z-50 lg:hidden backdrop-blur-xs transition-opacity"
           onClick={onClose}
         />
       )}
@@ -156,9 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             <>
               <SectionLabel>Store Operations</SectionLabel>
               <ul className="sidebar-nav-group">
-                <NavItem to="/dashboard/new-order" icon="add_shopping_cart" label="New Sales Order" />
-                <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Sales Order" />
-                <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
+                <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"
@@ -166,12 +164,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badge={pendingCount}
                   badgeVariant="amber"
                 />
-              </ul>
-
-              <Divider />
-              <SectionLabel>Reporting</SectionLabel>
-              <ul className="sidebar-nav-group">
-                <NavItem to="/dashboard/store-report" icon="summarize" label="Reporting Channel" />
                 <NavItem
                   to="/dashboard/notifications"
                   icon="notifications"
@@ -179,20 +171,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badge={notifCount}
                   badgeVariant="rose"
                 />
+                <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Ordering" />
+                <NavItem to="/dashboard/store-report" icon="summarize" label="Reporting Channel" />
+                <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
               </ul>
             </>
           ) : isCallCenter ? (
             <>
-              <SectionLabel>Call Center</SectionLabel>
+              <SectionLabel>Call Center Operations</SectionLabel>
               <ul className="sidebar-nav-group">
-                <NavItem to="/dashboard/new-order" icon="add_shopping_cart" label="New Sales Order" />
-                <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Sales Order" />
-                <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
-              </ul>
-
-              <Divider />
-              <SectionLabel>Fulfillment</SectionLabel>
-              <ul className="sidebar-nav-group">
+                <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"
@@ -200,11 +188,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badge={pendingCount}
                   badgeVariant="amber"
                 />
-              </ul>
-
-              <Divider />
-              <SectionLabel>Reporting</SectionLabel>
-              <ul className="sidebar-nav-group">
+                <NavItem
+                  to="/dashboard/notifications"
+                  icon="notifications"
+                  label="Notifications"
+                  badge={notifCount}
+                  badgeVariant="rose"
+                />
                 <NavItem to="/dashboard/call-center" icon="summarize" label="Reporting Channel" />
               </ul>
             </>
@@ -212,6 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             <>
           <SectionLabel>Overview</SectionLabel>
           <ul className="sidebar-nav-group">
+            <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
             <NavItem to="/dashboard" icon="space_dashboard" label="Analytics Dashboard" />
             {isAdminOrManager && (
               <NavItem to="/dashboard/analytics" icon="monitoring" label="P&L Financial Report" />
@@ -226,7 +217,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 }}
               />
             )}
-            <NavItem to="/dashboard/new-order" icon="add_shopping_cart" label="New Sales Order" />
           </ul>
 
           {isStaffOrAdmin && (

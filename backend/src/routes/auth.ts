@@ -77,7 +77,7 @@ router.post("/login", loginRateLimit, validate(LoginSchema),
     const { username, password } = req.body as { username: string; password: string };
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, username, password_hash, role
+      `SELECT id, full_name, username, password_hash, role, location
        FROM staff_users WHERE (email = ? OR username = ?) AND active = true`,
       [username, username]
     ) as [any[], any];
@@ -123,7 +123,7 @@ router.post("/login", loginRateLimit, validate(LoginSchema),
       data: {
         token:        accessToken,
         refreshToken,
-        user: { id: user.id, name: user.full_name, role: user.role },
+        user: { id: user.id, name: user.full_name, role: user.role, location: user.location || null },
       },
     });
   }
@@ -247,7 +247,7 @@ router.get("/me", authenticate,
     const log = createLogger(req);
     try {
       const [rows] = await pool.query(
-        `SELECT id, username, full_name, role, email, phone, active,
+        `SELECT id, username, full_name, role, email, phone, location, active,
                 two_factor_enabled, created_at
          FROM staff_users
          WHERE id = ? AND active = true AND deleted_at IS NULL`,

@@ -126,7 +126,10 @@ export const CreateOrderSchema = z.object({
     "walk-in",
     "other",
   ]),
-  order_type:    z.enum(["delivery", "pickup"]),
+  order_type:    z.preprocess(
+    (val) => (typeof val === "string" ? val.trim().toLowerCase() : val),
+    z.enum(["delivery", "pickup", "walk-in"])
+  ),
   gender:        z.enum(["male", "female", "other"]).optional(),
   age_group:     z
     .enum(["under-18", "18-24", "25-34", "35-44", "45-54", "55+"])

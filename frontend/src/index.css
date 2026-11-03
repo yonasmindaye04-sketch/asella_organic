@@ -422,32 +422,51 @@
   border-right: 1px solid rgba(255,255,255,0.06);
 }
 
-/* Expanded / Collapsed widths — desktop */
-@media (min-width: 768px) {
+/* Desktop layout (>= 1024px) */
+@media (min-width: 1024px) {
   .sidebar-root {
     position: relative;
     height: 100%;
     max-height: 100vh;
   }
   .sidebar-expanded {
-    width: 260px;
+    width: 260px !important;
+    min-width: 260px !important;
+    max-width: 260px !important;
+    transform: none !important;
   }
   .sidebar-collapsed {
-    width: 72px;
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+    transform: none !important;
   }
 }
-/* Mobile: full-width drawer, slide in/out */
-@media (max-width: 767px) {
+/* Smaller window / Tablet / Mobile (< 1024px): completely hidden when collapsed, overlay drawer when open */
+@media (max-width: 1023px) {
   .sidebar-root {
-    width: 280px;
     position: fixed;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 60;
   }
   .sidebar-expanded {
-    transform: translateX(0);
+    width: 260px !important;
+    min-width: 260px !important;
+    max-width: 260px !important;
+    transform: translateX(0) !important;
+    box-shadow: 8px 0 32px rgba(0,0,0,0.5);
   }
   .sidebar-collapsed {
-    transform: translateX(-100%);
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    transform: translateX(-100%) !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    border-right: none !important;
   }
 }
 
@@ -593,10 +612,26 @@
 }
 
 /* ── Collapsed state — icon-only ── */
+.sidebar-collapsed .sidebar-nav {
+  padding: 6px 4px;
+}
+.sidebar-collapsed .sidebar-header-toggle {
+  justify-content: center;
+  padding: 12px 0 6px;
+}
+.sidebar-collapsed .sidebar-hamburger-btn {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+}
 .sidebar-collapsed .sidebar-nav-item {
   justify-content: center;
-  padding: 12px 0;
+  width: 44px;
+  height: 42px;
+  margin: 2px auto;
+  padding: 0;
   gap: 0;
+  border-radius: 10px;
 }
 .sidebar-collapsed .sidebar-nav-label {
   opacity: 0;
@@ -749,8 +784,9 @@
 /* Collapsed bottom */
 .sidebar-collapsed .sidebar-user-row {
   justify-content: center;
-  padding: 10px 4px;
-  margin: 0 4px 4px;
+  padding: 8px 0;
+  margin: 0 auto 4px;
+  width: 44px;
 }
 .sidebar-collapsed .sidebar-user-info {
   opacity: 0;

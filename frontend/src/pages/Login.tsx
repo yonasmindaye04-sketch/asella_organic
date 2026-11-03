@@ -25,7 +25,13 @@ const Login: React.FC = () => {
           })
         );
         toast('Welcome back!', 'success');
-        navigate(res.data.user.role === 'affiliate' ? '/affiliate' : '/dashboard');
+        const targetPath =
+          res.data.user.role === 'affiliate'
+            ? '/affiliate'
+            : res.data.user.role === 'store_manager' || res.data.user.role === 'call_center'
+            ? '/dashboard/pos'
+            : '/dashboard';
+        navigate(targetPath);
       } else {
         toast(res.error || 'Login failed', 'error');
       }

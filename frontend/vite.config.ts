@@ -110,11 +110,24 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'vendor-react';
+            // Isolate Lucide icons so they don't bloat the core react bundle
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
             }
-            if (id.includes('@reduxjs/toolkit') || id.includes('react-redux')) {
+            // Redux state management
+            if (id.includes('@reduxjs') || id.includes('react-redux')) {
               return 'vendor-redux';
+            }
+            // Core React runtime packages (normalized path separators for cross-platform)
+            const norm = id.replace(/\\/g, '/');
+            if (
+              norm.includes('/react/') ||
+              norm.includes('/react-dom/') ||
+              norm.includes('/scheduler/') ||
+              norm.includes('/react-router/') ||
+              norm.includes('/react-router-dom/')
+            ) {
+              return 'vendor-react';
             }
           }
         },

@@ -27,6 +27,7 @@ const AffiliateControlPage = lazy(() => import('./pages/AffiliateControlPage'));
 const AffiliateDashboard   = lazy(() => import('./pages/AffiliateDashboard'));
 import AffiliateRoute from './components/ui/AffiliateRoute';
 const NewOrderPage         = lazy(() => import('./pages/NewOrderPage'));
+const PosTerminalPage      = lazy(() => import('./pages/PosTerminalPage'));
 const CustomerOrderTracking = lazy(() => import('./pages/CustomerOrderTracking'));
 const ExpensesPage         = lazy(() => import('./pages/ExpensesPage'));
 const VideoManagementPage  = lazy(() => import('./pages/VideoManagementPage'));
@@ -77,6 +78,7 @@ function App() {
 
                 {/* Dashboard */}
                 <Route path="/dashboard"        element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/dashboard/pos"          element={<ProtectedRoute><PosTerminalPage /></ProtectedRoute>} />
                 <Route path="/dashboard/new-order"    element={<ProtectedRoute><NewOrderPage /></ProtectedRoute>} />
                 <Route path="/dashboard/tracking"     element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />
                 <Route path="/dashboard/bulk-orders"  element={<ProtectedRoute><BulkOrdersPage /></ProtectedRoute>} />

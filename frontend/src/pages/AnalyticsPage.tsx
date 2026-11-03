@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import DashboardLayout from '../layouts/DashboardLayout';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
+import DashboardLayout from '../layouts/DashboardLayout';
 import { api } from '../services/api';
 
 const AnalyticsPage: React.FC = () => {
@@ -13,6 +13,11 @@ const AnalyticsPage: React.FC = () => {
   // Default to the full history. The API treats an empty from/to as
   // "no date filter", which keeps older orders visible on first load.
   const [dateRange, setDateRange] = useState(() => ({ from: '', to: '' }));
+
+  const handleExport = () => {
+    if (!isAdmin) return;
+    window.location.href = `/api/reports/pl/export?from=${dateRange.from}&to=${dateRange.to}`;
+  };
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -34,19 +39,6 @@ const AnalyticsPage: React.FC = () => {
     fetchReport();
   }, [dateRange]);
 
-  const handleExport = () => {
-    if (!isAdmin) return;
-    let url = '/api/reports/pl/export';
-    if (dateRange.from || dateRange.to) {
-      const params = new URLSearchParams();
-      if (dateRange.from) params.set('from', dateRange.from);
-      if (dateRange.to) params.set('to', dateRange.to);
-      url += `?${params.toString()}`;
-    }
-    
-    const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
-    window.open(BASE_URL + url, '_blank');
-  };
 
   const handlePrint = () => {
     window.print();
@@ -99,11 +91,13 @@ const AnalyticsPage: React.FC = () => {
               {isAdmin && (
                 <button 
                   onClick={handleExport}
-                  className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm"
+                  className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm cursor-pointer"
+                  title="Download Financial Report CSV (Admin Privilege)"
                 >
                   <span className="material-symbols-outlined text-[18px]">download</span> Export CSV
                 </button>
               )}
+
             </div>
           </div>
         </div>

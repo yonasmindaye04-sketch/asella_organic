@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agenticresourcediscovery.org/schema/v1/ard.json",
+  "name": "Asella Organic",
+  "description": "Ethical Ethiopian highland organic health products, superfoods, and natural supplements.",
+  "catalogs": [
+    {
+      "url": "https://www.asellaorganic.com/.well-known/ai-catalog.json",
+      "type": "ai-catalog",
+      "format": "application/json"
+    }
+  ],
+  "llms": [
+    {
+      "url": "https://www.asellaorganic.com/llms.txt",
+      "format": "text/markdown"
+    },
+    {
+      "url": "https://www.asellaorganic.com/llms-full.txt",
+      "format": "text/markdown"
+    }
+  ],
+  "sitemap": "https://www.asellaorganic.com/sitemap.xml"
+}

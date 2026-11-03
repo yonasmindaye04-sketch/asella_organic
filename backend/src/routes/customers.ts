@@ -101,7 +101,7 @@ function customerIdFrom(value: unknown): string | null {
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
 
@@ -226,7 +226,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const [segments] = await pool.query(
@@ -301,7 +301,7 @@ router.get(
 router.get(
   "/activity",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
 
@@ -375,7 +375,7 @@ router.get(
 router.get(
   "/:id",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const log    = createLogger(req);
     const id     = customerIdFrom(req.params.id);
@@ -490,7 +490,7 @@ router.get(
 router.post(
   "/:id/rating",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
   validate(AddRatingSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
@@ -567,7 +567,7 @@ router.post(
 router.post(
   "/:id/note",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
   validate(AddNoteSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
@@ -613,7 +613,7 @@ router.post(
 router.patch(
   "/:id",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
   validate(UpdateCustomerSchema),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);

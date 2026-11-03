@@ -9,6 +9,7 @@ interface User {
   email: string;
   role: string;
   phone: string;
+  location?: string;
   telegram_username?: string;
   active: boolean;
 }
@@ -28,6 +29,7 @@ const UserManagementPage: React.FC = () => {
     email: '',
     role: 'employee',
     phone: '',
+    location: '',
     telegram_username: ''
   });
 
@@ -66,6 +68,7 @@ const UserManagementPage: React.FC = () => {
         email: user.email || '',
         role: user.role,
         phone: user.phone || '',
+        location: user.location || '',
         telegram_username: user.telegram_username || ''
       });
     } else {
@@ -77,6 +80,7 @@ const UserManagementPage: React.FC = () => {
         email: '',
         role: 'employee',
         phone: '',
+        location: '',
         telegram_username: ''
       });
     }
@@ -166,7 +170,15 @@ const UserManagementPage: React.FC = () => {
               ) : (
                 users.map(u => (
                   <tr key={u.id} className={`hover:bg-gray-50 transition ${!u.active ? 'opacity-50' : ''}`}>
-                    <td className="px-6 py-4 font-bold text-[#112415] text-sm">{u.full_name}</td>
+                    <td className="px-6 py-4 font-bold text-[#112415] text-sm">
+                      <div>{u.full_name}</div>
+                      {u.location && (
+                        <div className="text-[11px] font-semibold text-[#1b4d24] flex items-center gap-1 mt-0.5">
+                          <span className="material-symbols-outlined text-[13px]">storefront</span>
+                          {u.location}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.username}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">
@@ -238,6 +250,19 @@ const UserManagementPage: React.FC = () => {
                   <option value="store_manager">Substore Manager</option>
                   <option value="call_center">Call Center Agent</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Store Location / Branch {formData.role === 'store_manager' && <span className="text-[#1b4d24] font-extrabold">* (Required)</span>}
+                </label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={e => setFormData({...formData, location: e.target.value})}
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#1b4d24] focus:border-[#1b4d24]"
+                  placeholder="e.g. Bole Medhanialem Store, Kazanchis Branch, Hawassa"
+                  required={formData.role === 'store_manager'}
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">

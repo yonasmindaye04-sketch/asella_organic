@@ -89,12 +89,7 @@ const Sidebar: React.FC = () => {
           {isCallCenter ? (
             /* ── Call Center simplified nav ─────────────────────── */
             <ul className="space-y-1">
-              <li>
-                <Link to="/dashboard/new-order" className={link('/dashboard/new-order')}>
-                  <span className={icon('/dashboard/new-order')}>shopping_cart</span>
-                  New Sales Order
-                </Link>
-              </li>
+
               <li>
                 <Link to="/dashboard/call-center" className={link('/dashboard/call-center')}>
                   <span className={icon('/dashboard/call-center')}>headset_mic</span>

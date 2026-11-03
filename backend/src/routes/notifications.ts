@@ -241,7 +241,7 @@ async function computeUnreadSummary(sinceDate: string, userId: string) {
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const { category, since, limit, unread } = req.query as Record<string, string | undefined>;
     const LIMIT = Math.min(100, parseInt(limit ?? "50", 10)) || 50;
@@ -302,9 +302,9 @@ async function handleUnreadSummary(req: Request, res: Response): Promise<void> {
   }
 }
 
-router.get("/summary", authenticate, authorise("admin", "manager"), handleUnreadSummary);
-router.get("/unread-counts", authenticate, authorise("admin", "manager"), handleUnreadSummary);
-router.get("/unread", authenticate, authorise("admin", "manager"), handleUnreadSummary);
+router.get("/summary", authenticate, authorise("admin", "manager", "store_manager", "call_center"), handleUnreadSummary);
+router.get("/unread-counts", authenticate, authorise("admin", "manager", "store_manager", "call_center"), handleUnreadSummary);
+router.get("/unread", authenticate, authorise("admin", "manager", "store_manager", "call_center"), handleUnreadSummary);
 
 // ─── Bulk & Single Mark-as-Read Handler ──────────────────────────────────────
 
@@ -402,33 +402,33 @@ async function handleMarkNotificationsRead(
   }
 }
 
-router.post("/read", authenticate, authorise("admin", "manager"), (req, res) =>
+router.post("/read", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, false)
 );
-router.patch("/read", authenticate, authorise("admin", "manager"), (req, res) =>
+router.patch("/read", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, false)
 );
-router.put("/read", authenticate, authorise("admin", "manager"), (req, res) =>
+router.put("/read", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, false)
 );
 
-router.post("/mark-all-read", authenticate, authorise("admin", "manager"), (req, res) =>
+router.post("/mark-all-read", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, true)
 );
-router.patch("/mark-all-read", authenticate, authorise("admin", "manager"), (req, res) =>
+router.patch("/mark-all-read", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, true)
 );
-router.put("/mark-all-read", authenticate, authorise("admin", "manager"), (req, res) =>
+router.put("/mark-all-read", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, true)
 );
 
-router.post("/read-all", authenticate, authorise("admin", "manager"), (req, res) =>
+router.post("/read-all", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, true)
 );
-router.patch("/read-all", authenticate, authorise("admin", "manager"), (req, res) =>
+router.patch("/read-all", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, true)
 );
-router.put("/read-all", authenticate, authorise("admin", "manager"), (req, res) =>
+router.put("/read-all", authenticate, authorise("admin", "manager", "store_manager", "call_center"), (req, res) =>
   handleMarkNotificationsRead(req, res, true)
 );
 

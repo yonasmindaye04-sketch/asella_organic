@@ -123,7 +123,13 @@ ErrorDocument 404 /offline.html
   Header always set X-Frame-Options "SAMEORIGIN"
 </IfModule>
 
-# ── 5. Block access to dotfiles ───────────────────────────────────
-<FilesMatch "^\.(?!htaccess)">
+# ── 5. Discovery CORS ──────────────────────────────────────────────
+# Machine-readable discovery files for AI agents, crawlers, and LLMs
+  <FilesMatch "\.(json|txt|xml)$">
+    Header set Access-Control-Allow-Origin "*"
+  </FilesMatch>
+
+# ── 5. Block access to dotfiles (except .well-known and .htaccess) ──
+<FilesMatch "^\.(?!well-known|htaccess)">
   Require all denied
 </FilesMatch>

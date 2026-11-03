@@ -1,13 +1,16 @@
 {
   "$schema": "https://agenticresourcediscovery.org/schema/v1/ai-catalog.json",
+  "name": "Asella Organic AI Catalog",
+  "description": "Machine-readable catalog of products, resources, and endpoints for AI agents and LLMs.",
+  "version": "1.0.0",
   "entries": [
     {
       "identifier": "urn:air:asellaorganic:homepage",
       "displayName": "Asella Organic Homepage",
       "type": "text/html",
       "name": "Asella Organic Homepage",
-      "description": "Main storefront landing page for premium organic health products.",
-      "url": "https://asellaorganic.com/",
+      "description": "Main storefront landing page for premium organic health products and natural remedies.",
+      "url": "https://www.asellaorganic.com/",
       "contentType": "text/html",
       "language": "en"
     },
@@ -16,8 +19,8 @@
       "displayName": "Product Catalog",
       "type": "text/html",
       "name": "Product Catalog",
-      "description": "Browse all available organic products including Moringa, Black Seed Oil, Turmeric, and more.",
-      "url": "https://asellaorganic.com/#products",
+      "description": "Browse all available organic products including Moringa, Black Seed Oil, Turmeric, Frankincense, and more.",
+      "url": "https://www.asellaorganic.com/#products",
       "contentType": "text/html",
       "language": "en"
     },
@@ -26,8 +29,8 @@
       "displayName": "Our Story",
       "type": "text/html",
       "name": "Our Story",
-      "description": "Information about Asella Organic's mission and Ethiopian highland sourcing.",
-      "url": "https://asellaorganic.com/#story",
+      "description": "Information about Asella Organic's mission, highland farming, and ethical sourcing.",
+      "url": "https://www.asellaorganic.com/#story",
       "contentType": "text/html",
       "language": "en"
     },
@@ -36,8 +39,8 @@
       "displayName": "Contact Information",
       "type": "text/html",
       "name": "Contact Information",
-      "description": "Contact details, phone, email, and location for Asella Organic.",
-      "url": "https://asellaorganic.com/#contact",
+      "description": "Contact details, phone (+251910011818), email, and store location in Addis Ababa, Ethiopia.",
+      "url": "https://www.asellaorganic.com/#contact",
       "contentType": "text/html",
       "language": "en"
     },
@@ -46,8 +49,18 @@
       "displayName": "Order Products",
       "type": "text/html",
       "name": "Order Products",
-      "description": "Place an order for organic health products.",
-      "url": "https://asellaorganic.com/#hero",
+      "description": "Place an order for delivery or store pickup.",
+      "url": "https://www.asellaorganic.com/#hero",
+      "contentType": "text/html",
+      "language": "en"
+    },
+    {
+      "identifier": "urn:air:asellaorganic:track",
+      "displayName": "Track Order",
+      "type": "text/html",
+      "name": "Track Order",
+      "description": "Public customer order tracking page to check real-time order and delivery status.",
+      "url": "https://www.asellaorganic.com/track",
       "contentType": "text/html",
       "language": "en"
     },
@@ -56,8 +69,8 @@
       "displayName": "Privacy Policy",
       "type": "text/html",
       "name": "Privacy Policy",
-      "description": "Privacy policy for Asella Organic.",
-      "url": "https://asellaorganic.com/privacy",
+      "description": "Privacy policy and customer data handling for Asella Organic.",
+      "url": "https://www.asellaorganic.com/privacy",
       "contentType": "text/html",
       "language": "en"
     },
@@ -66,8 +79,8 @@
       "displayName": "Terms of Service",
       "type": "text/html",
       "name": "Terms of Service",
-      "description": "Terms of service for Asella Organic.",
-      "url": "https://asellaorganic.com/terms",
+      "description": "Terms and conditions of sale and delivery.",
+      "url": "https://www.asellaorganic.com/terms",
       "contentType": "text/html",
       "language": "en"
     },
@@ -76,8 +89,8 @@
       "displayName": "Asella Organic Telegram Mini App",
       "type": "text/html",
       "name": "Asella Organic Telegram Mini App",
-      "description": "Standalone Telegram Mini App for shopping within Telegram.",
-      "url": "https://asellaorganic.com/tma",
+      "description": "Standalone Telegram Mini App for shopping directly inside Telegram.",
+      "url": "https://www.asellaorganic.com/tma",
       "contentType": "text/html",
       "language": "en"
     },
@@ -86,33 +99,36 @@
       "displayName": "Products API",
       "type": "application/json",
       "name": "Products API",
-      "description": "REST API endpoint for fetching product listings.",
-      "url": "https://asellaorganic.com/api/products",
+      "description": "Public REST API endpoint for fetching categorized products and current inventory.",
+      "url": "https://www.asellaorganic.com/api/products",
       "contentType": "application/json",
       "authRequired": false
-    },
-    {
-      "identifier": "urn:air:asellaorganic:api-affiliate-track-click",
-      "displayName": "Affiliate Click Tracking API",
-      "type": "application/json",
-      "name": "Affiliate Click Tracking API",
-      "description": "Track affiliate referral link clicks.",
-      "url": "https://asellaorganic.com/api/affiliate/track-click",
-      "contentType": "application/json",
-      "authRequired": false,
-      "method": "POST"
     },
     {
       "identifier": "urn:air:asellaorganic:llms-txt",
       "displayName": "llms.txt",
       "type": "text/markdown",
       "name": "llms.txt",
-      "description": "Markdown file describing Asella Organic resources for LLMs.",
-      "url": "https://asellaorganic.com/llms.txt",
+      "description": "Standard markdown document summarizing Asella Organic brand and resources for LLM agents.",
+      "url": "https://www.asellaorganic.com/llms.txt",
       "contentType": "text/markdown",
       "language": "en"
     }
   ],
-  "tools": [],
+  "tools": [
+    {
+      "name": "search_products",
+      "description": "Search organic products by name, tag, or category.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query keywords"
+          }
+        }
+      }
+    }
+  ],
   "agents": []
 }

@@ -76,7 +76,7 @@ router.get(
       const total = parseInt(countRows[0]?.total ?? "0", 10);
 
       const [rows] = await pool.query(
-        `SELECT id, username, full_name, role, email, phone, telegram_username, active,
+        `SELECT id, username, full_name, role, email, phone, location, telegram_username, active,
                 two_factor_enabled, created_at, updated_at,
                 (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id${dateFilterStr}) AS orders_placed_count,
                 (SELECT COUNT(*) FROM orders WHERE created_by_staff_id = staff_users.id AND status = 'Delivered'${dateFilterStr}) AS orders_delivered_count,
@@ -744,9 +744,9 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const { username, password, full_name, role, email, phone, telegram_username } = req.body as {
+      const { username, password, full_name, role, email, phone, location, telegram_username } = req.body as {
         username?: string; password?: string; full_name?: string;
-        role?: string; email?: string; phone?: string; telegram_username?: string;
+        role?: string; email?: string; phone?: string; location?: string; telegram_username?: string;
       };
 
       if (!username || !password || !full_name || !role) {
@@ -775,19 +775,19 @@ router.post(
       const newId        = crypto.randomUUID();
 
       await pool.query(
-        `INSERT INTO staff_users (id, username, password_hash, full_name, role, email, phone, telegram_username)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, username.toLowerCase(), passwordHash, full_name, role, email ?? null, phone ?? null, telegram_username ?? null]
+        `INSERT INTO staff_users (id, username, password_hash, full_name, role, email, phone, location, telegram_username)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, username.toLowerCase(), passwordHash, full_name, role, email ?? null, phone ?? null, location ?? null, telegram_username ?? null]
       );
 
       await pool.query(
         `INSERT INTO audit_log (table_name, record_id, actor, action, new_values)
          VALUES ('staff_users', ?, ?, 'STAFF_CREATED', ?)`,
-        [newId, req.user!.id, JSON.stringify({ username, full_name, role })]
+        [newId, req.user!.id, JSON.stringify({ username, full_name, role, location })]
       ).catch(() => {});
 
       log.info("Staff created", { newId, username, role });
-      res.status(201).json({ success: true, data: { id: newId, username, full_name, role } });
+      res.status(201).json({ success: true, data: { id: newId, username, full_name, role, location } });
     } catch (err) {
       log.error("Failed to create staff", err);
       res.status(500).json({ success: false, error: "Internal server error" });
@@ -814,8 +814,8 @@ router.patch(
         return;
       }
 
-      const { full_name, role, email, phone, telegram_username, active } = req.body as {
-        full_name?: string; role?: string; email?: string; phone?: string; telegram_username?: string; active?: boolean;
+      const { full_name, role, email, phone, location, telegram_username, active } = req.body as {
+        full_name?: string; role?: string; email?: string; phone?: string; location?: string; telegram_username?: string; active?: boolean;
       };
 
       if (role && !isValidRole(role)) {
@@ -851,7 +851,7 @@ router.patch(
       const updates: string[] = [];
       const values:  unknown[] = [];
 
-      for (const [field, val] of Object.entries({ full_name, role, email, phone, telegram_username, active })) {
+      for (const [field, val] of Object.entries({ full_name, role, email, phone, location, telegram_username, active })) {
         if (val !== undefined) { updates.push(`${field} = ?`); values.push(val); }
       }
       if (updates.length === 0) {

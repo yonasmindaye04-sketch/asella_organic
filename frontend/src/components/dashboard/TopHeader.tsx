@@ -112,11 +112,11 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
         </button>
 
         <button
-          onClick={() => navigate('/dashboard/new-order')}
+          onClick={() => navigate('/dashboard/pos')}
           className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-2xs whitespace-nowrap"
         >
-          <span className="material-symbols-outlined text-[15px]">add</span>
-          <span>New Order</span>
+          <span className="material-symbols-outlined text-[15px]">point_of_sale</span>
+          <span>POS Terminal</span>
         </button>
 
         {canSeeNotifications && (

@@ -22,7 +22,7 @@ const router = Router();
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager", "store_manager"),
+  authorise("admin", "manager", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const { category, since, limit } = req.query as Record<string, string | undefined>;
     const LIMIT = Math.min(100, parseInt(limit ?? "50", 10)) || 50;
@@ -195,7 +195,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
-  authorise("admin", "manager", "store_manager"),
+  authorise("admin", "manager", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const { since } = req.query as Record<string, string | undefined>;
     let SINCE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // default last 24h
