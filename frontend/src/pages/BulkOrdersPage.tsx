@@ -183,11 +183,11 @@ const BulkOrdersPage: React.FC = () => {
                   <select 
                     value={countryCode} 
                     onChange={e => setCountryCode(e.target.value)} 
-                    className="flex-shrink-0 px-3 py-3 bg-parchment-mid dark:bg-[#1A301D] border border-[#d4ecd4] dark:border-border border-r-0 rounded-l-xl text-obsidian dark:text-white text-sm font-bold font-mono outline-none cursor-pointer max-w-[150px] transition-all focus:border-highland-gold"
+                    className="flex-shrink-0 px-3 py-3 bg-parchment-mid dark:bg-[#1A301D] border border-[#d4ecd4] dark:border-border border-r-0 rounded-l-xl text-obsidian dark:text-white text-sm font-bold font-mono outline-none cursor-pointer min-w-[110px] max-w-[130px] transition-all focus:border-highland-gold"
                   >
                     {_CC.map((country) => (
                       <option key={`${country.c}-${country.n}`} value={country.c}>
-                        {country.f} {country.c} ({country.n})
+                        {country.f} {country.c}
                       </option>
                     ))}
                   </select>
