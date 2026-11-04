@@ -20,6 +20,7 @@ import { useGroupedProducts, type GroupedProduct, type Variant } from '../hooks/
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import OrderReceipt, { type ReceiptData } from '../components/storefront/OrderReceipt';
+import { COUNTRY_CODES as _CC } from '../constants/countries';
 
 interface CartItem {
   productId: string;
@@ -39,7 +40,7 @@ interface CustomerInfo {
   location: string;
   gender?: 'male' | 'female' | 'other' | '';
   age_group?: 'under-18' | '18-24' | '25-34' | '35-44' | '45-54' | '55+' | '';
-  source?: 'walk-in' | 'phone' | 'telegram' | 'instagram' | 'facebook' | 'website' | 'other';
+  source?: 'walk-in' | 'phone' | 'website';
   referral_code?: string;
   notes?: string;
 }
@@ -72,14 +73,23 @@ const AGE_GROUPS = [
 ];
 
 const CUSTOMER_SOURCES = [
-  { value: 'walk-in', label: 'Walk-in Store Customer' },
-  { value: 'phone', label: 'Phone Call Order' },
-  { value: 'telegram', label: 'Telegram Customer' },
-  { value: 'instagram', label: 'Instagram / Social Media' },
-  { value: 'facebook', label: 'Facebook Order' },
-  { value: 'website', label: 'Website / Referral' },
-  { value: 'other', label: 'Other Source' },
+  { value: 'walk-in', label: 'Walk-in' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'website', label: 'Website' },
 ];
+
+const splitPhoneNumber = (rawPhone: string) => {
+  let matchedCode = '+251';
+  let localNum = (rawPhone || '').trim();
+  for (const item of _CC) {
+    if (localNum.startsWith(item.c)) {
+      matchedCode = item.c;
+      localNum = localNum.slice(item.c.length).trim();
+      break;
+    }
+  }
+  return { code: matchedCode, local: localNum };
+};
 
 export default function PosTerminalPage() {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -103,6 +113,8 @@ export default function PosTerminalPage() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerModalData, setCustomerModalData] = useState<CustomerInfo>(DEFAULT_CUSTOMER);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [customerCountryCode, setCustomerCountryCode] = useState('+251');
+  const [customerPhoneLocal, setCustomerPhoneLocal] = useState('900 000 000');
   const [customerSearchResults, setCustomerSearchResults] = useState<any[]>([]);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
 
@@ -756,6 +768,9 @@ export default function PosTerminalPage() {
                       type="button"
                       onClick={() => {
                         setCustomerModalData(customer);
+                        const parsedPhone = splitPhoneNumber(customer.phone);
+                        setCustomerCountryCode(parsedPhone.code);
+                        setCustomerPhoneLocal(parsedPhone.local);
                         setCustomerSearchQuery('');
                         setShowCustomerModal(true);
                       }}
@@ -1076,21 +1091,32 @@ export default function PosTerminalPage() {
                     />
                   </div>
 
-                  {/* Phone Number */}
+                  {/* Phone Number with Country Code Dropdown */}
                   <div>
                     <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">
                       Phone Number <span className="text-rose-500 font-bold">*</span>
                     </label>
-                    <input
-                      type="text"
-                      required
-                      value={customerModalData.phone}
-                      onChange={(e) =>
-                        setCustomerModalData((prev) => ({ ...prev, phone: e.target.value }))
-                      }
-                      placeholder="0911234567 or +251 911 234 567"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-mono font-medium placeholder:text-gray-400 focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8]"
-                    />
+                    <div className="flex w-full">
+                      <select
+                        value={customerCountryCode}
+                        onChange={(e) => setCustomerCountryCode(e.target.value)}
+                        className="flex-shrink-0 px-2 py-2.5 bg-[#f6faf6] border border-[#cfe8cf] border-r-0 rounded-l-xl text-gray-900 text-xs font-mono font-bold outline-none cursor-pointer max-w-[125px] transition-all focus:border-[#1b4d24]"
+                      >
+                        {_CC.map((country) => (
+                          <option key={`${country.c}-${country.n}`} value={country.c}>
+                            {country.f} {country.c}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        required
+                        value={customerPhoneLocal}
+                        onChange={(e) => setCustomerPhoneLocal(e.target.value)}
+                        placeholder="911 234 567"
+                        className="w-full px-3.5 py-2.5 rounded-r-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-mono font-medium placeholder:text-gray-400 focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8]"
+                      />
+                    </div>
                   </div>
 
                   {/* City Dropdown: Addis Ababa, Other Regions, Abroad only */}
@@ -1239,7 +1265,12 @@ export default function PosTerminalPage() {
                         alert('Please enter customer name');
                         return;
                       }
-                      setCustomer(customerModalData);
+                      const cleanLocal = customerPhoneLocal.trim().replace(/^0+/, '');
+                      const fullPhone = cleanLocal ? `${customerCountryCode} ${cleanLocal}` : customerCountryCode;
+                      setCustomer({
+                        ...customerModalData,
+                        phone: fullPhone,
+                      });
                       setShowCustomerModal(false);
                     }}
                     className="px-6 py-2 rounded-xl bg-[#1b4d24] hover:bg-[#143e1c] text-white text-xs font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] cursor-pointer flex items-center gap-1.5"

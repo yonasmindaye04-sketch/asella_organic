@@ -39,7 +39,7 @@ const EMPTY_ITEM: OrderItem = {
   unit_price:   0,
 };
 
-const SOURCES = ['phone', 'walk-in', 'other'];
+const SOURCES = ['walk-in', 'phone', 'website'];
 const AGE_GROUPS = ['under-18', '18-24', '25-34', '35-44', '45-54', '55+'];
 const CITIES = ['Addis Ababa', 'Other Regions', 'Abroad'];
 
@@ -247,7 +247,7 @@ export default function NewOrderPage() {
             <div className="col-span-1 md:col-span-1">
               <label className="block text-[10px] font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">Source</label>
               <select value={form.source} onChange={e => setForm({...form, source: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-[#d4ecd4] dark:border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-sm text-obsidian dark:text-white">
-                {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                {SOURCES.map(s => <option key={s} value={s}>{s === 'walk-in' ? 'Walk-in' : s === 'phone' ? 'Phone' : 'Website'}</option>)}
               </select>
             </div>
 
