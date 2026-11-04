@@ -40,6 +40,7 @@ interface CustomerInfo {
   gender?: 'male' | 'female' | 'other' | '';
   age_group?: 'under-18' | '18-24' | '25-34' | '35-44' | '45-54' | '55+' | '';
   source?: 'walk-in' | 'phone' | 'telegram' | 'instagram' | 'facebook' | 'website' | 'other';
+  referral_code?: string;
   notes?: string;
 }
 
@@ -51,23 +52,12 @@ const DEFAULT_CUSTOMER: CustomerInfo = {
   gender: '',
   age_group: '',
   source: 'walk-in',
+  referral_code: '',
   notes: '',
 };
 
-const ETHIOPIAN_CITIES = [
+const CITIES = [
   'Addis Ababa',
-  'Adama (Nazret)',
-  'Hawassa',
-  'Bishoftu (Debre Zeyit)',
-  'Bahir Dar',
-  'Mekelle',
-  'Gondar',
-  'Dire Dawa',
-  'Jimma',
-  'Dessie',
-  'Harar',
-  'Asella',
-  'Shashemene',
   'Other Regions',
   'Abroad',
 ];
@@ -367,6 +357,7 @@ export default function PosTerminalPage() {
       location: customerLocation,
       source: customer.source || 'walk-in',
       order_type: orderType,
+      referral_code: customer.referral_code || undefined,
       gender: customer.gender || undefined,
       age_group: customer.age_group || undefined,
       notes: orderNotes,
@@ -1060,8 +1051,15 @@ export default function PosTerminalPage() {
                   )}
                 </div>
 
-                {/* 2. Customer Form Fields (Matching Website Form Styles) */}
+                {/* 2. Customer Form Fields (Mimicking Old Sales Order Form) */}
+                <div className="flex items-center gap-3 pt-1 mb-1">
+                  <div className="w-6 h-6 rounded-full bg-[#1b4d24] text-white flex items-center justify-center text-xs font-black font-mono shadow-xs">1</div>
+                  <h4 className="text-xs font-bold text-[#1b4d24] uppercase tracking-wider">Customer Information</h4>
+                  <div className="flex-1 h-px bg-[#d6ebd6]"></div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Customer Full Name */}
                   <div>
                     <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">
                       Customer Full Name <span className="text-rose-500 font-bold">*</span>
@@ -1078,6 +1076,7 @@ export default function PosTerminalPage() {
                     />
                   </div>
 
+                  {/* Phone Number */}
                   <div>
                     <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">
                       Phone Number <span className="text-rose-500 font-bold">*</span>
@@ -1093,9 +1092,8 @@ export default function PosTerminalPage() {
                       className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-mono font-medium placeholder:text-gray-400 focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8]"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* City Dropdown: Addis Ababa, Other Regions, Abroad only */}
                   <div>
                     <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">
                       City <span className="text-rose-500 font-bold">*</span>
@@ -1107,15 +1105,16 @@ export default function PosTerminalPage() {
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-semibold focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8] cursor-pointer"
                     >
-                      {ETHIOPIAN_CITIES.map((c) => (
+                      {CITIES.map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Location / Address */}
                   <div>
                     <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">
-                      Delivery Address / Specific Location <span className="text-rose-500 font-bold">*</span>
+                      Location / Specific Address <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="text"
@@ -1124,47 +1123,14 @@ export default function PosTerminalPage() {
                       onChange={(e) =>
                         setCustomerModalData((prev) => ({ ...prev, location: e.target.value }))
                       }
-                      placeholder="e.g. Bole Atlas, near Edna Mall"
+                      placeholder="e.g. Bole, near airport..."
                       className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-medium placeholder:text-gray-400 focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8]"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Customer Source */}
                   <div>
-                    <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">Gender</label>
-                    <select
-                      value={customerModalData.gender || ''}
-                      onChange={(e) =>
-                        setCustomerModalData((prev) => ({ ...prev, gender: e.target.value as any }))
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-semibold focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8] cursor-pointer"
-                    >
-                      <option value="">— Unspecified —</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">Age Group</label>
-                    <select
-                      value={customerModalData.age_group || ''}
-                      onChange={(e) =>
-                        setCustomerModalData((prev) => ({ ...prev, age_group: e.target.value as any }))
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-semibold focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8] cursor-pointer"
-                    >
-                      <option value="">— Unspecified —</option>
-                      {AGE_GROUPS.map((a) => (
-                        <option key={a.value} value={a.value}>{a.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">Customer Source</label>
+                    <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">Source</label>
                     <select
                       value={customerModalData.source || 'walk-in'}
                       onChange={(e) =>
@@ -1176,6 +1142,55 @@ export default function PosTerminalPage() {
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Referral Code */}
+                  <div>
+                    <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">Referral Code (Optional)</label>
+                    <input
+                      type="text"
+                      value={customerModalData.referral_code || ''}
+                      onChange={(e) =>
+                        setCustomerModalData((prev) => ({ ...prev, referral_code: e.target.value.toUpperCase() }))
+                      }
+                      placeholder="e.g. BIRUK10"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-mono font-medium placeholder:text-gray-400 focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8]"
+                    />
+                  </div>
+
+                  {/* Gender & Age Group side by side */}
+                  <div className="grid grid-cols-2 gap-3 col-span-1 sm:col-span-2">
+                    <div>
+                      <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">Gender</label>
+                      <select
+                        value={customerModalData.gender || ''}
+                        onChange={(e) =>
+                          setCustomerModalData((prev) => ({ ...prev, gender: e.target.value as any }))
+                        }
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-semibold focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8] cursor-pointer"
+                      >
+                        <option value="">—</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10.5px] font-mono font-bold text-gray-700 uppercase tracking-wider mb-1.5 ml-0.5">Age Group</label>
+                      <select
+                        value={customerModalData.age_group || ''}
+                        onChange={(e) =>
+                          setCustomerModalData((prev) => ({ ...prev, age_group: e.target.value as any }))
+                        }
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#cfe8cf] text-gray-900 text-xs font-semibold focus:outline-none focus:border-[#1b4d24] focus:ring-2 focus:ring-[#1b4d24]/15 transition-all shadow-2xs hover:border-[#a8d5a8] cursor-pointer"
+                      >
+                        <option value="">—</option>
+                        {AGE_GROUPS.map((a) => (
+                          <option key={a.value} value={a.value}>{a.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 

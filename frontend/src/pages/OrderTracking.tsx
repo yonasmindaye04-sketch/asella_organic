@@ -145,11 +145,11 @@ function renderNoteContent(text: string): React.ReactNode {
 const OrderTracking: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
-  const isAdmin = user?.role === 'admin';
-  // Staff roles (admin, manager, employee, store_manager, call_center, delivery) can manage order status
-  const isCallCenter = user?.role === 'call_center';
-  const role = user?.role;
-  const canManageOrders = ['admin', 'manager', 'employee', 'store_manager', 'call_center', 'delivery'].includes(role || '');
+  const role = (user?.role || '').toLowerCase();
+  const isAdmin = role === 'admin';
+  const isAdminOrManager = role === 'admin' || role === 'manager';
+  const isDeliveryOrEmployee = role === 'delivery' || role === 'driver' || role === 'employee' || role === 'staff';
+  const canManageOrders = ['admin', 'manager', 'employee', 'store_manager', 'call_center', 'delivery', 'driver', 'staff'].includes(role);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -604,7 +604,7 @@ const OrderTracking: React.FC = () => {
           <button onClick={fetchOrders} className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-[1.5px] border-white/20 text-white rounded-md text-[12px] font-bold hover:bg-white/10 hover:border-white/50 transition whitespace-nowrap">
             <span className="material-symbols-outlined text-[14px]">refresh</span> Refresh
           </button>
-          {!isCallCenter && (
+          {isAdminOrManager && (
             <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-[1.5px] border-white/20 text-white rounded-md text-[12px] font-bold hover:bg-white/10 hover:border-white/50 transition whitespace-nowrap">
               <span className="material-symbols-outlined text-[14px]">bar_chart</span> Analytics
             </button>
@@ -727,7 +727,9 @@ const OrderTracking: React.FC = () => {
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap">Employee</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('created_at')}>Date {sortCol === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap">Items</th>
-                <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('total')}>Value ETB {sortCol === 'total' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                {!isDeliveryOrEmployee && (
+                  <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('total')}>Value ETB {sortCol === 'total' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                )}
                 <th className="sticky top-0 bg-white py-2 px-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap cursor-pointer hover:text-[#2e7d32]" onClick={() => handleSort('status')}>Status {sortCol === 'status' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                 <th className="sticky top-0 bg-white py-2 px-3 text-right text-[10px] font-extrabold uppercase tracking-wider text-[#607d66] border-b-2 border-[#ddeedd] z-10 whitespace-nowrap">Actions</th>
               </tr>
@@ -735,7 +737,7 @@ const OrderTracking: React.FC = () => {
             <tbody>
               {loading ? renderSkeletons() : paginatedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={canManageOrders ? 10 : 9}>
+                  <td colSpan={canManageOrders ? (isDeliveryOrEmployee ? 9 : 10) : (isDeliveryOrEmployee ? 8 : 9)}>
                     <div className="flex flex-col items-center justify-center p-16 gap-2 text-[#607d66]">
                       <span className="material-symbols-outlined text-[35px] opacity-20">inbox</span>
                       <p className="text-sm">No orders match the current filters.</p>
@@ -776,9 +778,11 @@ const OrderTracking: React.FC = () => {
                     <td className="px-3 py-2 align-middle whitespace-nowrap text-[12px] text-[#607d66] max-w-[165px] overflow-hidden text-ellipsis">
                       {itemsStr || '—'}
                     </td>
-                    <td className="px-3 py-2 align-middle whitespace-nowrap font-mono font-semibold text-[#2d3e2f]">
-                      {Number(o.total || o.total_amount).toLocaleString()}
-                    </td>
+{!isDeliveryOrEmployee && (
+                      <td className="px-3 py-2 align-middle whitespace-nowrap font-mono font-semibold text-[#2d3e2f]">
+                        {Number(o.total || o.total_amount).toLocaleString()}
+                      </td>
+                    )}
                     <td className="px-3 py-2 align-middle whitespace-nowrap">
                       <span className="inline-flex items-center gap-1 text-[12px] font-extrabold uppercase tracking-wider" style={{ color: STATUS_COLORS[displayStatus] }}>
                         {displayStatus}
@@ -883,10 +887,12 @@ const OrderTracking: React.FC = () => {
                           ))}
                         </tbody>
                       </table>
-                      <div className="flex justify-between p-2 bg-[#f1f8f1] rounded-lg font-extrabold text-[14px] mt-2">
-                        <span>Total</span>
-                        <span className="font-mono text-[#2e7d32]">{Number(selectedOrder.total || selectedOrder.total_amount).toLocaleString()} ETB</span>
-                      </div>
+{!isDeliveryOrEmployee && (
+                        <div className="flex justify-between p-2 bg-[#f1f8f1] rounded-lg font-extrabold text-[14px] mt-2">
+                          <span>Total</span>
+                          <span className="font-mono text-[#2e7d32]">{Number(selectedOrder.total || selectedOrder.total_amount).toLocaleString()} ETB</span>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>

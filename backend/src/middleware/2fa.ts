@@ -2,7 +2,7 @@
  * src/middleware/2fa.ts
  * Asella Organic — Two-Factor Authentication Middleware (MySQL)
  *
- * Verifies a TOTP code from the `x-2fa-token` header.
+ * Verifies a TOTP code from the `x-2fa-token` header when 2FA is active.
  * Must be placed AFTER `authenticate` so req.user is populated.
  *
  * Usage:
@@ -18,12 +18,7 @@ export const require2FA = async (
   res:  Response,
   next: NextFunction
 ): Promise<void> => {
-  const token = req.headers["x-2fa-token"] as string | undefined;
-
-  if (!token) {
-    res.status(401).json({ success: false, error: "2FA token required for this action." });
-    return;
-  }
+  const token = (req.headers["x-2fa-token"] as string | undefined)?.trim();
 
   try {
     const [rows] = await pool.query(
@@ -40,20 +35,24 @@ export const require2FA = async (
       return;
     }
 
-    if (!staff.two_factor_enabled || !staff.two_factor_secret) {
-      res.status(403).json({
-        success: false,
-        error: "2FA is not enabled on your account. Set it up first via POST /api/staff/2fa/setup.",
-      });
-      return;
-    }
+    // Only enforce 2FA verification if 2FA is enabled on the caller's account
+    if (staff.two_factor_enabled && staff.two_factor_secret) {
+      if (!token) {
+        res.status(401).json({ success: false, error: "2FA token required for this action." });
+        return;
+      }
 
-    const result = verifySync({ token, secret: staff.two_factor_secret });
-    const isValid = result.valid;
-
-    if (!isValid) {
-      res.status(401).json({ success: false, error: "Invalid or expired 2FA token." });
-      return;
+      const result = verifySync({ token, secret: staff.two_factor_secret });
+      if (!result.valid) {
+        res.status(401).json({ success: false, error: "Invalid or expired 2FA token." });
+        return;
+      }
+    } else if (token && staff.two_factor_secret) {
+      const result = verifySync({ token, secret: staff.two_factor_secret });
+      if (!result.valid) {
+        res.status(401).json({ success: false, error: "Invalid 2FA token." });
+        return;
+      }
     }
 
     next();

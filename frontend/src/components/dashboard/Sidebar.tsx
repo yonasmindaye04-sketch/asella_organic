@@ -68,10 +68,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const isDriver = role === 'delivery' || role === 'driver';
+  const isEmployee = role === 'employee' || role === 'staff';
   const isStoreManager = role === 'store_manager';
   const isCallCenter = role === 'call_center';
-  const isStaffOrAdmin = role === 'employee' || role === 'staff' || role === 'admin' || role === 'manager';
-  const isAdminOrManager = role === 'admin' || role === 'manager';
 
   /** Only close the drawer on mobile / small window; desktop keeps the rail open. */
   const handleMobileNav = () => {
@@ -152,7 +152,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         </div>
 
         <nav className="sidebar-nav">
-          {isStoreManager ? (
+          {isDriver ? (
+            <>
+              <SectionLabel>Fulfillment</SectionLabel>
+              <ul className="sidebar-nav-group">
+                <NavItem
+                  to="/dashboard/tracking"
+                  icon="route"
+                  label="Order Tracking"
+                  badge={pendingCount}
+                  badgeVariant="amber"
+                />
+              </ul>
+            </>
+          ) : isStoreManager ? (
             <>
               <SectionLabel>Store Operations</SectionLabel>
               <ul className="sidebar-nav-group">
@@ -198,51 +211,50 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 <NavItem to="/dashboard/call-center" icon="summarize" label="Reporting Channel" />
               </ul>
             </>
+          ) : isEmployee ? (
+            <>
+              <SectionLabel>Store Operations</SectionLabel>
+              <ul className="sidebar-nav-group">
+                <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
+                <NavItem
+                  to="/dashboard/tracking"
+                  icon="route"
+                  label="Order Tracking"
+                  badge={pendingCount}
+                  badgeVariant="amber"
+                />
+                <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alerts" />
+              </ul>
+            </>
           ) : (
             <>
-          <SectionLabel>Overview</SectionLabel>
-          <ul className="sidebar-nav-group">
-            <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
-            <NavItem to="/dashboard" icon="space_dashboard" label="Analytics Dashboard" />
-            {isAdminOrManager && (
-              <NavItem to="/dashboard/analytics" icon="monitoring" label="P&L Financial Report" />
-            )}
-            {isAdminOrManager && (
-              <NavAction
-                icon="team_dashboard"
-                label="Team Performance"
-                onClick={() => {
-                  openTeamPerformance();
-                  handleMobileNav();
-                }}
-              />
-            )}
-          </ul>
+              <SectionLabel>Overview</SectionLabel>
+              <ul className="sidebar-nav-group">
+                <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
+                <NavItem to="/dashboard" icon="space_dashboard" label="Analytics Dashboard" />
+                <NavItem to="/dashboard/analytics" icon="monitoring" label="P&L Financial Report" />
+                <NavAction
+                  icon="team_dashboard"
+                  label="Team Performance"
+                  onClick={() => {
+                    openTeamPerformance();
+                    handleMobileNav();
+                  }}
+                />
+              </ul>
 
-          {isStaffOrAdmin && (
-            <>
               <Divider />
               <SectionLabel>Partners &amp; Supply</SectionLabel>
               <ul className="sidebar-nav-group">
                 <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Orders" />
-                {isAdminOrManager && (
-                  <NavItem to="/dashboard/vendor" icon="local_shipping" label="Vendor Purchase" />
-                )}
+                <NavItem to="/dashboard/vendor" icon="local_shipping" label="Vendor Purchase" />
               </ul>
-            </>
-          )}
 
-          {(isStaffOrAdmin || role === 'driver' || role === 'delivery') && (
-            <>
               <Divider />
               <SectionLabel>Catalog &amp; Fulfillment</SectionLabel>
               <ul className="sidebar-nav-group">
-                {isStaffOrAdmin && (
-                  <>
-                    <NavItem to="/dashboard/products" icon="package_2" label="Products & Inventory" />
-                    <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alerts" />
-                  </>
-                )}
+                <NavItem to="/dashboard/products" icon="package_2" label="Products & Inventory" />
+                <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alerts" />
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"
@@ -251,11 +263,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badgeVariant="amber"
                 />
               </ul>
-            </>
-          )}
 
-          {isAdminOrManager && (
-            <>
               <Divider />
               <SectionLabel>CRM &amp; Operations</SectionLabel>
               <ul className="sidebar-nav-group">
@@ -274,20 +282,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 )}
                 <NavItem to="/dashboard/change-password" icon="shield_lock" label="Security Settings" />
               </ul>
-            </>
-          )}
 
-          {role === 'admin' && (
-            <>
-              <Divider />
-              <SectionLabel>Administration</SectionLabel>
-              <ul className="sidebar-nav-group">
-                <NavItem to="/dashboard/users" icon="manage_accounts" label="Staff & Roles" />
-                <NavItem to="/dashboard/affiliates" icon="handshake" label="Affiliate Control" />
-                <NavItem to="/dashboard/videos" icon="smart_display" label="Community Videos" />
-              </ul>
-            </>
-          )}
+              {role === 'admin' && (
+                <>
+                  <Divider />
+                  <SectionLabel>Administration</SectionLabel>
+                  <ul className="sidebar-nav-group">
+                    <NavItem to="/dashboard/users" icon="manage_accounts" label="Staff & Roles" />
+                    <NavItem to="/dashboard/affiliates" icon="handshake" label="Affiliate Control" />
+                    <NavItem to="/dashboard/videos" icon="smart_display" label="Community Videos" />
+                  </ul>
+                </>
+              )}
             </>
           )}
         </nav>

@@ -21,6 +21,7 @@ const UserManagementPage: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [twoFaToken, setTwoFaToken] = useState('');
 
   const [formData, setFormData] = useState({
     username: '',
@@ -59,6 +60,7 @@ const UserManagementPage: React.FC = () => {
   }, []);
 
   const handleOpenModal = (user?: User) => {
+    setTwoFaToken('');
     if (user) {
       setEditingUser(user);
       setFormData({
@@ -90,12 +92,13 @@ const UserManagementPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const headers = twoFaToken.trim() ? { 'x-2fa-token': twoFaToken.trim() } : undefined;
       if (editingUser) {
         const { password, ...updateData } = formData;
-        const res = await api.patch(`/api/staff/${editingUser.id}`, updateData);
+        const res = await api.patch(`/api/staff/${editingUser.id}`, updateData, headers);
         if (res.success) {
           if (password) {
-            await api.put(`/api/staff/${editingUser.id}/password`, { password });
+            await api.put(`/api/staff/${editingUser.id}/password`, { password }, headers);
           }
           fetchUsers();
           showToast('User updated successfully', 'success');
@@ -104,7 +107,7 @@ const UserManagementPage: React.FC = () => {
           showToast(res.error || 'Failed to update user', 'error');
         }
       } else {
-        const res = await api.post('/api/staff', formData);
+        const res = await api.post('/api/staff', formData, headers);
         if (res.success) {
           fetchUsers();
           showToast('User created successfully', 'success');
@@ -269,6 +272,20 @@ const UserManagementPage: React.FC = () => {
                   {editingUser ? 'Reset Password (optional)' : 'Password'}
                 </label>
                 <input required={!editingUser} type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full border rounded-lg px-3 py-2" />
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-gray-300">
+                <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                  <span>2FA Security Token</span>
+                  <span className="text-[10px] text-gray-400 font-normal">Only required if 2FA is active</span>
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={twoFaToken}
+                  onChange={e => setTwoFaToken(e.target.value.replace(/\D/g, ''))}
+                  className="w-full border rounded-lg px-3 py-2 font-mono text-center tracking-widest text-sm bg-white"
+                  placeholder="Enter 6-digit 2FA code"
+                />
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-gray-500">Cancel</button>

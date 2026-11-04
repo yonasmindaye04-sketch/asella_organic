@@ -272,12 +272,14 @@ const OrderForm: React.FC = () => {
             </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
+            {/* Row 1, Col 1: Customer Name */}
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.customerName')}</label>
               <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" placeholder={t('orderForm.customerNamePlaceholder')} />
             </div>
 
-            {orderFormMode === 'franchise' && (
+            {/* Row 1, Col 2: Franchise Type OR Gender & Age Group */}
+            {orderFormMode === 'franchise' ? (
               <div className="col-span-1 md:col-span-1">
                 <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.franchiseType')}</label>
                 <select value={formData.franchiseType} onChange={e => setFormData({...formData, franchiseType: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
@@ -287,11 +289,9 @@ const OrderForm: React.FC = () => {
                   <option>Distributor</option>
                 </select>
               </div>
-            )}
-
-            {orderFormMode === 'sales' && (
-              <>
-                <div className="col-span-1 md:col-span-1">
+            ) : (
+              <div className="grid grid-cols-2 gap-4 col-span-1 md:col-span-1">
+                <div>
                   <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.gender')}</label>
                   <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
                     <option value="">{t('orderForm.select')}</option>
@@ -299,16 +299,17 @@ const OrderForm: React.FC = () => {
                     <option>{t('orderForm.female')}</option>
                   </select>
                 </div>
-                <div className="col-span-1 md:col-span-1">
+                <div>
                   <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.ageGroup')}</label>
                   <select value={formData.ageGroup} onChange={e => setFormData({...formData, ageGroup: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
                     <option>Under 18</option><option>19-25</option><option>26-30</option>
                     <option>31-36</option><option>37-41</option><option>42-48</option>
                   </select>
                 </div>
-              </>
+              </div>
             )}
 
+            {/* Row 2, Col 1: Order Type (Delivery / Pickup) */}
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.orderType')}</label>
               <select value={formData.order_type} onChange={e => setFormData({...formData, order_type: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
@@ -316,25 +317,27 @@ const OrderForm: React.FC = () => {
                 <option value="pickup">{t('orderForm.pickup')}</option>
               </select>
             </div>
-            
-            <div className="col-span-1 md:col-span-1">
-              <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.referralCode')}</label>
-              <input type="text" value={formData.referral_code} onChange={e => setFormData({...formData, referral_code: e.target.value.toUpperCase()})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" placeholder="e.g. BIRUK10" />
-            </div>
-            
-            {orderFormMode === 'franchise' && <div className="hidden md:block"></div>}
 
+            {/* Row 2, Col 2: City / Region */}
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.location')}</label>
               <select value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white">
-                <option>{t('orderForm.locAddis')}</option>
-                <option>{t('orderForm.locOther')}</option>
-                <option>{t('orderForm.locAbroad')}</option>
+                <option value="Addis Ababa">{t('orderForm.locAddis') || 'Addis Ababa'}</option>
+                <option value="Other Regions">{t('orderForm.locOther') || 'Other Regions'}</option>
+                <option value="Abroad">{t('orderForm.locAbroad') || 'Abroad'}</option>
               </select>
             </div>
+
+            {/* Row 3, Col 1: Specific Location / Address */}
             <div className="col-span-1 md:col-span-1">
               <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.city')}</label>
               <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" placeholder="e.g. Bole, Lideta..." />
+            </div>
+
+            {/* Row 3, Col 2: Referral Code (Optional) */}
+            <div className="col-span-1 md:col-span-1">
+              <label className="block text-xs font-mono font-bold text-obsidian dark:text-white uppercase tracking-widest mb-1.5 ml-1">{t('orderForm.referralCode')}</label>
+              <input type="text" value={formData.referral_code} onChange={e => setFormData({...formData, referral_code: e.target.value.toUpperCase()})} className="w-full px-4 py-3 rounded-xl bg-white dark:bg-obsidian border border-border focus:outline-none focus:border-highland-gold focus:ring-1 focus:ring-highland-gold transition-all text-base text-obsidian dark:text-white" placeholder="e.g. BIRUK10" />
             </div>
 
             <div className="col-span-1 md:col-span-2">

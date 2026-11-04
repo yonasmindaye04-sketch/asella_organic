@@ -65,11 +65,32 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     }
   }
 
-  // Sub Store Front Managers are restricted to five screens. Anything else
-  // (analytics, products, customers, staff, etc.) bounces to New Sales Order.
+  // Sub Store Front Managers are restricted to operational screens.
   if (user?.role === 'store_manager') {
     const path = location.pathname.replace(/\/+$/, '') || '/';
     if (!STORE_MANAGER_ALLOWED_PATHS.includes(path)) {
+      return <Navigate to="/dashboard/pos" replace />;
+    }
+  }
+
+  // Delivery drivers only have access to Order Tracking
+  if (user?.role === 'delivery' || user?.role === 'driver') {
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    if (path !== '/dashboard/tracking') {
+      return <Navigate to="/dashboard/tracking" replace />;
+    }
+  }
+
+  // Employees/staff have access to POS, Tracking, and Stock Alerts (no financial reports)
+  if (user?.role === 'employee' || user?.role === 'staff') {
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    const EMPLOYEE_ALLOWED_PATHS = [
+      '/dashboard/pos',
+      '/dashboard/tracking',
+      '/dashboard/stock-alert',
+      '/dashboard/stock-request',
+    ];
+    if (!EMPLOYEE_ALLOWED_PATHS.includes(path)) {
       return <Navigate to="/dashboard/pos" replace />;
     }
   }
