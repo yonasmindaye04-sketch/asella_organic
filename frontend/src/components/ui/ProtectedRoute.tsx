@@ -15,6 +15,7 @@ interface ProtectedRouteProps {
  */
 const STORE_MANAGER_ALLOWED_PATHS = [
   '/dashboard/pos',
+  '/dashboard/my-performance',
   '/dashboard/tracking',
   '/dashboard/notifications',
   '/dashboard/bulk-orders',
@@ -25,6 +26,7 @@ const STORE_MANAGER_ALLOWED_PATHS = [
 /** Call center agents have access to POS, Tracking, Notifications, and Reporting Channel. */
 const CALL_CENTER_ALLOWED_PATHS = [
   '/dashboard/pos',
+  '/dashboard/my-performance',
   '/dashboard/tracking',
   '/dashboard/notifications',
   '/dashboard/call-center',
@@ -73,10 +75,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     }
   }
 
-  // Delivery drivers only have access to Order Tracking
+  // Delivery drivers only have access to Order Tracking and My Performance
   if (user?.role === 'delivery' || user?.role === 'driver') {
     const path = location.pathname.replace(/\/+$/, '') || '/';
-    if (path !== '/dashboard/tracking') {
+    if (path !== '/dashboard/tracking' && path !== '/dashboard/my-performance') {
       return <Navigate to="/dashboard/tracking" replace />;
     }
   }
@@ -86,6 +88,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     const path = location.pathname.replace(/\/+$/, '') || '/';
     const EMPLOYEE_ALLOWED_PATHS = [
       '/dashboard/pos',
+      '/dashboard/my-performance',
       '/dashboard/tracking',
       '/dashboard/stock-alert',
       '/dashboard/stock-request',

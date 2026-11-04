@@ -156,6 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             <>
               <SectionLabel>Fulfillment</SectionLabel>
               <ul className="sidebar-nav-group">
+                <NavItem to="/dashboard/my-performance" icon="monitoring" label="My Performance" />
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"
@@ -170,6 +171,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               <SectionLabel>Store Operations</SectionLabel>
               <ul className="sidebar-nav-group">
                 <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
+                <NavItem to="/dashboard/my-performance" icon="monitoring" label="My Performance" />
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"
@@ -194,6 +196,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               <SectionLabel>Call Center Operations</SectionLabel>
               <ul className="sidebar-nav-group">
                 <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
+                <NavItem to="/dashboard/my-performance" icon="monitoring" label="My Performance" />
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"
@@ -216,6 +219,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               <SectionLabel>Store Operations</SectionLabel>
               <ul className="sidebar-nav-group">
                 <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
+                <NavItem to="/dashboard/my-performance" icon="monitoring" label="My Performance" />
                 <NavItem
                   to="/dashboard/tracking"
                   icon="route"
@@ -232,7 +236,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               <ul className="sidebar-nav-group">
                 <NavItem to="/dashboard/pos" icon="point_of_sale" label="POS Terminal" />
                 <NavItem to="/dashboard" icon="space_dashboard" label="Analytics Dashboard" />
-                <NavItem to="/dashboard/analytics" icon="monitoring" label="P&L Financial Report" />
+                <NavItem to="/dashboard/my-performance" icon="monitoring" label="Operational Performance" />
+                <NavItem to="/dashboard/analytics" icon="finance" label="P&L Financial Report" />
                 <NavAction
                   icon="team_dashboard"
                   label="Team Performance"

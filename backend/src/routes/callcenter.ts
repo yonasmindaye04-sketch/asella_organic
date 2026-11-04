@@ -128,10 +128,10 @@ function publicDayStats(stats: DayOrderStats) {
 
 export const CallCenterDailyReportSchema = z.object({
   report_date:    z.string().regex(DATE_RE, "report_date must be YYYY-MM-DD"),
-  calls_received: z.coerce.number().int().min(0).max(1_000_000),
-  calls_ordered:  z.coerce.number().int().min(0).max(1_000_000),
-  calls_rejected: z.coerce.number().int().min(0).max(1_000_000),
-  notes:          z.string().trim().max(500).optional(),
+  calls_received: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  calls_ordered:  z.coerce.number().int().min(0).max(1_000_000).optional(),
+  calls_rejected: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  notes:          z.string().trim().max(500).optional().default(""),
 });
 
 
@@ -268,22 +268,11 @@ router.post(
 
     const {
       report_date: reportDate,
-      calls_received: callsReceived,
-      calls_ordered: callsOrdered,
-      calls_rejected: callsRejected,
     } = parsed.data;
     const notes = parsed.data.notes?.trim() || null;
 
     if (!isValidDate(reportDate)) {
       res.status(422).json({ success: false, error: "report_date must be a valid YYYY-MM-DD date" });
-      return;
-    }
-
-    if (callsOrdered + callsRejected > callsReceived) {
-      res.status(422).json({
-        success: false,
-        error: "Orders placed plus rejected calls cannot be greater than total calls received.",
-      });
       return;
     }
 
@@ -301,10 +290,23 @@ router.post(
         return;
       }
 
-      // Authoritative system side — never read these from the request.
+      // Authoritative system side — automatically captured from orders
       const stats = await computeDayOrderStats(staffId, reportDate);
       const isBackdated = reportDate !== today;
+
+      // Automatically capture orders from the system; use manual values only if explicitly passed
+      const callsOrdered = parsed.data.calls_ordered ?? stats.system_orders;
+      const callsReceived = parsed.data.calls_received ?? Math.max(stats.system_orders, 0);
+      const callsRejected = parsed.data.calls_rejected ?? 0;
       const ordersMatch = callsOrdered === stats.system_orders;
+
+      if (parsed.data.calls_received !== undefined && parsed.data.calls_ordered !== undefined && callsOrdered + callsRejected > callsReceived) {
+        res.status(422).json({
+          success: false,
+          error: "Orders placed plus rejected calls cannot be greater than total calls received.",
+        });
+        return;
+      }
 
       const connection = await pool.getConnection();
       let reportId = crypto.randomUUID();

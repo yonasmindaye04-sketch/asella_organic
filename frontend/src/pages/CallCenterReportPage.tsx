@@ -132,12 +132,6 @@ const localToday = (): string => {
   return `${y}-${m}-${day}`;
 };
 
-const parseCount = (value: string): number | null => {
-  const trimmed = value.trim();
-  if (trimmed === '') return null;
-  const n = Number(trimmed);
-  return Number.isInteger(n) && n >= 0 ? n : null;
-};
 
 const fmtDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
@@ -166,9 +160,6 @@ const CallCenterReportPage: React.FC = () => {
   const [entry, setEntry] = useState<DailyEntry | null>(null);
   const [entryLoading, setEntryLoading] = useState(true);
   const [entryError, setEntryError] = useState<string | null>(null);
-  const [callsReceived, setCallsReceived] = useState('');
-  const [callsOrdered, setCallsOrdered] = useState('');
-  const [callsRejected, setCallsRejected] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -200,9 +191,6 @@ const CallCenterReportPage: React.FC = () => {
   const loadEntry = useCallback(async (date: string) => {
     const seq = ++entrySeq.current;
     setEntry(null);
-    setCallsReceived('');
-    setCallsOrdered('');
-    setCallsRejected('');
     setNotes('');
     setEntryLoading(true);
     setEntryError(null);
@@ -214,9 +202,6 @@ const CallCenterReportPage: React.FC = () => {
       if (res.success && res.data) {
         setEntry(res.data);
         const existing = res.data.existing_report;
-        setCallsReceived(existing ? String(existing.calls_received) : '');
-        setCallsOrdered(existing ? String(existing.calls_ordered) : '');
-        setCallsRejected(existing ? String(existing.calls_rejected) : '');
         setNotes(existing?.notes ?? '');
       } else {
         setEntryError(res.error ?? 'Failed to load this day’s report.');
@@ -251,19 +236,6 @@ const CallCenterReportPage: React.FC = () => {
       return;
     }
 
-    const received = parseCount(callsReceived);
-    const ordered = parseCount(callsOrdered);
-    const rejected = parseCount(callsRejected);
-
-    if (received === null || ordered === null || rejected === null) {
-      setSubmitError('Enter whole numbers for calls received, orders placed and rejected calls.');
-      return;
-    }
-    if (ordered + rejected > received) {
-      setSubmitError('Orders placed plus rejected calls cannot be greater than total calls received.');
-      return;
-    }
-
     setSubmitting(true);
     try {
       const res = await api.post<{
@@ -272,9 +244,6 @@ const CallCenterReportPage: React.FC = () => {
         orders_match: boolean;
       }>('/api/callcenter/me/daily-report', {
         report_date: reportDate,
-        calls_received: received,
-        calls_ordered: ordered,
-        calls_rejected: rejected,
         notes: notes.trim() || undefined,
       });
 
@@ -297,9 +266,6 @@ const CallCenterReportPage: React.FC = () => {
   };
 
   const handleClear = () => {
-    setCallsReceived('');
-    setCallsOrdered('');
-    setCallsRejected('');
     setNotes('');
     setSubmitError(null);
     setSubmitOk(null);
@@ -312,19 +278,7 @@ const CallCenterReportPage: React.FC = () => {
   const isBackdated = reportDate !== today;
   const existing = entry?.existing_report ?? null;
 
-  const receivedN = parseCount(callsReceived);
-  const orderedN = parseCount(callsOrdered);
-  const rejectedN = parseCount(callsRejected);
-  const unaccounted =
-    receivedN !== null && orderedN !== null && rejectedN !== null
-      ? receivedN - orderedN - rejectedN
-      : null;
-  const mismatch =
-    orderedN !== null && stats ? orderedN !== stats.system_orders : false;
-  const overAllocated =
-    receivedN !== null && orderedN !== null && rejectedN !== null
-      ? orderedN + rejectedN > receivedN
-      : false;
+
 
   const s = data?.summary;
   const daily = data?.daily ?? [];
@@ -631,81 +585,18 @@ const CallCenterReportPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">
-                      Calls Received *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      min={0}
-                      step={1}
-                      inputMode="numeric"
-                      placeholder="10"
-                      value={callsReceived}
-                      onChange={(e) => setCallsReceived(e.target.value)}
-                      className={inputClass}
-                    />
+                {/* Automated capture notification */}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="material-symbols-outlined text-emerald-700 text-lg">auto_awesome</span>
+                    <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                      Orders Captured Automatically
+                    </h4>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">
-                      Orders Placed *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      min={0}
-                      step={1}
-                      inputMode="numeric"
-                      placeholder="8"
-                      value={callsOrdered}
-                      onChange={(e) => setCallsOrdered(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">
-                      Rejected Calls *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      min={0}
-                      step={1}
-                      inputMode="numeric"
-                      placeholder="2"
-                      value={callsRejected}
-                      onChange={(e) => setCallsRejected(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
+                  <p className="text-[12px] text-emerald-800 leading-relaxed">
+                    All orders you created for this date are captured directly from the system. You do not need to enter numbers manually—just review the calculated order figures on the right, add your shift notes below, and submit.
+                  </p>
                 </div>
-
-                {(overAllocated || mismatch || (unaccounted !== null && unaccounted > 0)) && (
-                  <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-[12px] text-amber-900 space-y-1">
-                    {overAllocated && (
-                      <p className="flex items-start gap-2">
-                        <span className="material-symbols-outlined text-[16px] text-amber-600">error</span>
-                        Orders placed + rejected calls is greater than calls received.
-                      </p>
-                    )}
-                    {mismatch && stats && (
-                      <p className="flex items-start gap-2">
-                        <span className="material-symbols-outlined text-[16px] text-amber-600">sync_problem</span>
-                        You entered <strong>{orderedN}</strong> orders placed, but the system
-                        recorded <strong>{stats.system_orders}</strong> orders for this date.
-                      </p>
-                    )}
-                    {unaccounted !== null && unaccounted > 0 && (
-                      <p className="flex items-start gap-2">
-                        <span className="material-symbols-outlined text-[16px] text-amber-600">info</span>
-                        <strong>{unaccounted}</strong> call{unaccounted === 1 ? '' : 's'} not marked
-                        as ordered or rejected.
-                      </p>
-                    )}
-                  </div>
-                )}
 
                 <div>
                   <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">
@@ -776,13 +667,10 @@ const CallCenterReportPage: React.FC = () => {
                     </div>
 
                     <div className="mt-4 rounded-xl bg-[#f0fdf4] border border-[#c3e6cb] px-4 py-3 text-[12px] leading-relaxed text-[#14532d]">
-                      <p className="font-bold mb-1">Report preview</p>
+                      <p className="font-bold mb-1">Report summary</p>
                       <p>
-                        {receivedN ?? 0} call{(receivedN ?? 0) === 1 ? '' : 's'} received →{' '}
-                        <strong>{orderedN ?? 0}</strong> ordered,{' '}
-                        <strong>{rejectedN ?? 0}</strong> rejected.
-                        {' '}From the {stats?.system_orders ?? 0} order
-                        {(stats?.system_orders ?? 0) === 1 ? '' : 's'} in the system:{' '}
+                        <strong>{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} automatically captured for this date.
+                        {' '}Breakdown:{' '}
                         <strong>{stats?.delivery_orders ?? 0}</strong> delivery,{' '}
                         <strong>{stats?.pickup_orders ?? 0}</strong> pickup;{' '}
                         <strong>{stats?.addis_orders ?? 0}</strong> Addis Ababa,{' '}

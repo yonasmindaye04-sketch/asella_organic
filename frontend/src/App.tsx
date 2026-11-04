@@ -20,6 +20,7 @@ const BulkOrdersPage       = lazy(() => import('./pages/BulkOrdersPage'));
 const VendorPurchasePage   = lazy(() => import('./pages/VendorPurchasePage'));
 const StockAlertPage       = lazy(() => import('./pages/StockAlertPage'));
 const AnalyticsPage        = lazy(() => import('./pages/AnalyticsPage'));
+const MyPerformancePage    = lazy(() => import('./pages/MyPerformancePage'));
 const NotificationsPage    = lazy(() => import('./pages/Notificationspage'));
 const ChangePasswordPage   = lazy(() => import('./pages/ChangePasswordPage'));
 const UserManagementPage   = lazy(() => import('./pages/UserManagementPage'));
@@ -79,6 +80,7 @@ function App() {
                 {/* Dashboard */}
                 <Route path="/dashboard"        element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/dashboard/pos"          element={<ProtectedRoute><PosTerminalPage /></ProtectedRoute>} />
+                <Route path="/dashboard/my-performance" element={<ProtectedRoute><MyPerformancePage /></ProtectedRoute>} />
                 <Route path="/dashboard/new-order"    element={<ProtectedRoute><NewOrderPage /></ProtectedRoute>} />
                 <Route path="/dashboard/tracking"     element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />
                 <Route path="/dashboard/bulk-orders"  element={<ProtectedRoute><BulkOrdersPage /></ProtectedRoute>} />
