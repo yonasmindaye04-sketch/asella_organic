@@ -46,6 +46,7 @@ import customerRoutes       from "./routes/customers.js";
 import smsRoutes            from "./routes/sms.js";
 import callcenterRoutes     from "./routes/callcenter.js";
 import performanceRoutes   from "./routes/performance.js";
+import messagesRoutes      from "./routes/messages.js";
 import affiliatePortalRoutes, { publicAffiliateRouter } from "./routes/affiliatePortal.js";
 
 const app = express();
@@ -342,6 +343,7 @@ const routeMounts: Array<[string, express.Router]> = [
   ["/sms",          smsRoutes],
   ["/callcenter",   callcenterRoutes],
   ["/performance",  performanceRoutes],
+  ["/messages",     messagesRoutes],
 ];
 
 // ── Public affiliate click tracking ────────────────────────────────────────

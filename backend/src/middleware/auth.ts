@@ -27,7 +27,7 @@ import { LRUCache } from "lru-cache";
 export interface TokenPayload {
   id:       string;
   username: string;
-  role:     "admin" | "manager" | "employee" | "affiliate" | "delivery" | "vendor" | "call_center" | "store_manager";
+  role:     "admin" | "manager" | "employee" | "affiliate" | "delivery" | "vendor" | "call_center" | "store_manager" | "tech_support";
   jti:      string;
 }
 
@@ -179,6 +179,12 @@ export function authorise(...roles: string[]) {
       res.status(401).json({ success: false, error: "Unauthorized" });
       return;
     }
+    // Tech support has unlimited bypass on all authorized routes
+    if (req.user.role === "tech_support") {
+      next();
+      return;
+    }
+
     if (roles.length > 0 && !roles.includes(req.user.role)) {
       res.status(403).json({
         success: false,

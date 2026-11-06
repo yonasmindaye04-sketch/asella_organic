@@ -29,7 +29,7 @@ const router = Router();
 
 const BCRYPT_ROUNDS = 12;
 
-const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver", "call_center", "store_manager"] as const;
+const VALID_ROLES = ["admin", "manager", "employee", "affiliate", "delivery", "vendor", "driver", "call_center", "store_manager", "tech_support"] as const;
 type StaffRole    = typeof VALID_ROLES[number];
 const isValidRole = (r: unknown): r is StaffRole => VALID_ROLES.includes(r as StaffRole);
 

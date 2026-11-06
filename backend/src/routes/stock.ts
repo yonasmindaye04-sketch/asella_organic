@@ -106,7 +106,7 @@ router.get(
     }
 
     const where = `WHERE ${conditions.join(" AND ")}`;
-    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
+    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager" || req.user?.role === "tech_support";
 
     try {
       const [rows] = await pool.query(
@@ -163,7 +163,7 @@ router.get(
   authenticate,
   authorise("admin", "manager", "employee", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
-    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
+    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager" || req.user?.role === "tech_support";
     try {
       const [[summary]] = await pool.query(
         `SELECT

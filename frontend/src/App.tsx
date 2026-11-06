@@ -40,6 +40,7 @@ const TermsOfService       = lazy(() => import('./pages/TermsOfService'));
 const SmsDashboard         = lazy(() => import('./pages/SmsDashboard'));
 const StoreReportPage      = lazy(() => import('./pages/StoreReportPage'));
 const CallCenterReportPage = lazy(() => import('./pages/CallCenterReportPage'));
+const InternalMessagingPage = lazy(() => import('./pages/InternalMessagingPage'));
 
 
 function App() {
@@ -103,6 +104,7 @@ function App() {
                 <Route path="/dashboard/products"     element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
                 <Route path="/dashboard/audit-log"    element={<ProtectedRoute><AuditLogPage /></ProtectedRoute>} />
                 <Route path="/dashboard/sms"          element={<ProtectedRoute><SmsDashboard /></ProtectedRoute>} />
+                <Route path="/dashboard/messages"     element={<ProtectedRoute><InternalMessagingPage /></ProtectedRoute>} />
               </Routes>
             </Suspense>
 </ToastProvider>

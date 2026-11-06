@@ -39,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     role === 'delivery' ? 'Driver' :
     role === 'store_manager' ? 'Sub Store Manager' :
     role === 'call_center' ? 'Call Center Agent' :
+    role === 'tech_support' ? 'Tech Support' :
     role.charAt(0).toUpperCase() + role.slice(1);
 
   useEffect(() => {
@@ -54,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   }, []);
 
   useEffect(() => {
-    if (role !== 'admin' && role !== 'manager' && role !== 'store_manager') return;
+    if (role !== 'admin' && role !== 'manager' && role !== 'store_manager' && role !== 'delivery' && role !== 'driver' && role !== 'tech_support' && role !== 'call_center') return;
     const fetchNotifs = async () => {
       try {
         const res = await api.get<{ total: number }>('/api/notifications/summary');
@@ -189,6 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Ordering" />
                 <NavItem to="/dashboard/store-report" icon="summarize" label="Reporting Channel" />
                 <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
               </ul>
             </>
           ) : isCallCenter ? (
@@ -214,6 +216,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 <NavItem to="/dashboard/call-center" icon="summarize" label="Reporting Channel" />
                 <NavItem to="/dashboard/products" icon="inventory_2" label="Stock & Inventory" />
                 <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
               </ul>
             </>
           ) : isEmployee ? (
@@ -230,6 +233,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badgeVariant="amber"
                 />
                 <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alerts" />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
               </ul>
             </>
           ) : (
@@ -284,13 +288,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 <NavItem to="/dashboard/customers" icon="groups" label="Customers" />
                 <NavItem to="/dashboard/sms" icon="sms" label="SMS Campaigns" />
                 <NavItem to="/dashboard/media" icon="perm_media" label="Media Library" />
-                {role === 'admin' && (
+                {(role === 'admin' || role === 'tech_support') && (
                   <NavItem to="/dashboard/expenses" icon="receipt_long" label="Expenses" />
                 )}
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
                 <NavItem to="/dashboard/change-password" icon="shield_lock" label="Security Settings" />
               </ul>
 
-              {role === 'admin' && (
+              {(role === 'admin' || role === 'tech_support') && (
                 <>
                   <Divider />
                   <SectionLabel>Administration</SectionLabel>
@@ -298,6 +303,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                     <NavItem to="/dashboard/users" icon="manage_accounts" label="Staff & Roles" />
                     <NavItem to="/dashboard/affiliates" icon="handshake" label="Affiliate Control" />
                     <NavItem to="/dashboard/videos" icon="smart_display" label="Community Videos" />
+                    <NavItem to="/dashboard/audit-log" icon="history" label="System Audit Log" />
                   </ul>
                 </>
               )}

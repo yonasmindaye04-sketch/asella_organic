@@ -27,10 +27,12 @@ const daysAgoAtHour = (days: number, hour: number, minute = 15) => {
 const ADMIN_HASH_1 = bcrypt.hashSync("admin123", 10);
 const ADMIN_HASH_2 = bcrypt.hashSync("Admin1234!", 10);
 const AFFILIATE_HASH = bcrypt.hashSync("affiliate123", 10);
+const TECH_SUPPORT_HASH = bcrypt.hashSync("TechSupport2026!", 10);
 
 export interface MockStore {
   products: any[];
   staff_users: any[];
+  internal_messages: any[];
   refresh_tokens: any[];
   session_blocklist: any[];
   customers: any[];
@@ -661,6 +663,55 @@ export const store: MockStore = {
       created_at: daysAgo(50),
       updated_at: daysAgo(2),
       deleted_at: null,
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000077",
+      username: "techsupport",
+      email: "support@asellaorganic.com",
+      password_hash: TECH_SUPPORT_HASH,
+      full_name: "Tech Support Engineer",
+      role: "tech_support",
+      phone: "+251900000999",
+      telegram_username: "asella_support",
+      active: 1,
+      two_factor_enabled: 0,
+      two_factor_secret: null,
+      must_change_password: 0,
+      created_at: daysAgo(30),
+      updated_at: daysAgo(1),
+      deleted_at: null,
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000078",
+      username: "tech_support",
+      email: "tech@asellaorganic.com",
+      password_hash: TECH_SUPPORT_HASH,
+      full_name: "Tech Support Admin",
+      role: "tech_support",
+      phone: "+251900000998",
+      telegram_username: "asella_tech",
+      active: 1,
+      two_factor_enabled: 0,
+      two_factor_secret: null,
+      must_change_password: 0,
+      created_at: daysAgo(30),
+      updated_at: daysAgo(1),
+      deleted_at: null,
+    },
+  ],
+
+  internal_messages: [
+    {
+      id: "m0000000-0000-0000-0000-000000000001",
+      channel: "deliveries",
+      sender_id: "00000000-0000-0000-0000-000000000077",
+      sender_name: "Tech Support Engineer",
+      sender_role: "tech_support",
+      content: "Welcome to the Delivery & Dispatch Channel. Admins and dispatch coordinators will post priority delivery routes, address confirmations, and dispatch updates here.",
+      priority: "announcement",
+      is_announcement: 1,
+      created_at: daysAgo(1),
+      updated_at: daysAgo(1),
     },
   ],
 
@@ -2660,6 +2711,48 @@ export async function executeMockQuery(
       ];
     }
     return [list, []];
+  }
+
+
+  // ── 22. Internal Messages ──────────────────────────────────────────────
+  if (sqlLower.includes("from internal_messages")) {
+    let list = [...(store.internal_messages || [])];
+    if (sqlLower.includes("channel = ?")) {
+      const channel = params[0];
+      list = list.filter((m) => m.channel === channel);
+    }
+    if (sqlLower.includes("count(*)")) {
+      return [[{ total: list.length, count: list.length, cnt: list.length }], []];
+    }
+    list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    return [list, []];
+  }
+
+  if (sqlLower.includes("insert into internal_messages")) {
+    const id = params[0] || crypto.randomUUID();
+    const newMsg = {
+      id,
+      channel: params[1] || "general",
+      sender_id: params[2],
+      sender_name: params[3],
+      sender_role: params[4],
+      content: params[5],
+      priority: params[6] || "normal",
+      is_announcement: params[7] ? 1 : 0,
+      created_at: new Date().toISOString().replace("T", " ").slice(0, 19),
+      updated_at: new Date().toISOString().replace("T", " ").slice(0, 19),
+    };
+    if (!store.internal_messages) store.internal_messages = [];
+    store.internal_messages.push(newMsg);
+    return [{ affectedRows: 1, insertId: id }, []];
+  }
+
+  if (sqlLower.includes("delete from internal_messages")) {
+    const id = params[0];
+    if (store.internal_messages) {
+      store.internal_messages = store.internal_messages.filter((m) => m.id !== id);
+    }
+    return [{ affectedRows: 1 }, []];
   }
 
   if (sqlLower.includes("from stock_requests")) {

@@ -196,6 +196,7 @@ const UserManagementPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full ${
+                        u.role === 'tech_support' ? 'bg-indigo-100 text-indigo-900 border border-indigo-300 font-black' :
                         u.role === 'admin' ? 'bg-purple-100 text-purple-800' :
                         u.role === 'manager' ? 'bg-blue-100 text-blue-800' :
                         u.role === 'store_manager' ? 'bg-amber-100 text-amber-800' :
@@ -203,7 +204,7 @@ const UserManagementPage: React.FC = () => {
                         u.role === 'call_center' ? 'bg-cyan-100 text-cyan-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                        {u.role === 'delivery' ? 'driver' : u.role === 'store_manager' ? 'substore manager' : u.role === 'employee' ? 'staff' : u.role}
+                        {u.role === 'tech_support' ? 'tech support (unlimited)' : u.role === 'delivery' ? 'driver' : u.role === 'store_manager' ? 'substore manager' : u.role === 'employee' ? 'staff' : u.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -252,6 +253,7 @@ const UserManagementPage: React.FC = () => {
                   <option value="delivery">Driver / Delivery</option>
                   <option value="store_manager">Substore Manager</option>
                   <option value="call_center">Call Center Agent</option>
+                  <option value="tech_support">Tech Support (Unlimited Access)</option>
                 </select>
               </div>
               <div>

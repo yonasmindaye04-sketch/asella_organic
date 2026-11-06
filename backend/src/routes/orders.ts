@@ -581,7 +581,7 @@ router.get("/", authenticate,
     ) as [any[], any];
     const total = parseInt(countRows[0].count as string, 10);
 
-    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
+    const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager" || req.user?.role === "tech_support";
     const [data] = await pool.query(
       `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name,
               c.referral_code_used, ap.full_name AS affiliate_name, ap.referral_code AS affiliate_code
@@ -644,7 +644,7 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
+      const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager" || req.user?.role === "tech_support";
       const [orders] = await pool.query(
         `SELECT ${ORDER_SELECT_COLUMNS}, su.full_name AS created_by_staff_name,
                 c.referral_code_used, ap.full_name AS affiliate_name, ap.referral_code AS affiliate_code

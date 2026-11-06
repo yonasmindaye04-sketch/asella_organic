@@ -1,11 +1,14 @@
 /**
  * src/routes/notifications.ts
- * Asella Organic — In-App Notification Center (admin/manager only)
+ * Asella Organic — In-App Notification Center
  *
- * Aggregates events from multiple tables and returns them as a unified
- * notification feed. No separate table needed — reads existing data.
+ * Aggregates events across operations:
+ * - Admin / Manager / Tech Support: All system events (low stock, stock requests, new orders, vendor orders)
+ * - Substore Manager: Store-specific stock requests and order updates
+ * - Call Center: Order and inventory updates
+ * - Delivery / Driver: Dedicated Delivery Notification Channel (assigned orders, pending deliveries, dispatch alerts)
  *
- * GET /api/notifications          — unified feed (last 7 days)
+ * GET /api/notifications          — unified feed (last 7 days by default)
  * GET /api/notifications/summary  — unread counts per category
  */
 
@@ -14,7 +17,6 @@ import pool from "../config/db.js";
 import { authenticate, authorise } from "../middleware/auth.js";
 import { createLogger } from "../lib/logger.js";
 
-
 const router = Router();
 
 // ─── GET /api/notifications ───────────────────────────────────────────────────
@@ -22,13 +24,16 @@ const router = Router();
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager", "store_manager", "call_center"),
+  authorise("admin", "manager", "store_manager", "call_center", "delivery", "driver", "employee", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const { category, since, limit } = req.query as Record<string, string | undefined>;
     const LIMIT = Math.min(100, parseInt(limit ?? "50", 10)) || 50;
-    const isStoreManager = req.user?.role === "store_manager";
+    const role = (req.user?.role || "").toLowerCase();
+    const isStoreManager = role === "store_manager";
+    const isDriver = role === "delivery" || role === "driver";
     const staffId = req.user?.id;
-    
+    const username = req.user?.username || "";
+
     let SINCE = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     if (since) {
       const parsedDate = new Date(since);
@@ -40,8 +45,114 @@ router.get(
     try {
       const notifications: any[] = [];
 
-      // ── 1. Low-stock movements ─────────────────────────────────────────────
-      // Company-wide inventory is not a sub-store manager's data.
+      // ── DEDICATED DELIVERY NOTIFICATION CHANNEL ─────────────────────────────
+      if (isDriver) {
+        // 1. Deliveries directly assigned to this driver
+        if (!category || category === "delivery_assigned") {
+          const [assignedRows] = await pool.query(
+            `SELECT
+               o.id,
+               'delivery_assigned' AS category,
+               CONCAT('Delivery Job: #', SUBSTRING(o.id, 1, 8), ' - ', o.customer_name) AS title,
+               CONCAT(
+                 'Drop-off: ', COALESCE(NULLIF(o.location, ''), NULLIF(o.location, ''), o.city, 'Addis Ababa'),
+                 ' | Phone: ', o.phone, ' | Total: ', COALESCE(o.total, 0), ' ETB | Status: ', o.status
+               ) AS body,
+               o.created_at,
+               JSON_OBJECT(
+                 'order_id', o.id,
+                 'customer_name', o.customer_name,
+                 'phone', o.phone,
+                 'city', o.city,
+                 'specific_location', o.location,
+                 'status', o.status,
+                 'total', o.total,
+                 'assigned_to', o.assigned_to
+               ) AS metadata
+             FROM orders o
+             LEFT JOIN delivery_assignments da ON da.order_id = o.id
+             WHERE (o.assigned_to = ? OR da.driver_username = ?)
+               AND o.created_at >= ?
+             ORDER BY o.created_at DESC
+             LIMIT 50`,
+            [username, username, SINCE]
+          ) as [any[], any];
+          notifications.push(...(assignedRows || []));
+        }
+
+        // 2. Pending delivery orders in the system ready for dispatch
+        if (!category || category === "new_delivery") {
+          const [pendingRows] = await pool.query(
+            `SELECT
+               o.id,
+               'new_delivery' AS category,
+               CONCAT('New Delivery Request: #', SUBSTRING(o.id, 1, 8), ' - ', o.customer_name) AS title,
+               CONCAT(
+                 'Destination: ', COALESCE(NULLIF(o.location, ''), NULLIF(o.location, ''), o.city, 'Addis Ababa'),
+                 ' | Phone: ', o.phone, ' | Total: ', COALESCE(o.total, 0), ' ETB | Status: ', o.status
+               ) AS body,
+               o.created_at,
+               JSON_OBJECT(
+                 'order_id', o.id,
+                 'customer_name', o.customer_name,
+                 'phone', o.phone,
+                 'city', o.city,
+                 'specific_location', o.location,
+                 'status', o.status,
+                 'total', o.total
+               ) AS metadata
+             FROM orders o
+             WHERE o.order_type = 'delivery'
+               AND o.status IN ('Pending', 'Confirmed', 'Dispatched')
+               AND o.created_at >= ?
+             ORDER BY o.created_at DESC
+             LIMIT 50`,
+            [SINCE]
+          ) as [any[], any];
+          notifications.push(...(pendingRows || []));
+        }
+
+        // 3. Dispatch & internal alerts sent to deliveries
+        if (!category || category === "dispatch_alert") {
+          const [alerts] = await pool.query(
+            `SELECT
+               m.id,
+               'dispatch_alert' AS category,
+               CONCAT('Dispatch Alert: ', m.sender_name) AS title,
+               m.content AS body,
+               m.created_at,
+               JSON_OBJECT(
+                 'message_id', m.id,
+                 'sender_name', m.sender_name,
+                 'sender_role', m.sender_role,
+                 'priority', m.priority,
+                 'channel', m.channel
+               ) AS metadata
+             FROM internal_messages m
+             WHERE (m.channel = 'deliveries' OR m.priority = 'announcement')
+               AND m.created_at >= ?
+             ORDER BY m.created_at DESC
+             LIMIT 30`,
+            [SINCE]
+          ) as [any[], any];
+          notifications.push(...(alerts || []));
+        }
+
+        const parsed = notifications.map(n => {
+          try {
+            return { ...n, metadata: typeof n.metadata === "string" ? JSON.parse(n.metadata) : n.metadata };
+          } catch {
+            return n;
+          }
+        });
+        parsed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const result = parsed.slice(0, LIMIT);
+        res.json({ success: true, data: result, total: result.length });
+        return;
+      }
+
+      // ── GENERAL STAFF / ADMIN / STORE MANAGER FEED ─────────────────────────
+      // 1. Low-stock movements
       if (!isStoreManager && (!category || category === "low_stock")) {
         const [rows] = await pool.query(
           `SELECT
@@ -67,11 +178,10 @@ router.get(
            LIMIT 30`,
           [SINCE]
         ) as [any[], any];
-        notifications.push(...rows);
+        notifications.push(...(rows || []));
       }
 
-      // ── 2. Stock requests (from secondary stores / staff) ─────────────────
-      // Sub-store managers only see requests they raised themselves.
+      // 2. Stock requests
       if (!category || category === "stock_request") {
         const [rows] = await pool.query(
           `SELECT
@@ -103,10 +213,10 @@ router.get(
            LIMIT 30`,
           isStoreManager ? [SINCE, staffId] : [SINCE]
         ) as [any[], any];
-        notifications.push(...rows);
+        notifications.push(...(rows || []));
       }
 
-      // ── 3. New orders ─────────────────────────────────────────────────────
+      // 3. New orders
       if (!category || category === "new_order") {
         const [rows] = await pool.query(
           `SELECT
@@ -135,11 +245,10 @@ router.get(
            LIMIT 30`,
           isStoreManager ? [SINCE, staffId] : [SINCE]
         ) as [any[], any];
-        notifications.push(...rows);
+        notifications.push(...(rows || []));
       }
 
-      // ── 4. Vendor movements ───────────────────────────────────────────────
-      // Procurement data is not visible to sub-store managers.
+      // 4. Vendor movements
       if (!isStoreManager && (!category || category === "vendor")) {
         const [rows] = await pool.query(
           `SELECT
@@ -165,10 +274,10 @@ router.get(
            LIMIT 30`,
           [SINCE]
         ) as [any[], any];
-        notifications.push(...rows);
+        notifications.push(...(rows || []));
       }
 
-      // ── 5. Parse metadata JSON strings ────────────────────────────────────
+      // 5. Parse metadata JSON strings
       const parsed = notifications.map(n => {
         try {
           return { ...n, metadata: typeof n.metadata === "string" ? JSON.parse(n.metadata) : n.metadata };
@@ -177,7 +286,7 @@ router.get(
         }
       });
 
-      // ── 6. Sort by created_at DESC and limit ──────────────────────────────
+      // 6. Sort by created_at DESC and limit
       parsed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const result = parsed.slice(0, LIMIT);
 
@@ -195,7 +304,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
-  authorise("admin", "manager", "store_manager", "call_center"),
+  authorise("admin", "manager", "store_manager", "call_center", "delivery", "driver", "employee", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const { since } = req.query as Record<string, string | undefined>;
     let SINCE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // default last 24h
@@ -206,10 +315,52 @@ router.get(
       }
     }
 
-    const isStoreManager = req.user?.role === "store_manager";
+    const role = (req.user?.role || "").toLowerCase();
+    const isStoreManager = role === "store_manager";
+    const isDriver = role === "delivery" || role === "driver";
     const staffId = req.user?.id;
+    const username = req.user?.username || "";
 
     try {
+      if (isDriver) {
+        const [[assignedRow]] = await pool.query(
+          `SELECT COUNT(DISTINCT o.id) AS cnt FROM orders o
+           LEFT JOIN delivery_assignments da ON da.order_id = o.id
+           WHERE (o.assigned_to = ? OR da.driver_username = ?)
+             AND o.created_at >= ?`,
+          [username, username, SINCE]
+        ) as [any[], any];
+
+        const [[pendingRow]] = await pool.query(
+          `SELECT COUNT(*) AS cnt FROM orders
+           WHERE order_type = 'delivery' AND status IN ('Pending', 'Confirmed')
+             AND created_at >= ?`,
+          [SINCE]
+        ) as [any[], any];
+
+        const [[alertsRow]] = await pool.query(
+          `SELECT COUNT(*) AS cnt FROM internal_messages
+           WHERE (channel = 'deliveries' OR priority = 'announcement')
+             AND created_at >= ?`,
+          [SINCE]
+        ) as [any[], any];
+
+        const assignedCnt = Number(assignedRow?.cnt ?? 0);
+        const pendingCnt = Number(pendingRow?.cnt ?? 0);
+        const alertsCnt = Number(alertsRow?.cnt ?? 0);
+
+        res.json({
+          success: true,
+          data: {
+            delivery_assigned: assignedCnt,
+            new_delivery: pendingCnt,
+            dispatch_alert: alertsCnt,
+            total: assignedCnt + pendingCnt + alertsCnt,
+          },
+        });
+        return;
+      }
+
       // Company-wide stock and procurement counts stay admin/manager-only.
       let lowStockCnt = 0;
       let vendorCnt = 0;
