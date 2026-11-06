@@ -78,6 +78,63 @@ const CUSTOMER_SOURCES = [
   { value: 'website', label: 'Website' },
 ];
 
+const STANDARD_REGIONS = ['Addis Ababa', 'Other Regions', 'Abroad'];
+
+const normalizeCustomerProfile = (c: any) => {
+  let city = (c.city || 'Addis Ababa').trim();
+  let location = (c.location || '').trim();
+
+  // If location is a known region (e.g. 'Addis Ababa') and city is a specific place (e.g. 'Stadium', 'Bole'),
+  // they were swapped in legacy records — reverse them so city is the region and location is the landmark.
+  const isLocationRegion = STANDARD_REGIONS.some(r => r.toLowerCase() === location.toLowerCase());
+  const isCityRegion = STANDARD_REGIONS.some(r => r.toLowerCase() === city.toLowerCase());
+
+  if (isLocationRegion && !isCityRegion && city.length > 0) {
+    const temp = city;
+    city = location;
+    location = temp;
+  } else if (!isCityRegion && city.length > 0 && !location) {
+    location = city;
+    city = 'Addis Ababa';
+  }
+
+  // Canonicalize city name to standard options
+  if (city.toLowerCase() === 'addis ababa') city = 'Addis Ababa';
+  else if (city.toLowerCase().includes('other')) city = 'Other Regions';
+  else if (city.toLowerCase() === 'abroad') city = 'Abroad';
+  else city = 'Addis Ababa';
+
+  // Normalize gender to 'male' | 'female' | 'other' | ''
+  let gender: 'male' | 'female' | 'other' | '' = '';
+  const g = (c.gender || '').trim().toLowerCase();
+  if (g === 'male' || g === 'm') gender = 'male';
+  else if (g === 'female' || g === 'f') gender = 'female';
+  else if (g === 'other') gender = 'other';
+
+  // Normalize age group to 'under-18' | '18-24' | '25-34' | '35-44' | '45-54' | '55+' | ''
+  let ageGroup: 'under-18' | '18-24' | '25-34' | '35-44' | '45-54' | '55+' | '' = '';
+  const ag = (c.age_group || '').trim().toLowerCase().replace(/\s+/g, '-');
+  if (ag.includes('under') || ag === '<18' || ag === 'under-18') ageGroup = 'under-18';
+  else if (ag === '18-24' || ag === '19-25') ageGroup = '18-24';
+  else if (ag === '25-34' || ag === '26-30' || ag === '31-36') ageGroup = '25-34';
+  else if (ag === '35-44' || ag === '37-41' || ag === '42-48') ageGroup = '35-44';
+  else if (ag === '45-54') ageGroup = '45-54';
+  else if (ag === '55+' || ag.includes('55')) ageGroup = '55+';
+
+  return {
+    id: c.customer_id || c.id,
+    name: c.name || '',
+    phone: c.phone || '',
+    city,
+    location,
+    gender,
+    age_group: ageGroup,
+    source: (c.source || 'walk-in') as 'walk-in' | 'phone' | 'website',
+    notes: c.notes || '',
+    referral_code: c.referral_code || '',
+  };
+};
+
 const splitPhoneNumber = (rawPhone: string) => {
   let matchedCode = '+251';
   let localNum = (rawPhone || '').trim();
@@ -175,22 +232,23 @@ export default function PosTerminalPage() {
     return () => clearTimeout(timer);
   }, [customerSearchQuery]);
 
-  const handleSelectCustomer = (c: any) => {
-    const rawPhone = c.phone || '';
-    const parsed = splitPhoneNumber(rawPhone);
+  const handleSelectCustomer = (rawCustomer: any) => {
+    const c = normalizeCustomerProfile(rawCustomer);
+    const parsed = splitPhoneNumber(c.phone);
     setCustomerCountryCode(parsed.code);
     setCustomerPhoneLocal(parsed.local);
 
     setCustomerModalData({
-      id: c.customer_id || c.id,
-      name: c.name || '',
-      phone: rawPhone,
-      city: c.city || 'Addis Ababa',
-      location: c.location || '',
-      gender: c.gender || '',
-      age_group: c.age_group || '',
-      source: c.source || 'walk-in',
-      notes: c.notes || '',
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      city: c.city,
+      location: c.location,
+      gender: c.gender,
+      age_group: c.age_group,
+      source: c.source,
+      notes: c.notes,
+      referral_code: c.referral_code,
     });
     setCustomerSearchResults([]);
     setCustomerSearchQuery('');
@@ -773,7 +831,7 @@ export default function PosTerminalPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setCustomerModalData(customer);
+                        setCustomerModalData(normalizeCustomerProfile(customer));
                         const parsedPhone = splitPhoneNumber(customer.phone);
                         setCustomerCountryCode(parsedPhone.code);
                         setCustomerPhoneLocal(parsedPhone.local);
@@ -1052,22 +1110,31 @@ export default function PosTerminalPage() {
                   {/* Autocomplete Dropdown List */}
                   {customerSearchResults.length > 0 && (
                     <div className="mt-2.5 bg-white border border-[#d6ebd6] rounded-xl shadow-lg divide-y divide-[#edf5ed] max-h-40 overflow-y-auto">
-                      {customerSearchResults.map((c) => (
-                        <div
-                          key={c.id || c.phone}
-                          onClick={() => handleSelectCustomer(c)}
-                          className="p-2.5 hover:bg-[#eef6ee] cursor-pointer flex items-center justify-between transition"
-                        >
-                          <div>
-                            <span className="font-bold text-gray-900 text-xs">{c.name}</span>
-                            <span className="text-gray-600 font-mono text-xs ml-2">{c.phone}</span>
-                            <span className="text-gray-400 text-[11px] ml-1.5">({c.city || 'Addis Ababa'}{c.location ? ` • ${c.location}` : ''})</span>
+                      {customerSearchResults.map((raw) => {
+                        const c = normalizeCustomerProfile(raw);
+                        const genderLabel = c.gender ? (c.gender.charAt(0).toUpperCase() + c.gender.slice(1)) : '';
+                        const ageLabel = AGE_GROUPS.find(a => a.value === c.age_group)?.label || '';
+                        return (
+                          <div
+                            key={c.id || c.phone}
+                            onClick={() => handleSelectCustomer(raw)}
+                            className="p-2.5 hover:bg-[#eef6ee] cursor-pointer flex items-center justify-between transition"
+                          >
+                            <div>
+                              <span className="font-bold text-gray-900 text-xs">{c.name}</span>
+                              <span className="text-gray-600 font-mono text-xs ml-2">{c.phone}</span>
+                              <span className="text-gray-400 text-[11px] ml-1.5">
+                                ({c.city}{c.location ? ` • ${c.location}` : ''}
+                                {genderLabel ? ` • ${genderLabel}` : ''}
+                                {ageLabel ? ` • ${ageLabel}` : ''})
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#1b4d24] bg-[#1b4d24]/10 border border-[#1b4d24]/20 px-2 py-0.5 rounded-md">
+                              Select Customer
+                            </span>
                           </div>
-                          <span className="text-[10px] font-bold text-[#1b4d24] bg-[#1b4d24]/10 border border-[#1b4d24]/20 px-2 py-0.5 rounded-md">
-                            Select Customer
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

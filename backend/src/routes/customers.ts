@@ -121,6 +121,55 @@ export function applySegmentFilter(
   }
 }
 
+const STANDARD_REGIONS = ["Addis Ababa", "Other Regions", "Abroad"];
+
+export function normalizeCustomerFields(r: any) {
+  if (!r) return r;
+  let city = (r.city || "").trim();
+  let location = (r.location || "").trim();
+
+  const isLocationRegion = STANDARD_REGIONS.some(reg => reg.toLowerCase() === location.toLowerCase());
+  const isCityRegion = STANDARD_REGIONS.some(reg => reg.toLowerCase() === city.toLowerCase());
+
+  if (isLocationRegion && !isCityRegion && city.length > 0) {
+    const temp = city;
+    city = location;
+    location = temp;
+  } else if (!isCityRegion && city.length > 0 && !location) {
+    location = city;
+    city = "Addis Ababa";
+  }
+
+  if (city.toLowerCase() === "addis ababa") city = "Addis Ababa";
+  else if (city.toLowerCase().includes("other")) city = "Other Regions";
+  else if (city.toLowerCase() === "abroad") city = "Abroad";
+  else if (!city) city = "Addis Ababa";
+
+  let gender = (r.gender || "").trim().toLowerCase();
+  if (gender === "male" || gender === "m") gender = "male";
+  else if (gender === "female" || gender === "f") gender = "female";
+  else if (gender === "other") gender = "other";
+  else gender = "";
+
+  let ageGroup = (r.age_group || "").trim().toLowerCase().replace(/\s+/g, "-");
+  if (ageGroup.includes("under") || ageGroup === "<18" || ageGroup === "under-18") ageGroup = "under-18";
+  else if (ageGroup === "18-24" || ageGroup === "19-25") ageGroup = "18-24";
+  else if (ageGroup === "25-34" || ageGroup === "26-30" || ageGroup === "31-36") ageGroup = "25-34";
+  else if (ageGroup === "35-44" || ageGroup === "37-41" || ageGroup === "42-48") ageGroup = "35-44";
+  else if (ageGroup === "45-54") ageGroup = "45-54";
+  else if (ageGroup === "55+" || ageGroup.includes("55")) ageGroup = "55+";
+  else ageGroup = "";
+
+  return {
+    ...r,
+    city,
+    location,
+    gender,
+    age_group: ageGroup,
+    value_score: Math.round(Number(r.value_score || 0)),
+  };
+}
+
 // GET /api/customers — paginated list with filters
 //
 // Query: ?search ?city ?segment ?source ?min_score ?max_score
@@ -220,7 +269,7 @@ router.get(
 
       res.json({
         success: true,
-        data: rows.map((r: any) => ({ ...r, value_score: Math.round(Number(r.value_score)) })),
+        data: rows.map((r: any) => normalizeCustomerFields(r)),
         meta: {
           total: Number(total),
           page:  pageNum,
@@ -415,7 +464,7 @@ router.get(
         [id]
       ) as [any[], any];
 
-      const customer = customers[0];
+      const customer = normalizeCustomerFields(customers[0]);
       if (!customer) {
         res.status(404).json({ success: false, error: "Customer not found" });
         return;

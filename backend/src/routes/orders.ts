@@ -215,7 +215,12 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
     await connection.query(
       `INSERT INTO customers (id, phone, name, city, location, gender, age_group)
        VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE name = VALUES(name), city = VALUES(city)`,
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         city = VALUES(city),
+         location = VALUES(location),
+         gender = COALESCE(VALUES(gender), gender),
+         age_group = COALESCE(VALUES(age_group), age_group)`,
       [
         tempCustomerId, fields.phone, fields.customer_name, fields.city,
         fields.location, fields.gender ?? null, fields.age_group ?? null,
