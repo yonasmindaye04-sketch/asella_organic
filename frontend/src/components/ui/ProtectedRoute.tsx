@@ -30,6 +30,9 @@ const CALL_CENTER_ALLOWED_PATHS = [
   '/dashboard/tracking',
   '/dashboard/notifications',
   '/dashboard/call-center',
+  '/dashboard/products',
+  '/dashboard/stock-alert',
+  '/dashboard/stock-request',
 ];
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {

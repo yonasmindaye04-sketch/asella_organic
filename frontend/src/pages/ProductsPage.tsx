@@ -962,6 +962,192 @@ function ProductsTab({ onReloadStock }: ProductsTabProps) {
   );
 }
 
+// ─── Sub-component: RequestRestockModal ───────────────────────────────────────
+
+interface RequestRestockModalProps {
+  initialItem?: StockItem | null;
+  items: StockItem[];
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function RequestRestockModal({ initialItem, items, onClose, onSaved }: RequestRestockModalProps) {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const [selectedProductId, setSelectedProductId] = useState(initialItem?.id || (items[0]?.id ?? ''));
+  const [qty, setQty] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const currentItem = items.find(i => i.id === selectedProductId) || initialItem;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!currentItem) {
+      setError('Please select a product.');
+      return;
+    }
+    const qtyNum = parseInt(qty, 10);
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      setError('Quantity needed must be greater than 0.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await api.post<any>('/api/stock/request', {
+        product_id: currentItem.id,
+        item: currentItem.name,
+        package_size: currentItem.package_size,
+        stock_available: currentItem.current_quantity,
+        qty_needed: qtyNum,
+        delivery_date: deliveryDate || undefined,
+        requested_by: user?.name || (user as any)?.full_name || user?.username || 'Call Center Agent',
+        notes: notes.trim() || undefined,
+      });
+
+      if (res.success) {
+        onSaved();
+      } else {
+        setError(res.error || 'Failed to submit stock request.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to submit stock request. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-[#1c2e20] text-white rounded-2xl max-w-md w-full border border-white/10 shadow-2xl overflow-hidden p-6">
+        <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-amber-400">assignment</span>
+            <h3 className="font-bold text-lg text-white">Request Stock Replenishment</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition cursor-pointer">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+              Product & Package Size *
+            </label>
+            {initialItem ? (
+              <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                <p className="font-bold text-sm text-white">{initialItem.name}</p>
+                <p className="text-xs text-gray-400">{initialItem.package_size} · {initialItem.tag ?? 'Standard'}</p>
+              </div>
+            ) : (
+              <select
+                value={selectedProductId}
+                onChange={e => setSelectedProductId(e.target.value)}
+                className="w-full bg-[#112415] border border-white/20 rounded-lg px-3.5 py-2.5 text-white text-sm outline-none focus:border-amber-400"
+              >
+                {items.map(it => (
+                  <option key={it.id} value={it.id} className="bg-[#112415] text-white">
+                    {it.name} ({it.package_size}) — Current: {it.current_quantity}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {currentItem && (
+            <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-gray-400">
+                  Current In Stock
+                </span>
+                <p className="text-lg font-mono font-extrabold text-white mt-0.5">
+                  {currentItem.current_quantity} units
+                </p>
+              </div>
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                currentItem.stock_status === 'out_of_stock' ? 'bg-red-900/60 text-red-200' :
+                currentItem.stock_status === 'critical' ? 'bg-orange-900/60 text-orange-200' :
+                currentItem.stock_status === 'low' ? 'bg-amber-900/60 text-amber-200' :
+                'bg-emerald-900/60 text-emerald-200'
+              }`}>
+                {STATUS_LABELS[currentItem.stock_status] || currentItem.stock_status}
+              </span>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+              Quantity Needed *
+            </label>
+            <input
+              type="number"
+              min="1"
+              required
+              value={qty}
+              onChange={e => setQty(e.target.value)}
+              placeholder="e.g. 25"
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3.5 py-2.5 text-white placeholder-gray-500 outline-none focus:border-amber-400 text-sm font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+              Needed By Date (Optional)
+            </label>
+            <input
+              type="date"
+              value={deliveryDate}
+              onChange={e => setDeliveryDate(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3.5 py-2.5 text-white outline-none focus:border-amber-400 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+              Notes / Urgency Details
+            </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Reason for restock, expected customer demand..."
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-3.5 py-2.5 text-white placeholder-gray-500 outline-none focus:border-amber-400 text-sm resize-none"
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-900/40 border border-red-700/50 text-red-300 rounded-lg px-3.5 py-2 text-xs font-semibold">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-white/20 text-gray-300 font-semibold hover:bg-white/5 transition text-sm cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold transition text-sm disabled:opacity-50 cursor-pointer shadow-md"
+            >
+              {saving ? 'Submitting…' : 'Submit Restock Request'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tab 2: Stock ─────────────────────────────────────────────────────────────
 
 interface StockTabProps {
@@ -980,6 +1166,8 @@ function StockTab({ reloadKey }: StockTabProps) {
   const [search,    setSearch]   = useState('');
   const [adjTarget, setAdjTarget] = useState<StockItem | null>(null);
   const [reviewTarget, setReviewTarget] = useState<StockRequest | null>(null);
+  const [restockTarget, setRestockTarget] = useState<StockItem | null>(null);
+  const [showGeneralRestock, setShowGeneralRestock] = useState(false);
   const [activeSection, setSection] = useState<'stock' | 'movements' | 'requests'>('stock');
 
   const loadAll = useCallback(async () => {
@@ -1061,21 +1249,32 @@ function StockTab({ reloadKey }: StockTabProps) {
           {/* ── Stock Levels ── */}
           {activeSection === 'stock' && (
             <div>
-              {/* Filters */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm flex-1 min-w-44">
-                  <span className="material-symbols-outlined text-gray-400 text-[16px]">search</span>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
-                    className="w-full bg-transparent outline-none text-sm placeholder-gray-400" />
+              {/* Filters & Actions */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-2 flex-1">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm min-w-44 flex-1 sm:flex-initial">
+                    <span className="material-symbols-outlined text-gray-400 text-[16px]">search</span>
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products in stock…"
+                      className="w-full bg-transparent outline-none text-sm placeholder-gray-400" />
+                  </div>
+                  {(['all', 'ok', 'low', 'critical', 'out_of_stock'] as const).map(f => (
+                    <button key={f} onClick={() => setFilter(f)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition border ${
+                        filter === f ? 'bg-[#112415] text-white border-[#112415]' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}>
+                      {f === 'all' ? 'All' : f === 'ok' ? 'OK' : f === 'low' ? 'Low' : f === 'critical' ? 'Critical' : 'Out of Stock'}
+                    </button>
+                  ))}
                 </div>
-                {(['all', 'ok', 'low', 'critical', 'out_of_stock'] as const).map(f => (
-                  <button key={f} onClick={() => setFilter(f)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition border ${
-                      filter === f ? 'bg-[#112415] text-white border-[#112415]' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}>
-                    {f === 'all' ? 'All' : f === 'ok' ? 'OK' : f === 'low' ? 'Low' : f === 'critical' ? 'Critical' : 'Out of Stock'}
-                  </button>
-                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setShowGeneralRestock(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1b4d24] text-white text-xs font-bold hover:bg-[#143e1c] shadow-xs transition cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add_shopping_cart</span>
+                  Request Restock
+                </button>
               </div>
 
               {/* Desktop Table View */}
@@ -1132,11 +1331,20 @@ function StockTab({ reloadKey }: StockTabProps) {
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button onClick={() => setAdjTarget(item)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#e8f5e9] text-[#112415] text-xs font-bold hover:bg-[#4ade80] transition">
-                              <span className="material-symbols-outlined text-[14px]">tune</span>
-                              Adjust
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button onClick={() => setAdjTarget(item)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#e8f5e9] text-[#112415] text-xs font-bold hover:bg-[#4ade80] transition cursor-pointer"
+                                title="Adjust inventory count">
+                                <span className="material-symbols-outlined text-[14px]">tune</span>
+                                Adjust
+                              </button>
+                              <button onClick={() => setRestockTarget(item)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold hover:bg-amber-100 transition cursor-pointer"
+                                title="Request restock for this product">
+                                <span className="material-symbols-outlined text-[14px]">assignment</span>
+                                Restock
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1180,11 +1388,18 @@ function StockTab({ reloadKey }: StockTabProps) {
                           <p className="text-[10px] text-gray-400 uppercase tracking-wide">Last Movement</p>
                           <p className="text-xs font-medium text-gray-600">{fmtDate(item.last_movement_at) || 'None'}</p>
                         </div>
-                        <button onClick={() => setAdjTarget(item)}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#e8f5e9] text-[#112415] text-sm font-bold hover:bg-[#4ade80] active:scale-95 transition-all">
-                          <span className="material-symbols-outlined text-[16px]">tune</span>
-                          Adjust
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setAdjTarget(item)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#e8f5e9] text-[#112415] text-xs font-bold hover:bg-[#4ade80] active:scale-95 transition-all">
+                            <span className="material-symbols-outlined text-[14px]">tune</span>
+                            Adjust
+                          </button>
+                          <button onClick={() => setRestockTarget(item)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold hover:bg-amber-100 active:scale-95 transition-all">
+                            <span className="material-symbols-outlined text-[14px]">assignment</span>
+                            Restock
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1333,6 +1548,21 @@ function StockTab({ reloadKey }: StockTabProps) {
           onSaved={() => { setReviewTarget(null); void loadAll(); }}
         />
       )}
+      {(restockTarget || showGeneralRestock) && (
+        <RequestRestockModal
+          initialItem={restockTarget}
+          items={items}
+          onClose={() => {
+            setRestockTarget(null);
+            setShowGeneralRestock(false);
+          }}
+          onSaved={() => {
+            setRestockTarget(null);
+            setShowGeneralRestock(false);
+            void loadAll();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1342,8 +1572,13 @@ function StockTab({ reloadKey }: StockTabProps) {
 type TabKey = 'products' | 'stock';
 
 export default function ProductsPage() {
-  const [tab,       setTab]       = useState<TabKey>('products');
-  const [reloadKey, setReloadKey] = useState(0);   // bumped when Products tab changes stock
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isCallCenter = user?.role === 'call_center';
+  const isStoreManager = user?.role === 'store_manager';
+  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
+
+  const [tab, setTab] = useState<TabKey>(isCallCenter || isStoreManager ? 'stock' : 'products');
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Shared inline styles as a single Tailwind class string approach — define in index.css:
   // .label { @apply block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5; }
@@ -1361,13 +1596,20 @@ export default function ProductsPage() {
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-[#112415]">Products</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage your catalog and track inventory in one place.</p>
+            <h1 className="text-2xl font-bold text-[#112415]">
+              {isCallCenter ? 'Stock & Inventory Management' : 'Products & Inventory'}
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {isCallCenter
+                ? 'Review inventory stock levels, inspect movements, and submit restock requests.'
+                : 'Manage your catalog and track inventory in one place.'}
+            </p>
           </div>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 mb-6 p-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] w-fit animate-in" style={{ animationDelay: '0.05s' }}>
+        {isManagerOrAdmin && (
+          <div className="flex gap-1 mb-6 p-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] w-fit animate-in" style={{ animationDelay: '0.05s' }}>
           <button
             onClick={() => setTab('products')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
@@ -1391,6 +1633,7 @@ export default function ProductsPage() {
             Stock
           </button>
         </div>
+        )}
 
         {/* Tab content */}
         {tab === 'products' && (

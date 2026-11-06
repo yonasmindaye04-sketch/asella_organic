@@ -82,7 +82,7 @@ router.get(
   // Exposes stock_value = quantity × unit_cost for every SKU, i.e. a full
   // COGS valuation. `authenticate` alone let any role (including affiliate)
   // read it. Matches the guard already on /movements below.
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const { search, status } = req.query as Record<string, string | undefined>;
 
@@ -161,7 +161,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager";
     try {
@@ -224,7 +224,7 @@ router.get(
 router.get(
   "/movements",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center"),
   async (req: Request, res: Response): Promise<void> => {
     const {
       product_id, type, reference_type,
@@ -303,7 +303,7 @@ router.get(
 router.get(
   "/low",
   authenticate,
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const [rows] = await pool.query(
@@ -339,7 +339,7 @@ router.get(
 router.post(
   "/adjustment",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "store_manager", "call_center"),
   validate(AdjustmentSchema),
   async (req: Request, res: Response): Promise<void> => {
     const { product_id, movement_type, change_amount, reason, notes } = req.body as {

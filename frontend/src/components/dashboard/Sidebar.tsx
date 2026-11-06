@@ -212,6 +212,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badgeVariant="rose"
                 />
                 <NavItem to="/dashboard/call-center" icon="summarize" label="Reporting Channel" />
+                <NavItem to="/dashboard/products" icon="inventory_2" label="Stock & Inventory" />
+                <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
               </ul>
             </>
           ) : isEmployee ? (
