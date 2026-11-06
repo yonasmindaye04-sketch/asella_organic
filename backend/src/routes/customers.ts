@@ -92,6 +92,35 @@ function customerIdFrom(value: unknown): string | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Maps customer segment names directly to their defining value_score boundaries.
+ * In vw_customer_insights, segment is generated via a CASE on value_score.
+ * Filtering by value_score avoids any collation conflicts (ERROR 1267 Illegal mix of collations)
+ * across varied MySQL server/connection collations.
+ */
+export function applySegmentFilter(
+  conditions: string[],
+  values: unknown[],
+  segment: string,
+  colPrefix = "v."
+): void {
+  const seg = segment.trim().toLowerCase();
+  if (seg === "vip") {
+    conditions.push(`${colPrefix}value_score >= 80`);
+  } else if (seg === "loyal") {
+    conditions.push(`${colPrefix}value_score >= 60 AND ${colPrefix}value_score < 80`);
+  } else if (seg === "promising") {
+    conditions.push(`${colPrefix}value_score >= 40 AND ${colPrefix}value_score < 60`);
+  } else if (seg === "at risk") {
+    conditions.push(`${colPrefix}value_score >= 20 AND ${colPrefix}value_score < 40`);
+  } else if (seg === "dormant") {
+    conditions.push(`${colPrefix}value_score < 20`);
+  } else {
+    conditions.push(`BINARY ${colPrefix}segment = ?`);
+    values.push(segment);
+  }
+}
+
 // GET /api/customers — paginated list with filters
 //
 // Query: ?search ?city ?segment ?source ?min_score ?max_score
@@ -124,20 +153,9 @@ router.get(
       values.push(like, like, like, like);
     }
     if (city)     { conditions.push("v.city LIKE ?");           values.push(`%${city}%`); }
-    // COLLATE is required, not decoration.
-    //
-    // vw_customer_insights is internally inconsistent: `segment` comes from
-    // a CASE returning the literals 'VIP'/'Loyal'/... so it took the
-    // database default, utf8mb4_general_ci, while every other projected
-    // column is inherited from `customers` and is utf8mb3_unicode_ci.
-    // Comparing that column against a literal raises
-    //   ERROR 1267 Illegal mix of collations
-    // and surfaced as a 500 on GET /api/customers?segment=... once the pool
-    // was pinned to utf8mb4_unicode_ci. Pinning the pool cannot fix this
-    // one column -- the two spellings have to be reconciled at the
-    // comparison, and this is the only query in the codebase that
-    // compares `segment` to a literal.
-    if (segment)  { conditions.push("v.segment COLLATE utf8mb4_unicode_ci = ?"); values.push(segment); }
+    if (segment) {
+      applySegmentFilter(conditions, values, segment, "v.");
+    }
     if (min_score) { conditions.push("v.value_score >= ?");     values.push(Number(min_score) || 0); }
     if (max_score) { conditions.push("v.value_score <= ?");     values.push(Number(max_score) || 0); }
     if (returned_only === "true") { conditions.push("v.returned_count > 0"); }

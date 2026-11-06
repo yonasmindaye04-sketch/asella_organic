@@ -290,7 +290,7 @@ router.post("/preview", ...staffOnly, validate(PreviewSmsCampaignSchema), async 
       const conditions: string[] = ["phone IS NOT NULL", "phone <> ''"];
       const values: unknown[] = [];
 
-      if (input.segment) { conditions.push("segment = ?"); values.push(input.segment); }
+      if (input.segment) { applySegmentFilter(conditions, values, input.segment, ""); }
       if (input.city) { conditions.push("city = ?"); values.push(input.city); }
       if (typeof input.min_orders === "number") { conditions.push("order_count >= ?"); values.push(input.min_orders); }
       if (typeof input.max_days_idle === "number") { conditions.push("days_since_last_order >= ?"); values.push(input.max_days_idle); }
@@ -429,7 +429,7 @@ router.post(
       } else {
         const conditions: string[] = ["phone IS NOT NULL", "phone <> ''"];
         const values: unknown[] = [];
-        if (campaign.target_segment) { conditions.push("segment = ?"); values.push(campaign.target_segment); }
+        if (campaign.target_segment) { applySegmentFilter(conditions, values, campaign.target_segment, ""); }
         if (campaign.target_city) { conditions.push("city = ?"); values.push(campaign.target_city); }
         if (csvInt(campaign.target_min_orders) !== null) { conditions.push("order_count >= ?"); values.push(csvInt(campaign.target_min_orders)); }
         if (csvInt(campaign.target_max_days_idle) !== null) { conditions.push("days_since_last_order >= ?"); values.push(csvInt(campaign.target_max_days_idle)); }
@@ -584,7 +584,7 @@ router.post(
       // Estimate recipients from vw_customer_insights
       const conditions: string[] = ["phone IS NOT NULL", "phone <> ''"];
       const values: unknown[] = [];
-      if (segment) { conditions.push("segment = ?"); values.push(segment); }
+      if (segment) { applySegmentFilter(conditions, values, segment, ""); }
       if (city) { conditions.push("city = ?"); values.push(city); }
       if (Number.isFinite(Number(min_orders))) { conditions.push("order_count >= ?"); values.push(Number(min_orders)); }
       if (Number.isFinite(Number(max_days_idle))) { conditions.push("days_since_last_order >= ?"); values.push(Number(max_days_idle)); }

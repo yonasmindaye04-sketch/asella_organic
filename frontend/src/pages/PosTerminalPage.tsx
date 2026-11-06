@@ -88,6 +88,7 @@ const splitPhoneNumber = (rawPhone: string) => {
       break;
     }
   }
+  localNum = localNum.replace(/^0+/, '').trim();
   return { code: matchedCode, local: localNum };
 };
 
@@ -175,10 +176,15 @@ export default function PosTerminalPage() {
   }, [customerSearchQuery]);
 
   const handleSelectCustomer = (c: any) => {
+    const rawPhone = c.phone || '';
+    const parsed = splitPhoneNumber(rawPhone);
+    setCustomerCountryCode(parsed.code);
+    setCustomerPhoneLocal(parsed.local);
+
     setCustomerModalData({
-      id: c.id,
+      id: c.customer_id || c.id,
       name: c.name || '',
-      phone: c.phone || '',
+      phone: rawPhone,
       city: c.city || 'Addis Ababa',
       location: c.location || '',
       gender: c.gender || '',

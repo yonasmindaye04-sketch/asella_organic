@@ -548,11 +548,7 @@ router.get("/", authenticate,
       values.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    // Call center agents can only see orders they created themselves.
-    if (req.user?.role === "call_center") {
-      conditions.push("o.created_by_staff_id = ?");
-      values.push(req.user.id);
-    }
+    // Call center agents can see all orders so they can assist any customer who calls.
 
     // Store managers can see orders they created themselves, all pickup orders, or orders at their store location
     if (req.user?.role === "store_manager") {
@@ -661,11 +657,7 @@ router.get(
         return;
       }
 
-      // call_center agents can only read orders they created
-      if (req.user?.role === "call_center" && order.created_by_staff_id !== req.user.id) {
-        res.status(403).json({ success: false, error: "Forbidden" });
-        return;
-      }
+      // call_center agents can read all orders to assist customer inquiries
 
       // store_manager can read orders they created OR any pickup order
       if (req.user?.role === "store_manager" && order.created_by_staff_id !== req.user.id && !(order.order_type || "").toLowerCase().includes("pickup")) {

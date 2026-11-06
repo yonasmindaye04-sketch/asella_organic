@@ -294,19 +294,11 @@ router.post(
       const stats = await computeDayOrderStats(staffId, reportDate);
       const isBackdated = reportDate !== today;
 
-      // Automatically capture orders from the system; use manual values only if explicitly passed
-      const callsOrdered = parsed.data.calls_ordered ?? stats.system_orders;
-      const callsReceived = parsed.data.calls_received ?? Math.max(stats.system_orders, 0);
-      const callsRejected = parsed.data.calls_rejected ?? 0;
-      const ordersMatch = callsOrdered === stats.system_orders;
-
-      if (parsed.data.calls_received !== undefined && parsed.data.calls_ordered !== undefined && callsOrdered + callsRejected > callsReceived) {
-        res.status(422).json({
-          success: false,
-          error: "Orders placed plus rejected calls cannot be greater than total calls received.",
-        });
-        return;
-      }
+      // Authoritative system orders; calls_received recorded from shift form
+      const callsOrdered = stats.system_orders;
+      const callsReceived = parsed.data.calls_received !== undefined ? parsed.data.calls_received : Math.max(stats.system_orders, 0);
+      const callsRejected = Math.max(0, callsReceived - callsOrdered);
+      const ordersMatch = true;
 
       const connection = await pool.getConnection();
       let reportId = crypto.randomUUID();

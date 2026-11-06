@@ -160,6 +160,7 @@ const CallCenterReportPage: React.FC = () => {
   const [entry, setEntry] = useState<DailyEntry | null>(null);
   const [entryLoading, setEntryLoading] = useState(true);
   const [entryError, setEntryError] = useState<string | null>(null);
+  const [callsReceived, setCallsReceived] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -202,6 +203,7 @@ const CallCenterReportPage: React.FC = () => {
       if (res.success && res.data) {
         setEntry(res.data);
         const existing = res.data.existing_report;
+        setCallsReceived(existing && existing.calls_received > 0 ? String(existing.calls_received) : '');
         setNotes(existing?.notes ?? '');
       } else {
         setEntryError(res.error ?? 'Failed to load this day’s report.');
@@ -238,12 +240,14 @@ const CallCenterReportPage: React.FC = () => {
 
     setSubmitting(true);
     try {
+      const parsedCalls = callsReceived.trim() ? parseInt(callsReceived.trim(), 10) : undefined;
       const res = await api.post<{
         report_date: string;
         updated: boolean;
         orders_match: boolean;
       }>('/api/callcenter/me/daily-report', {
         report_date: reportDate,
+        calls_received: parsedCalls !== undefined && !isNaN(parsedCalls) && parsedCalls >= 0 ? parsedCalls : undefined,
         notes: notes.trim() || undefined,
       });
 
@@ -266,6 +270,7 @@ const CallCenterReportPage: React.FC = () => {
   };
 
   const handleClear = () => {
+    setCallsReceived('');
     setNotes('');
     setSubmitError(null);
     setSubmitOk(null);
@@ -600,6 +605,24 @@ const CallCenterReportPage: React.FC = () => {
 
                 <div>
                   <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">
+                    Calls Received (Total Calls Handled)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder="e.g. 20"
+                    value={callsReceived}
+                    onChange={(e) => setCallsReceived(e.target.value)}
+                    className={inputClass}
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1.5 ml-1">
+                    Total customer calls you handled for this date (e.g. 20 calls).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-obsidian uppercase tracking-widest mb-1.5 ml-1">
                     Notes
                   </label>
                   <textarea
@@ -669,7 +692,16 @@ const CallCenterReportPage: React.FC = () => {
                     <div className="mt-4 rounded-xl bg-[#f0fdf4] border border-[#c3e6cb] px-4 py-3 text-[12px] leading-relaxed text-[#14532d]">
                       <p className="font-bold mb-1">Report summary</p>
                       <p>
-                        <strong>{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} automatically captured for this date.
+                        {callsReceived ? (
+                          <>
+                            <strong>{callsReceived}</strong> call{Number(callsReceived) === 1 ? '' : 's'} handled →{' '}
+                            <strong>{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} placed.
+                          </>
+                        ) : (
+                          <>
+                            <strong>{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} automatically captured for this date.
+                          </>
+                        )}
                         {' '}Breakdown:{' '}
                         <strong>{stats?.delivery_orders ?? 0}</strong> delivery,{' '}
                         <strong>{stats?.pickup_orders ?? 0}</strong> pickup;{' '}
