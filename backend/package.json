@@ -13,7 +13,7 @@
     "test:security": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration/security.test.ts --forceExit",
     "test:integration": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration/ --forceExit",
     "test:unit:nodb": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/unit --config jest.nodb.config.js --forceExit",
-    "dev": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "telegram:poll": "tsx src/scripts/telegram-poll.ts",
     "db:migrate": "node migrate.cjs",
     "db:migrate:reset": "node migrate.cjs --reset",

@@ -1505,7 +1505,7 @@ function StockTab({ reloadKey }: StockTabProps) {
                           }`}>{r.status}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {r.status === 'pending' && (
+                          {isManagerOrAdmin && r.status === 'pending' && (
                             <div className="flex gap-1 justify-center">
                               <button onClick={() => setReviewTarget(r)}
                                 className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-[#e8f5e9] text-[#112415] hover:bg-[#4ade80] transition inline-flex items-center gap-1">
@@ -1514,11 +1514,14 @@ function StockTab({ reloadKey }: StockTabProps) {
                               </button>
                             </div>
                           )}
-                          {r.status === 'ordered' && (
+                          {isManagerOrAdmin && r.status === 'ordered' && (
                             <button onClick={() => void handleRequestStatus(r.id, 'received')}
                               className="px-2 py-1 text-[10px] font-bold rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition">
                               Mark Received
                             </button>
+                          )}
+                          {!isManagerOrAdmin && (
+                            <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
                       </tr>

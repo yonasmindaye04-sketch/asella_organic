@@ -2062,7 +2062,7 @@ export async function executeMockQuery(
     }
 
     // Stock summary query (GET /api/stock/summary)
-    if (sqlLower.includes("total_stock_value") && sqlLower.includes("out_of_stock_count")) {
+    if (sqlLower.includes("out_of_stock_count") && (sqlLower.includes("total_stock_value") || sqlLower.includes("total_units")) || (sqlLower.includes("as total_products") && sqlLower.includes("as out_of_stock_count"))) {
       const total_products = list.length;
       const total_units = list.reduce((s, p) => s + Number(p.inventory_quantity || 0), 0);
       const total_stock_value = list.reduce(
