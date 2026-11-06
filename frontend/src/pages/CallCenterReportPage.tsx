@@ -689,14 +689,11 @@ const CallCenterReportPage: React.FC = () => {
                 </div>
 
                 {/* Automated capture notification */}
-                <div className="rounded-xl bg-[#1b4d24] text-white p-4.5 shadow-sm border border-[#143e1c]">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="material-symbols-outlined text-white text-lg">auto_awesome</span>
-                    <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                      Orders Captured Automatically
-                    </h4>
-                  </div>
-                  <p className="text-[12px] font-bold text-white leading-relaxed">
+                <div className="rounded-xl bg-white border border-[#d4ecd4] p-4 shadow-xs">
+                  <h4 className="text-xs font-black text-[#1b4d24] uppercase tracking-wider mb-1.5">
+                    Orders Captured Automatically
+                  </h4>
+                  <p className="text-[12px] font-bold text-[#1b4d24] leading-relaxed">
                     All orders you created for this date are captured directly from the system. You do not need to enter numbers manually—just review the calculated order figures on the right, add your shift notes below, and submit.
                   </p>
                 </div>
@@ -787,30 +784,29 @@ const CallCenterReportPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-xl bg-[#1b4d24] text-white border border-[#143e1c] px-4.5 py-3.5 text-[12px] leading-relaxed shadow-sm">
-                      <p className="font-black text-white text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-base">description</span>
+                    <div className="mt-4 rounded-xl bg-white border border-[#d4ecd4] px-4 py-3 text-[12px] leading-relaxed shadow-xs">
+                      <p className="font-black text-[#1b4d24] text-xs uppercase tracking-wider mb-1">
                         Report Summary
                       </p>
-                      <p className="font-bold text-white text-[12px]">
+                      <p className="font-bold text-[#1b4d24] text-[12px] leading-relaxed">
                         {callsReceived ? (
                           <>
-                            <strong className="text-white font-black underline underline-offset-2">{callsReceived}</strong> call{Number(callsReceived) === 1 ? '' : 's'} handled →{' '}
-                            <strong className="text-white font-black underline underline-offset-2">{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} placed.
+                            <strong className="font-black text-[#1b4d24]">{callsReceived}</strong> call{Number(callsReceived) === 1 ? '' : 's'} handled →{' '}
+                            <strong className="font-black text-[#1b4d24]">{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} placed.
                           </>
                         ) : (
                           <>
-                            <strong className="text-white font-black underline underline-offset-2">{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} automatically captured for this date.
+                            <strong className="font-black text-[#1b4d24]">{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} automatically captured for this date.
                           </>
                         )}
                         {' '}Breakdown:{' '}
-                        <strong className="text-white font-black">{stats?.delivery_orders ?? 0}</strong> delivery,{' '}
-                        <strong className="text-white font-black">{stats?.pickup_orders ?? 0}</strong> pickup;{' '}
-                        <strong className="text-white font-black">{stats?.addis_orders ?? 0}</strong> Addis Ababa,{' '}
-                        <strong className="text-white font-black">{stats?.other_region_orders ?? 0}</strong> other region
+                        <strong className="font-black text-[#1b4d24]">{stats?.delivery_orders ?? 0}</strong> delivery,{' '}
+                        <strong className="font-black text-[#1b4d24]">{stats?.pickup_orders ?? 0}</strong> pickup;{' '}
+                        <strong className="font-black text-[#1b4d24]">{stats?.addis_orders ?? 0}</strong> Addis Ababa,{' '}
+                        <strong className="font-black text-[#1b4d24]">{stats?.other_region_orders ?? 0}</strong> other region
                         {(stats?.other_region_orders ?? 0) === 1 ? '' : 's'}
                         {(stats?.abroad_orders ?? 0) > 0 && (
-                          <>, <strong className="text-white font-black">{stats?.abroad_orders}</strong> abroad</>
+                          <>, <strong className="font-black text-[#1b4d24]">{stats?.abroad_orders}</strong> abroad</>
                         )}.
                       </p>
                     </div>
