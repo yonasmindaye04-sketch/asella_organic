@@ -6,7 +6,6 @@ import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 
 type TimeRangeKey = 'today' | 'week' | 'month' | 'quarter' | 'all';
-type BadgeFilter = 'all' | 'unlocked' | 'locked';
 
 interface TrendItem {
   date: string;
@@ -17,19 +16,6 @@ interface TrendItem {
   orders_booked?: number;
   transactions?: number;
   completed?: number;
-}
-
-interface PerformanceBadge {
-  id: string;
-  title: string;
-  category: 'Quality' | 'Throughput' | 'Reliability' | 'Discipline' | 'Mastery';
-  description: string;
-  icon: string;
-  unlocked: boolean;
-  progress: number;
-  progressLabel: string;
-  requirement: string;
-  tier: 'Bronze' | 'Silver' | 'Gold';
 }
 
 interface LifetimeStats {
@@ -51,13 +37,11 @@ interface PerformanceResponse {
   };
   lifetime?: LifetimeStats;
   kpis: Record<string, any>;
-  badges?: PerformanceBadge[];
 }
 
 export default function MyPerformancePage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const [timeRange, setTimeRange] = useState<TimeRangeKey>('week');
-  const [badgeFilter, setBadgeFilter] = useState<BadgeFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PerformanceResponse | null>(null);
@@ -132,16 +116,7 @@ export default function MyPerformancePage() {
 
   const kpis = data?.kpis || {};
   const trend: TrendItem[] = kpis.trend || [];
-  const badges: PerformanceBadge[] = data?.badges || [];
   const lifetime = data?.lifetime;
-
-  // Badge calculations
-  const earnedBadgesCount = badges.filter((b) => b.unlocked).length;
-  const filteredBadges = badges.filter((b) => {
-    if (badgeFilter === 'unlocked') return b.unlocked;
-    if (badgeFilter === 'locked') return !b.unlocked;
-    return true;
-  });
 
   // Calculate highest volume in trend for SVG bar scaling
   const maxTrendVal = Math.max(
@@ -181,7 +156,7 @@ export default function MyPerformancePage() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Real-time personal throughput, service quality, and earned operational badges.
+                Real-time personal throughput, service quality, and operational efficiency metrics.
               </p>
             </div>
 
@@ -216,7 +191,7 @@ export default function MyPerformancePage() {
           <div className="mt-4 pt-4 border-t border-[#edf5ed] flex flex-col sm:flex-row sm:items-center justify-between text-xs text-gray-500 gap-3 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="flex items-center gap-1 font-semibold text-gray-800">
-                <span className="material-symbols-outlined text-sm text-[#1b4d24]">badge</span>
+                <span className="material-symbols-outlined text-sm text-[#1b4d24]">person</span>
                 {user?.name || user?.full_name || user?.username || 'Staff Member'}
               </span>
               {(data?.user?.location || (user as any)?.location) && (
@@ -227,7 +202,7 @@ export default function MyPerformancePage() {
               )}
               {lifetime && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#eaf4ea] text-[#1b4d24] font-medium text-[11px]">
-                  <span className="material-symbols-outlined text-xs">military_tech</span>
+                  <span className="material-symbols-outlined text-xs">verified</span>
                   Career: {lifetime.delivered} delivered ({lifetime.completion_rate}%)
                 </span>
               )}
@@ -547,7 +522,7 @@ export default function MyPerformancePage() {
                     <span className="text-xs font-mono font-bold uppercase tracking-wider">
                       Career Deliveries
                     </span>
-                    <span className="material-symbols-outlined text-purple-600">military_tech</span>
+                    <span className="material-symbols-outlined text-purple-600">local_shipping</span>
                   </div>
                   <div className="text-2xl font-black text-gray-900 font-mono">
                     {lifetime?.delivered ?? kpis.delivered ?? 0}
@@ -1020,138 +995,6 @@ export default function MyPerformancePage() {
               )}
             </div>
 
-            {/* DYNAMIC OPERATIONAL EXCELLENCE BADGES SECTION */}
-            <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 sm:p-6 shadow-xs space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#edf5ed]">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-amber-600 text-2xl">
-                      workspace_premium
-                    </span>
-                    <h3 className="text-base font-bold text-gray-900">
-                      Operational Honors &amp; Badges
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#eaf4ea] text-[#1b4d24]">
-                      Earned: {earnedBadgesCount} / {badges.length}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Badges are dynamically unlocked by meeting real fulfillment quality, volume, and discipline criteria.
-                  </p>
-                </div>
-
-                {/* Filter Pills */}
-                <div className="flex items-center gap-1.5 p-1 bg-[#f1f8f1] rounded-xl border border-[#d4ecd4] self-start sm:self-auto">
-                  {(
-                    [
-                      { key: 'all', label: `All (${badges.length})` },
-                      { key: 'unlocked', label: `Earned (${earnedBadgesCount})` },
-                      { key: 'locked', label: `Locked (${badges.length - earnedBadgesCount})` },
-                    ] as const
-                  ).map((f) => (
-                    <button
-                      key={f.key}
-                      type="button"
-                      onClick={() => setBadgeFilter(f.key)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        badgeFilter === f.key
-                          ? 'bg-[#1b4d24] text-white shadow-xs'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Badges Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {filteredBadges.map((badge) => {
-                  const isEarned = badge.unlocked;
-                  return (
-                    <div
-                      key={badge.id}
-                      className={`rounded-2xl p-4 transition-all relative flex flex-col justify-between border ${
-                        isEarned
-                          ? 'bg-gradient-to-b from-[#f4faf4] to-white border-emerald-300 shadow-2xs hover:shadow-xs'
-                          : 'bg-gray-50/70 border-gray-200/80 opacity-90'
-                      }`}
-                    >
-                      <div>
-                        {/* Top Bar: Icon, Category & Status Chip */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                              isEarned
-                                ? 'bg-emerald-100 text-[#1b4d24]'
-                                : 'bg-gray-200 text-gray-500'
-                            }`}
-                          >
-                            <span className="material-symbols-outlined text-lg">
-                              {badge.icon}
-                            </span>
-                          </div>
-
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              isEarned
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                : 'bg-gray-200 text-gray-600'
-                            }`}
-                          >
-                            <span className="material-symbols-outlined text-xs">
-                              {isEarned ? 'verified' : 'lock'}
-                            </span>
-                            {isEarned ? 'Achieved' : 'Locked'}
-                          </span>
-                        </div>
-
-                        {/* Title & Category */}
-                        <div className="mb-1">
-                          <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-gray-400 block">
-                            {badge.category} · {badge.tier}
-                          </span>
-                          <h4 className="text-sm font-black text-gray-900 mt-0.5">
-                            {badge.title}
-                          </h4>
-                        </div>
-
-                        {/* Description */}
-                        <p className="text-xs text-gray-600 line-clamp-2 mb-3">
-                          {badge.description}
-                        </p>
-                      </div>
-
-                      {/* Bottom Progress & Requirements */}
-                      <div className="pt-3 border-t border-gray-100/80 space-y-2">
-                        {/* Progress Bar */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-mono text-gray-500">
-                            <span className="font-semibold text-gray-700">{badge.progressLabel}</span>
-                            <span className="font-bold">{badge.progress}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isEarned ? 'bg-[#1b4d24]' : 'bg-amber-500'
-                              }`}
-                              style={{ width: `${badge.progress}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Requirement Criteria */}
-                        <p className="text-[10px] text-gray-400 leading-tight">
-                          {badge.requirement}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Quick Operational Shortcuts */}
             <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -1162,7 +1005,7 @@ export default function MyPerformancePage() {
                   <h4 className="text-sm font-bold text-gray-900">Operational Actions &amp; Navigation</h4>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Access live workflows directly to fulfill customer tasks and earn badges.
+                  Access live workflows directly to fulfill customer tasks and process orders.
                 </p>
               </div>
 

@@ -659,21 +659,8 @@ router.get(
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/performance/me — Role-specific non-monetary operational KPIs & Dynamic Badges
+// GET /api/performance/me — Role-specific non-monetary operational KPIs
 // ─────────────────────────────────────────────────────────────────────────────
-interface PerformanceBadge {
-  id: string;
-  title: string;
-  category: "Quality" | "Throughput" | "Reliability" | "Discipline" | "Mastery";
-  description: string;
-  icon: string;
-  unlocked: boolean;
-  progress: number;
-  progressLabel: string;
-  requirement: string;
-  tier: "Bronze" | "Silver" | "Gold";
-}
-
 router.get(
   "/me",
   authenticate,
@@ -1242,123 +1229,6 @@ router.get(
         };
       }
 
-      // ── 6. DYNAMIC OPERATIONAL EXCELLENCE BADGES ──────────────────────────
-      const k = data.kpis || {};
-      const activeOps = k.total_orders ?? k.total_assigned ?? k.orders_booked ?? k.transactions ?? k.total_handled ?? 0;
-      const compRate = k.fulfillment_rate ?? k.completion_rate ?? k.success_rate ?? k.pickup_success_rate ?? 100;
-      const totalDelivered = k.delivered ?? k.pickups_delivered ?? 0;
-      const issueCount = (k.issues ?? 0) + (k.cancelled ?? 0);
-      const capRate = k.capture_rate ?? k.first_attempt_rate ?? 100;
-      const shiftReports = k.reports_submitted ?? 0;
-      const backdatedReports = k.backdated_reports ?? 0;
-      const regionalCount = k.regional_orders ?? (data.lifetime?.regional_orders || 0);
-
-      const badges: PerformanceBadge[] = [
-        {
-          id: "fulfillment-purity",
-          title: "Fulfillment Purity",
-          category: "Quality",
-          description: "High execution accuracy without order drop-offs or fulfillment cancellations.",
-          icon: "verified",
-          tier: "Gold",
-          unlocked: activeOps >= 5 && compRate >= 90,
-          progress: activeOps === 0 ? 0 : Math.min(100, Math.round((Math.min(activeOps, 5) / 5) * (compRate / 90) * 100)),
-          progressLabel: `${compRate}% / 90% (${activeOps}/5 min ops)`,
-          requirement: "Maintain ≥ 90% completion rate with at least 5 operations handled in the window.",
-        },
-        {
-          id: "operational-velocity",
-          title: "Operational Velocity",
-          category: "Throughput",
-          description: "Active throughput driving substantial customer transactions and movement volume.",
-          icon: "bolt",
-          tier: "Silver",
-          unlocked: activeOps >= 10,
-          progress: Math.min(100, Math.round((activeOps / 10) * 100)),
-          progressLabel: `${activeOps} / 10 operations`,
-          requirement: "Process at least 10 customer operations, orders, or delivery trips.",
-        },
-        {
-          id: "data-integrity",
-          title: "Data Integrity Guardian",
-          category: "Mastery",
-          description: "Ensure high fidelity customer contact information and delivery accuracy.",
-          icon: "fingerprint",
-          tier: "Bronze",
-          unlocked: activeOps >= 3 && capRate >= 80,
-          progress: activeOps === 0 ? 0 : Math.min(100, Math.round((capRate / 80) * 100)),
-          progressLabel: `${capRate}% / 80% fidelity`,
-          requirement: "Achieve ≥ 80% customer contact capture or first-arrival success (min 3 ops).",
-        },
-        {
-          id: "quality-shield",
-          title: "Zero-Defect Shield",
-          category: "Quality",
-          description: "Flawless handover with zero customer defect tickets, returns, or cancellations.",
-          icon: "shield",
-          tier: "Gold",
-          unlocked: activeOps >= 5 && issueCount === 0,
-          progress: activeOps >= 5 && issueCount > 0 ? 40 : Math.min(100, Math.round((activeOps / 5) * 100)),
-          progressLabel: issueCount === 0 ? `${activeOps} / 5 defect-free` : `${issueCount} defect(s) logged`,
-          requirement: "Process at least 5 orders with zero cancellations or returns.",
-        },
-        {
-          id: "shift-discipline",
-          title: "Shift Reporting Discipline",
-          category: "Discipline",
-          description: "Timely operational shift log filing with zero missing or delayed submissions.",
-          icon: "military_tech",
-          tier: "Silver",
-          unlocked: (role === "call_center" ? shiftReports >= 2 && backdatedReports === 0 : activeOps >= 3),
-          progress: role === "call_center"
-            ? Math.min(100, Math.round((shiftReports / 2) * 100))
-            : Math.min(100, Math.round((activeOps / 3) * 100)),
-          progressLabel: role === "call_center"
-            ? `${shiftReports} / 2 reports on-time`
-            : `${Math.min(activeOps, 3)} / 3 active work milestones`,
-          requirement: role === "call_center"
-            ? "File at least 2 daily shift reports with 100% on-time submission (0 backdated)."
-            : "Complete at least 3 operational tasks across your active shifts.",
-        },
-        {
-          id: "centurion-veteran",
-          title: "Centurion Operations Veteran",
-          category: "Mastery",
-          description: "Prestigious career milestone honoring senior operational contributions.",
-          icon: "workspace_premium",
-          tier: "Gold",
-          unlocked: (lifetimeDelivered >= 50 || lifetimeTotal >= 50),
-          progress: Math.min(100, Math.round((Math.max(lifetimeDelivered, lifetimeTotal) / 50) * 100)),
-          progressLabel: `${Math.max(lifetimeDelivered, lifetimeTotal)} / 50 career operations`,
-          requirement: "Complete 50+ career operations or orders platform-wide.",
-        },
-        {
-          id: "regional-vanguard",
-          title: "Regional Vanguard",
-          category: "Reliability",
-          description: "Expanding delivery and service outreach to customers in regional areas outside Addis Ababa.",
-          icon: "hub",
-          tier: "Silver",
-          unlocked: regionalCount >= 2,
-          progress: Math.min(100, Math.round((regionalCount / 2) * 100)),
-          progressLabel: `${regionalCount} / 2 regional orders`,
-          requirement: "Successfully coordinate or deliver at least 2 regional orders outside the capital.",
-        },
-        {
-          id: "stock-sentinel",
-          title: "Inventory Sentinel",
-          category: "Reliability",
-          description: "Proactive stock oversight, preventing out-of-stock shortages and raising timely replenishment.",
-          icon: "inventory_2",
-          tier: "Bronze",
-          unlocked: (k.low_stock_count !== undefined ? k.low_stock_count <= 5 : true) && activeOps >= 1,
-          progress: activeOps >= 1 ? 100 : 0,
-          progressLabel: activeOps >= 1 ? "Active Stock Oversight" : "Awaiting Operational Task",
-          requirement: "Maintain active inventory vigilance and manage catalog stock readiness.",
-        },
-      ];
-
-      data.badges = badges;
       res.json({ success: true, data });
     } catch (err) {
       log.error("Failed to build personal performance report", err);
