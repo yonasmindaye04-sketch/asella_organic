@@ -872,3 +872,31 @@
     size: auto;
   }
 }
+
+
+/* Responsive BestSellers Grid Rows */
+:root {
+  --bestseller-rows: 3;
+}
+@media (max-width: 639px) {
+  :root {
+    --bestseller-rows: 1;
+  }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  :root {
+    --bestseller-rows: 2;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --bestseller-rows: 3;
+  }
+}
+
+/* Touch targets and smooth mobile overflow */
+@media (max-width: 768px) {
+  input, select, textarea, button {
+    touch-action: manipulation;
+  }
+}

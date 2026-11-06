@@ -225,7 +225,7 @@ const BestSellers: React.FC = () => {
           <div
             className="grid gap-4 overflow-x-auto pb-6 scrollbar-hide"
             style={{
-              gridTemplateRows: 'repeat(3, minmax(0, 1fr))',
+              gridTemplateRows: 'repeat(var(--bestseller-rows, 3), minmax(0, 1fr))',
               gridAutoFlow: 'column',
               gridAutoColumns: 'minmax(230px, 1fr)',
             }}
@@ -281,7 +281,7 @@ const BestSellers: React.FC = () => {
           <div
             className="grid gap-4 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory"
             style={{
-              gridTemplateRows: 'repeat(3, minmax(0, 1fr))',
+              gridTemplateRows: 'repeat(var(--bestseller-rows, 3), minmax(0, 1fr))',
               gridAutoFlow: 'column',
               gridAutoColumns: 'minmax(240px, 1fr)',
             }}

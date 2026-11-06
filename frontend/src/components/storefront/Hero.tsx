@@ -56,27 +56,27 @@ const Hero: React.FC = () => {
         </p>
 
         {/* Buttons */}
-        <div className="flex flex-col md:flex-row justify-center items-center gap-4 lg:gap-6 mb-14 lg:mb-20 w-full max-w-4xl mx-auto px-4 md:px-0">
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 lg:gap-6 mb-12 sm:mb-14 lg:mb-20 w-full max-w-4xl mx-auto px-4 md:px-0">
           
-          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} aria-label="Order organic products now" className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-gentle-bounce">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'sales' }))} aria-label="Order organic products now" className="w-full sm:w-auto flex-1 min-h-[48px] px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 lg:gap-3 animate-gentle-bounce">
             <span className="material-symbols-outlined w-5 h-5 lg:w-6 lg:h-6 text-base lg:text-xl flex-shrink-0">shopping_cart</span>
             {t('hero.btn.order')}
           </button>
 
-          <a href="#story" aria-label="Learn more about Asella Organic story" className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <a href="#story" aria-label="Learn more about Asella Organic story" className="w-full sm:w-auto flex-1 min-h-[48px] px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined w-5 h-5 lg:w-6 lg:h-6 text-base lg:text-xl flex-shrink-0">info</span>
             {t('hero.btn.about')}
           </a>
 
-          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} aria-label="Bulk franchise ordering" className="w-full max-w-[220px] md:max-w-none md:w-auto flex-1 px-5 py-2.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
+          <button onClick={() => dispatch(openOrderModal({ mode: 'franchise' }))} aria-label="Bulk franchise ordering" className="w-full sm:w-auto flex-1 min-h-[48px] px-6 py-3.5 lg:px-10 lg:py-4 bg-obsidian text-parchment rounded-lg font-bold text-sm md:text-sm lg:text-base hover:bg-obsidian-mid hover:-translate-y-1 transition-all shadow-lg flex items-center justify-center gap-2 lg:gap-3">
             <span className="material-symbols-outlined w-5 h-5 lg:w-6 lg:h-6 text-base lg:text-xl flex-shrink-0">inventory_2</span>
             {t('hero.btn.bulk')}
           </button>
         </div>
 
         {/* Stats Bar */}
-        <div className="bg-white dark:bg-obsidian backdrop-blur-md rounded-[32px] shadow-sm border border-border py-4 lg:py-5 px-6 lg:px-10 w-full max-w-[80rem] mx-auto">
-          <div className="flex flex-wrap justify-between items-center gap-x-6 lg:gap-x-10 gap-y-6">
+        <div className="bg-white dark:bg-obsidian backdrop-blur-md rounded-2xl sm:rounded-[32px] shadow-sm border border-border py-4 sm:py-5 px-4 sm:px-6 lg:px-10 w-full max-w-[80rem] mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-10">
             
             {/* Stat 1 */}
             <div className="flex flex-1 min-w-[200px] justify-center items-center gap-4">

@@ -250,7 +250,7 @@ const OrderForm: React.FC = () => {
       <div className="bg-parchment dark:bg-[#121212] border border-highland-gold/20 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-4 flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 flex items-center justify-between bg-parchment dark:bg-[#121212]">
+        <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-3 sm:pb-4 flex items-center justify-between bg-parchment dark:bg-[#121212]">
           <div>
             <h3 className="font-display-lg font-black text-3xl text-obsidian dark:text-white mb-1">{getFormTitle()}</h3>
             <p className="text-base font-sans text-slate-700 dark:text-slate-300">{getFormSubTitle()}</p>
@@ -261,7 +261,7 @@ const OrderForm: React.FC = () => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-8 pb-8 overflow-y-auto flex-1 min-h-0 font-sans">
+        <form onSubmit={handleSubmit} className="px-4 sm:px-8 pb-6 sm:pb-8 overflow-y-auto flex-1 min-h-0 font-sans">
           
           {/* ── Step 1: Customer Info ── */}
           <div className="mb-8">
@@ -477,8 +477,8 @@ const OrderForm: React.FC = () => {
         </form>
 
         {/* Footer Summary & Submit */}
-        <div className="bg-obsidian border-t border-highland-gold/10 px-8 py-5 flex items-center justify-between relative z-10">
-          <button disabled={submitting} type="submit" onClick={handleSubmit} className="px-8 py-3.5 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white rounded-xl font-mono text-sm font-bold uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-2">
+        <div className="bg-obsidian border-t border-highland-gold/10 px-4 sm:px-8 py-3.5 sm:py-5 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 relative z-10">
+          <button disabled={submitting} type="submit" onClick={handleSubmit} className="w-full sm:w-auto min-h-[48px] px-8 py-3.5 bg-highland-gold hover:bg-highland-gold-light text-obsidian dark:text-white rounded-xl font-mono text-sm font-bold uppercase tracking-widest shadow-lg hover:shadow-highland-gold/25 transition-all duration-300 disabled:opacity-70 flex items-center justify-center gap-2">
             {submitting ? (
               <>
                 <ButtonSpinner className="w-4 h-4 text-obsidian dark:text-white" />

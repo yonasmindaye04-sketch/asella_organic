@@ -81,7 +81,7 @@ export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="flex md:hidden items-center justify-center w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex lg:hidden items-center justify-center w-9 h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             aria-label="Toggle navigation"
           >
             <span className="material-symbols-outlined text-[18px]">menu</span>
