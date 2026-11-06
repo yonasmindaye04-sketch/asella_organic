@@ -740,6 +740,26 @@ router.get(
         [staffId, `${from} 00:00:00`, `${to} 23:59:59`]
       ) as [any[], any];
 
+      // Heatmap matrix: query orders by day of week (0=Mon..6=Sun) and hour of day (0..23)
+      const [heatmapRows] = await pool.query(
+        `SELECT
+           WEEKDAY(o.created_at) AS day_of_week,
+           HOUR(o.created_at) AS hour_of_day,
+           COUNT(*) AS count
+         FROM orders o
+         WHERE o.created_by_staff_id = ?
+           AND o.deleted_at IS NULL
+           AND o.created_at BETWEEN ? AND ?
+         GROUP BY WEEKDAY(o.created_at), HOUR(o.created_at)`,
+        [staffId, `${from} 00:00:00`, `${to} 23:59:59`]
+      ) as [any[], any];
+
+      const heatmap = (heatmapRows || []).map((hr: any) => ({
+        day_of_week: Number(hr.day_of_week),
+        hour_of_day: Number(hr.hour_of_day),
+        count: Number(hr.count || 0),
+      }));
+
       res.json({
         success: true,
         data: {
@@ -761,6 +781,7 @@ router.get(
             calls_logged:        Number(callRows[0]?.calls_logged || 0),
           },
           daily,
+          heatmap,
         },
       });
     } catch (err) {

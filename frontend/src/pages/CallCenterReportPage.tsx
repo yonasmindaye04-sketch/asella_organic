@@ -84,6 +84,12 @@ type DailyRow = {
   submitted_at?: string | null;
 };
 
+type HeatmapCell = {
+  day_of_week: number;
+  hour_of_day: number;
+  count: number;
+};
+
 type ReportData = {
   date_range: { from: string; to: string };
   summary: {
@@ -103,6 +109,7 @@ type ReportData = {
     calls_logged: number;
   };
   daily: DailyRow[];
+  heatmap?: HeatmapCell[];
 };
 
 const StatCard: React.FC<{
@@ -123,6 +130,9 @@ const StatCard: React.FC<{
     </div>
   </div>
 );
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
 const localToday = (): string => {
   const d = new Date();
@@ -288,25 +298,113 @@ const CallCenterReportPage: React.FC = () => {
   const s = data?.summary;
   const daily = data?.daily ?? [];
 
+  // Heatmap & Timeline State
+  const [heatmapMode, setHeatmapMode] = useState<'hourly' | 'calendar'>('hourly');
+
+  // Continuous date sequence for daily chart
+  const timelineDates = React.useMemo(() => {
+    if (!data?.date_range?.from || !data?.date_range?.to) {
+      return daily.map((d) => d.date);
+    }
+    const dates: string[] = [];
+    const cur = new Date(data.date_range.from);
+    const end = new Date(data.date_range.to);
+    while (cur <= end) {
+      dates.push(cur.toISOString().slice(0, 10));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+  }, [data?.date_range, daily]);
+
+  const dailyMapByDate = React.useMemo(() => {
+    const map = new Map<string, DailyRow>();
+    daily.forEach((d) => map.set(d.date, d));
+    return map;
+  }, [daily]);
+
   const dailyChart = {
-    labels: daily.map((d) => fmtDate(d.date)),
+    labels: timelineDates.map((dateStr) => fmtDate(dateStr)),
     datasets: [
       {
         label: 'Delivery',
-        data: daily.map((d) => d.delivery_orders),
+        data: timelineDates.map((dateStr) => dailyMapByDate.get(dateStr)?.delivery_orders ?? 0),
         backgroundColor: CHART.green700,
         borderRadius: 4,
+        maxBarThickness: 24,
         stack: 'orders',
       },
       {
         label: 'Pickup',
-        data: daily.map((d) => d.pickup_orders),
+        data: timelineDates.map((dateStr) => dailyMapByDate.get(dateStr)?.pickup_orders ?? 0),
         backgroundColor: CHART.goldLight,
         borderRadius: 4,
+        maxBarThickness: 24,
         stack: 'orders',
       },
     ],
   };
+
+  const heatmapMatrix = React.useMemo(() => {
+    const matrix: Record<number, Record<number, number>> = {};
+    for (let d = 0; d < 7; d++) {
+      matrix[d] = {};
+      for (let h = 0; h < 24; h++) {
+        matrix[d][h] = 0;
+      }
+    }
+    const list = data?.heatmap || [];
+    list.forEach((cell) => {
+      const d = cell.day_of_week;
+      const h = cell.hour_of_day;
+      if (matrix[d] && matrix[d][h] !== undefined) {
+        matrix[d][h] = cell.count;
+      }
+    });
+    return matrix;
+  }, [data?.heatmap]);
+
+  const { peakDayName, peakHourLabel, totalOrdersInHeatmap } = React.useMemo(() => {
+    const list = data?.heatmap || [];
+    const daySums: number[] = [0, 0, 0, 0, 0, 0, 0];
+    const hourSums: Record<number, number> = {};
+    let total = 0;
+
+    list.forEach((c) => {
+      total += c.count;
+      daySums[c.day_of_week] = (daySums[c.day_of_week] || 0) + c.count;
+      hourSums[c.hour_of_day] = (hourSums[c.hour_of_day] || 0) + c.count;
+    });
+
+    let bestDayIdx = 0;
+    let bestDaySum = 0;
+    daySums.forEach((sum, idx) => {
+      if (sum > bestDaySum) {
+        bestDaySum = sum;
+        bestDayIdx = idx;
+      }
+    });
+
+    let bestHour = 14;
+    let bestHourSum = 0;
+    Object.entries(hourSums).forEach(([h, sum]) => {
+      if (sum > bestHourSum) {
+        bestHourSum = sum;
+        bestHour = Number(h);
+      }
+    });
+
+    const dayName = bestDaySum > 0 ? DAYS[bestDayIdx] : 'None recorded';
+    const hourLabel =
+      bestHourSum > 0
+        ? `${bestHour > 12 ? bestHour - 12 : bestHour}:00 ${bestHour >= 12 ? 'PM' : 'AM'}`
+        : 'None recorded';
+
+    return {
+      peakDayName: dayName,
+      peakHourLabel: hourLabel,
+      totalOrdersInHeatmap: total || (data?.summary?.total_orders ?? 0),
+    };
+  }, [data?.heatmap, data?.summary?.total_orders]);
 
   const dailyOptions: any = {
     responsive: true,
@@ -591,14 +689,14 @@ const CallCenterReportPage: React.FC = () => {
                 </div>
 
                 {/* Automated capture notification */}
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <div className="rounded-xl bg-[#1b4d24] text-white p-4.5 shadow-sm border border-[#143e1c]">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="material-symbols-outlined text-emerald-700 text-lg">auto_awesome</span>
-                    <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                    <span className="material-symbols-outlined text-white text-lg">auto_awesome</span>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider">
                       Orders Captured Automatically
                     </h4>
                   </div>
-                  <p className="text-[12px] text-emerald-800 leading-relaxed">
+                  <p className="text-[12px] font-bold text-white leading-relaxed">
                     All orders you created for this date are captured directly from the system. You do not need to enter numbers manually—just review the calculated order figures on the right, add your shift notes below, and submit.
                   </p>
                 </div>
@@ -689,27 +787,30 @@ const CallCenterReportPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-xl bg-[#f0fdf4] border border-[#c3e6cb] px-4 py-3 text-[12px] leading-relaxed text-[#14532d]">
-                      <p className="font-bold mb-1">Report summary</p>
-                      <p>
+                    <div className="mt-4 rounded-xl bg-[#1b4d24] text-white border border-[#143e1c] px-4.5 py-3.5 text-[12px] leading-relaxed shadow-sm">
+                      <p className="font-black text-white text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-base">description</span>
+                        Report Summary
+                      </p>
+                      <p className="font-bold text-white text-[12px]">
                         {callsReceived ? (
                           <>
-                            <strong>{callsReceived}</strong> call{Number(callsReceived) === 1 ? '' : 's'} handled →{' '}
-                            <strong>{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} placed.
+                            <strong className="text-white font-black underline underline-offset-2">{callsReceived}</strong> call{Number(callsReceived) === 1 ? '' : 's'} handled →{' '}
+                            <strong className="text-white font-black underline underline-offset-2">{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} placed.
                           </>
                         ) : (
                           <>
-                            <strong>{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} automatically captured for this date.
+                            <strong className="text-white font-black underline underline-offset-2">{stats?.system_orders ?? 0}</strong> order{(stats?.system_orders ?? 0) === 1 ? '' : 's'} automatically captured for this date.
                           </>
                         )}
                         {' '}Breakdown:{' '}
-                        <strong>{stats?.delivery_orders ?? 0}</strong> delivery,{' '}
-                        <strong>{stats?.pickup_orders ?? 0}</strong> pickup;{' '}
-                        <strong>{stats?.addis_orders ?? 0}</strong> Addis Ababa,{' '}
-                        <strong>{stats?.other_region_orders ?? 0}</strong> other region
+                        <strong className="text-white font-black">{stats?.delivery_orders ?? 0}</strong> delivery,{' '}
+                        <strong className="text-white font-black">{stats?.pickup_orders ?? 0}</strong> pickup;{' '}
+                        <strong className="text-white font-black">{stats?.addis_orders ?? 0}</strong> Addis Ababa,{' '}
+                        <strong className="text-white font-black">{stats?.other_region_orders ?? 0}</strong> other region
                         {(stats?.other_region_orders ?? 0) === 1 ? '' : 's'}
                         {(stats?.abroad_orders ?? 0) > 0 && (
-                          <>, <strong>{stats?.abroad_orders}</strong> abroad</>
+                          <>, <strong className="text-white font-black">{stats?.abroad_orders}</strong> abroad</>
                         )}.
                       </p>
                     </div>
@@ -748,30 +849,199 @@ const CallCenterReportPage: React.FC = () => {
           </form>
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="xl:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        {/* Charts: Orders Placed Per Day & Order Breakdown (Managed Balanced Area) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Orders Placed Per Day */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-800">Orders Placed Per Day</h2>
-              <span className="text-xs text-gray-400">
+              <div>
+                <h2 className="font-bold text-sm text-gray-800">Orders Placed Per Day</h2>
+                <p className="text-[11px] text-gray-400">Daily volume breakdown (Delivery vs Pickup)</p>
+              </div>
+              <span className="text-xs font-mono text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
                 {data?.date_range.from} → {data?.date_range.to}
               </span>
             </div>
-            <div className="h-72">
+            <div className="h-64 w-full">
               <Bar data={dailyChart} options={dailyOptions} />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <h2 className="font-semibold text-gray-800 mb-4">Order Type</h2>
-            <div className="h-48">
-              <Doughnut data={typeChart} options={donutOptions} />
+          {/* Order Type & Regional Breakdown */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between">
+            <div className="mb-3">
+              <h2 className="font-bold text-sm text-gray-800">Order & Regional Breakdown</h2>
+              <p className="text-[11px] text-gray-400">Fulfillment type and destination distribution</p>
             </div>
-            <div className="mt-4 border-t border-gray-100 pt-4">
-              <h2 className="font-semibold text-gray-800 mb-3">Location</h2>
-              <div className="h-48">
-                <Doughnut data={locationChart} options={donutOptions} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-wider mb-2">Fulfillment Type</span>
+                <div className="h-44 w-full">
+                  <Doughnut data={typeChart} options={donutOptions} />
+                </div>
               </div>
+              <div className="flex flex-col items-center sm:border-l sm:border-gray-100 sm:pl-4">
+                <span className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-wider mb-2">Regional Destination</span>
+                <div className="h-44 w-full">
+                  <Doughnut data={locationChart} options={donutOptions} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Call Center Activity Heatmap */}
+        <div className="bg-white rounded-2xl border border-[#d4ecd4] shadow-sm p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-[#eef5ee]">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#1b4d24] text-xl">grid_view</span>
+                <h2 className="font-bold text-sm text-gray-900">Call Center Activity Heatmap</h2>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Hourly order intensity and peak operational windows across days of the week
+              </p>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="inline-flex rounded-lg bg-gray-100 p-0.5 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setHeatmapMode('hourly')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
+                  heatmapMode === 'hourly'
+                    ? 'bg-white text-[#1b4d24] shadow-xs'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                Hourly Peak (Day × Hour)
+              </button>
+              <button
+                type="button"
+                onClick={() => setHeatmapMode('calendar')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition cursor-pointer ${
+                  heatmapMode === 'calendar'
+                    ? 'bg-white text-[#1b4d24] shadow-xs'
+                    : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                30-Day Activity Calendar
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Insights Badges */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+            <div className="bg-[#f7faf7] border border-[#e6f0e6] rounded-xl p-2.5">
+              <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-gray-400">Busiest Day</span>
+              <p className="text-xs font-black text-gray-900 mt-0.5 truncate">{peakDayName}</p>
+            </div>
+            <div className="bg-[#f7faf7] border border-[#e6f0e6] rounded-xl p-2.5">
+              <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-gray-400">Peak Window</span>
+              <p className="text-xs font-black text-gray-900 mt-0.5 truncate">{peakHourLabel}</p>
+            </div>
+            <div className="bg-[#f7faf7] border border-[#e6f0e6] rounded-xl p-2.5">
+              <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-gray-400">Total Orders in Period</span>
+              <p className="text-xs font-black text-[#1b4d24] mt-0.5">{totalOrdersInHeatmap}</p>
+            </div>
+            <div className="bg-[#f7faf7] border border-[#e6f0e6] rounded-xl p-2.5">
+              <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-gray-400">Active Shifts</span>
+              <p className="text-xs font-black text-gray-900 mt-0.5">{daily.length} Days</p>
+            </div>
+          </div>
+
+          {/* Heatmap View 1: Hourly Peak (Day x Hour) */}
+          {heatmapMode === 'hourly' ? (
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+                {/* Hours Header */}
+                <div className="grid grid-cols-[80px_repeat(13,1fr)] gap-1.5 mb-1.5 text-[10px] font-mono text-gray-400 font-bold text-center">
+                  <div className="text-left pl-1">Day</div>
+                  {HOURS.map((h) => (
+                    <div key={h} className="truncate">
+                      {h > 12 ? `${h - 12}P` : h === 12 ? '12P' : `${h}A`}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day Rows */}
+                {DAYS.map((dayName, dayIdx) => (
+                  <div key={dayName} className="grid grid-cols-[80px_repeat(13,1fr)] gap-1.5 mb-1.5 items-center">
+                    <span className="text-xs font-bold text-gray-700 pl-1">{dayName}</span>
+                    {HOURS.map((hour) => {
+                      const count = heatmapMatrix[dayIdx]?.[hour] || 0;
+                      return (
+                        <div
+                          key={hour}
+                          title={`${dayName} ${hour}:00 - ${hour + 1}:00: ${count} order(s)`}
+                          className={`h-8 rounded-lg flex items-center justify-center text-[11px] transition-all cursor-pointer ${
+                            count === 0
+                              ? 'bg-[#f4f7f4] border border-[#e5ebe5] text-transparent hover:border-gray-400'
+                              : count === 1
+                              ? 'bg-[#d1fae5] border border-[#a7f3d0] text-[#065f46] font-bold shadow-2xs hover:scale-105'
+                              : count <= 3
+                              ? 'bg-[#6ee7b7] border border-[#34d399] text-[#064e3b] font-black shadow-2xs hover:scale-105'
+                              : count <= 5
+                              ? 'bg-[#10b981] border border-[#059669] text-white font-black shadow-2xs hover:scale-105'
+                              : 'bg-[#1b4d24] border border-[#143e1c] text-white font-black shadow-2xs hover:scale-105'
+                          }`}
+                        >
+                          {count > 0 ? count : ''}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Heatmap View 2: 30-Day Activity Calendar */
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px] p-3 bg-[#f9faf9] rounded-xl border border-[#e6eee6]">
+                <div className="grid grid-cols-7 sm:grid-cols-10 md:grid-cols-15 gap-2">
+                  {timelineDates.map((dateStr) => {
+                    const row = dailyMapByDate.get(dateStr);
+                    const orders = row?.orders || 0;
+                    const calls = row?.calls_received || 0;
+                    return (
+                      <div
+                        key={dateStr}
+                        title={`${fmtDate(dateStr)}: ${orders} order(s), ${calls} call(s)`}
+                        className={`aspect-square rounded-lg flex flex-col items-center justify-center p-1 border text-center transition-all cursor-pointer ${
+                          orders === 0
+                            ? 'bg-white border-gray-200 text-gray-400'
+                            : orders === 1
+                            ? 'bg-[#d1fae5] border-[#a7f3d0] text-[#065f46] font-bold'
+                            : orders <= 3
+                            ? 'bg-[#6ee7b7] border-[#34d399] text-[#064e3b] font-black'
+                            : 'bg-[#1b4d24] border-[#143e1c] text-white font-black'
+                        }`}
+                      >
+                        <span className="text-[9px] font-mono leading-none">{dateStr.slice(8)}</span>
+                        {orders > 0 && (
+                          <span className="text-[10px] font-extrabold mt-0.5">{orders}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Heatmap Legend */}
+          <div className="mt-4 pt-3 border-t border-[#eef5ee] flex flex-wrap items-center justify-between text-xs text-gray-500 gap-2">
+            <span className="text-[11px] font-medium text-gray-500">
+              Hover over any slot to inspect exact order count and shift details
+            </span>
+            <div className="flex items-center gap-1.5 text-[11px] font-mono">
+              <span className="text-gray-400">Less</span>
+              <span className="w-4 h-4 rounded bg-[#f4f7f4] border border-[#e5ebe5]" title="0 orders" />
+              <span className="w-4 h-4 rounded bg-[#d1fae5] border border-[#a7f3d0]" title="1 order" />
+              <span className="w-4 h-4 rounded bg-[#6ee7b7] border border-[#34d399]" title="2-3 orders" />
+              <span className="w-4 h-4 rounded bg-[#10b981] border border-[#059669]" title="4-5 orders" />
+              <span className="w-4 h-4 rounded bg-[#1b4d24] border border-[#143e1c]" title="6+ orders" />
+              <span className="text-gray-400">More</span>
             </div>
           </div>
         </div>
