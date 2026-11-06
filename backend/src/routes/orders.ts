@@ -211,6 +211,9 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
       unit_cost:    item.unitCost,
     }));
 
+    const cleanCity = fields.city ? String(fields.city).replace(/\s+/g, " ").trim() : fields.city;
+    const cleanLocation = fields.location ? String(fields.location).replace(/\s+/g, " ").trim() : fields.location;
+
     const tempCustomerId = crypto.randomUUID();
     await connection.query(
       `INSERT INTO customers (id, phone, name, city, location, gender, age_group)
@@ -222,8 +225,8 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
          gender = COALESCE(VALUES(gender), gender),
          age_group = COALESCE(VALUES(age_group), age_group)`,
       [
-        tempCustomerId, fields.phone, fields.customer_name, fields.city,
-        fields.location, fields.gender ?? null, fields.age_group ?? null,
+        tempCustomerId, fields.phone, fields.customer_name, cleanCity,
+        cleanLocation, fields.gender ?? null, fields.age_group ?? null,
       ]
     );
 
@@ -239,7 +242,7 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, 'Pending', ?)`,
       [
         orderId, fields.source, fields.customer_name, fields.phone,
-        fields.location, fields.city, fields.gender ?? null,
+        cleanLocation, cleanCity, fields.gender ?? null,
         fields.age_group ?? null, fields.order_type, total,
         fields.notes ?? null, customerId, fields.delivery_date ?? null, staffUserId,
       ]

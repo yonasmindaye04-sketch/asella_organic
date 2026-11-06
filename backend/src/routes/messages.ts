@@ -1,10 +1,10 @@
 /**
  * backend/src/routes/messages.ts
- * Asella Organic — Internal Team Messaging & Delivery Dispatch Channel
+ * Asella Organic — Internal Team Messaging & Mention System
  *
  * Allows Admins, Managers, Delivery Drivers, Call Center, Substore Managers,
- * and Tech Support to communicate, broadcast alerts, coordinate deliveries,
- * and resolve customer issues in real time.
+ * and Tech Support to communicate, mention colleagues with @username,
+ * broadcast alerts, and resolve customer issues in real time.
  */
 
 import { Router, Request, Response } from "express";
@@ -38,7 +38,7 @@ export const CHANNELS: InternalChannel[] = [
     description: "Official workplace broadcasts and management alerts across all branches.",
     icon: "campaign",
     badgeColor: "bg-amber-100 text-amber-900 border-amber-300",
-    adminOnlyPost: true,
+    adminOnlyPost: false, // Accessible to all users for team-wide announcements
   },
   {
     id: "general",
@@ -109,20 +109,53 @@ router.get("/channels", authenticate, async (req: Request, res: Response): Promi
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/messages — Fetch message stream for a channel
+// GET /api/messages/users — List active staff members for @mention autocomplete
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/users", authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, username, full_name, role, active, telegram_username
+       FROM staff_users
+       WHERE active = 1 AND deleted_at IS NULL
+       ORDER BY full_name ASC`
+    ) as [any[], any];
+
+    res.json({
+      success: true,
+      data: rows || [],
+    });
+  } catch (err: any) {
+    const log = createLogger(req);
+    log.error("Failed to fetch users for mentions", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/messages — Fetch message stream for a channel (or filter by mentions)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/", authenticate, async (req: Request, res: Response): Promise<void> => {
-  const { channel = "deliveries", limit = "50", before, search } = req.query as Record<string, string | undefined>;
+  const { channel = "deliveries", limit = "50", before, search, filter } = req.query as Record<string, string | undefined>;
   const LIMIT = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+  const currentUsername = req.user?.username || "";
 
-  if (!VALID_CHANNEL_IDS.has(channel)) {
+  if (filter !== "mentions" && !VALID_CHANNEL_IDS.has(channel)) {
     res.status(400).json({ success: false, error: `Invalid channel. Valid options: ${[...VALID_CHANNEL_IDS].join(", ")}` });
     return;
   }
 
   try {
-    const conditions: string[] = ["channel = ?"];
-    const params: any[] = [channel];
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filter === "mentions") {
+      // Find messages where the current user is mentioned across all channels
+      conditions.push("(content LIKE ? OR JSON_CONTAINS(mentions, ?))");
+      params.push(`%@${currentUsername}%`, JSON.stringify(currentUsername));
+    } else {
+      conditions.push("channel = ?");
+      params.push(channel);
+    }
 
     if (before) {
       conditions.push("created_at < ?");
@@ -138,7 +171,7 @@ router.get("/", authenticate, async (req: Request, res: Response): Promise<void>
     params.push(LIMIT);
 
     const [rows] = await pool.query(
-      `SELECT id, channel, sender_id, sender_name, sender_role, content, priority, is_announcement, created_at, updated_at
+      `SELECT id, channel, sender_id, sender_name, sender_role, content, priority, is_announcement, mentions, created_at, updated_at
        FROM internal_messages
        WHERE ${conditions.join(" AND ")}
        ORDER BY created_at ASC
@@ -146,10 +179,27 @@ router.get("/", authenticate, async (req: Request, res: Response): Promise<void>
       params
     ) as [any[], any];
 
+    const parsedRows = (rows || []).map((m: any) => {
+      let parsedMentions: string[] = [];
+      if (typeof m.mentions === "string") {
+        try {
+          parsedMentions = JSON.parse(m.mentions);
+        } catch {
+          parsedMentions = [];
+        }
+      } else if (Array.isArray(m.mentions)) {
+        parsedMentions = m.mentions;
+      }
+      return {
+        ...m,
+        mentions: parsedMentions,
+      };
+    });
+
     res.json({
       success: true,
-      data: rows || [],
-      total: rows?.length || 0,
+      data: parsedRows,
+      total: parsedRows.length,
       channel,
     });
   } catch (err: any) {
@@ -160,7 +210,7 @@ router.get("/", authenticate, async (req: Request, res: Response): Promise<void>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/messages — Send a new message to a channel
+// POST /api/messages — Send a new message to a channel with @mentions
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/", authenticate, async (req: Request, res: Response): Promise<void> => {
   const { channel, content, priority = "normal", is_announcement = false } = req.body as {
@@ -190,18 +240,15 @@ router.post("/", authenticate, async (req: Request, res: Response): Promise<void
     return;
   }
 
-  // Announcements channel & announcements flag restriction
-  if ((channel === "announcements" || is_announcement) && !isAdminOrManagerOrTech) {
-    res.status(403).json({
-      success: false,
-      error: "Only Admins, Managers, and Tech Support can post announcements.",
-    });
-    return;
-  }
+  // Parse @username mentions from message body
+  const mentionMatches = (trimmedContent.match(/@([a-zA-Z0-9_.-]+)/g) || []).map((m) =>
+    m.slice(1).toLowerCase()
+  );
+  const uniqueMentions = [...new Set(mentionMatches)];
 
   const validPriorities = ["normal", "urgent", "announcement"];
   const safePriority = validPriorities.includes(priority) ? priority : "normal";
-  const safeIsAnnouncement = Boolean(is_announcement || channel === "announcements");
+  const safeIsAnnouncement = Boolean((is_announcement || channel === "announcements") && isAdminOrManagerOrTech);
 
   const messageId = crypto.randomUUID();
   const senderName = user.username || "Staff";
@@ -209,8 +256,8 @@ router.post("/", authenticate, async (req: Request, res: Response): Promise<void
   try {
     await pool.query(
       `INSERT INTO internal_messages (
-         id, channel, sender_id, sender_name, sender_role, content, priority, is_announcement, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         id, channel, sender_id, sender_name, sender_role, content, priority, is_announcement, mentions, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         messageId,
         channel,
@@ -220,11 +267,12 @@ router.post("/", authenticate, async (req: Request, res: Response): Promise<void
         trimmedContent,
         safePriority,
         safeIsAnnouncement ? 1 : 0,
+        JSON.stringify(uniqueMentions),
       ]
     );
 
     const [inserted] = await pool.query(
-      `SELECT id, channel, sender_id, sender_name, sender_role, content, priority, is_announcement, created_at, updated_at
+      `SELECT id, channel, sender_id, sender_name, sender_role, content, priority, is_announcement, mentions, created_at, updated_at
        FROM internal_messages
        WHERE id = ? LIMIT 1`,
       [messageId]
@@ -239,9 +287,18 @@ router.post("/", authenticate, async (req: Request, res: Response): Promise<void
       content: trimmedContent,
       priority: safePriority,
       is_announcement: safeIsAnnouncement ? 1 : 0,
+      mentions: uniqueMentions,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
+    if (typeof messageData.mentions === "string") {
+      try {
+        messageData.mentions = JSON.parse(messageData.mentions);
+      } catch {
+        messageData.mentions = uniqueMentions;
+      }
+    }
 
     res.status(201).json({
       success: true,

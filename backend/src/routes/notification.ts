@@ -345,6 +345,14 @@ router.get(
           [SINCE]
         ) as [any[], any];
 
+        const [[driverMentionsRow]] = await pool.query(
+          `SELECT COUNT(*) AS cnt FROM internal_messages
+           WHERE (content LIKE ? OR JSON_CONTAINS(mentions, ?))
+             AND created_at >= ?`,
+          [`%@${username}%`, JSON.stringify(username), SINCE]
+        ) as [any[], any];
+        const driverMentionCnt = Number(driverMentionsRow?.cnt ?? 0);
+
         const assignedCnt = Number(assignedRow?.cnt ?? 0);
         const pendingCnt = Number(pendingRow?.cnt ?? 0);
         const alertsCnt = Number(alertsRow?.cnt ?? 0);
@@ -355,7 +363,8 @@ router.get(
             delivery_assigned: assignedCnt,
             new_delivery: pendingCnt,
             dispatch_alert: alertsCnt,
-            total: assignedCnt + pendingCnt + alertsCnt,
+            mention: driverMentionCnt,
+            total: assignedCnt + pendingCnt + alertsCnt + driverMentionCnt,
           },
         });
         return;
@@ -397,6 +406,14 @@ router.get(
         vendorCnt = Number(vendorMovs?.cnt ?? 0);
       }
 
+      const [[mentionsRow]] = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM internal_messages
+         WHERE (content LIKE ? OR JSON_CONTAINS(mentions, ?))
+           AND created_at >= ?`,
+        [`%@${username}%`, JSON.stringify(username), SINCE]
+      ) as [any[], any];
+      const mentionsCnt = Number(mentionsRow?.cnt ?? 0);
+
       res.json({
         success: true,
         data: {
@@ -404,8 +421,9 @@ router.get(
           stock_request: Number(stockReqs?.cnt ?? 0),
           new_order:     Number(newOrders?.cnt ?? 0),
           vendor:        vendorCnt,
+          mention:       mentionsCnt,
           total:         lowStockCnt + Number(stockReqs?.cnt ?? 0) +
-                         Number(newOrders?.cnt ?? 0) + vendorCnt,
+                         Number(newOrders?.cnt ?? 0) + vendorCnt + mentionsCnt,
         },
       });
     } catch (err: any) {

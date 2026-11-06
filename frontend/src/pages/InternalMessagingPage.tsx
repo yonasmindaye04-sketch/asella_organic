@@ -1,20 +1,18 @@
 /**
  * frontend/src/pages/InternalMessagingPage.tsx
- * Asella Organic — Internal Team Messaging & Delivery Dispatch Channel
+ * Asella Organic — Internal Team Messaging & Mention System
  *
- * Provides a dedicated, real-time internal communication hub for:
- * - Admins & Managers: Broadcast announcements, dispatch alerts to drivers
- * - Delivery Drivers: Review priority route updates, address notes, drop-off queries
- * - Call Center & Store Managers: Coordinate inventory, customer order edits, and shift notes
- * - Tech Support: Unlimited permissions to support staff, resolve issues, and guide team
- *
- * Adheres strictly to rule.md:
- * - Zero emojis (Google Material Symbols only)
- * - Fluid mobile responsiveness (320px to 2xl, touch targets >= 44px)
- * - Highland-gold, obsidian, parchment, forest-green branding
+ * Modeled after Yekis Chat Workspace architecture:
+ * - Two-pane responsive workspace layout with mobile drawer
+ * - Real-time channel streams (#deliveries, #announcements, #general, #call_center, #operations, #tech_support)
+ * - @Mention system with floating autocomplete menu, keyboard navigation (Up/Down/Enter),
+ *   and highlighted mention badges for all teammates
+ * - "Mentioned You" notification highlights when current user is tagged
+ * - Filtering by Channel or "Mentions" tab
+ * - Zero emojis (Google Material Symbols and clean corporate typography strictly per rule.md)
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { api } from '../services/api';
@@ -31,6 +29,14 @@ export interface ChannelItem {
   lastActivity?: string | null;
 }
 
+export interface StaffUser {
+  id: string;
+  username: string;
+  full_name: string;
+  role: string;
+  telegram_username?: string | null;
+}
+
 export interface InternalMessage {
   id: string;
   channel: string;
@@ -40,20 +46,21 @@ export interface InternalMessage {
   content: string;
   priority: 'normal' | 'urgent' | 'announcement';
   is_announcement: boolean | number;
+  mentions?: string[];
   created_at: string;
   updated_at: string;
 }
 
-const ROLE_BADGES: Record<string, { label: string; style: string }> = {
-  tech_support:  { label: 'Tech Support',       style: 'bg-indigo-100 text-indigo-900 border-indigo-300 font-extrabold' },
-  admin:         { label: 'Super Admin',        style: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' },
-  manager:       { label: 'Manager',            style: 'bg-blue-100 text-blue-900 border-blue-300 font-bold' },
-  delivery:      { label: 'Delivery Driver',    style: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold' },
-  driver:        { label: 'Delivery Driver',    style: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold' },
-  call_center:   { label: 'Call Center Agent',  style: 'bg-cyan-100 text-cyan-900 border-cyan-300 font-bold' },
-  store_manager: { label: 'Substore Manager',   style: 'bg-teal-100 text-teal-900 border-teal-300 font-bold' },
-  employee:      { label: 'Staff Member',       style: 'bg-gray-100 text-gray-800 border-gray-300' },
-  staff:         { label: 'Staff Member',       style: 'bg-gray-100 text-gray-800 border-gray-300' },
+const ROLE_BADGES: Record<string, { label: string; style: string; icon: string }> = {
+  tech_support:  { label: 'Tech Support',       style: 'bg-indigo-100 text-indigo-900 border-indigo-300 font-black', icon: 'terminal' },
+  admin:         { label: 'Super Admin',        style: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',     icon: 'shield_person' },
+  manager:       { label: 'Manager',            style: 'bg-blue-100 text-blue-900 border-blue-300 font-bold',         icon: 'manage_accounts' },
+  delivery:      { label: 'Delivery Driver',    style: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold', icon: 'local_shipping' },
+  driver:        { label: 'Delivery Driver',    style: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold', icon: 'local_shipping' },
+  call_center:   { label: 'Call Center Agent',  style: 'bg-cyan-100 text-cyan-900 border-cyan-300 font-bold',         icon: 'headset_mic' },
+  store_manager: { label: 'Substore Manager',   style: 'bg-teal-100 text-teal-900 border-teal-300 font-bold',         icon: 'storefront' },
+  employee:      { label: 'Staff Member',       style: 'bg-gray-100 text-gray-800 border-gray-300',                   icon: 'person' },
+  staff:         { label: 'Staff Member',       style: 'bg-gray-100 text-gray-800 border-gray-300',                   icon: 'person' },
 };
 
 function formatTime(iso: string): string {
@@ -83,16 +90,23 @@ export default function InternalMessagingPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const currentRole = (user?.role || '').toLowerCase();
   const currentUserId = user?.id || '';
+  const currentUsername = (user?.username || '').toLowerCase();
   const isAdminOrManagerOrTech =
     currentRole === 'admin' || currentRole === 'manager' || currentRole === 'tech_support';
 
+  // Navigation & Channels
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>(() => {
-    // Default drivers to deliveries, call center to call_center, others to general or deliveries
     if (currentRole === 'delivery' || currentRole === 'driver') return 'deliveries';
     if (currentRole === 'call_center') return 'call_center';
     return 'deliveries';
   });
+  const [activeFilter, setActiveFilter] = useState<'CHANNELS' | 'MENTIONS'>('CHANNELS');
+
+  // Directory for @mentions
+  const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
+
+  // Messages state
   const [messages, setMessages] = useState<InternalMessage[]>([]);
   const [loadingChannels, setLoadingChannels] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(true);
@@ -102,6 +116,13 @@ export default function InternalMessagingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
+  // Mention Autocomplete State
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStartIndex, setMentionStartIndex] = useState<number>(-1);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -119,13 +140,26 @@ export default function InternalMessagingPage() {
     }
   }, []);
 
-  // 2. Fetch messages in active channel
+  // 2. Fetch staff directory for @mentions
+  const fetchStaffUsers = useCallback(async () => {
+    try {
+      const res = await api.get<StaffUser[]>('/api/messages/users');
+      if (res.success && res.data) {
+        setStaffUsers(res.data);
+      }
+    } catch {
+      /* silent */
+    }
+  }, []);
+
+  // 3. Fetch messages for active channel or mentions tab
   const fetchMessages = useCallback(async (isInitial = false) => {
     if (isInitial) setLoadingMessages(true);
     try {
       const searchParam = searchQuery.trim() ? `&search=${encodeURIComponent(searchQuery.trim())}` : '';
+      const filterParam = activeFilter === 'MENTIONS' ? '&filter=mentions' : `&channel=${activeChannelId}`;
       const res = await api.get<InternalMessage[]>(
-        `/api/messages?channel=${activeChannelId}&limit=100${searchParam}`
+        `/api/messages?limit=100${filterParam}${searchParam}`
       );
       if (res.success && res.data) {
         setMessages(res.data);
@@ -140,18 +174,18 @@ export default function InternalMessagingPage() {
     } finally {
       if (isInitial) setLoadingMessages(false);
     }
-  }, [activeChannelId, searchQuery]);
+  }, [activeChannelId, activeFilter, searchQuery]);
 
-  // Initial load
   useEffect(() => {
     fetchChannels();
-  }, [fetchChannels]);
+    fetchStaffUsers();
+  }, [fetchChannels, fetchStaffUsers]);
 
   useEffect(() => {
     fetchMessages(true);
   }, [fetchMessages]);
 
-  // Polling every 5 seconds for live conversation feel
+  // Polling every 5 seconds for live conversation
   useEffect(() => {
     const t = setInterval(() => {
       fetchMessages(false);
@@ -160,7 +194,93 @@ export default function InternalMessagingPage() {
     return () => clearInterval(t);
   }, [fetchMessages, fetchChannels]);
 
-  // Send a message
+  // Filter staff list based on mention query
+  const filteredStaff = useMemo(() => {
+    if (!mentionQuery) return staffUsers.slice(0, 8);
+    const q = mentionQuery.toLowerCase();
+    return staffUsers
+      .filter(
+        (u) =>
+          u.username.toLowerCase().includes(q) ||
+          u.full_name.toLowerCase().includes(q) ||
+          u.role.toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [staffUsers, mentionQuery]);
+
+  // Detect @ character in input and trigger mention autocomplete
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    setContent(val);
+
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/@([a-zA-Z0-9_.-]*)$/);
+
+    if (match) {
+      setShowMentionMenu(true);
+      setMentionQuery(match[1]);
+      setMentionStartIndex(match.index !== undefined ? match.index : -1);
+      setHighlightedIndex(0);
+    } else {
+      setShowMentionMenu(false);
+      setMentionStartIndex(-1);
+    }
+  };
+
+  // Insert chosen mention
+  const insertMention = (selectedUser: StaffUser) => {
+    if (mentionStartIndex < 0) return;
+    const cursorPos = textareaRef.current?.selectionStart || content.length;
+    const before = content.slice(0, mentionStartIndex);
+    const after = content.slice(cursorPos);
+    const newContent = `${before}@${selectedUser.username} ${after}`;
+
+    setContent(newContent);
+    setShowMentionMenu(false);
+
+    // Focus back on textarea after mention inserted
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const nextPos = mentionStartIndex + selectedUser.username.length + 2;
+        textareaRef.current.setSelectionRange(nextPos, nextPos);
+      }
+    }, 50);
+  };
+
+  // Keyboard navigation inside composer and mention menu
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMentionMenu && filteredStaff.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev + 1) % filteredStaff.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev - 1 + filteredStaff.length) % filteredStaff.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredStaff[highlightedIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionMenu(false);
+        return;
+      }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = content.trim();
@@ -179,6 +299,7 @@ export default function InternalMessagingPage() {
         const newMsg: InternalMessage = res.data;
         setContent('');
         setPriority('normal');
+        setShowMentionMenu(false);
         setMessages((prev) => [...prev, newMsg]);
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -206,12 +327,28 @@ export default function InternalMessagingPage() {
     }
   };
 
-  // Keyboard shortcut: Enter to send, Shift+Enter for new line
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+  // Helper to format text with highlighted @mentions
+  const renderFormattedContent = (text: string) => {
+    const parts = text.split(/(@[a-zA-Z0-9_.-]+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('@')) {
+        const usernameWithoutAt = part.slice(1).toLowerCase();
+        const isMentionedMe = usernameWithoutAt === currentUsername;
+        return (
+          <span
+            key={index}
+            className={`inline-flex items-center gap-0.5 font-bold px-1.5 py-0.2 rounded-md transition ${
+              isMentionedMe
+                ? 'bg-[#1b4d24] text-white font-black shadow-2xs'
+                : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+            }`}
+          >
+            {part}
+          </span>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
   };
 
   const activeChannel = channels.find((c) => c.id === activeChannelId) || {
@@ -222,15 +359,12 @@ export default function InternalMessagingPage() {
     badgeColor: 'bg-gray-100 text-gray-800',
   };
 
-  const canPostInCurrentChannel =
-    !activeChannel.adminOnlyPost || isAdminOrManagerOrTech;
-
   return (
     <DashboardLayout>
       <div className="h-[calc(100vh-65px)] flex flex-col overflow-hidden bg-[#f8fafc]">
 
-        {/* Top Operational Bar */}
-        <div className="bg-white border-b border-gray-200/90 px-4 sm:px-6 py-3 shrink-0 flex items-center justify-between gap-3 shadow-2xs">
+        {/* Top Header Bar */}
+        <header className="bg-white border-b border-gray-200/90 px-4 sm:px-6 py-3 shrink-0 flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Channel Menu Trigger */}
             <button
@@ -243,15 +377,17 @@ export default function InternalMessagingPage() {
             </button>
 
             <div className="w-10 h-10 rounded-xl bg-[#eaf4ec] text-[#1b4d24] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-xl">{activeChannel.icon}</span>
+              <span className="material-symbols-outlined text-xl">
+                {activeFilter === 'MENTIONS' ? 'alternate_email' : activeChannel.icon}
+              </span>
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-black text-gray-900 tracking-tight truncate">
-                  #{activeChannel.name}
+                  {activeFilter === 'MENTIONS' ? '@ Mentions for Me' : `#${activeChannel.name}`}
                 </h1>
-                {activeChannel.adminOnlyPost && (
+                {activeChannel.adminOnlyPost && activeFilter === 'CHANNELS' && (
                   <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
                     <span className="material-symbols-outlined text-xs">campaign</span>
                     Broadcast
@@ -259,7 +395,9 @@ export default function InternalMessagingPage() {
                 )}
               </div>
               <p className="text-xs text-gray-500 truncate hidden sm:block">
-                {activeChannel.description}
+                {activeFilter === 'MENTIONS'
+                  ? 'All messages across branches and channels where you were mentioned.'
+                  : activeChannel.description}
               </p>
             </div>
           </div>
@@ -286,32 +424,59 @@ export default function InternalMessagingPage() {
               <span className="material-symbols-outlined text-base">refresh</span>
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Main Content: Split Pane on Desktop, Drawer on Mobile */}
+        {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden min-h-0">
 
-          {/* Desktop Left Rail: Channel List */}
+          {/* Desktop Left Sidebar: Channels & Mentions */}
           <aside className="w-72 bg-white border-r border-gray-200/90 hidden lg:flex flex-col shrink-0 overflow-y-auto">
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-gray-400">
-                Team Channels
-              </span>
-              <span className="text-[11px] font-mono font-bold text-gray-500">
-                {channels.length} Active
-              </span>
+            {/* Filter Selector Tabs */}
+            <div className="p-3 border-b border-gray-100 grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveFilter('CHANNELS');
+                  setSearchQuery('');
+                }}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  activeFilter === 'CHANNELS'
+                    ? 'bg-[#1b4d24] text-white shadow-2xs'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">tag</span>
+                Channels
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveFilter('MENTIONS');
+                  setSearchQuery('');
+                }}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  activeFilter === 'MENTIONS'
+                    ? 'bg-[#1b4d24] text-white shadow-2xs'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">alternate_email</span>
+                Mentions
+              </button>
             </div>
 
+            {/* Channels List */}
             <div className="p-2 space-y-1 flex-1">
               {loadingChannels ? (
                 <div className="p-4 text-center text-xs text-gray-400">Loading channels…</div>
               ) : (
                 channels.map((ch) => {
-                  const isActive = ch.id === activeChannelId;
+                  const isActive = activeFilter === 'CHANNELS' && ch.id === activeChannelId;
                   return (
                     <button
                       key={ch.id}
                       onClick={() => {
+                        setActiveFilter('CHANNELS');
                         setActiveChannelId(ch.id);
                         setSearchQuery('');
                       }}
@@ -360,14 +525,19 @@ export default function InternalMessagingPage() {
               )}
             </div>
 
-            {/* Quick role note at bottom */}
-            <div className="p-3 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-500 flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm text-emerald-700">shield</span>
-              <span>Logged in as <b>{user?.name || user?.username}</b> ({currentRole})</span>
+            {/* Mention hint & staff profile row */}
+            <div className="p-3 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500 space-y-1">
+              <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
+                <span className="material-symbols-outlined text-sm">alternate_email</span>
+                <span>Type @ in chat to mention any user</span>
+              </div>
+              <p className="text-[10px] text-gray-400 truncate">
+                Logged in as <b>@{currentUsername}</b> ({currentRole})
+              </p>
             </div>
           </aside>
 
-          {/* Mobile Drawer Backdrop & Menu */}
+          {/* Mobile Drawer Menu */}
           {mobileDrawerOpen && (
             <div className="fixed inset-0 z-50 lg:hidden flex">
               <div
@@ -378,7 +548,7 @@ export default function InternalMessagingPage() {
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-[#001803] text-white">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-xl text-[#a0f399]">forum</span>
-                    <h3 className="text-sm font-bold">Team Channels</h3>
+                    <h3 className="text-sm font-bold">Team Workspace</h3>
                   </div>
                   <button
                     onClick={() => setMobileDrawerOpen(false)}
@@ -388,13 +558,40 @@ export default function InternalMessagingPage() {
                   </button>
                 </div>
 
+                {/* Mobile Filter Tabs */}
+                <div className="p-2 border-b border-gray-100 grid grid-cols-2 gap-1">
+                  <button
+                    onClick={() => {
+                      setActiveFilter('CHANNELS');
+                      setMobileDrawerOpen(false);
+                    }}
+                    className={`py-2 text-xs font-bold rounded-lg ${
+                      activeFilter === 'CHANNELS' ? 'bg-[#1b4d24] text-white' : 'text-gray-700 bg-gray-100'
+                    }`}
+                  >
+                    Channels
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveFilter('MENTIONS');
+                      setMobileDrawerOpen(false);
+                    }}
+                    className={`py-2 text-xs font-bold rounded-lg ${
+                      activeFilter === 'MENTIONS' ? 'bg-[#1b4d24] text-white' : 'text-gray-700 bg-gray-100'
+                    }`}
+                  >
+                    Mentions
+                  </button>
+                </div>
+
                 <div className="p-2 space-y-1 flex-1 overflow-y-auto">
                   {channels.map((ch) => {
-                    const isActive = ch.id === activeChannelId;
+                    const isActive = activeFilter === 'CHANNELS' && ch.id === activeChannelId;
                     return (
                       <button
                         key={ch.id}
                         onClick={() => {
+                          setActiveFilter('CHANNELS');
                           setActiveChannelId(ch.id);
                           setSearchQuery('');
                           setMobileDrawerOpen(false);
@@ -437,10 +634,10 @@ export default function InternalMessagingPage() {
           )}
 
           {/* Central Chat Stream */}
-          <main className="flex-1 flex flex-col overflow-hidden bg-[#f8fafc] min-w-0">
+          <main className="flex-1 flex flex-col overflow-hidden bg-[#f8fafc] min-w-0 relative">
 
-            {/* Announcement Banner (if viewing announcements or top alert) */}
-            {activeChannelId === 'announcements' && (
+            {/* Announcement Banner */}
+            {activeChannelId === 'announcements' && activeFilter === 'CHANNELS' && (
               <div className="bg-amber-50 border-b border-amber-200/90 px-4 py-2 text-xs text-amber-900 flex items-center gap-2">
                 <span className="material-symbols-outlined text-base text-amber-700 shrink-0">campaign</span>
                 <span>
@@ -457,29 +654,43 @@ export default function InternalMessagingPage() {
               {loadingMessages ? (
                 <div className="text-center py-20 text-gray-400 text-sm">
                   <span className="material-symbols-outlined animate-spin text-3xl text-emerald-600 mb-2">sync</span>
-                  <p>Loading channel messages…</p>
+                  <p>Loading conversation…</p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center py-16 px-4 max-w-md mx-auto">
                   <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 flex items-center justify-center mx-auto mb-3 text-gray-400 shadow-2xs">
-                    <span className="material-symbols-outlined text-2xl">{activeChannel.icon}</span>
+                    <span className="material-symbols-outlined text-2xl">
+                      {activeFilter === 'MENTIONS' ? 'alternate_email' : activeChannel.icon}
+                    </span>
                   </div>
                   <h3 className="text-sm font-bold text-gray-900">
-                    Welcome to #{activeChannel.name}
+                    {activeFilter === 'MENTIONS'
+                      ? 'No mentions yet'
+                      : `Welcome to #${activeChannel.name}`}
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    {activeChannel.description}
+                    {activeFilter === 'MENTIONS'
+                      ? 'When other team members tag @' + currentUsername + ' in any channel, the messages will appear here.'
+                      : activeChannel.description}
                   </p>
-                  <p className="text-[11px] text-gray-400 mt-3 bg-gray-100/70 p-2 rounded-lg">
-                    Start the conversation below to coordinate with teammates across the organization.
-                  </p>
+                  {activeFilter === 'CHANNELS' && (
+                    <p className="text-[11px] text-gray-400 mt-3 bg-gray-100/70 p-2.5 rounded-lg">
+                      Tip: Type @ to mention colleagues (e.g. @admin, @substore, @driver) to notify them immediately.
+                    </p>
+                  )}
                 </div>
               ) : (
                 messages.map((msg, index) => {
-                  const isMe = msg.sender_id === currentUserId;
+                  const isMine = msg.sender_id === currentUserId;
                   const roleConfig = ROLE_BADGES[msg.sender_role] || ROLE_BADGES['employee'];
                   const isUrgent = msg.priority === 'urgent';
                   const isAnnouncement = Boolean(msg.is_announcement) || msg.priority === 'announcement';
+
+                  // Check if current user is mentioned in this message
+                  const mentionsList = msg.mentions || [];
+                  const isMentionedMe =
+                    mentionsList.some((m) => m.toLowerCase() === currentUsername) ||
+                    msg.content.toLowerCase().includes(`@${currentUsername}`);
 
                   const showDateDivider =
                     index === 0 ||
@@ -496,17 +707,21 @@ export default function InternalMessagingPage() {
                       )}
 
                       <div
-                        className={`group flex items-start gap-3 transition ${
-                          isUrgent
-                            ? 'p-3 bg-rose-50/60 rounded-2xl border border-rose-200 shadow-2xs'
+                        className={`group flex items-start gap-3 transition rounded-2xl p-3 sm:p-4 ${
+                          isMentionedMe
+                            ? 'bg-[#f4faf4] border-2 border-emerald-500 shadow-xs ring-2 ring-emerald-500/10'
+                            : isUrgent
+                            ? 'bg-rose-50/70 border border-rose-200 shadow-2xs'
                             : isAnnouncement
-                            ? 'p-3 bg-amber-50/70 rounded-2xl border border-amber-200 shadow-2xs'
-                            : ''
+                            ? 'bg-amber-50/70 border border-amber-200 shadow-2xs'
+                            : isMine
+                            ? 'bg-white border border-gray-200/90 shadow-2xs'
+                            : 'bg-white border border-gray-100 shadow-2xs'
                         }`}
                       >
                         {/* Avatar */}
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                          className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-black shrink-0 ${
                             msg.sender_role === 'tech_support'
                               ? 'bg-indigo-600 text-white shadow-xs'
                               : msg.sender_role === 'admin'
@@ -515,15 +730,17 @@ export default function InternalMessagingPage() {
                               ? 'bg-[#1b4d24] text-white'
                               : msg.sender_role === 'call_center'
                               ? 'bg-cyan-600 text-white'
+                              : msg.sender_role === 'store_manager'
+                              ? 'bg-teal-600 text-white'
                               : 'bg-gray-200 text-gray-700'
                           }`}
                         >
                           {(msg.sender_name || 'U').charAt(0).toUpperCase()}
                         </div>
 
-                        {/* Message Bubble & Content */}
+                        {/* Message Content */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
                             <span className="text-xs font-black text-gray-900">
                               {msg.sender_name}
                             </span>
@@ -533,6 +750,13 @@ export default function InternalMessagingPage() {
                             >
                               {roleConfig.label}
                             </span>
+
+                            {isMentionedMe && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                                <span className="material-symbols-outlined text-[11px]">alternate_email</span>
+                                Mentioned You
+                              </span>
+                            )}
 
                             {isUrgent && (
                               <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
@@ -553,7 +777,7 @@ export default function InternalMessagingPage() {
                             </span>
 
                             {/* Delete Action (only author or admin/tech_support) */}
-                            {(isMe || isAdminOrManagerOrTech) && (
+                            {(isMine || isAdminOrManagerOrTech) && (
                               <button
                                 onClick={() => handleDeleteMessage(msg.id)}
                                 className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 transition p-0.5"
@@ -565,7 +789,7 @@ export default function InternalMessagingPage() {
                           </div>
 
                           <div className="text-xs sm:text-sm text-gray-800 leading-relaxed whitespace-pre-wrap break-words font-medium">
-                            {msg.content}
+                            {renderFormattedContent(msg.content)}
                           </div>
                         </div>
                       </div>
@@ -576,86 +800,156 @@ export default function InternalMessagingPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Composer Footer */}
-            <div className="p-3 sm:p-4 bg-white border-t border-gray-200/90 shrink-0">
-              {canPostInCurrentChannel ? (
-                <form onSubmit={handleSendMessage} className="space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    {/* Priority Selector */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">
-                        Priority:
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setPriority('normal')}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                          priority === 'normal'
-                            ? 'bg-gray-200 text-gray-900'
-                            : 'text-gray-500 hover:bg-gray-100'
-                        }`}
-                      >
-                        Normal
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPriority('urgent')}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                          priority === 'urgent'
-                            ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                            : 'text-rose-600 hover:bg-rose-50'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-xs">priority_high</span>
-                        Urgent Alert
-                      </button>
-                      {isAdminOrManagerOrTech && (
+            {/* ── FLOATING @MENTION AUTOCOMPLETE MENU ── */}
+            {showMentionMenu && (
+              <div className="absolute bottom-[92px] left-4 right-4 sm:left-6 sm:right-6 max-w-lg bg-white rounded-2xl border border-gray-300 shadow-xl overflow-hidden z-30 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs text-emerald-700">alternate_email</span>
+                    <span>Mention Teammate</span>
+                  </div>
+                  <span className="text-gray-400 font-normal">Use ↑↓ keys + Enter to select</span>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto divide-y divide-gray-100">
+                  {filteredStaff.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-gray-400">
+                      No matching team members found for "@{mentionQuery}"
+                    </div>
+                  ) : (
+                    filteredStaff.map((staff, idx) => {
+                      const isHighlighted = idx === highlightedIndex;
+                      const roleConfig = ROLE_BADGES[staff.role] || ROLE_BADGES['employee'];
+
+                      return (
                         <button
+                          key={staff.id}
                           type="button"
-                          onClick={() => setPriority('announcement')}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                            priority === 'announcement'
-                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                              : 'text-amber-700 hover:bg-amber-50'
+                          onClick={() => insertMention(staff)}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left transition ${
+                            isHighlighted ? 'bg-emerald-50/80 text-emerald-900' : 'hover:bg-gray-50'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-xs">campaign</span>
-                          Broadcast
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-xl bg-gray-200 flex items-center justify-center text-xs font-bold shrink-0">
+                              {staff.full_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="truncate">
+                              <p className="text-xs font-bold text-gray-900 truncate">
+                                {staff.full_name}
+                              </p>
+                              <p className="text-[10px] font-mono text-gray-400 truncate">
+                                @{staff.username}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0 ${roleConfig.style}`}
+                          >
+                            {roleConfig.label}
+                          </span>
                         </button>
-                      )}
-                    </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
 
-                    <span className="text-[10px] text-gray-400 hidden sm:inline">
-                      Press Enter to send · Shift+Enter for new line
+            {/* Message Composer Footer */}
+            <div className="p-3 sm:p-4 bg-white border-t border-gray-200/90 shrink-0">
+              <form onSubmit={handleSendMessage} className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  {/* Priority Selector & Quick Mention Trigger */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">
+                      Priority:
                     </span>
-                  </div>
-
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      rows={2}
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={`Message #${activeChannel.name}...`}
-                      className="flex-1 p-3 text-xs sm:text-sm border border-gray-300 rounded-xl bg-gray-50/60 focus:bg-white outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none leading-relaxed"
-                    />
-
                     <button
-                      type="submit"
-                      disabled={!content.trim() || sending}
-                      className="h-11 px-4 sm:px-5 rounded-xl bg-[#1b4d24] text-white hover:bg-[#143a1b] disabled:opacity-50 disabled:cursor-not-allowed transition font-bold flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 shrink-0"
+                      type="button"
+                      onClick={() => setPriority('normal')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                        priority === 'normal'
+                          ? 'bg-gray-200 text-gray-900'
+                          : 'text-gray-500 hover:bg-gray-100'
+                      }`}
                     >
-                      <span className="material-symbols-outlined text-lg">send</span>
-                      <span className="hidden sm:inline text-xs">Send</span>
+                      Normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPriority('urgent')}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                        priority === 'urgent'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : 'text-rose-600 hover:bg-rose-50'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-xs">priority_high</span>
+                      Urgent Alert
+                    </button>
+                    {isAdminOrManagerOrTech && (
+                      <button
+                        type="button"
+                        onClick={() => setPriority('announcement')}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                          priority === 'announcement'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'text-amber-700 hover:bg-amber-50'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-xs">campaign</span>
+                        Broadcast
+                      </button>
+                    )}
+
+                    {/* Quick @ button for mobile / touch accessibility */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContent((prev) => prev + '@');
+                        setShowMentionMenu(true);
+                        setMentionQuery('');
+                        setMentionStartIndex(content.length);
+                        setHighlightedIndex(0);
+                        textareaRef.current?.focus();
+                      }}
+                      className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-[#eaf4ec] text-[#1b4d24] hover:bg-[#d8eedb] transition border border-[#c1e2b0]"
+                      title="Mention a colleague"
+                    >
+                      <span className="material-symbols-outlined text-xs">alternate_email</span>
+                      Mention
                     </button>
                   </div>
-                </form>
-              ) : (
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-center text-xs text-gray-500">
-                  <span className="material-symbols-outlined text-sm align-middle mr-1 text-amber-600">lock</span>
-                  This channel is restricted to announcements by Admins, Managers, and Tech Support.
+
+                  <span className="text-[10px] text-gray-400 hidden sm:inline">
+                    Press Enter to send · Shift+Enter for new line · Type @ to mention
+                  </span>
                 </div>
-              )}
+
+                <div className="flex items-end gap-2">
+                  <textarea
+                    ref={textareaRef}
+                    rows={2}
+                    value={content}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder={`Message #${activeChannel.name}... (type @ to mention colleagues)`}
+                    className="flex-1 p-3 text-xs sm:text-sm border border-gray-300 rounded-xl bg-gray-50/60 focus:bg-white outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none leading-relaxed min-h-[44px]"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={!content.trim() || sending}
+                    className="h-11 px-4 sm:px-5 rounded-xl bg-[#1b4d24] text-white hover:bg-[#143a1b] disabled:opacity-50 disabled:cursor-not-allowed transition font-bold flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 shrink-0"
+                    aria-label="Send message"
+                  >
+                    <span className="material-symbols-outlined text-lg">send</span>
+                    <span className="hidden sm:inline text-xs">Send</span>
+                  </button>
+                </div>
+              </form>
             </div>
 
           </main>

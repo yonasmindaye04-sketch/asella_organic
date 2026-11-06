@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS internal_messages (
     content         TEXT         NOT NULL,
     priority        VARCHAR(20)  NOT NULL DEFAULT 'normal',
     is_announcement BOOLEAN      NOT NULL DEFAULT FALSE,
+    mentions        JSON         NULL,
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_msg_channel (channel, created_at),
@@ -40,7 +41,7 @@ INSERT INTO staff_users (
 ) VALUES (
     '00000000-0000-0000-0000-000000000077',
     'techsupport',
-    '$2b$10$e430xHsgF4t0qht8LkFt1.g5NL0pHEqmlBmVgJxyBomD7hCUgUCIa',
+    '$2b$10$mH6aIpy43nOAttkaHfgPcONHi5Kgasxrn.uS9LG.1Q.7WkimjN7be',
     'Tech Support Engineer',
     'tech_support',
     'support@asellaorganic.com',
@@ -72,7 +73,7 @@ INSERT INTO staff_users (
 ) VALUES (
     '00000000-0000-0000-0000-000000000078',
     'tech_support',
-    '$2b$10$e430xHsgF4t0qht8LkFt1.g5NL0pHEqmlBmVgJxyBomD7hCUgUCIa',
+    '$2b$10$mH6aIpy43nOAttkaHfgPcONHi5Kgasxrn.uS9LG.1Q.7WkimjN7be',
     'Tech Support Admin',
     'tech_support',
     'tech@asellaorganic.com',

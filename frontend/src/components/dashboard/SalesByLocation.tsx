@@ -103,6 +103,25 @@ function ShareRing({ slices, topShare }: { slices: LocationStat[]; topShare: num
   );
 }
 
+function cleanCityName(raw?: string | null): string {
+  if (!raw) return "Addis Ababa";
+  // Collapse multiple consecutive spaces/whitespace characters into a single space
+  const trimmed = String(raw).replace(/\s+/g, " ").trim();
+  if (!trimmed) return "Addis Ababa";
+
+  // Normalize casing and standard labels
+  const words = trimmed.split(" ");
+  return words
+    .map((word) => {
+      const lower = word.toLowerCase();
+      if (lower === "cmc") return "CMC";
+      if (lower === "22.0" || lower === "22") return "22";
+      if (lower === "24.0" || lower === "24") return "24";
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 export default function SalesByLocation({ orders }: Props) {
   const { locations, ringSlices, totalOrders, totalRegions, totalRevenue } = useMemo(() => {
     const map: Record<string, { count: number; revenue: number }> = {};
@@ -112,7 +131,7 @@ export default function SalesByLocation({ orders }: Props) {
     orders.forEach((o) => {
       const status = String(o.status || "").toLowerCase();
       if (status === "cancelled") return;
-      const city = String(o.city || "").trim() || "Addis Ababa";
+      const city = cleanCityName(o.city);
       const rev = Number(o.total || o.total_amount || 0);
       if (!map[city]) map[city] = { count: 0, revenue: 0 };
       map[city].count += 1;

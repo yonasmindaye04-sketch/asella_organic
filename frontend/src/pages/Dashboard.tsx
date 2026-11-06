@@ -107,20 +107,25 @@ export default function DashboardPage() {
     let totalUnitsSold = 0;
 
     validOrders.forEach((o) => {
+      const orderTotal = Number(o.total || o.total_amount || 0);
       const items = Array.isArray(o.items) ? o.items : [];
       if (items.length > 0) {
+        let orderCogs = 0;
         items.forEach((item: any) => {
           const qty = Number(item.quantity || 1);
           totalUnitsSold += qty;
           const unitCost =
-            item.unit_cost !== undefined && item.unit_cost !== null
+            item.unit_cost !== undefined && item.unit_cost !== null && Number(item.unit_cost) > 0
               ? Number(item.unit_cost)
+              : orderTotal > 0
+              ? (orderTotal / items.length) * 0.52
               : Number(item.unit_price || item.price || 0) * 0.52;
-          totalCogs += qty * unitCost;
+          orderCogs += qty * unitCost;
         });
+        totalCogs += orderTotal > 0 ? Math.min(orderCogs, orderTotal * 0.85) : orderCogs;
       } else {
         totalUnitsSold += 1;
-        totalCogs += Number(o.total || 0) * 0.52;
+        totalCogs += orderTotal * 0.52;
       }
     });
 

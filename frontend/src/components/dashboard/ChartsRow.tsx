@@ -210,12 +210,14 @@ export function RevenueChart({
           const orderCogs = o.items.reduce((sum: number, item: any) => {
             const qty = Number(item.quantity || 1);
             const unitCost =
-              item.unit_cost !== undefined && item.unit_cost !== null
+              item.unit_cost !== undefined && item.unit_cost !== null && Number(item.unit_cost) > 0
                 ? Number(item.unit_cost)
+                : orderRev > 0
+                ? (orderRev / o.items.length) * 0.52
                 : Number(item.unit_price || item.price || 0) * 0.52;
             return sum + qty * unitCost;
           }, 0);
-          costArr[idx] += orderCogs;
+          costArr[idx] += orderRev > 0 ? Math.min(orderCogs, orderRev * 0.85) : orderCogs;
         } else {
           costArr[idx] += orderRev * 0.52;
         }
@@ -611,7 +613,57 @@ export function SalesDistribution({ orders }: { orders: any[] }) {
 }
 
 // ─── 3. Top Products Sales Trend (Interactive ETB / Qty Toggle + Ranked Summary) ───
-const PRODUCT_COLORS = CHART_SERIES.slice(0, 4);
+const PRODUCT_COLORS = CHART_SERIES.slice(0, 6);
+
+function normalizeProductName(rawName?: string, rawPkg?: string): string {
+  let name = String(rawName || "Organic Product").replace(/\s+/g, " ").trim();
+  let pkg = String(rawPkg || "").replace(/\s+/g, " ").trim();
+
+  // If the product name already ends with a parenthesized size e.g. "Moringa powder (200g)",
+  // extract both parts to avoid redundant duplication.
+  const match = name.match(/^(.+?)\s*\(([^)]+)\)$/);
+  if (match) {
+    name = match[1].trim();
+    if (!pkg) pkg = match[2].trim();
+  }
+
+  // Normalize metric unit spacing (e.g. "200 g" -> "200g", "1 kg" -> "1kg", "30 ml" -> "30ml")
+  if (pkg) {
+    pkg = pkg
+      .toLowerCase()
+      .replace(/(\d+)\s*g\b/g, "$1g")
+      .replace(/(\d+)\s*kg\b/g, "$1kg")
+      .replace(/(\d+)\s*ml\b/g, "$1ml")
+      .replace(/1\s*jar\s*\((20g)\)/i, "20g jar")
+      .trim();
+  }
+
+  // Canonical title casing for well-known catalog products
+  const lower = name.toLowerCase();
+  let canonicalBase = name;
+  if (lower.includes("moringa powder")) canonicalBase = "Moringa Powder";
+  else if (lower.includes("moringa seed")) canonicalBase = "Moringa Seed";
+  else if (lower.includes("chia seed")) canonicalBase = "Chia Seed";
+  else if (lower.includes("hibiscus")) canonicalBase = "Hibiscus Dry Leaf";
+  else if (lower.includes("shilajit capsule")) canonicalBase = "Shilajit Capsules";
+  else if (lower.includes("shilajit") && lower.includes("jell")) canonicalBase = "Himalayan Shilajit Jell";
+  else if (lower.includes("kerebe") && lower.includes("oil")) canonicalBase = "Kerebe (Myrrh) Oil";
+  else if (lower.includes("ashwagandha")) canonicalBase = "Ashwagandha Powder";
+  else if (lower.includes("clove")) canonicalBase = "Cloves";
+  else if (lower.includes("cinnamon")) canonicalBase = "Cinnamon";
+  else if (lower.includes("pumpkin seed")) canonicalBase = "Pumpkin Seed";
+  else if (lower.includes("chebe")) canonicalBase = "Chebe Powder";
+  else if (lower.includes("kesil")) canonicalBase = "Kesil Powder";
+  else if (lower.includes("erde")) canonicalBase = "Erde Powder";
+  else {
+    canonicalBase = name
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  }
+
+  return pkg ? `${canonicalBase} (${pkg})` : canonicalBase;
+}
 
 export function TopProducts({
   orders,
@@ -625,6 +677,7 @@ export function TopProducts({
   to?: string;
 }) {
   const [metricMode, setMetricMode] = useState<"etb" | "qty">("etb");
+  const [rankBy, setRankBy] = useState<"revenue" | "volume">("revenue");
 
   const { labels, topProductsList, datasets, grandTotalEtb, grandTotalQty } = useMemo(() => {
     const rawBuckets = buildDynamicBuckets(activeRange, from, to);
@@ -652,37 +705,76 @@ export function TopProducts({
       const bIdx = rawBuckets.findIndex((b) => t >= b.startMs && t <= b.endMs);
       if (bIdx === -1) return;
 
+      const orderTotal = Number(o.total || o.total_amount || 0);
       const items = Array.isArray(o.items) ? o.items : [];
-      if (items.length > 0) {
-        items.forEach((item: any) => {
-          const baseName = item.item_name || item.product_name || item.name || "Organic Product";
-          const pkg = item.package_size ? ` (${item.package_size})` : "";
-          const fullName = `${baseName}${pkg}`;
-          const qty = Number(item.quantity || 1);
-          const unitPrice = Number(item.unit_price ?? item.price ?? 0);
-          const lineEtb =
-            unitPrice > 0
-              ? qty * unitPrice
-              : items.length === 1
-              ? Number(o.total || 0)
-              : Math.round(Number(o.total || 0) / items.length);
+      if (items.length === 0) return;
 
-          if (!productStats[fullName]) {
-            productStats[fullName] = {
-              name: fullName,
-              totalQty: 0,
-              totalEtb: 0,
-              bucketQty: new Array(rawBuckets.length).fill(0),
-              bucketEtb: new Array(rawBuckets.length).fill(0),
-            };
-          }
-          productStats[fullName].totalQty += qty;
-          productStats[fullName].totalEtb += lineEtb;
-          productStats[fullName].bucketQty[bIdx] += qty;
-          productStats[fullName].bucketEtb[bIdx] += lineEtb;
-          bucketHasActivity[bIdx] = true;
+      const rawLineSum = items.reduce(
+        (sum: number, it: any) =>
+          sum + Number(it.quantity || 1) * Number(it.unit_price ?? it.price ?? 0),
+        0
+      );
+
+      // Detect smeared lines (e.g. unit_price equals entire order total across multiple items,
+      // or sum of line prices significantly exceeds billed order total)
+      const isSmeared =
+        orderTotal > 0 &&
+        (rawLineSum > orderTotal * 1.15 ||
+          (items.length > 1 &&
+            items.some((it: any) => Number(it.unit_price ?? it.price ?? 0) >= orderTotal && orderTotal > 500)));
+
+      let lineAmounts: number[] = [];
+      if (items.length === 1) {
+        lineAmounts = [orderTotal > 0 ? orderTotal : rawLineSum];
+      } else if (isSmeared || rawLineSum === 0) {
+        // Apportion order total fairly: prioritize unit_cost if present, otherwise by quantity
+        const hasUnitCosts = items.some((it: any) => Number(it.unit_cost || 0) > 0);
+        const weights = items.map((it: any) => {
+          const q = Math.max(1, Number(it.quantity || 1));
+          const c = Number(it.unit_cost || 0);
+          return hasUnitCosts && c > 0 ? q * c : q;
         });
+        const totalWeight = weights.reduce((a: number, b: number) => a + b, 0) || 1;
+        lineAmounts = weights.map((w: number) => Math.round((w / totalWeight) * orderTotal));
+      } else {
+        // Healthy lines: if there's any slight rounding discrepancy with order total, scale proportionally
+        if (orderTotal > 0 && Math.abs(rawLineSum - orderTotal) > 0.01) {
+          lineAmounts = items.map((it: any) =>
+            Math.round(
+              ((Number(it.quantity || 1) * Number(it.unit_price ?? it.price ?? 0)) / rawLineSum) *
+                orderTotal
+            )
+          );
+        } else {
+          lineAmounts = items.map(
+            (it: any) => Number(it.quantity || 1) * Number(it.unit_price ?? it.price ?? 0)
+          );
+        }
       }
+
+      items.forEach((item: any, idx: number) => {
+        const fullName = normalizeProductName(
+          item.item_name || item.product_name || item.name,
+          item.package_size
+        );
+        const qty = Number(item.quantity || 1);
+        const lineEtb = lineAmounts[idx] ?? 0;
+
+        if (!productStats[fullName]) {
+          productStats[fullName] = {
+            name: fullName,
+            totalQty: 0,
+            totalEtb: 0,
+            bucketQty: new Array(rawBuckets.length).fill(0),
+            bucketEtb: new Array(rawBuckets.length).fill(0),
+          };
+        }
+        productStats[fullName].totalQty += qty;
+        productStats[fullName].totalEtb += lineEtb;
+        productStats[fullName].bucketQty[bIdx] += qty;
+        productStats[fullName].bucketEtb[bIdx] += lineEtb;
+        bucketHasActivity[bIdx] = true;
+      });
     });
 
     // Trim leading/trailing empty buckets so chart starts directly with real data
@@ -701,11 +793,12 @@ export function TopProducts({
 
     const trimmedLabels = rawBuckets.slice(firstIdx, lastIdx + 1).map((b) => b.label);
 
+    // Sort by chosen ranking mode (Revenue or Volume) independently of the display metric
     const allSorted = Object.values(productStats).sort((a, b) =>
-      metricMode === "etb" ? b.totalEtb - a.totalEtb : b.totalQty - a.totalQty
+      rankBy === "revenue" ? b.totalEtb - a.totalEtb : b.totalQty - a.totalQty
     );
 
-    const top5 = allSorted.slice(0, 5).map((p, idx) => ({
+    const top6 = allSorted.slice(0, 6).map((p, idx) => ({
       ...p,
       color: PRODUCT_COLORS[idx % PRODUCT_COLORS.length],
       seriesEtb: p.bucketEtb.slice(firstIdx, lastIdx + 1),
@@ -715,7 +808,7 @@ export function TopProducts({
     const totalEtbAll = allSorted.reduce((s, p) => s + p.totalEtb, 0);
     const totalQtyAll = allSorted.reduce((s, p) => s + p.totalQty, 0);
 
-    const chartDatasets = top5.map((p) => ({
+    const chartDatasets = top6.map((p) => ({
       label: p.name,
       data: metricMode === "etb" ? p.seriesEtb : p.seriesQty,
       backgroundColor: p.color,
@@ -727,12 +820,12 @@ export function TopProducts({
 
     return {
       labels: trimmedLabels,
-      topProductsList: top5,
+      topProductsList: top6,
       datasets: chartDatasets,
       grandTotalEtb: totalEtbAll,
       grandTotalQty: totalQtyAll,
     };
-  }, [orders, activeRange, from, to, metricMode]);
+  }, [orders, activeRange, from, to, metricMode, rankBy]);
 
   return (
     <div className="card p-5 flex flex-col justify-between animate-in">
@@ -842,8 +935,16 @@ export function TopProducts({
         <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {topProductsList.map((prod, idx) => {
-              const sharePct =
-                grandTotalEtb > 0 ? Math.round((prod.totalEtb / grandTotalEtb) * 100) : 0;
+              const shareEtb =
+                grandTotalEtb > 0 ? (prod.totalEtb / grandTotalEtb) * 100 : 0;
+              const shareQty =
+                grandTotalQty > 0 ? (prod.totalQty / grandTotalQty) * 100 : 0;
+
+              const shareLabel =
+                metricMode === "qty"
+                  ? `${shareQty > 0 && shareQty < 1 ? "<1" : Math.round(shareQty)}% of volume`
+                  : `${shareEtb > 0 && shareEtb < 1 ? "<1" : Math.round(shareEtb)}% of revenue`;
+
               return (
                 <div
                   key={prod.name}
@@ -862,7 +963,7 @@ export function TopProducts({
                         <strong className="text-zinc-700 dark:text-zinc-200">
                           {prod.totalQty.toLocaleString()}
                         </strong>{" "}
-                        items sold · {sharePct}% of revenue
+                        items sold · {shareLabel}
                       </p>
                     </div>
                   </div>
