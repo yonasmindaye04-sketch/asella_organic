@@ -42,6 +42,7 @@ import {
   tryNormalizeEthiopianMSISDN,
 } from "../lib/smsNormalize.js";
 import { withOptOutFooter, OPT_OUT_FOOTER } from "../lib/smsTemplates.js";
+import { applySegmentFilter } from "./customers.js";
 import {
   enqueueSms,
   hasHardOptOut,

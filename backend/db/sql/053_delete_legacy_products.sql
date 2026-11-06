@@ -118,6 +118,13 @@ BEGIN
          oi.product_match_note = 'Linked to a product that no longer exists.'
    WHERE oi.product_id IS NOT NULL AND p.id IS NULL;
 
+  UPDATE inventory_movements
+     SET product_id = '11111111-0001-0001-0001-000000000015'
+   WHERE product_id = '5d9572f3-7e5f-490e-9301-802926251628';
+
+  DELETE FROM stock_snapshots
+   WHERE product_id = '5d9572f3-7e5f-490e-9301-802926251628';
+
   -- one request was left dangling by an earlier cleanup: "Qasil" 200 g.
   -- Qasil is the old name of Kesil Powder, which the catalogue sells, so
   -- this one is linked to the real product instead of being unlinked.

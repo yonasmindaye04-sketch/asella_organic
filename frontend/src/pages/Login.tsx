@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { setCredentials } from '../store/slices/authSlice';
 import { useToast } from '../components/ui/ToastProvider';
 import { auth } from '../services/api';
@@ -49,6 +49,16 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#081d0b] relative overflow-hidden font-sans">
+      {/* Top Left - Back to public site */}
+      <div className="absolute top-6 left-6 z-20">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm font-bold text-[#8ff59c] hover:text-white transition-colors px-3 py-2 rounded-xl hover:bg-[#1a4023]/60 backdrop-blur-sm"
+        >
+          <span className="material-symbols-outlined text-lg">arrow_back</span>
+          <span>Back to public site</span>
+        </Link>
+      </div>
       <div className="relative z-10 w-full max-w-md px-6">
         {/* Logo */}
         <div className="text-center mb-10">
@@ -122,12 +132,6 @@ const Login: React.FC = () => {
               </button>
             </div>
           </form>
-
-          <div className="mt-8 text-center">
-            <a href="/" className="text-sm font-bold text-[#8ff59c] hover:text-white transition-colors">
-              ← Back to public site
-            </a>
-          </div>
         </div>
       </div>
     </div>

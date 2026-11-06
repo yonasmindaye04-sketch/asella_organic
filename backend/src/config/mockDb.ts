@@ -33,6 +33,8 @@ export interface MockStore {
   products: any[];
   staff_users: any[];
   internal_messages: any[];
+  internal_channel_members: any[];
+  internal_channels: any[];
   refresh_tokens: any[];
   session_blocklist: any[];
   customers: any[];
@@ -715,6 +717,22 @@ export const store: MockStore = {
     },
   ],
 
+    internal_channels: [
+    { id: 'deliveries', name: 'Delivery & Dispatch', description: 'Dispatch coordination, priority route notes, customer address updates, and driver reports.', icon: 'local_shipping', admin_only_post: 0, is_default: 1 },
+    { id: 'announcements', name: 'Company Announcements', description: 'Official workplace broadcasts and management alerts across all branches.', icon: 'campaign', admin_only_post: 0, is_default: 1 },
+    { id: 'general', name: 'All-Staff Team', description: 'Company-wide general communication, daily shift notes, and employee collaboration.', icon: 'forum', admin_only_post: 0, is_default: 1 },
+    { id: 'call_center', name: 'Call Center Desk', description: 'Order modifications, customer inquiries, and phone order handovers.', icon: 'headset_mic', admin_only_post: 0, is_default: 1 },
+    { id: 'operations', name: 'Store & Inventory', description: 'Substore fulfillment, restock coordination, and counter inventory queries.', icon: 'inventory_2', admin_only_post: 0, is_default: 1 },
+    { id: 'tech_support', name: 'Tech Support Desk', description: 'Technical assistance, bug reports, and system permissions help.', icon: 'terminal', admin_only_post: 0, is_default: 1 },
+  ],
+  internal_channel_members: [
+    { channel: "deliveries", user_id: "00000000-0000-0000-0000-000000000001", created_at: daysAgo(30) },
+    { channel: "announcements", user_id: "00000000-0000-0000-0000-000000000001", created_at: daysAgo(30) },
+    { channel: "general", user_id: "00000000-0000-0000-0000-000000000001", created_at: daysAgo(30) },
+    { channel: "call_center", user_id: "00000000-0000-0000-0000-000000000001", created_at: daysAgo(30) },
+    { channel: "operations", user_id: "00000000-0000-0000-0000-000000000001", created_at: daysAgo(30) },
+    { channel: "tech_support", user_id: "00000000-0000-0000-0000-000000000001", created_at: daysAgo(30) },
+  ],
   refresh_tokens: [],
   session_blocklist: [],
 
@@ -2722,7 +2740,7 @@ export async function executeMockQuery(
       list = list.filter((m) => m.channel === channel);
     }
     if (sqlLower.includes("count(*)")) {
-      return [[{ total: list.length, count: list.length, cnt: list.length }], []];
+      return [[{ total: list.length, count: list.length, cnt: list.length, total_unread: list.length, mentions_count: 0, urgent_count: 0, announcement_count: 0 }], []];
     }
     list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     return [list, []];

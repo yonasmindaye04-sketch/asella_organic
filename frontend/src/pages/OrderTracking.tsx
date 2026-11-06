@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import ReceiptPrinter from '../components/tracking/ReceiptPrinter';
@@ -154,8 +154,11 @@ const OrderTracking: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [searchParams] = useSearchParams();
+  const openedFromUrlRef = useRef<string | null>(null);
+
   // Filters
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || searchParams.get('orderId') || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -409,6 +412,27 @@ const OrderTracking: React.FC = () => {
       setDrawerLoading(false);
     }
   };
+
+  useEffect(() => {
+    const q = searchParams.get('search') || searchParams.get('orderId');
+    if (q) {
+      setSearchTerm(q);
+      if (openedFromUrlRef.current !== q) {
+        const match = orders.find(o => o.id.toLowerCase() === q.toLowerCase());
+        if (match) {
+          openedFromUrlRef.current = q;
+          void openDrawer(match);
+        } else if (!selectedOrder) {
+          api.get<Order>(`/api/orders/${encodeURIComponent(q)}`).then(res => {
+            if (res.success && res.data) {
+              openedFromUrlRef.current = q;
+              void openDrawer(res.data);
+            }
+          }).catch(() => {});
+        }
+      }
+    }
+  }, [searchParams, orders]);
 
   const handleUpdateStatus = async () => {
     if (!selectedOrder) return;

@@ -6,6 +6,7 @@ import Sidebar from '../components/dashboard/Sidebar';
 import TopHeader from '../components/dashboard/TopHeader';
 import TeamPerformancePanel from '../components/dashboard/TeamPerformancePanel';
 import { DashboardToastProvider } from '../components/dashboard/DashboardToastProvider';
+import { ChatNotificationListener } from '../components/dashboard/ChatNotificationListener';
 import {
   TeamPerformanceProvider,
   useTeamPerformance,
@@ -45,6 +46,7 @@ const DashboardLayoutInner: React.FC<DashboardLayoutProps> = ({ children }) => {
     <DashboardSidebarContext.Provider
       value={{ isSidebarOpen, toggleSidebar, setIsSidebarOpen }}
     >
+      <ChatNotificationListener />
       <div className="flex h-screen overflow-hidden antialiased bg-[#f8fafc] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 relative print:h-auto print:overflow-visible print:bg-white print:block">
         {/* On smaller windows (< 1024px), sidebar container takes zero width when hidden so content never squishes */}
         <div

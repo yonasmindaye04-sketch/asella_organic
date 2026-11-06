@@ -7,6 +7,8 @@
 -- Fully idempotent (INSERT ... ON DUPLICATE KEY UPDATE).
 -- ===================================================================
 
+SET FOREIGN_KEY_CHECKS=0;
+
 -- ── 1. product_groups (23 parent groups) ──────────────────────────
 CREATE TABLE IF NOT EXISTS product_groups (
   id          CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (UUID()),
@@ -49,6 +51,7 @@ VALUES
   ('77293cd2-b65f-4e7e-be06-a8bdcc0f9f97', 'Shilajit Gummies', 'shilajit-gummies', 'Supports energy production, stamina, and mental performance with natural mineral compounds.', '/image/products/Neuherb Shilajit Gummies  (30 Gummies ).png', 0, 'Superfood', 0),
   ('ad359440-aefc-4f99-8251-6275f9a2b4d7', 'Shilajit Tablet', 'shilajit-tablet', 'Traditionally valued for enhancing vitality, endurance, and overall wellness. 60 count.', '/image/products/Himalaya Shilajit 60 Tablet   ( 500 mg ).png', 0, 'Superfood', 1)
 ON DUPLICATE KEY UPDATE
+  id          = VALUES(id),
   name        = VALUES(name),
   slug        = VALUES(slug),
   description = VALUES(description),
@@ -140,3 +143,4 @@ ON DUPLICATE KEY UPDATE
 -- ── 3. Migration Log Entry ────────────────────────────────────────
 INSERT IGNORE INTO migrations_log (filename) VALUES ('055_update_v2_products.sql');
 SELECT '055_update_v2_products.sql applied' AS result;
+SET FOREIGN_KEY_CHECKS=1;

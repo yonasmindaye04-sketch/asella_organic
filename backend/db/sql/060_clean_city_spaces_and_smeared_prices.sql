@@ -29,3 +29,5 @@ WHERE city REGEXP '[[:space:]]{2,}';
 UPDATE customers
 SET location = TRIM(REGEXP_REPLACE(location, '[[:space:]]+', ' '))
 WHERE location REGEXP '[[:space:]]{2,}';
+
+INSERT IGNORE INTO migrations_log (filename) VALUES ('060_clean_city_spaces_and_smeared_prices.sql');

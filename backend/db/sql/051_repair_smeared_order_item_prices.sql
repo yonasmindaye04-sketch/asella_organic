@@ -97,6 +97,9 @@ BEGIN
     ) x
    WHERE x.rn = 1;
 
+  -- Ensure 120 capsule packaging anchors to canonical price 4500 (avoiding legacy 2500 anchor)
+  UPDATE tmp_051_anchor SET unit_price = 4500.00 WHERE sz LIKE '%120%';
+
   -- ── 2. candidate orders and the sum rebuilt from the anchor ─────────
   DROP TEMPORARY TABLE IF EXISTS tmp_051_repair;
   CREATE TEMPORARY TABLE tmp_051_repair (

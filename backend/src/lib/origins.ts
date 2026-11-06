@@ -1,8 +1,8 @@
 export const isProduction = process.env.NODE_ENV === "production";
 
-const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const devOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/i;
 // Support regional Cloud Run URLs like https://ais-dev-...europe-west3.run.app
-const previewOriginPattern = /^https?:\/\/[a-z0-9.-]+\.(run\.app|google\.com|googleusercontent\.com)$/i;
+const previewOriginPattern = /^https?:\/\/[a-z0-9.-]+\.(run\.app|google\.com|googleusercontent\.com|trycloudflare\.com|ngrok-free\.app|ngrok\.io)$/i;
 
 let allowedOriginsString = process.env.ALLOWED_ORIGINS;
 if (isProduction && !allowedOriginsString) {

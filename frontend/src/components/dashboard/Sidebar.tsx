@@ -32,6 +32,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
   const [pendingCount, setPendingCount] = useState(0);
   const [notifCount, setNotifCount] = useState(0);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const [hasNewIncoming, setHasNewIncoming] = useState(false);
 
   const role = (user?.role || 'guest').toLowerCase();
   const displayName = user?.name || user?.full_name || user?.username || 'Staff';
@@ -67,6 +69,57 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     return () => clearInterval(t);
   }, [role]);
 
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const channelReadsRaw = localStorage.getItem('asella_channel_reads') || '{}';
+        const res = await api.get<{
+          unread: number;
+          channel_unreads?: Record<string, number>;
+          latest?: any;
+        }>(`/api/messages/unread?channel_reads=${encodeURIComponent(channelReadsRaw)}`);
+        if (res.success && res.data) {
+          const count = res.data.unread || 0;
+          setUnreadMsgCount(count);
+          if (count > 0) {
+            setHasNewIncoming(true);
+          } else {
+            setHasNewIncoming(false);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
+    fetchUnread();
+    const t = setInterval(fetchUnread, 10_000);
+
+    const handleChannelRead = () => {
+      fetchUnread();
+    };
+
+    const handleMessagesRead = () => {
+      fetchUnread();
+    };
+
+    const handleNewMessage = () => {
+      setUnreadMsgCount((prev) => prev + 1);
+      setHasNewIncoming(true);
+    };
+
+    window.addEventListener('asella:channel-read', handleChannelRead);
+    window.addEventListener('asella:messages-read', handleMessagesRead);
+    window.addEventListener('asella:new-message-received', handleNewMessage);
+
+    return () => {
+      clearInterval(t);
+      window.removeEventListener('asella:channel-read', handleChannelRead);
+      window.removeEventListener('asella:messages-read', handleMessagesRead);
+      window.removeEventListener('asella:new-message-received', handleNewMessage);
+    };
+  }, []);
+
   const isActive = (path: string) => location.pathname === path;
 
   const isDriver = role === 'delivery' || role === 'driver';
@@ -84,7 +137,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     icon: string;
     label: string;
     badge?: number;
-    badgeVariant?: 'amber' | 'rose';
+    badgeVariant?: 'amber' | 'rose' | 'emerald' | 'red';
   }> = ({ to, icon, label, badge, badgeVariant = 'amber' }) => {
     const active = isActive(to);
     return (
@@ -98,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
           <Icon name={icon} />
           <span className="sidebar-nav-label">{label}</span>
           {badge !== undefined && badge > 0 && (
-            <span className={`sidebar-badge ${badgeVariant === 'rose' ? 'bg-rose-500' : 'bg-amber-500'}`}>
+            <span className={`sidebar-badge ${(badgeVariant === 'rose' || badgeVariant === 'red') ? 'bg-red-600 text-white font-bold' : badgeVariant === 'emerald' ? 'bg-[#1b4d24]' : 'bg-amber-500'} ${hasNewIncoming && (badgeVariant === 'rose' || badgeVariant === 'red') ? 'animate-pulse ring-2 ring-red-400' : ''}`}>
               {badge > 99 ? '99+' : badge}
             </span>
           )}
@@ -165,6 +218,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badge={pendingCount}
                   badgeVariant="amber"
                 />
+                <NavItem
+                  to="/dashboard/notifications"
+                  icon="notifications"
+                  label="Notifications"
+                  badge={notifCount}
+                  badgeVariant="rose"
+                />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" badge={unreadMsgCount} badgeVariant="red" />
               </ul>
             </>
           ) : isStoreManager ? (
@@ -190,7 +251,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 <NavItem to="/dashboard/bulk-orders" icon="inventory_2" label="Bulk Ordering" />
                 <NavItem to="/dashboard/store-report" icon="summarize" label="Reporting Channel" />
                 <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
-                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" badge={unreadMsgCount} badgeVariant="red" />
               </ul>
             </>
           ) : isCallCenter ? (
@@ -216,7 +277,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 <NavItem to="/dashboard/call-center" icon="summarize" label="Reporting Channel" />
                 <NavItem to="/dashboard/products" icon="inventory_2" label="Stock & Inventory" />
                 <NavItem to="/dashboard/stock-request" icon="assignment" label="Stock Request" />
-                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" badge={unreadMsgCount} badgeVariant="red" />
               </ul>
             </>
           ) : isEmployee ? (
@@ -233,7 +294,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   badgeVariant="amber"
                 />
                 <NavItem to="/dashboard/stock-alert" icon="warning" label="Stock Alerts" />
-                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" badge={unreadMsgCount} badgeVariant="red" />
               </ul>
             </>
           ) : (
@@ -291,7 +352,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 {(role === 'admin' || role === 'tech_support') && (
                   <NavItem to="/dashboard/expenses" icon="receipt_long" label="Expenses" />
                 )}
-                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" />
+                <NavItem to="/dashboard/messages" icon="forum" label="Internal Messaging" badge={unreadMsgCount} badgeVariant="red" />
                 <NavItem to="/dashboard/change-password" icon="shield_lock" label="Security Settings" />
               </ul>
 

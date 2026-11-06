@@ -63,14 +63,14 @@ BEGIN
     FROM information_schema.TABLES t
    WHERE t.TABLE_SCHEMA = DATABASE()
      AND t.TABLE_NAME IN ('product_groups', 'product_aliases')
-     AND t.TABLE_COLLATION <> target_collation;
+     AND BINARY t.TABLE_COLLATION <> BINARY target_collation;
 
   SELECT COUNT(*) INTO needs_fix
     FROM information_schema.COLUMNS c
    WHERE c.TABLE_SCHEMA = DATABASE()
      AND c.TABLE_NAME = 'products'
      AND c.COLUMN_NAME = 'product_group_id'
-     AND c.COLLATION_NAME <> target_collation;
+     AND BINARY c.COLLATION_NAME <> BINARY target_collation;
 
   IF needs_fix = 0 THEN
     SELECT '049_align_catalog_collations: already aligned' AS result;

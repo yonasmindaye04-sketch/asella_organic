@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import type { RootState } from '../store';
@@ -37,6 +37,94 @@ interface PerformanceResponse {
   };
   lifetime?: LifetimeStats;
   kpis: Record<string, any>;
+}
+
+interface KpiCardProps {
+  label: string;
+  icon: string;
+  iconColor?: string;
+  value: React.ReactNode;
+  subtitle?: React.ReactNode;
+  hint?: React.ReactNode;
+  progress?: number;
+  progressColor?: string;
+  action?: {
+    to: string;
+    label: string;
+    icon: string;
+  };
+}
+
+function KpiCard({
+  label,
+  icon,
+  iconColor = 'text-zinc-600 dark:text-zinc-400',
+  value,
+  subtitle,
+  hint,
+  progress,
+  progressColor = 'bg-emerald-600 dark:bg-emerald-500',
+  action,
+}: KpiCardProps) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 p-4 sm:p-5 shadow-xs transition hover:border-zinc-300 dark:hover:border-zinc-700 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 truncate">
+            {label}
+          </span>
+          <span className={`material-symbols-outlined text-xl sm:text-2xl shrink-0 ${iconColor}`}>
+            {icon}
+          </span>
+        </div>
+
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <div className="text-2xl sm:text-3xl font-black font-mono text-zinc-900 dark:text-zinc-50 tracking-tight">
+            {value}
+          </div>
+          {subtitle && (
+            <div className="text-xs font-mono text-zinc-500 dark:text-zinc-400">
+              {subtitle}
+            </div>
+          )}
+        </div>
+
+        {progress !== undefined && (
+          <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full mt-2.5 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${progressColor}`}
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+        )}
+
+        {action && (
+          <div className="mt-2.5">
+            <Link
+              to={action.to}
+              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+            >
+              <span className="material-symbols-outlined text-sm">{action.icon}</span>
+              {action.label}
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {hint && (
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2.5 leading-snug">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return 'AO';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 export default function MyPerformancePage() {
@@ -104,15 +192,16 @@ export default function MyPerformancePage() {
     ? 'Operations & Quality Lead'
     : 'Store & Counter Specialist';
 
-  const roleBadgeColor = isDriver
-    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+  // Rule.md Section 2: Bold colored typography only (no background, no border)
+  const roleTextColor = isDriver
+    ? 'text-emerald-700 dark:text-emerald-400'
     : isStoreManager
-    ? 'bg-amber-100 text-amber-800 border-amber-300'
+    ? 'text-amber-700 dark:text-amber-400'
     : isCallCenter
-    ? 'bg-cyan-100 text-cyan-800 border-cyan-300'
+    ? 'text-cyan-700 dark:text-cyan-400'
     : isManagerOrAdmin
-    ? 'bg-purple-100 text-purple-800 border-purple-300'
-    : 'bg-blue-100 text-blue-800 border-blue-300';
+    ? 'text-purple-700 dark:text-purple-400'
+    : 'text-blue-700 dark:text-blue-400';
 
   const kpis = data?.kpis || {};
   const trend: TrendItem[] = kpis.trend || [];
@@ -137,93 +226,91 @@ export default function MyPerformancePage() {
     <DashboardLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 overflow-x-hidden">
         {/* Top Header Card */}
-        <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 sm:p-6 shadow-xs relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-[#1b4d24]/5 to-transparent rounded-bl-full pointer-events-none" />
-
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="material-symbols-outlined text-2xl text-[#1b4d24]">
-                  monitoring
-                </span>
-                <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-                  My Operational Performance
-                </h1>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${roleBadgeColor}`}
-                >
-                  {roleLabel}
-                </span>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 p-5 sm:p-6 shadow-xs relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+            <div className="flex items-start gap-4">
+              {/* Staff Initials Avatar */}
+              <div className="w-12 h-12 rounded-xl bg-[#1b4d24] dark:bg-emerald-800 flex items-center justify-center text-amber-300 font-black text-lg shrink-0 shadow-xs">
+                {getInitials(user?.name || user?.full_name || user?.username || 'Staff')}
               </div>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Real-time personal throughput, service quality, and operational efficiency metrics.
-              </p>
+
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">
+                    {user?.name || user?.full_name || user?.username || 'Staff Member'}
+                  </h1>
+                  <span className="text-zinc-400 dark:text-zinc-600">/</span>
+                  <span className={`text-xs font-black uppercase tracking-wider ${roleTextColor}`}>
+                    {roleLabel}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="flex items-center gap-1 font-semibold text-zinc-700 dark:text-zinc-300">
+                    <span className="material-symbols-outlined text-[15px] text-emerald-700 dark:text-emerald-400">badge</span>
+                    @{user?.username || 'staff'}
+                  </span>
+                  {(data?.user?.location || (user as any)?.location) && (
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[15px] text-zinc-400 dark:text-zinc-500">location_on</span>
+                      {data?.user?.location || (user as any)?.location}
+                    </span>
+                  )}
+                  {lifetime && (
+                    <span className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-400">
+                      <span className="material-symbols-outlined text-[15px]">verified</span>
+                      Career: {lifetime.delivered.toLocaleString()} delivered ({lifetime.completion_rate}%)
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Time Range Selector */}
-            <div className="flex items-center gap-1 p-1 bg-[#f1f8f1] rounded-xl border border-[#d4ecd4] self-start md:self-auto flex-wrap">
-              {(
-                [
-                  { key: 'today', label: 'Today' },
-                  { key: 'week', label: 'Last 7 Days' },
-                  { key: 'month', label: 'Last 30 Days' },
-                  { key: 'quarter', label: 'Last 90 Days' },
-                  { key: 'all', label: 'All Time' },
-                ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setTimeRange(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    timeRange === tab.key
-                      ? 'bg-[#1b4d24] text-white shadow-xs'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 self-start lg:self-center">
+              <div className="flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-800/80 rounded-xl border border-zinc-200/80 dark:border-zinc-700 flex-wrap">
+                {(
+                  [
+                    { key: 'today',   label: 'Today' },
+                    { key: 'week',    label: '7D' },
+                    { key: 'month',   label: '30D' },
+                    { key: 'quarter', label: '90D' },
+                    { key: 'all',     label: 'All Time' },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setTimeRange(tab.key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      timeRange === tab.key
+                        ? 'bg-[#1b4d24] dark:bg-emerald-700 text-white shadow-xs'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white/80 dark:hover:bg-zinc-700/60'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-          {/* Member Details & Career Lifetime Ribbons */}
-          <div className="mt-4 pt-4 border-t border-[#edf5ed] flex flex-col sm:flex-row sm:items-center justify-between text-xs text-gray-500 gap-3 flex-wrap">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="flex items-center gap-1 font-semibold text-gray-800">
-                <span className="material-symbols-outlined text-sm text-[#1b4d24]">person</span>
-                {user?.name || user?.full_name || user?.username || 'Staff Member'}
-              </span>
-              {(data?.user?.location || (user as any)?.location) && (
-                <span className="flex items-center gap-1 text-gray-600">
-                  <span className="material-symbols-outlined text-sm text-[#1b4d24]">store</span>
-                  {data?.user?.location || (user as any)?.location}
-                </span>
-              )}
-              {lifetime && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#eaf4ea] text-[#1b4d24] font-medium text-[11px]">
-                  <span className="material-symbols-outlined text-xs">verified</span>
-                  Career: {lifetime.delivered} delivered ({lifetime.completion_rate}%)
-                </span>
+              {data?.range && (
+                <div className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500 px-1 whitespace-nowrap">
+                  {data.range.from} {data.range.to ? `→ ${data.range.to}` : ''}
+                </div>
               )}
             </div>
-            {data?.range && (
-              <span className="font-mono text-[11px] text-gray-400">
-                Window: {data.range.from} {data.range.to ? `→ ${data.range.to}` : ''}
-              </span>
-            )}
           </div>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800 flex items-center justify-between gap-2">
+          <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 p-4 text-xs text-red-800 dark:text-red-400 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-red-500">error</span>
               <span>{error}</span>
             </div>
             <button
               onClick={() => void fetchPerformance(timeRange)}
-              className="underline font-bold hover:text-red-900 cursor-pointer"
+              className="underline font-bold hover:text-red-900 dark:hover:text-red-300 cursor-pointer"
             >
               Retry
             </button>
@@ -232,15 +319,18 @@ export default function MyPerformancePage() {
 
         {/* Operational Indicators Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div
                 key={i}
-                className="bg-white rounded-2xl border border-[#d4ecd4] p-5 h-32 animate-pulse flex flex-col justify-between"
+                className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 p-4 sm:p-5 h-32 animate-pulse flex flex-col justify-between"
               >
-                <div className="h-4 bg-gray-200 rounded w-1/3" />
-                <div className="h-8 bg-gray-200 rounded w-1/2" />
-                <div className="h-3 bg-gray-100 rounded w-2/3" />
+                <div className="flex justify-between">
+                  <div className="h-3.5 bg-zinc-200 dark:bg-zinc-800 rounded w-1/3" />
+                  <div className="h-6 w-6 bg-zinc-200 dark:bg-zinc-800 rounded" />
+                </div>
+                <div className="h-7 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2" />
+                <div className="h-3 bg-zinc-100 dark:bg-zinc-800/60 rounded w-2/3" />
               </div>
             ))}
           </div>
@@ -248,711 +338,417 @@ export default function MyPerformancePage() {
           <>
             {/* 1. CALL CENTER OPERATIONAL INDICATORS */}
             {isCallCenter && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Orders Booked
-                    </span>
-                    <span className="material-symbols-outlined text-emerald-600">add_task</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900 font-mono">
-                      {kpis.orders_booked ?? 0}
-                    </span>
-                    <span className="text-xs font-mono text-emerald-700">
-                      ({kpis.delivered ?? 0} delivered)
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Customer orders successfully created</p>
-                </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <KpiCard
+                  label="Orders Booked"
+                  icon="add_task"
+                  iconColor="text-emerald-700 dark:text-emerald-400"
+                  value={kpis.orders_booked ?? 0}
+                  subtitle={`(${kpis.delivered ?? 0} delivered)`}
+                  hint="Customer orders successfully created"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Customer Calls Handled
-                    </span>
-                    <span className="material-symbols-outlined text-blue-600">call</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900 font-mono">
-                      {kpis.total_calls_received ?? 0}
-                    </span>
-                    <span className="text-xs font-mono text-gray-500">
-                      ({kpis.total_calls_ordered ?? 0} converted)
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Conversion Rate: <span className="font-bold text-gray-800">{kpis.call_conversion_rate ?? 0}%</span>
-                  </p>
-                </div>
+                <KpiCard
+                  label="Customer Calls Handled"
+                  icon="call"
+                  iconColor="text-blue-700 dark:text-blue-400"
+                  value={kpis.total_calls_received ?? 0}
+                  subtitle={`(${kpis.total_calls_ordered ?? 0} conv.)`}
+                  hint={`Conversion Rate: ${kpis.call_conversion_rate ?? 0}%`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Fulfillment Success Rate
-                    </span>
-                    <span className="material-symbols-outlined text-indigo-600">verified</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.success_rate ?? 100}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.cancelled ?? 0} cancelled ({kpis.cancellation_rate ?? 0}%)
-                  </p>
-                </div>
+                <KpiCard
+                  label="Fulfillment Success Rate"
+                  icon="verified"
+                  iconColor="text-indigo-700 dark:text-indigo-400"
+                  value={`${kpis.success_rate ?? 100}%`}
+                  progress={kpis.success_rate ?? 100}
+                  hint={`${kpis.cancelled ?? 0} cancelled (${kpis.cancellation_rate ?? 0}%)`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Delivery vs Pickup Mix
-                    </span>
-                    <span className="material-symbols-outlined text-teal-600">pie_chart</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-emerald-700 font-mono">
-                      {kpis.delivery_orders ?? 0} Deliv.
-                    </span>
-                    <span className="text-xs font-mono text-gray-400">/</span>
-                    <span className="text-lg font-bold text-amber-700 font-mono">
-                      {kpis.pickup_orders ?? 0} Pickup
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Addis: <span className="font-semibold">{kpis.addis_orders ?? 0}</span> · Regional: <span className="font-semibold">{kpis.regional_orders ?? 0}</span>
-                  </p>
-                </div>
+                <KpiCard
+                  label="Delivery vs Pickup Mix"
+                  icon="pie_chart"
+                  iconColor="text-teal-700 dark:text-teal-400"
+                  value={`${kpis.delivery_orders ?? 0} / ${kpis.pickup_orders ?? 0}`}
+                  subtitle="Deliv. / Pickup"
+                  hint={`Addis: ${kpis.addis_orders ?? 0} · Regional: ${kpis.regional_orders ?? 0}`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Throughput Per Shift
-                    </span>
-                    <span className="material-symbols-outlined text-purple-600">speed</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.avg_orders_per_shift ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Average orders booked per active shift
-                  </p>
-                </div>
+                <KpiCard
+                  label="Throughput Per Shift"
+                  icon="speed"
+                  iconColor="text-purple-700 dark:text-purple-400"
+                  value={kpis.avg_orders_per_shift ?? 0}
+                  hint="Average orders booked per active shift"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Shift Reporting Status
-                    </span>
-                    <span className="material-symbols-outlined text-amber-600">assignment</span>
-                  </div>
-                  <div className="mt-1">
-                    {kpis.today_report_submitted ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
-                        <span className="material-symbols-outlined text-sm">check_circle</span>
-                        Today Filed
-                      </span>
-                    ) : (
-                      <Link
-                        to="/dashboard/call-center"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition"
-                      >
-                        <span className="material-symbols-outlined text-sm">pending_actions</span>
-                        File Shift Report
-                      </Link>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.ontime_reports ?? 0} on-time · {kpis.backdated_reports ?? 0} backdated
-                  </p>
-                </div>
+                <KpiCard
+                  label="Shift Reporting Status"
+                  icon="assignment"
+                  iconColor="text-amber-700 dark:text-amber-400"
+                  value={kpis.today_report_submitted ? 'Filed' : 'Pending'}
+                  hint={`${kpis.ontime_reports ?? 0} on-time · ${kpis.backdated_reports ?? 0} backdated`}
+                  action={
+                    !kpis.today_report_submitted
+                      ? {
+                          to: '/dashboard/call-center',
+                          label: 'File Shift Report',
+                          icon: 'pending_actions',
+                        }
+                      : undefined
+                  }
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Pipeline Open Orders
-                    </span>
-                    <span className="material-symbols-outlined text-orange-600">hourglass_top</span>
-                  </div>
-                  <div className="text-2xl font-black text-orange-700 font-mono">
-                    {kpis.pending ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Active orders awaiting fulfillment</p>
-                </div>
+                <KpiCard
+                  label="Pipeline Open Orders"
+                  icon="hourglass_top"
+                  iconColor="text-orange-700 dark:text-orange-400"
+                  value={kpis.pending ?? 0}
+                  hint="Active orders awaiting fulfillment"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Call Rejection Rate
-                    </span>
-                    <span className="material-symbols-outlined text-rose-600">phone_missed</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.call_rejection_rate ?? 0}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.total_calls_rejected ?? 0} inquiries rejected/dropped
-                  </p>
-                </div>
+                <KpiCard
+                  label="Call Rejection Rate"
+                  icon="phone_missed"
+                  iconColor="text-rose-700 dark:text-rose-400"
+                  value={`${kpis.call_rejection_rate ?? 0}%`}
+                  hint={`${kpis.total_calls_rejected ?? 0} inquiries rejected/dropped`}
+                />
               </div>
             )}
 
             {/* 2. DRIVER OPERATIONAL INDICATORS */}
             {isDriver && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Delivered Packages
-                    </span>
-                    <span className="material-symbols-outlined text-emerald-600">task_alt</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900 font-mono">
-                      {kpis.delivered ?? 0}
-                    </span>
-                    <span className="text-xs font-mono text-gray-400">
-                      / {kpis.total_assigned ?? 0} trips
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                    <div
-                      className="bg-emerald-600 h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          kpis.total_assigned ? (kpis.delivered / kpis.total_assigned) * 100 : 0
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <KpiCard
+                  label="Delivered Packages"
+                  icon="task_alt"
+                  iconColor="text-emerald-700 dark:text-emerald-400"
+                  value={kpis.delivered ?? 0}
+                  subtitle={`/ ${kpis.total_assigned ?? 0} trips`}
+                  progress={
+                    kpis.total_assigned
+                      ? (kpis.delivered / kpis.total_assigned) * 100
+                      : 0
+                  }
+                  hint="Packages successfully dropped off"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Fulfillment Rate
-                    </span>
-                    <span className="material-symbols-outlined text-blue-600">verified</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.completion_rate ?? 100}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Trips successfully handed over to customers
-                  </p>
-                </div>
+                <KpiCard
+                  label="Fulfillment Rate"
+                  icon="verified"
+                  iconColor="text-blue-700 dark:text-blue-400"
+                  value={`${kpis.completion_rate ?? 100}%`}
+                  progress={kpis.completion_rate ?? 100}
+                  hint="Trips successfully handed over to customers"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      First-Attempt Success
-                    </span>
-                    <span className="material-symbols-outlined text-amber-600">schedule</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.first_attempt_rate ?? 100}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Delivered on initial arrival without return
-                  </p>
-                </div>
+                <KpiCard
+                  label="First-Attempt Success"
+                  icon="schedule"
+                  iconColor="text-amber-700 dark:text-amber-400"
+                  value={`${kpis.first_attempt_rate ?? 100}%`}
+                  hint="Delivered on initial arrival without return"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      On-Time Delivery Rate
-                    </span>
-                    <span className="material-symbols-outlined text-teal-600">alarm_on</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.on_time_rate ?? 100}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.on_time ?? 0} packages delivered on target date
-                  </p>
-                </div>
+                <KpiCard
+                  label="On-Time Delivery Rate"
+                  icon="alarm_on"
+                  iconColor="text-teal-700 dark:text-teal-400"
+                  value={`${kpis.on_time_rate ?? 100}%`}
+                  hint={`${kpis.on_time ?? 0} packages delivered on target date`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Active In-Transit
-                    </span>
-                    <span className="material-symbols-outlined text-indigo-600">local_shipping</span>
-                  </div>
-                  <div className="text-2xl font-black text-indigo-700 font-mono">
-                    {kpis.in_transit ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Packages currently out for delivery
-                  </p>
-                </div>
+                <KpiCard
+                  label="Active In-Transit"
+                  icon="local_shipping"
+                  iconColor="text-indigo-700 dark:text-indigo-400"
+                  value={kpis.in_transit ?? 0}
+                  hint="Packages currently out for delivery"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Delivery Issues / Returns
-                    </span>
-                    <span className="material-symbols-outlined text-rose-600">report_problem</span>
-                  </div>
-                  <div className="text-2xl font-black text-rose-600 font-mono">
-                    {kpis.issues ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Failed drop-offs or customer address issues
-                  </p>
-                </div>
+                <KpiCard
+                  label="Delivery Issues / Returns"
+                  icon="report_problem"
+                  iconColor="text-rose-700 dark:text-rose-400"
+                  value={kpis.issues ?? 0}
+                  hint="Failed drop-offs or address issues"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Trip Cancellation Rate
-                    </span>
-                    <span className="material-symbols-outlined text-gray-500">cancel</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.cancellation_rate ?? 0}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.cancelled ?? 0} cancelled delivery trips
-                  </p>
-                </div>
+                <KpiCard
+                  label="Trip Cancellation Rate"
+                  icon="cancel"
+                  iconColor="text-zinc-600 dark:text-zinc-400"
+                  value={`${kpis.cancellation_rate ?? 0}%`}
+                  hint={`${kpis.cancelled ?? 0} cancelled delivery trips`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Career Deliveries
-                    </span>
-                    <span className="material-symbols-outlined text-purple-600">local_shipping</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {lifetime?.delivered ?? kpis.delivered ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Total lifetime parcels delivered
-                  </p>
-                </div>
+                <KpiCard
+                  label="Career Deliveries"
+                  icon="workspace_premium"
+                  iconColor="text-purple-700 dark:text-purple-400"
+                  value={lifetime?.delivered ?? kpis.delivered ?? 0}
+                  hint="Total lifetime parcels delivered"
+                />
               </div>
             )}
 
             {/* 3. SUBSTORE MANAGER OPERATIONAL INDICATORS */}
             {isStoreManager && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Counter Pickups Handed Over
-                    </span>
-                    <span className="material-symbols-outlined text-emerald-600">shopping_bag</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900 font-mono">
-                      {kpis.pickups_delivered ?? 0}
-                    </span>
-                    <span className="text-xs font-mono text-gray-400">
-                      / {kpis.total_pickups ?? 0} pickups
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                    <div
-                      className="bg-emerald-600 h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          kpis.total_pickups ? (kpis.pickups_delivered / kpis.total_pickups) * 100 : 0
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <KpiCard
+                  label="Counter Pickups Handed Over"
+                  icon="shopping_bag"
+                  iconColor="text-emerald-700 dark:text-emerald-400"
+                  value={kpis.pickups_delivered ?? 0}
+                  subtitle={`/ ${kpis.total_pickups ?? 0} pickups`}
+                  progress={
+                    kpis.total_pickups
+                      ? (kpis.pickups_delivered / kpis.total_pickups) * 100
+                      : 0
+                  }
+                  hint="Customer collections fulfilled without issue"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Pickup Success Rate
-                    </span>
-                    <span className="material-symbols-outlined text-blue-600">verified</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.pickup_success_rate ?? 100}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Customer collections fulfilled without issue
-                  </p>
-                </div>
+                <KpiCard
+                  label="Pickup Success Rate"
+                  icon="verified"
+                  iconColor="text-blue-700 dark:text-blue-400"
+                  value={`${kpis.pickup_success_rate ?? 100}%`}
+                  progress={kpis.pickup_success_rate ?? 100}
+                  hint="Customer collections completed"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Pending In-Store Pickups
-                    </span>
-                    <span className="material-symbols-outlined text-amber-600">hourglass_top</span>
-                  </div>
-                  <div className="text-2xl font-black text-amber-700 font-mono">
-                    {kpis.pickups_pending ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Orders ready at counter awaiting collection
-                  </p>
-                </div>
+                <KpiCard
+                  label="Pending In-Store Pickups"
+                  icon="hourglass_top"
+                  iconColor="text-amber-700 dark:text-amber-400"
+                  value={kpis.pickups_pending ?? 0}
+                  hint="Orders ready at counter awaiting collection"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Walk-in Assisted
-                    </span>
-                    <span className="material-symbols-outlined text-indigo-600">storefront</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.walkin_orders ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Walk-in counter transactions served
-                  </p>
-                </div>
+                <KpiCard
+                  label="Walk-in Assisted"
+                  icon="storefront"
+                  iconColor="text-indigo-700 dark:text-indigo-400"
+                  value={kpis.walkin_orders ?? 0}
+                  hint="Walk-in counter transactions served"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Branch Low-Stock Warnings
-                    </span>
-                    <span className="material-symbols-outlined text-rose-600">warning</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-rose-600 font-mono">
-                      {kpis.low_stock_count ?? 0}
-                    </span>
-                    <span className="text-xs font-mono text-gray-400">
-                      ({kpis.out_of_stock_count ?? 0} out of stock)
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    SKUs nearing or at zero inventory
-                  </p>
-                </div>
+                <KpiCard
+                  label="Branch Low-Stock Warnings"
+                  icon="warning"
+                  iconColor="text-rose-700 dark:text-rose-400"
+                  value={kpis.low_stock_count ?? 0}
+                  subtitle={`(${kpis.out_of_stock_count ?? 0} out of stock)`}
+                  hint="SKUs nearing or at zero inventory"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Restock Requests Filed
-                    </span>
-                    <span className="material-symbols-outlined text-teal-600">sync_alt</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900 font-mono">
-                      {kpis.stock_requests_total ?? 0}
-                    </span>
-                    <span className="text-xs font-mono text-amber-600">
-                      ({kpis.stock_requests_pending ?? 0} pending)
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Replenishment orders raised for branch
-                  </p>
-                </div>
+                <KpiCard
+                  label="Restock Requests Filed"
+                  icon="sync_alt"
+                  iconColor="text-teal-700 dark:text-teal-400"
+                  value={kpis.stock_requests_total ?? 0}
+                  subtitle={`(${kpis.stock_requests_pending ?? 0} pending)`}
+                  hint="Replenishment orders raised for branch"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Total Orders Handled
-                    </span>
-                    <span className="material-symbols-outlined text-purple-600">hub</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.total_handled ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Branch volume across pickup & counter orders
-                  </p>
-                </div>
+                <KpiCard
+                  label="Total Orders Handled"
+                  icon="hub"
+                  iconColor="text-purple-700 dark:text-purple-400"
+                  value={kpis.total_handled ?? 0}
+                  hint="Branch volume across pickup & counter orders"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Order Issue & Return Rate
-                    </span>
-                    <span className="material-symbols-outlined text-gray-600">rule</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.cancellation_rate ?? 0}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.cancelled ?? 0} cancelled · {kpis.issues ?? 0} issues
-                  </p>
-                </div>
+                <KpiCard
+                  label="Order Issue & Return Rate"
+                  icon="rule"
+                  iconColor="text-zinc-600 dark:text-zinc-400"
+                  value={`${kpis.cancellation_rate ?? 0}%`}
+                  hint={`${kpis.cancelled ?? 0} cancelled · ${kpis.issues ?? 0} issues`}
+                />
               </div>
             )}
 
             {/* 4. COUNTER STAFF / EMPLOYEE OPERATIONAL INDICATORS */}
             {isEmployee && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Transactions Processed
-                    </span>
-                    <span className="material-symbols-outlined text-emerald-600">point_of_sale</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.transactions ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Orders processed through store counter</p>
-                </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <KpiCard
+                  label="Transactions Processed"
+                  icon="point_of_sale"
+                  iconColor="text-emerald-700 dark:text-emerald-400"
+                  value={kpis.transactions ?? 0}
+                  hint="Orders processed through store counter"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Successfully Completed
-                    </span>
-                    <span className="material-symbols-outlined text-blue-600">task_alt</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.delivered ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Orders delivered and handed over</p>
-                </div>
+                <KpiCard
+                  label="Successfully Completed"
+                  icon="task_alt"
+                  iconColor="text-blue-700 dark:text-blue-400"
+                  value={kpis.delivered ?? 0}
+                  hint="Orders delivered and handed over"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Customer Profile Capture
-                    </span>
-                    <span className="material-symbols-outlined text-purple-600">person_add</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.capture_rate ?? 100}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.captured_customers ?? 0} customer contacts recorded
-                  </p>
-                </div>
+                <KpiCard
+                  label="Customer Profile Capture"
+                  icon="person_add"
+                  iconColor="text-purple-700 dark:text-purple-400"
+                  value={`${kpis.capture_rate ?? 100}%`}
+                  progress={kpis.capture_rate ?? 100}
+                  hint={`${kpis.captured_customers ?? 0} customer contacts recorded`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Total Units Handled
-                    </span>
-                    <span className="material-symbols-outlined text-teal-600">inventory_2</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.items_handled ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Avg {kpis.avg_items_per_order ?? 0} units per order
-                  </p>
-                </div>
+                <KpiCard
+                  label="Total Units Handled"
+                  icon="inventory_2"
+                  iconColor="text-teal-700 dark:text-teal-400"
+                  value={kpis.items_handled ?? 0}
+                  hint={`Avg ${kpis.avg_items_per_order ?? 0} units per order`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Pickup Orders Assisted
-                    </span>
-                    <span className="material-symbols-outlined text-amber-600">store</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.pickup_orders ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">In-store collections handled</p>
-                </div>
+                <KpiCard
+                  label="Pickup Orders Assisted"
+                  icon="store"
+                  iconColor="text-amber-700 dark:text-amber-400"
+                  value={kpis.pickup_orders ?? 0}
+                  hint="In-store collections handled"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Dispatched Deliveries
-                    </span>
-                    <span className="material-symbols-outlined text-indigo-600">local_shipping</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.delivery_orders ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Delivery packages initiated</p>
-                </div>
+                <KpiCard
+                  label="Dispatched Deliveries"
+                  icon="local_shipping"
+                  iconColor="text-indigo-700 dark:text-indigo-400"
+                  value={kpis.delivery_orders ?? 0}
+                  hint="Delivery packages initiated"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Pending Action
-                    </span>
-                    <span className="material-symbols-outlined text-orange-600">hourglass_top</span>
-                  </div>
-                  <div className="text-2xl font-black text-orange-700 font-mono">
-                    {kpis.pending ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Orders awaiting completion</p>
-                </div>
+                <KpiCard
+                  label="Pending Action"
+                  icon="hourglass_top"
+                  iconColor="text-orange-700 dark:text-orange-400"
+                  value={kpis.pending ?? 0}
+                  hint="Orders awaiting completion"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Cancellation Rate
-                    </span>
-                    <span className="material-symbols-outlined text-rose-600">cancel</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.cancellation_rate ?? 0}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.cancelled ?? 0} cancelled counter orders
-                  </p>
-                </div>
+                <KpiCard
+                  label="Cancellation Rate"
+                  icon="cancel"
+                  iconColor="text-rose-700 dark:text-rose-400"
+                  value={`${kpis.cancellation_rate ?? 0}%`}
+                  hint={`${kpis.cancelled ?? 0} cancelled counter orders`}
+                />
               </div>
             )}
 
             {/* 5. MANAGER / ADMIN OPERATIONAL INDICATORS */}
             {isManagerOrAdmin && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Total Pipeline Volume
-                    </span>
-                    <span className="material-symbols-outlined text-blue-600">sync_alt</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.total_orders ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    All orders flowing through the platform
-                  </p>
-                </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <KpiCard
+                  label="Total Pipeline Volume"
+                  icon="sync_alt"
+                  iconColor="text-blue-700 dark:text-blue-400"
+                  value={kpis.total_orders ?? 0}
+                  hint="All orders flowing through the platform"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Global Fulfillment Rate
-                    </span>
-                    <span className="material-symbols-outlined text-emerald-600">verified</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.fulfillment_rate ?? 100}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.delivered ?? 0} successfully delivered orders
-                  </p>
-                </div>
+                <KpiCard
+                  label="Global Fulfillment Rate"
+                  icon="verified"
+                  iconColor="text-emerald-700 dark:text-emerald-400"
+                  value={`${kpis.fulfillment_rate ?? 100}%`}
+                  progress={kpis.fulfillment_rate ?? 100}
+                  hint={`${kpis.delivered ?? 0} successfully delivered orders`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Delayed Bottlenecks
-                    </span>
-                    <span className="material-symbols-outlined text-amber-600">timer</span>
-                  </div>
-                  <div className="text-2xl font-black text-amber-600 font-mono">
-                    {(kpis.stuck_pending ?? 0) + (kpis.stuck_transit ?? 0)}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.stuck_pending ?? 0} pending &gt;2h · {kpis.stuck_transit ?? 0} in-transit &gt;24h
-                  </p>
-                </div>
+                <KpiCard
+                  label="Delayed Bottlenecks"
+                  icon="timer"
+                  iconColor="text-amber-700 dark:text-amber-400"
+                  value={(kpis.stuck_pending ?? 0) + (kpis.stuck_transit ?? 0)}
+                  hint={`${kpis.stuck_pending ?? 0} pending >2h · ${kpis.stuck_transit ?? 0} transit >24h`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Catalog Stock Risk
-                    </span>
-                    <span className="material-symbols-outlined text-rose-600">inventory_2</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-rose-600 font-mono">
-                      {kpis.low_stock_count ?? 0}
-                    </span>
-                    <span className="text-xs font-mono text-gray-400">
-                      ({kpis.out_of_stock_count ?? 0} zero inventory)
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Products at or below low stock threshold</p>
-                </div>
+                <KpiCard
+                  label="Catalog Stock Risk"
+                  icon="inventory_2"
+                  iconColor="text-rose-700 dark:text-rose-400"
+                  value={kpis.low_stock_count ?? 0}
+                  subtitle={`(${kpis.out_of_stock_count ?? 0} zero)`}
+                  hint="Products at or below low stock threshold"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Active Operational Team
-                    </span>
-                    <span className="material-symbols-outlined text-purple-600">groups</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.active_staff_count ?? 0}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Staff members with logged orders</p>
-                </div>
+                <KpiCard
+                  label="Active Operational Team"
+                  icon="groups"
+                  iconColor="text-purple-700 dark:text-purple-400"
+                  value={kpis.active_staff_count ?? 0}
+                  hint="Staff members with logged orders"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Channel Breakdown
-                    </span>
-                    <span className="material-symbols-outlined text-teal-600">alt_route</span>
-                  </div>
-                  <div className="text-xs font-mono font-bold text-gray-800 space-y-0.5">
-                    <div>Web: {kpis.channel_web ?? 0} · TMA: {kpis.channel_telegram ?? 0}</div>
-                    <div>Call Center: {kpis.channel_call_center ?? 0} · POS: {kpis.channel_pos ?? 0}</div>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-1">Multi-channel order origin</p>
-                </div>
+                <KpiCard
+                  label="Channel Breakdown"
+                  icon="alt_route"
+                  iconColor="text-teal-700 dark:text-teal-400"
+                  value={
+                    (Number(kpis.channel_web) || 0) +
+                    (Number(kpis.channel_telegram) || 0) +
+                    (Number(kpis.channel_call_center) || 0) +
+                    (Number(kpis.channel_pos) || 0)
+                  }
+                  subtitle="Multi-channel"
+                  hint={`Web: ${kpis.channel_web ?? 0} · TMA: ${kpis.channel_telegram ?? 0} · CC: ${kpis.channel_call_center ?? 0} · POS: ${kpis.channel_pos ?? 0}`}
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      Fulfillment Mode Split
-                    </span>
-                    <span className="material-symbols-outlined text-indigo-600">local_shipping</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-emerald-700 font-mono">
-                      {kpis.delivery_orders ?? 0} Deliv.
-                    </span>
-                    <span className="text-xs font-mono text-gray-400">/</span>
-                    <span className="text-lg font-bold text-amber-700 font-mono">
-                      {kpis.pickup_orders ?? 0} Pickup
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">Delivery vs store collection</p>
-                </div>
+                <KpiCard
+                  label="Fulfillment Mode Split"
+                  icon="local_shipping"
+                  iconColor="text-indigo-700 dark:text-indigo-400"
+                  value={`${kpis.delivery_orders ?? 0} / ${kpis.pickup_orders ?? 0}`}
+                  subtitle="Deliv. / Pickup"
+                  hint="Delivery vs store collection"
+                />
 
-                <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-2xs">
-                  <div className="flex items-center justify-between text-gray-500 mb-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">
-                      System Cancellation Rate
-                    </span>
-                    <span className="material-symbols-outlined text-rose-600">cancel</span>
-                  </div>
-                  <div className="text-2xl font-black text-gray-900 font-mono">
-                    {kpis.cancellation_rate ?? 0}%
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {kpis.cancelled ?? 0} total cancelled orders
-                  </p>
-                </div>
+                <KpiCard
+                  label="System Cancellation Rate"
+                  icon="cancel"
+                  iconColor="text-rose-700 dark:text-rose-400"
+                  value={`${kpis.cancellation_rate ?? 0}%`}
+                  hint={`${kpis.cancelled ?? 0} total cancelled orders`}
+                />
               </div>
             )}
 
             {/* Daily Operational Activity Chart */}
-            <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 sm:p-6 shadow-xs">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 p-5 sm:p-6 shadow-xs">
               <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                     Daily Operational Throughput
                   </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                     Activity volume across the selected time period.
                   </p>
                 </div>
-                <div className="flex items-center gap-4 text-xs font-medium text-gray-600">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#1b4d24]" /> Completed / Delivered
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">task_alt</span>
+                    Completed / Delivered
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-200" /> Total Handled
+                  <span className="font-bold text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">bar_chart</span>
+                    Total Handled
                   </span>
                 </div>
               </div>
 
               {trend.length === 0 ? (
-                <div className="py-12 text-center text-gray-400 text-xs">
+                <div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-xs">
                   No activity recorded for this date window.
                 </div>
               ) : (
-                <div className="flex items-end gap-2 sm:gap-4 h-48 pt-6 pb-2 border-b border-gray-100 overflow-x-auto custom-scrollbar">
+                <div className="flex items-end gap-2 sm:gap-4 h-48 pt-6 pb-2 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto custom-scrollbar">
                   {trend.map((day, idx) => {
                     const topVal =
                       day.total ??
@@ -970,22 +766,22 @@ export default function MyPerformancePage() {
                         key={idx}
                         className="flex-1 flex flex-col items-center gap-2 min-w-[36px] group relative"
                       >
-                        <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] font-mono py-1 px-2 rounded pointer-events-none whitespace-nowrap z-20 shadow-lg">
+                        <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-900 dark:bg-zinc-800 text-white text-[10px] font-mono py-1 px-2.5 rounded-lg pointer-events-none whitespace-nowrap z-20 shadow-md border border-zinc-700">
                           Completed: {compVal} | Total: {topVal}
                         </div>
 
                         <div className="w-full max-w-[28px] h-36 flex items-end justify-center relative">
                           <div
-                            className="w-full bg-emerald-100 rounded-t-md transition-all absolute bottom-0"
+                            className="w-full bg-zinc-200 dark:bg-zinc-800 rounded-t-md transition-all absolute bottom-0"
                             style={{ height: `${topHeight}px` }}
                           />
                           <div
-                            className="w-full bg-[#1b4d24] rounded-t-md transition-all relative z-10"
+                            className="w-full bg-[#1b4d24] dark:bg-emerald-600 rounded-t-md transition-all relative z-10"
                             style={{ height: `${compHeight}px` }}
                           />
                         </div>
 
-                        <span className="text-[10px] font-mono text-gray-400 truncate max-w-[44px]">
+                        <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 truncate max-w-[44px]">
                           {day.date.length > 5 ? day.date.slice(5) : day.date}
                         </span>
                       </div>
@@ -996,23 +792,25 @@ export default function MyPerformancePage() {
             </div>
 
             {/* Quick Operational Shortcuts */}
-            <div className="bg-white rounded-2xl border border-[#d4ecd4] p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#1b4d24] text-xl">
+                  <span className="material-symbols-outlined text-emerald-700 dark:text-emerald-400 text-xl">
                     speed
                   </span>
-                  <h4 className="text-sm font-bold text-gray-900">Operational Actions &amp; Navigation</h4>
+                  <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                    Operational Actions &amp; Navigation
+                  </h4>
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                   Access live workflows directly to fulfill customer tasks and process orders.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
                 <Link
                   to="/dashboard/tracking"
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#1b4d24] text-white text-xs font-bold hover:bg-[#143e1c] transition text-center shadow-xs cursor-pointer"
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#1b4d24] hover:bg-[#133619] dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white text-xs font-bold transition text-center shadow-2xs"
                 >
                   <span className="material-symbols-outlined text-sm">route</span>
                   Order Tracking
@@ -1020,7 +818,7 @@ export default function MyPerformancePage() {
                 {isCallCenter && (
                   <Link
                     to="/dashboard/call-center"
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#1b4d24] text-[#1b4d24] text-xs font-bold hover:bg-[#eef6ee] transition text-center cursor-pointer"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold transition text-center"
                   >
                     <span className="material-symbols-outlined text-sm">summarize</span>
                     Daily Shift Report
@@ -1028,8 +826,8 @@ export default function MyPerformancePage() {
                 )}
                 {isStoreManager && (
                   <Link
-                    to="/dashboard/products"
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#1b4d24] text-[#1b4d24] text-xs font-bold hover:bg-[#eef6ee] transition text-center cursor-pointer"
+                    to="/dashboard/products?tab=stock"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold transition text-center"
                   >
                     <span className="material-symbols-outlined text-sm">inventory_2</span>
                     Stock &amp; Inventory
@@ -1038,7 +836,7 @@ export default function MyPerformancePage() {
                 {!isCallCenter && !isStoreManager && (
                   <Link
                     to="/dashboard/pos"
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#1b4d24] text-[#1b4d24] text-xs font-bold hover:bg-[#eef6ee] transition text-center cursor-pointer"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold transition text-center"
                   >
                     <span className="material-symbols-outlined text-sm">point_of_sale</span>
                     POS Terminal

@@ -751,7 +751,7 @@ router.get(
           lifetimeRegional = Math.max(lifetimeRegional, Number(allStats?.regional_orders || 0));
         }
       } catch (err) {
-        log.warn("Failed to fetch lifetime career stats", err);
+        log.warn("Failed to fetch lifetime career stats", { error: String(err) });
       }
 
       data.lifetime = {

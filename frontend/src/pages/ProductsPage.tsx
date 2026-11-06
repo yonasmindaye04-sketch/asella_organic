@@ -9,6 +9,7 @@
  * Both tabs read/write the same `products` table via the backend.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { resolveProductImage } from '../utils/image';
@@ -779,16 +780,21 @@ function ReviewRequestModal({ request, onClose, onSaved }: ReviewModalProps) {
 
 interface ProductsTabProps {
   onReloadStock: () => void;
+  initialSearch?: string;
 }
 
-function ProductsTab({ onReloadStock }: ProductsTabProps) {
+function ProductsTab({ onReloadStock, initialSearch = '' }: ProductsTabProps) {
   const [products,  setProducts]   = useState<Product[]>([]);
   const [loading,   setLoading]    = useState(true);
-  const [search,    setSearch]     = useState('');
+  const [search,    setSearch]     = useState(initialSearch);
   const [tagFilter, setTagFilter]  = useState('All');
   const [showArchived, setShowArchived] = useState(false);
   const [formTarget, setFormTarget] = useState<(Partial<Product> & { id?: string }) | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+
+  useEffect(() => {
+    if (initialSearch) setSearch(initialSearch);
+  }, [initialSearch]);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -1152,9 +1158,11 @@ function RequestRestockModal({ initialItem, items, onClose, onSaved }: RequestRe
 
 interface StockTabProps {
   reloadKey: number;
+  initialSearch?: string;
+  initialSection?: 'stock' | 'movements' | 'requests';
 }
 
-function StockTab({ reloadKey }: StockTabProps) {
+function StockTab({ reloadKey, initialSearch = '', initialSection = 'stock' }: StockTabProps) {
   const { user } = useSelector((state: RootState) => state.auth);
   const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
   const [items,     setItems]    = useState<StockItem[]>([]);
@@ -1163,12 +1171,20 @@ function StockTab({ reloadKey }: StockTabProps) {
   const [requests,  setRequests] = useState<StockRequest[]>([]);
   const [loading,   setLoading]  = useState(true);
   const [filter,    setFilter]   = useState<'all' | StockItem['stock_status']>('all');
-  const [search,    setSearch]   = useState('');
+  const [search,    setSearch]   = useState(initialSearch);
   const [adjTarget, setAdjTarget] = useState<StockItem | null>(null);
   const [reviewTarget, setReviewTarget] = useState<StockRequest | null>(null);
   const [restockTarget, setRestockTarget] = useState<StockItem | null>(null);
   const [showGeneralRestock, setShowGeneralRestock] = useState(false);
-  const [activeSection, setSection] = useState<'stock' | 'movements' | 'requests'>('stock');
+  const [activeSection, setSection] = useState<'stock' | 'movements' | 'requests'>(initialSection);
+
+  useEffect(() => {
+    if (initialSearch) setSearch(initialSearch);
+  }, [initialSearch]);
+
+  useEffect(() => {
+    if (initialSection) setSection(initialSection);
+  }, [initialSection]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -1575,13 +1591,25 @@ function StockTab({ reloadKey }: StockTabProps) {
 type TabKey = 'products' | 'stock';
 
 export default function ProductsPage() {
+  const [searchParams] = useSearchParams();
   const { user } = useSelector((state: RootState) => state.auth);
   const isCallCenter = user?.role === 'call_center';
   const isStoreManager = user?.role === 'store_manager';
   const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
 
-  const [tab, setTab] = useState<TabKey>(isCallCenter || isStoreManager ? 'stock' : 'products');
+  const tabParam = searchParams.get('tab');
+  const [tab, setTab] = useState<TabKey>(
+    tabParam === 'stock' || tabParam === 'products'
+      ? tabParam
+      : (isCallCenter || isStoreManager ? 'stock' : 'products')
+  );
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (tabParam === 'stock' || tabParam === 'products') {
+      setTab(tabParam);
+    }
+  }, [tabParam]);
 
   // Shared inline styles as a single Tailwind class string approach — define in index.css:
   // .label { @apply block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5; }
@@ -1640,10 +1668,23 @@ export default function ProductsPage() {
 
         {/* Tab content */}
         {tab === 'products' && (
-          <ProductsTab onReloadStock={() => setReloadKey(k => k + 1)} />
+          <ProductsTab
+            onReloadStock={() => setReloadKey(k => k + 1)}
+            initialSearch={searchParams.get('search') || ''}
+          />
         )}
         {tab === 'stock' && (
-          <StockTab reloadKey={reloadKey} />
+          <StockTab
+            reloadKey={reloadKey}
+            initialSearch={searchParams.get('search') || ''}
+            initialSection={
+              searchParams.get('section') === 'requests'
+                ? 'requests'
+                : searchParams.get('section') === 'movements'
+                ? 'movements'
+                : 'stock'
+            }
+          />
         )}
       </div>
     </DashboardLayout>

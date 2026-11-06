@@ -467,6 +467,28 @@ export const UpdateAssetSchema = z.object({
   alt_text: z.string().trim().max(255).optional().nullable(),
 });
 
+export const AddChannelMemberSchema = z.object({
+  user_id: z.string().trim().optional(),
+  role: z.string().trim().optional(),
+}).refine((data) => Boolean(data.user_id || data.role), {
+  message: "Either user_id or role must be provided",
+});
+
+export const CreateChannelSchema = z.object({
+  name: z.string().trim().min(2, "Channel name must be at least 2 characters").max(60),
+  description: z.string().trim().max(300).optional().default(""),
+  icon: z.string().trim().max(50).optional().default("forum"),
+  admin_only_post: z.boolean().optional().default(false),
+  initial_role: z.string().trim().optional(),
+});
+
+export const CreateInternalMessageSchema = z.object({
+  channel: z.string().trim().min(1, "Channel is required").max(50),
+  content: z.string().trim().min(1, "Message content cannot be empty").max(2000, "Message content cannot exceed 2000 characters"),
+  priority: z.enum(["normal", "urgent", "announcement"]).optional().default("normal"),
+  is_announcement: z.boolean().optional().default(false),
+});
+
 // ─── Type exports (inferred from schemas) ────────────────────────────────
 
 export type LoginInput           = z.infer<typeof LoginSchema>;

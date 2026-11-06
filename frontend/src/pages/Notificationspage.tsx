@@ -1,5 +1,5 @@
 /**
- * NotificationsPage.tsx
+ * Notificationspage.tsx
  * Asella Organic — In-App Notification Center
  *
  * Dedicated notification channel:
@@ -44,15 +44,97 @@ interface Summary {
   total: number;
 }
 
-const CATEGORY_STYLES: Record<string, { dot: string; badge: string; border: string }> = {
-  low_stock:         { dot: 'bg-red-500',     badge: 'text-red-700 bg-red-50 border-red-200',         border: 'border-l-red-500' },
-  stock_request:     { dot: 'bg-amber-500',   badge: 'text-amber-700 bg-amber-50 border-amber-200',     border: 'border-l-amber-500' },
-  new_order:         { dot: 'bg-blue-500',    badge: 'text-blue-700 bg-blue-50 border-blue-200',       border: 'border-l-blue-500' },
-  vendor:            { dot: 'bg-emerald-500', badge: 'text-emerald-700 bg-emerald-50 border-emerald-200', border: 'border-l-emerald-500' },
-  delivery_assigned: { dot: 'bg-emerald-600', badge: 'text-emerald-800 bg-emerald-100 border-emerald-300 font-bold', border: 'border-l-emerald-600' },
-  new_delivery:      { dot: 'bg-cyan-500',    badge: 'text-cyan-800 bg-cyan-50 border-cyan-300 font-bold', border: 'border-l-cyan-500' },
-  dispatch_alert:    { dot: 'bg-amber-600',   badge: 'text-amber-900 bg-amber-100 border-amber-300 font-bold', border: 'border-l-amber-600' },
+interface ActionConfig {
+  label: string;
+  icon: string;
+  to: string;
+}
+
+const CATEGORY_TEXT_COLORS: Record<string, string> = {
+  low_stock:         'text-rose-600 dark:text-rose-400',
+  stock_request:     'text-amber-600 dark:text-amber-400',
+  new_order:         'text-blue-600 dark:text-blue-400',
+  vendor:            'text-emerald-700 dark:text-emerald-400',
+  delivery_assigned: 'text-emerald-700 dark:text-emerald-400',
+  new_delivery:      'text-cyan-700 dark:text-cyan-400',
+  dispatch_alert:    'text-amber-700 dark:text-amber-400',
 };
+
+function getStatusTextColor(status: string): string {
+  const s = (status || '').toLowerCase();
+  if (s.includes('deliver') || s.includes('complet') || s.includes('paid')) {
+    return 'text-emerald-600 dark:text-emerald-400';
+  }
+  if (s.includes('transit') || s.includes('dispatch')) {
+    return 'text-blue-600 dark:text-blue-400';
+  }
+  if (s.includes('pend') || s.includes('request')) {
+    return 'text-amber-600 dark:text-amber-400';
+  }
+  if (s.includes('cancel') || s.includes('reject') || s.includes('fail') || s.includes('void')) {
+    return 'text-rose-600 dark:text-rose-400';
+  }
+  if (s.includes('confirm') || s.includes('process')) {
+    return 'text-teal-600 dark:text-teal-400';
+  }
+  return 'text-zinc-700 dark:text-zinc-300';
+}
+
+function getNotificationAction(n: Notification): ActionConfig | null {
+  const meta = n.metadata || {};
+
+  switch (n.category) {
+    case 'new_order':
+    case 'delivery_assigned':
+    case 'new_delivery': {
+      const orderId = meta.order_id || (n.id && n.id.startsWith('ORD-') ? n.id : null);
+      if (!orderId) return null;
+      return {
+        label: 'Track Order',
+        icon: 'route',
+        to: `/dashboard/tracking?search=${encodeURIComponent(orderId)}&orderId=${encodeURIComponent(orderId)}`,
+      };
+    }
+
+    case 'low_stock': {
+      const pName = meta.product_name;
+      return {
+        label: 'View Stock',
+        icon: 'inventory_2',
+        to: pName
+          ? `/dashboard/products?tab=stock&search=${encodeURIComponent(pName)}`
+          : '/dashboard/products?tab=stock',
+      };
+    }
+
+    case 'stock_request': {
+      return {
+        label: 'View Request',
+        icon: 'assignment',
+        to: '/dashboard/products?tab=stock&section=requests',
+      };
+    }
+
+    case 'vendor': {
+      return {
+        label: 'Vendor Orders',
+        icon: 'local_shipping',
+        to: '/dashboard/vendor',
+      };
+    }
+
+    case 'dispatch_alert': {
+      return {
+        label: 'Open Messages',
+        icon: 'forum',
+        to: '/dashboard/messages',
+      };
+    }
+
+    default:
+      return null;
+  }
+}
 
 function timeAgo(datastr: string) {
   const diff = Date.now() - new Date(datastr).getTime();
@@ -110,28 +192,26 @@ export default function NotificationsPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         {/* Header Banner */}
-        <div className="bg-white rounded-2xl border border-gray-200/90 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200/90 dark:border-zinc-800 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-              isDriver ? 'bg-emerald-100 text-[#1b4d24]' : 'bg-[#eaf4ec] text-[#1b4d24]'
-            }`}>
-              <span className="material-symbols-outlined text-2xl">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-[#1b4d24] dark:text-emerald-400">
+              <span className="material-symbols-outlined text-3xl">
                 {isDriver ? 'local_shipping' : 'notifications_active'}
               </span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-zinc-50 tracking-tight">
                   {isDriver ? 'Delivery Notification Channel' : 'Notification Center'}
                 </h1>
                 {isDriver && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    <span className="material-symbols-outlined text-xs">verified</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <span className="material-symbols-outlined text-sm">verified</span>
                     Fulfillment Live
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1">
                 {isDriver
                   ? 'Real-time dispatch orders, assigned customer drop-offs, and administrative route alerts.'
                   : isStoreManager
@@ -146,7 +226,7 @@ export default function NotificationsPage() {
             <select
               value={since}
               onChange={e => setSince(e.target.value)}
-              className="px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg bg-white text-gray-700 outline-none hover:border-gray-400 focus:ring-2 focus:ring-emerald-500/20"
+              className="px-3 py-2 text-xs font-semibold border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 outline-none hover:border-gray-400 focus:ring-2 focus:ring-emerald-500/20"
             >
               <option value="1">Last 24 Hours</option>
               <option value="3">Last 3 Days</option>
@@ -155,7 +235,7 @@ export default function NotificationsPage() {
             </select>
             <button
               onClick={fetchData}
-              className="p-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition text-gray-600 active:scale-95"
+              className="p-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 transition text-gray-600 dark:text-zinc-300 active:scale-95"
               title="Refresh events"
               aria-label="Refresh events"
             >
@@ -177,7 +257,6 @@ export default function NotificationsPage() {
                   label: 'Total Delivery Events',
                   icon: 'notifications',
                   value: summary.total ?? 0,
-                  iconBg: 'bg-emerald-700 text-white',
                   accent: '#1b4d24',
                 },
                 {
@@ -185,7 +264,6 @@ export default function NotificationsPage() {
                   label: 'Assigned To Me',
                   icon: 'local_shipping',
                   value: summary.delivery_assigned ?? 0,
-                  iconBg: 'bg-emerald-600 text-white',
                   accent: '#059669',
                 },
                 {
@@ -193,7 +271,6 @@ export default function NotificationsPage() {
                   label: 'Pending Dispatches',
                   icon: 'route',
                   value: summary.new_delivery ?? 0,
-                  iconBg: 'bg-cyan-600 text-white',
                   accent: '#0891b2',
                 },
                 {
@@ -201,7 +278,6 @@ export default function NotificationsPage() {
                   label: 'Dispatch Alerts',
                   icon: 'campaign',
                   value: summary.dispatch_alert ?? 0,
-                  iconBg: 'bg-amber-600 text-white',
                   accent: '#d97706',
                 },
               ].map((item) => {
@@ -211,23 +287,23 @@ export default function NotificationsPage() {
                     key={item.key}
                     onClick={() => setCategory(active && item.key !== 'all' ? 'all' : (item.key as Category))}
                     aria-pressed={active}
-                    className="bg-white rounded-2xl border p-4 text-left transition hover:shadow-xs active:scale-[0.99] flex flex-col justify-between"
+                    className="bg-white dark:bg-zinc-900 rounded-2xl border p-4 text-left transition hover:shadow-xs active:scale-[0.99] flex flex-col justify-between"
                     style={{
-                      borderColor: active ? item.accent : '#e5e7eb',
+                      borderColor: active ? item.accent : undefined,
                       boxShadow: active ? `0 0 0 2px ${item.accent}33` : undefined,
                     }}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
-                        <span className="material-symbols-outlined text-sm">{item.icon}</span>
-                      </div>
-                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                      <span className="material-symbols-outlined text-2xl shrink-0" style={{ color: item.accent }}>
+                        {item.icon}
+                      </span>
+                      <span className="text-[11px] font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider truncate">
                         {item.label}
                       </span>
                     </div>
                     <div className="flex items-baseline justify-between w-full">
-                      <p className="text-2xl font-black text-gray-900">{item.value}</p>
-                      <span className="text-[10px] font-mono text-gray-400">
+                      <p className="text-2xl font-black text-gray-900 dark:text-zinc-50">{item.value}</p>
+                      <span className="text-[10px] font-mono text-gray-400 dark:text-zinc-500">
                         {active ? 'Active Filter' : 'Filter'}
                       </span>
                     </div>
@@ -237,10 +313,10 @@ export default function NotificationsPage() {
             ) : (
               // ── General Operations KPI Cards ───────────────────────────────
               [
-                { key: 'low_stock',     label: 'Low Stock Alerts', icon: 'warning',        value: summary.low_stock ?? 0,     iconBg: 'bg-red-500 text-white',     accent: '#ef4444' },
-                { key: 'stock_request', label: 'Stock Requests',   icon: 'assignment',     value: summary.stock_request ?? 0, iconBg: 'bg-amber-500 text-white',   accent: '#f59e0b' },
-                { key: 'new_order',     label: 'Pending Orders',   icon: 'shopping_cart',  value: summary.new_order ?? 0,     iconBg: 'bg-blue-500 text-white',    accent: '#3b82f6' },
-                { key: 'vendor',        label: 'Vendor Purchases', icon: 'local_shipping', value: summary.vendor ?? 0,        iconBg: 'bg-emerald-600 text-white', accent: '#059669' },
+                { key: 'low_stock',     label: 'Low Stock Alerts', icon: 'warning',        value: summary.low_stock ?? 0,     accent: '#e11d48' },
+                { key: 'stock_request', label: 'Stock Requests',   icon: 'assignment',     value: summary.stock_request ?? 0, accent: '#d97706' },
+                { key: 'new_order',     label: 'Pending Orders',   icon: 'shopping_cart',  value: summary.new_order ?? 0,     accent: '#2563eb' },
+                { key: 'vendor',        label: 'Vendor Purchases', icon: 'local_shipping', value: summary.vendor ?? 0,        accent: '#059669' },
               ]
                 .filter(item => !isStoreManager || item.key === 'stock_request' || item.key === 'new_order')
                 .map((item) => {
@@ -250,23 +326,23 @@ export default function NotificationsPage() {
                       key={item.key}
                       onClick={() => setCategory(active ? 'all' : (item.key as Category))}
                       aria-pressed={active}
-                      className="bg-white rounded-2xl border p-4 text-left transition hover:shadow-xs active:scale-[0.99] flex flex-col justify-between"
+                      className="bg-white dark:bg-zinc-900 rounded-2xl border p-4 text-left transition hover:shadow-xs active:scale-[0.99] flex flex-col justify-between"
                       style={{
-                        borderColor: active ? item.accent : '#e5e7eb',
+                        borderColor: active ? item.accent : undefined,
                         boxShadow: active ? `0 0 0 2px ${item.accent}33` : undefined,
                       }}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
-                          <span className="material-symbols-outlined text-sm">{item.icon}</span>
-                        </div>
-                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider truncate">
+                        <span className="material-symbols-outlined text-2xl shrink-0" style={{ color: item.accent }}>
+                          {item.icon}
+                        </span>
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider truncate">
                           {item.label}
                         </span>
                       </div>
                       <div className="flex items-baseline justify-between w-full">
-                        <p className="text-2xl font-black text-gray-900">{item.value}</p>
-                        <span className="text-[10px] font-mono text-gray-400">
+                        <p className="text-2xl font-black text-gray-900 dark:text-zinc-50">{item.value}</p>
+                        <span className="text-[10px] font-mono text-gray-400 dark:text-zinc-500">
                           {active ? 'Filtering' : 'View'}
                         </span>
                       </div>
@@ -278,104 +354,97 @@ export default function NotificationsPage() {
         )}
 
         {/* Notifications List Container */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-xs">
           {loading ? (
             <div className="text-center py-16">
-              <span className="material-symbols-outlined animate-spin text-4xl text-emerald-600">sync</span>
-              <p className="text-gray-500 mt-3 text-sm font-medium">Fetching notification channel stream…</p>
+              <span className="material-symbols-outlined animate-spin text-4xl text-emerald-600 dark:text-emerald-400">sync</span>
+              <p className="text-gray-500 dark:text-zinc-400 mt-3 text-sm font-medium">Fetching notification channel stream…</p>
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center py-16 px-4">
-              <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3 text-gray-400">
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-3 text-gray-400 dark:text-zinc-500">
                 <span className="material-symbols-outlined text-3xl">notifications_off</span>
               </div>
-              <h3 className="text-base font-bold text-gray-900">
+              <h3 className="text-base font-bold text-gray-900 dark:text-zinc-100">
                 No {activeCategory === 'all' ? '' : `${activeCategory.replace('_', ' ')} `}notifications in this window
               </h3>
-              <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+              <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
                 {activeCategory === 'all'
                   ? 'All delivery and operational queues are clear. Adjust the date range filter above to review older logs.'
                   : 'Click the active filter card to reset and show all operational events.'}
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100 dark:divide-zinc-800">
               {notifications.map((n, i) => {
-                const style = CATEGORY_STYLES[n.category] ?? CATEGORY_STYLES['new_order'];
                 const meta = n.metadata || {};
-                const orderId = meta.order_id || meta.id;
+                const action = getNotificationAction(n);
 
                 return (
                   <div
                     key={`${n.id}-${i}`}
-                    className={`flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 sm:p-5 hover:bg-gray-50/80 transition border-l-4 ${style.border}`}
+                    className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 sm:p-5 hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition"
                   >
-                    {/* Left: Icon, Dot & Content */}
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className="flex flex-col items-center pt-1">
-                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
+                    {/* Content Section (no vertical bar, no dot indicator) */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
+                        <span className={`text-xs font-black uppercase tracking-wider ${CATEGORY_TEXT_COLORS[n.category] ?? 'text-gray-700 dark:text-gray-300'}`}>
+                          {n.category.replace('_', ' ')}
+                        </span>
+                        <span className="text-xs font-medium text-gray-400 dark:text-zinc-500">
+                          {timeAgo(n.created_at)}
+                        </span>
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className={`inline-block text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${style.badge}`}>
-                            {n.category.replace('_', ' ')}
-                          </span>
-                          <span className="text-[11px] font-medium text-gray-400">
-                            {timeAgo(n.created_at)}
-                          </span>
-                        </div>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-zinc-100 leading-snug">
+                        {n.title}
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                        {n.body}
+                      </p>
 
-                        <h4 className="text-sm font-bold text-gray-900 leading-snug">
-                          {n.title}
-                        </h4>
-                        <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                          {n.body}
-                        </p>
-
-                        {/* Metadata chips */}
-                        <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                          {meta.city && (
-                            <span className="text-[10px] font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[12px]">location_on</span>
-                              {meta.city}
-                            </span>
-                          )}
-                          {meta.phone && (
-                            <span className="text-[10px] font-mono font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[12px]">call</span>
-                              {meta.phone}
-                            </span>
-                          )}
-                          {meta.total !== undefined && (
-                            <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md">
-                              {Number(meta.total).toLocaleString()} ETB
-                            </span>
-                          )}
-                          {meta.status && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md">
-                              {meta.status}
-                            </span>
-                          )}
-                          {meta.sender_name && (
-                            <span className="text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[12px]">person</span>
-                              {meta.sender_name} ({meta.sender_role || 'Staff'})
-                            </span>
-                          )}
-                        </div>
+                      {/* Metadata row: clean typography without low-opacity pill backgrounds */}
+                      <div className="flex flex-wrap items-center gap-3 mt-2.5">
+                        {meta.city && (
+                          <span className="text-xs font-semibold text-gray-700 dark:text-zinc-300 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px] text-gray-400 dark:text-zinc-500">location_on</span>
+                            {meta.city}
+                          </span>
+                        )}
+                        {meta.phone && (
+                          <span className="text-xs font-mono font-semibold text-gray-700 dark:text-zinc-300 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px] text-gray-400 dark:text-zinc-500">call</span>
+                            {meta.phone}
+                          </span>
+                        )}
+                        {meta.total !== undefined && (
+                          <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400">
+                            {Number(meta.total).toLocaleString()} ETB
+                          </span>
+                        )}
+                        {meta.status && (
+                          <span className={`text-xs font-black uppercase tracking-wider ${getStatusTextColor(meta.status)}`}>
+                            {meta.status}
+                          </span>
+                        )}
+                        {meta.sender_name && (
+                          <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px] text-amber-500">person</span>
+                            {meta.sender_name} ({meta.sender_role || 'Staff'})
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Right: Quick Operational Action button */}
-                    {orderId && (
+                    {/* Operational Action button: properly wired per category */}
+                    {action && (
                       <div className="shrink-0 self-end sm:self-center">
                         <Link
-                          to={`/dashboard/tracking?search=${encodeURIComponent(orderId)}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1b4d24] text-white hover:bg-[#133619] transition shadow-2xs"
+                          to={action.to}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1b4d24] text-white hover:bg-[#133619] dark:bg-emerald-700 dark:hover:bg-emerald-600 transition shadow-2xs"
                         >
-                          <span className="material-symbols-outlined text-sm">route</span>
-                          Track Order
+                          <span className="material-symbols-outlined text-sm">{action.icon}</span>
+                          {action.label}
                         </Link>
                       </div>
                     )}
@@ -387,7 +456,7 @@ export default function NotificationsPage() {
 
           {/* Footer note */}
           {notifications.length > 0 && (
-            <div className="px-5 py-3 bg-gray-50/90 border-t border-gray-100 text-[11px] font-medium text-gray-500 text-center flex items-center justify-center gap-2">
+            <div className="px-5 py-3 bg-gray-50/90 dark:bg-zinc-800/80 border-t border-gray-100 dark:border-zinc-800 text-[11px] font-medium text-gray-500 dark:text-zinc-400 text-center flex items-center justify-center gap-2">
               <span className="material-symbols-outlined text-xs">sync</span>
               <span>Showing {notifications.length} events · Stream refreshes every 30 seconds</span>
             </div>
