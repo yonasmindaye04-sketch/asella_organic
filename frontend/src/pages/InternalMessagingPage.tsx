@@ -86,6 +86,51 @@ function formatDate(iso: string): string {
   }
 }
 
+const DEFAULT_CHANNELS: ChannelItem[] = [
+  {
+    id: 'operations',
+    name: 'Store & Inventory',
+    description: 'Substore fulfillment, restock coordination, and counter inventory queries.',
+    icon: 'inventory_2',
+    badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
+  },
+  {
+    id: 'deliveries',
+    name: 'Delivery & Dispatch',
+    description: 'Dispatch coordination, priority route notes, customer address updates, and driver reports.',
+    icon: 'local_shipping',
+    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  },
+  {
+    id: 'announcements',
+    name: 'Company Announcements',
+    description: 'Official workplace broadcasts and management alerts across all branches.',
+    icon: 'campaign',
+    badgeColor: 'bg-amber-100 text-amber-900 border-amber-300',
+  },
+  {
+    id: 'general',
+    name: 'All-Staff Team',
+    description: 'Company-wide general communication, daily shift notes, and employee collaboration.',
+    icon: 'forum',
+    badgeColor: 'bg-blue-100 text-blue-800 border-blue-300',
+  },
+  {
+    id: 'call_center',
+    name: 'Call Center Desk',
+    description: 'Order modifications, customer inquiries, and phone order handovers.',
+    icon: 'headset_mic',
+    badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+  },
+  {
+    id: 'tech_support',
+    name: 'Tech Support Desk',
+    description: 'Technical assistance, bug reports, and system permissions help.',
+    icon: 'terminal',
+    badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
+  },
+];
+
 export default function InternalMessagingPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const currentRole = (user?.role || '').toLowerCase();
@@ -95,11 +140,12 @@ export default function InternalMessagingPage() {
     currentRole === 'admin' || currentRole === 'manager' || currentRole === 'tech_support';
 
   // Navigation & Channels
-  const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [channels, setChannels] = useState<ChannelItem[]>(DEFAULT_CHANNELS);
   const [activeChannelId, setActiveChannelId] = useState<string>(() => {
     if (currentRole === 'delivery' || currentRole === 'driver') return 'deliveries';
     if (currentRole === 'call_center') return 'call_center';
-    return 'deliveries';
+    if (currentRole === 'store_manager') return 'operations';
+    return 'operations';
   });
   const [activeFilter, setActiveFilter] = useState<'CHANNELS' | 'MENTIONS'>('CHANNELS');
 
@@ -130,7 +176,7 @@ export default function InternalMessagingPage() {
   const fetchChannels = useCallback(async () => {
     try {
       const res = await api.get<ChannelItem[]>('/api/messages/channels');
-      if (res.success && res.data) {
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         setChannels(res.data);
       }
     } catch {
@@ -144,7 +190,7 @@ export default function InternalMessagingPage() {
   const fetchStaffUsers = useCallback(async () => {
     try {
       const res = await api.get<StaffUser[]>('/api/messages/users');
-      if (res.success && res.data) {
+      if (res.success && Array.isArray(res.data)) {
         setStaffUsers(res.data);
       }
     } catch {
@@ -161,7 +207,7 @@ export default function InternalMessagingPage() {
       const res = await api.get<InternalMessage[]>(
         `/api/messages?limit=100${filterParam}${searchParam}`
       );
-      if (res.success && res.data) {
+      if (res.success && Array.isArray(res.data)) {
         setMessages(res.data);
         if (isInitial) {
           setTimeout(() => {
@@ -351,12 +397,12 @@ export default function InternalMessagingPage() {
     });
   };
 
-  const activeChannel = channels.find((c) => c.id === activeChannelId) || {
+  const activeChannel = channels.find((c) => c.id === activeChannelId) || DEFAULT_CHANNELS.find((c) => c.id === activeChannelId) || {
     id: activeChannelId,
-    name: activeChannelId === 'deliveries' ? 'Delivery & Dispatch' : 'Internal Channel',
+    name: activeChannelId === 'operations' ? 'Store & Inventory' : activeChannelId === 'deliveries' ? 'Delivery & Dispatch' : 'Internal Channel',
     description: 'Internal platform team communications.',
-    icon: 'chat',
-    badgeColor: 'bg-gray-100 text-gray-800',
+    icon: 'forum',
+    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
   };
 
   return (

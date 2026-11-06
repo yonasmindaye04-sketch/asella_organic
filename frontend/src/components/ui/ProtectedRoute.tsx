@@ -21,6 +21,7 @@ const STORE_MANAGER_ALLOWED_PATHS = [
   '/dashboard/bulk-orders',
   '/dashboard/store-report',
   '/dashboard/stock-request',
+  '/dashboard/messages',
 ];
 
 /** Call center agents have access to POS, Tracking, Notifications, and Reporting Channel. */
@@ -33,6 +34,7 @@ const CALL_CENTER_ALLOWED_PATHS = [
   '/dashboard/products',
   '/dashboard/stock-alert',
   '/dashboard/stock-request',
+  '/dashboard/messages',
 ];
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
@@ -81,7 +83,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
   // Delivery drivers only have access to Order Tracking and My Performance
   if (user?.role === 'delivery' || user?.role === 'driver') {
     const path = location.pathname.replace(/\/+$/, '') || '/';
-    if (path !== '/dashboard/tracking' && path !== '/dashboard/my-performance') {
+    const DRIVER_ALLOWED_PATHS = [
+      '/dashboard/tracking',
+      '/dashboard/my-performance',
+      '/dashboard/notifications',
+      '/dashboard/messages',
+    ];
+    if (!DRIVER_ALLOWED_PATHS.includes(path)) {
       return <Navigate to="/dashboard/tracking" replace />;
     }
   }
@@ -95,13 +103,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
       '/dashboard/tracking',
       '/dashboard/stock-alert',
       '/dashboard/stock-request',
+  '/dashboard/messages',
     ];
     if (!EMPLOYEE_ALLOWED_PATHS.includes(path)) {
       return <Navigate to="/dashboard/pos" replace />;
     }
   }
 
-  if (requiredRole && user?.role !== requiredRole && user?.role !== 'admin') {
+  if (requiredRole && user?.role !== requiredRole && user?.role !== 'admin' && user?.role !== 'tech_support') {
     return <Navigate to="/" replace />;
   }
 

@@ -31,6 +31,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/dashboard/users': 'Staff & Roles',
   '/dashboard/affiliates': 'Affiliate Control',
   '/dashboard/videos': 'Community Videos',
+  '/dashboard/messages': 'Internal Team Messaging',
 };
 
 export default function TopHeader({ onToggleSidebar }: TopHeaderProps = {}) {

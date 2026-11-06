@@ -846,29 +846,61 @@ export function TopProducts({
             </p>
           </div>
 
-          <div className="inline-flex items-center p-0.5 rounded-lg bg-zinc-100 dark:bg-zinc-800/90 border border-zinc-200 dark:border-zinc-700/80">
-            <button
-              type="button"
-              onClick={() => setMetricMode("etb")}
-              className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                metricMode === "etb"
-                  ? "bg-emerald-600 text-white shadow-2xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-              }`}
-            >
-              Birr (ETB)
-            </button>
-            <button
-              type="button"
-              onClick={() => setMetricMode("qty")}
-              className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                metricMode === "qty"
-                  ? "bg-emerald-600 text-white shadow-2xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-              }`}
-            >
-              Items (Qty)
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Rank By Selector */}
+            <div className="inline-flex items-center p-0.5 rounded-lg bg-zinc-100 dark:bg-zinc-800/90 border border-zinc-200 dark:border-zinc-700/80">
+              <span className="px-2 text-[10px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider hidden md:inline">
+                Rank by
+              </span>
+              <button
+                type="button"
+                onClick={() => setRankBy("revenue")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  rankBy === "revenue"
+                    ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xs"
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                Revenue
+              </button>
+              <button
+                type="button"
+                onClick={() => setRankBy("volume")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  rankBy === "volume"
+                    ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xs"
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                Volume
+              </button>
+            </div>
+
+            {/* Display Metric: Birr vs Qty */}
+            <div className="inline-flex items-center p-0.5 rounded-lg bg-zinc-100 dark:bg-zinc-800/90 border border-zinc-200 dark:border-zinc-700/80">
+              <button
+                type="button"
+                onClick={() => setMetricMode("etb")}
+                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  metricMode === "etb"
+                    ? "bg-emerald-600 text-white shadow-2xs"
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                Birr (ETB)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMetricMode("qty")}
+                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  metricMode === "qty"
+                    ? "bg-emerald-600 text-white shadow-2xs"
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                Items (Qty)
+              </button>
+            </div>
           </div>
         </div>
 
