@@ -659,8 +659,21 @@ router.get(
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/performance/me — Role-specific non-monetary operational KPIs
+// GET /api/performance/me — Role-specific non-monetary operational KPIs & Dynamic Badges
 // ─────────────────────────────────────────────────────────────────────────────
+interface PerformanceBadge {
+  id: string;
+  title: string;
+  category: "Quality" | "Throughput" | "Reliability" | "Discipline" | "Mastery";
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  progress: number;
+  progressLabel: string;
+  requirement: string;
+  tier: "Bronze" | "Silver" | "Gold";
+}
+
 router.get(
   "/me",
   authenticate,
@@ -691,6 +704,7 @@ router.get(
 
       const telegramUsername = profile.telegram_username?.trim() || "";
       const username = profile.username?.trim() || "";
+      const fullName = profile.full_name?.trim() || "";
       const storeLoc = profile.location?.trim() || "";
 
       let data: Record<string, any> = {
@@ -705,8 +719,82 @@ router.get(
         },
       };
 
+      // ── Lifetime Career Metrics (for career badges like Centurion) ────────
+      let lifetimeTotal = 0;
+      let lifetimeDelivered = 0;
+      let lifetimeRegional = 0;
+
+      try {
+        const matchConds = [
+          "o.created_by_staff_id = ?",
+          "o.assigned_to LIKE CONCAT('%', ?, '%')",
+          "EXISTS (SELECT 1 FROM order_status_history osh WHERE osh.order_id = o.id AND osh.changed_by = ?)"
+        ];
+        const matchVals: unknown[] = [staffId, username, username];
+
+        if (telegramUsername) {
+          matchConds.push("o.assigned_to LIKE CONCAT('%', ?, '%')");
+          matchVals.push(telegramUsername);
+        }
+        if (fullName) {
+          matchConds.push("o.assigned_to LIKE CONCAT('%', ?, '%')");
+          matchVals.push(fullName);
+        }
+
+        const [lifeRows] = (await pool.query(
+          `SELECT
+             COUNT(*) AS total_orders,
+             COALESCE(SUM(status = 'Delivered'), 0) AS delivered,
+             COALESCE(SUM(city != 'Addis Ababa' AND city != 'Abroad'), 0) AS regional_orders
+           FROM orders o
+           WHERE o.deleted_at IS NULL AND (${matchConds.join(" OR ")})`,
+          matchVals
+        )) as [any[], any];
+
+        lifetimeTotal = Number(lifeRows[0]?.total_orders || 0);
+        lifetimeDelivered = Number(lifeRows[0]?.delivered || 0);
+        lifetimeRegional = Number(lifeRows[0]?.regional_orders || 0);
+
+        if (role === "admin" || role === "manager") {
+          const [[allStats]] = (await pool.query(
+            `SELECT COUNT(*) AS total, COALESCE(SUM(status = 'Delivered'), 0) AS delivered, COALESCE(SUM(city != 'Addis Ababa' AND city != 'Abroad'), 0) AS regional_orders FROM orders WHERE deleted_at IS NULL`
+          )) as [any[], any];
+          lifetimeTotal = Math.max(lifetimeTotal, Number(allStats?.total || 0));
+          lifetimeDelivered = Math.max(lifetimeDelivered, Number(allStats?.delivered || 0));
+          lifetimeRegional = Math.max(lifetimeRegional, Number(allStats?.regional_orders || 0));
+        }
+      } catch (err) {
+        log.warn("Failed to fetch lifetime career stats", err);
+      }
+
+      data.lifetime = {
+        total_orders: lifetimeTotal,
+        delivered: lifetimeDelivered,
+        regional_orders: lifetimeRegional,
+        completion_rate: lifetimeTotal > 0 ? Number(((lifetimeDelivered / lifetimeTotal) * 100).toFixed(1)) : 100,
+      };
+
       if (role === "delivery" || role === "driver") {
-        // DRIVER OPERATIONAL KPIS (No Money)
+        // ── 1. DRIVER OPERATIONAL KPIS ──────────────────────────────────────
+        const driverConds = [
+          "(da.driver_username IS NOT NULL AND LOWER(da.driver_username) = LOWER(?))",
+          "(o.assigned_to IS NOT NULL AND o.assigned_to LIKE CONCAT('%', ?, '%'))"
+        ];
+        const driverVals: unknown[] = [username, username];
+
+        if (telegramUsername) {
+          driverConds.push("(da.driver_username IS NOT NULL AND LOWER(da.driver_username) = LOWER(?))");
+          driverVals.push(telegramUsername);
+          driverConds.push("(o.assigned_to IS NOT NULL AND o.assigned_to LIKE CONCAT('%', ?, '%'))");
+          driverVals.push(telegramUsername);
+        }
+        if (fullName) {
+          driverConds.push("(o.assigned_to IS NOT NULL AND o.assigned_to LIKE CONCAT('%', ?, '%'))");
+          driverVals.push(fullName);
+        }
+
+        const whereDriver = `(${driverConds.join(" OR ")})`;
+
         const [rows] = (await pool.query(
           `SELECT
              COUNT(*) AS total_assigned,
@@ -715,38 +803,32 @@ router.get(
              COALESCE(SUM(o.status NOT IN ('Delivered', 'Cancelled', 'CANCELLED')), 0) AS in_transit,
              COALESCE(SUM(o.status IN ('Issue', 'Returned')), 0) AS issues,
              COALESCE(SUM(CASE WHEN o.status = 'Delivered' AND dh.delivered_at IS NOT NULL AND o.delivery_date IS NOT NULL AND DATE(dh.delivered_at) <= o.delivery_date THEN 1 ELSE 0 END), 0) AS on_time
-           FROM delivery_assignments da
-           JOIN orders o ON o.id = da.order_id AND o.deleted_at IS NULL
+           FROM orders o
+           LEFT JOIN delivery_assignments da ON da.order_id = o.id
            LEFT JOIN (
              SELECT order_id, MIN(created_at) AS delivered_at
              FROM order_status_history
              WHERE new_status = 'Delivered'
              GROUP BY order_id
            ) dh ON dh.order_id = o.id
-           WHERE da.claimed_at BETWEEN ? AND ?
-             AND (
-               (LOWER(da.driver_username) = LOWER(?))
-               OR (? != '' AND LOWER(da.driver_username) = LOWER(?))
-               OR (o.assigned_to LIKE CONCAT('%', ?, '%'))
-             )`,
-          [params[0], params[1], username, telegramUsername, telegramUsername, username]
+           WHERE o.deleted_at IS NULL
+             AND o.created_at BETWEEN ? AND ?
+             AND ${whereDriver}`,
+          [params[0], params[1], ...driverVals]
         )) as [any[], any];
 
         const [trendRows] = (await pool.query(
-          `SELECT DATE(da.claimed_at) AS date,
+          `SELECT DATE(o.created_at) AS date,
                   COUNT(*) AS assigned,
                   COALESCE(SUM(o.status = 'Delivered'), 0) AS delivered
-           FROM delivery_assignments da
-           JOIN orders o ON o.id = da.order_id AND o.deleted_at IS NULL
-           WHERE da.claimed_at BETWEEN ? AND ?
-             AND (
-               (LOWER(da.driver_username) = LOWER(?))
-               OR (? != '' AND LOWER(da.driver_username) = LOWER(?))
-               OR (o.assigned_to LIKE CONCAT('%', ?, '%'))
-             )
-           GROUP BY DATE(da.claimed_at)
+           FROM orders o
+           LEFT JOIN delivery_assignments da ON da.order_id = o.id
+           WHERE o.deleted_at IS NULL
+             AND o.created_at BETWEEN ? AND ?
+             AND ${whereDriver}
+           GROUP BY DATE(o.created_at)
            ORDER BY date ASC`,
-          [params[0], params[1], username, telegramUsername, telegramUsername, username]
+          [params[0], params[1], ...driverVals]
         )) as [any[], any];
 
         const r = rows[0] || {};
@@ -758,6 +840,8 @@ router.get(
         const onTime = Number(r.on_time || 0);
         const completionRate = totalAssigned > 0 ? Number(((delivered / totalAssigned) * 100).toFixed(1)) : 100;
         const firstAttemptRate = (delivered + issues) > 0 ? Number(((delivered / (delivered + issues)) * 100).toFixed(1)) : 100;
+        const onTimeRate = delivered > 0 ? Number(((onTime / delivered) * 100).toFixed(1)) : 100;
+        const cancellationRate = totalAssigned > 0 ? Number(((cancelled / totalAssigned) * 100).toFixed(1)) : 0;
 
         data.kpis = {
           total_assigned: totalAssigned,
@@ -768,6 +852,8 @@ router.get(
           on_time: onTime,
           completion_rate: completionRate,
           first_attempt_rate: firstAttemptRate,
+          on_time_rate: onTimeRate,
+          cancellation_rate: cancellationRate,
           trend: trendRows.map((t: any) => ({
             date: String(t.date).slice(0, 10),
             assigned: Number(t.assigned || 0),
@@ -775,7 +861,18 @@ router.get(
           })),
         };
       } else if (role === "store_manager") {
-        // SUBSTORE MANAGER OPERATIONAL KPIS (No Money)
+        // ── 2. SUBSTORE MANAGER OPERATIONAL KPIS ────────────────────────────
+        const storeConds = [
+          "o.created_by_staff_id = ?",
+          "LOWER(COALESCE(o.order_type, '')) LIKE '%pickup%'",
+          "EXISTS (SELECT 1 FROM order_status_history osh WHERE osh.order_id = o.id AND (osh.changed_by = ? OR osh.changed_by = ?))"
+        ];
+        const storeVals: unknown[] = [staffId, username, staffId];
+        if (storeLoc) {
+          storeConds.push("(o.location LIKE CONCAT('%', ?, '%') OR o.city LIKE CONCAT('%', ?, '%'))");
+          storeVals.push(storeLoc, storeLoc);
+        }
+
         const [rows] = (await pool.query(
           `SELECT
              COUNT(*) AS total_handled,
@@ -784,20 +881,31 @@ router.get(
              COALESCE(SUM(LOWER(COALESCE(o.order_type, '')) LIKE '%pickup%' AND o.status NOT IN ('Delivered', 'Cancelled', 'CANCELLED')), 0) AS pickups_pending,
              COALESCE(SUM(o.created_by_staff_id = ?), 0) AS self_orders,
              COALESCE(SUM(o.source = 'walk-in' OR o.order_type = 'walk-in'), 0) AS walkin_orders,
-             COALESCE(SUM(o.status IN ('Issue', 'Returned')), 0) AS issues
+             COALESCE(SUM(o.status IN ('Issue', 'Returned')), 0) AS issues,
+             COALESCE(SUM(o.status IN ('Cancelled', 'CANCELLED')), 0) AS cancelled
            FROM orders o
            WHERE o.deleted_at IS NULL
              AND o.created_at BETWEEN ? AND ?
-             AND (
-               o.created_by_staff_id = ?
-               OR LOWER(COALESCE(o.order_type, '')) LIKE '%pickup%'
-               OR (? != '' AND (o.location LIKE CONCAT('%', ?, '%') OR o.city LIKE CONCAT('%', ?, '%')))
-             )`,
-          [staffId, params[0], params[1], staffId, storeLoc, storeLoc, storeLoc]
+             AND (${storeConds.join(" OR ")})`,
+          [staffId, params[0], params[1], ...storeVals]
         )) as [any[], any];
 
         const [stockRows] = (await pool.query(
-          `SELECT COUNT(*) AS low_stock_count FROM products WHERE inventory_quantity <= low_stock_threshold AND active = TRUE`
+          `SELECT
+             COUNT(*) AS low_stock_count,
+             COALESCE(SUM(inventory_quantity = 0), 0) AS out_of_stock_count
+           FROM products WHERE inventory_quantity <= low_stock_threshold AND active = TRUE`
+        )) as [any[], any];
+
+        const [stockReqRows] = (await pool.query(
+          `SELECT
+             COUNT(*) AS total_requests,
+             COALESCE(SUM(status = 'pending'), 0) AS pending_requests,
+             COALESCE(SUM(status = 'received'), 0) AS received_requests
+           FROM stock_requests
+           WHERE created_at BETWEEN ? AND ?
+             AND (requested_by = ? OR requested_by = ? OR requested_by = ?)`,
+          [params[0], params[1], staffId, username, fullName]
         )) as [any[], any];
 
         const [trendRows] = (await pool.query(
@@ -808,14 +916,10 @@ router.get(
            FROM orders o
            WHERE o.deleted_at IS NULL
              AND o.created_at BETWEEN ? AND ?
-             AND (
-               o.created_by_staff_id = ?
-               OR LOWER(COALESCE(o.order_type, '')) LIKE '%pickup%'
-               OR (? != '' AND (o.location LIKE CONCAT('%', ?, '%') OR o.city LIKE CONCAT('%', ?, '%')))
-             )
+             AND (${storeConds.join(" OR ")})
            GROUP BY DATE(o.created_at)
            ORDER BY date ASC`,
-          [params[0], params[1], staffId, storeLoc, storeLoc, storeLoc]
+          [params[0], params[1], ...storeVals]
         )) as [any[], any];
 
         const r = rows[0] || {};
@@ -825,7 +929,9 @@ router.get(
         const walkinOrders = Number(r.walkin_orders || 0);
         const totalHandled = Number(r.total_handled || 0);
         const issues = Number(r.issues || 0);
+        const cancelled = Number(r.cancelled || 0);
         const pickupSuccessRate = totalPickups > 0 ? Number(((pickupsDelivered / totalPickups) * 100).toFixed(1)) : 100;
+        const cancellationRate = totalHandled > 0 ? Number(((cancelled / totalHandled) * 100).toFixed(1)) : 0;
 
         data.kpis = {
           total_pickups: totalPickups,
@@ -834,8 +940,14 @@ router.get(
           walkin_orders: walkinOrders,
           total_handled: totalHandled,
           issues,
+          cancelled,
           pickup_success_rate: pickupSuccessRate,
+          cancellation_rate: cancellationRate,
           low_stock_count: Number(stockRows[0]?.low_stock_count || 0),
+          out_of_stock_count: Number(stockRows[0]?.out_of_stock_count || 0),
+          stock_requests_total: Number(stockReqRows[0]?.total_requests || 0),
+          stock_requests_pending: Number(stockReqRows[0]?.pending_requests || 0),
+          stock_requests_received: Number(stockReqRows[0]?.received_requests || 0),
           trend: trendRows.map((t: any) => ({
             date: String(t.date).slice(0, 10),
             total: Number(t.total || 0),
@@ -844,7 +956,7 @@ router.get(
           })),
         };
       } else if (role === "call_center") {
-        // CALL CENTER AGENT OPERATIONAL KPIS (No Money)
+        // ── 3. CALL CENTER AGENT OPERATIONAL KPIS ───────────────────────────
         const [rows] = (await pool.query(
           `SELECT
              COUNT(*) AS orders_booked,
@@ -857,13 +969,29 @@ router.get(
              COALESCE(SUM(o.city != 'Addis Ababa' AND o.city != 'Abroad'), 0) AS regional_orders
            FROM orders o
            WHERE o.deleted_at IS NULL
-             AND o.created_by_staff_id = ?
-             AND o.created_at BETWEEN ? AND ?`,
-          [staffId, params[0], params[1]]
+             AND o.created_at BETWEEN ? AND ?
+             AND (
+               o.created_by_staff_id = ?
+               OR (o.source IN ('phone', 'call_center') AND (o.created_by_staff_id = ? OR o.created_by_staff_id IS NULL))
+               OR EXISTS (
+                 SELECT 1 FROM order_status_history osh
+                 WHERE osh.order_id = o.id AND (osh.changed_by = ? OR osh.changed_by = ?)
+               )
+             )`,
+          [params[0], params[1], staffId, staffId, username, staffId]
         )) as [any[], any];
 
+        // Call metrics from daily reports
         const [repRows] = (await pool.query(
-          `SELECT COUNT(*) AS count FROM call_center_daily_reports WHERE staff_id = ? AND report_date BETWEEN ? AND ?`,
+          `SELECT
+             COUNT(*) AS count,
+             COALESCE(SUM(calls_received), 0) AS total_calls_received,
+             COALESCE(SUM(calls_ordered), 0) AS total_calls_ordered,
+             COALESCE(SUM(calls_rejected), 0) AS total_calls_rejected,
+             COALESCE(SUM(is_backdated = 0), 0) AS ontime_reports,
+             COALESCE(SUM(is_backdated = 1), 0) AS backdated_reports
+           FROM call_center_daily_reports
+           WHERE staff_id = ? AND report_date BETWEEN ? AND ?`,
           [staffId, dateRange[0], dateRange[1]]
         )) as [any[], any];
 
@@ -878,14 +1006,18 @@ router.get(
                   COALESCE(SUM(o.status = 'Delivered'), 0) AS delivered
            FROM orders o
            WHERE o.deleted_at IS NULL
-             AND o.created_by_staff_id = ?
              AND o.created_at BETWEEN ? AND ?
+             AND (
+               o.created_by_staff_id = ?
+               OR (o.source IN ('phone', 'call_center') AND (o.created_by_staff_id = ? OR o.created_by_staff_id IS NULL))
+             )
            GROUP BY DATE(o.created_at)
            ORDER BY date ASC`,
-          [staffId, params[0], params[1]]
+          [params[0], params[1], staffId, staffId]
         )) as [any[], any];
 
         const r = rows[0] || {};
+        const rep = repRows[0] || {};
         const ordersBooked = Number(r.orders_booked || 0);
         const delivered = Number(r.delivered || 0);
         const pending = Number(r.pending || 0);
@@ -893,6 +1025,15 @@ router.get(
         const deliveryOrders = Number(r.delivery_orders || 0);
         const pickupOrders = Number(r.pickup_orders || 0);
         const successRate = ordersBooked > 0 ? Number(((delivered / ordersBooked) * 100).toFixed(1)) : 100;
+        const cancellationRate = ordersBooked > 0 ? Number(((cancelled / ordersBooked) * 100).toFixed(1)) : 0;
+
+        const totalCallsReceived = Number(rep.total_calls_received || 0);
+        const totalCallsOrdered = Number(rep.total_calls_ordered || 0);
+        const totalCallsRejected = Number(rep.total_calls_rejected || 0);
+        const reportsSubmitted = Number(rep.count || 0);
+        const callConversionRate = totalCallsReceived > 0 ? Number(((totalCallsOrdered / totalCallsReceived) * 100).toFixed(1)) : 0;
+        const callRejectionRate = totalCallsReceived > 0 ? Number(((totalCallsRejected / totalCallsReceived) * 100).toFixed(1)) : 0;
+        const avgOrdersPerShift = reportsSubmitted > 0 ? Number((ordersBooked / reportsSubmitted).toFixed(1)) : ordersBooked;
 
         data.kpis = {
           orders_booked: ordersBooked,
@@ -904,7 +1045,16 @@ router.get(
           addis_orders: Number(r.addis_orders || 0),
           regional_orders: Number(r.regional_orders || 0),
           success_rate: successRate,
-          reports_submitted: Number(repRows[0]?.count || 0),
+          cancellation_rate: cancellationRate,
+          reports_submitted: reportsSubmitted,
+          ontime_reports: Number(rep.ontime_reports || 0),
+          backdated_reports: Number(rep.backdated_reports || 0),
+          total_calls_received: totalCallsReceived,
+          total_calls_ordered: totalCallsOrdered,
+          total_calls_rejected: totalCallsRejected,
+          call_conversion_rate: callConversionRate,
+          call_rejection_rate: callRejectionRate,
+          avg_orders_per_shift: avgOrdersPerShift,
           today_report_submitted: Boolean(todayRows[0]),
           trend: trendRows.map((t: any) => ({
             date: String(t.date).slice(0, 10),
@@ -913,20 +1063,49 @@ router.get(
           })),
         };
       } else if (role === "employee" || role === "staff") {
-        // COUNTER STAFF OPERATIONAL KPIS (No Money)
+        // ── 4. COUNTER STAFF / EMPLOYEE OPERATIONAL KPIS ────────────────────
+        const staffConds = [
+          "o.created_by_staff_id = ?",
+          "o.assigned_to LIKE CONCAT('%', ?, '%')",
+          "EXISTS (SELECT 1 FROM order_status_history osh WHERE osh.order_id = o.id AND osh.changed_by = ?)"
+        ];
+        const staffVals: unknown[] = [staffId, username, username];
+        if (telegramUsername) {
+          staffConds.push("o.assigned_to LIKE CONCAT('%', ?, '%')");
+          staffVals.push(telegramUsername);
+        }
+        if (fullName) {
+          staffConds.push("o.assigned_to LIKE CONCAT('%', ?, '%')");
+          staffVals.push(fullName);
+        }
+
+        const whereStaff = `(${staffConds.join(" OR ")})`;
+
         const [rows] = (await pool.query(
           `SELECT
              COUNT(*) AS transactions,
              COALESCE(SUM(o.status = 'Delivered'), 0) AS delivered,
              COALESCE(SUM(o.status NOT IN ('Delivered', 'Cancelled', 'CANCELLED')), 0) AS pending,
+             COALESCE(SUM(o.status IN ('Cancelled', 'CANCELLED')), 0) AS cancelled,
              COALESCE(SUM(LOWER(COALESCE(o.order_type, '')) LIKE '%pickup%'), 0) AS pickup_orders,
              COALESCE(SUM(LOWER(COALESCE(o.order_type, '')) = 'delivery'), 0) AS delivery_orders,
              COALESCE(SUM(o.customer_name IS NOT NULL AND o.customer_name != 'Walk-in Customer' AND o.phone IS NOT NULL AND o.phone NOT LIKE '%000 000%'), 0) AS captured_customers
            FROM orders o
            WHERE o.deleted_at IS NULL
-             AND o.created_by_staff_id = ?
-             AND o.created_at BETWEEN ? AND ?`,
-          [staffId, params[0], params[1]]
+             AND o.created_at BETWEEN ? AND ?
+             AND ${whereStaff}`,
+          [params[0], params[1], ...staffVals]
+        )) as [any[], any];
+
+        // Items volume handled
+        const [itemsRows] = (await pool.query(
+          `SELECT COALESCE(SUM(oi.quantity), 0) AS items_handled
+           FROM order_items oi
+           JOIN orders o ON o.id = oi.order_id
+           WHERE o.deleted_at IS NULL
+             AND o.created_at BETWEEN ? AND ?
+             AND ${whereStaff}`,
+          [params[0], params[1], ...staffVals]
         )) as [any[], any];
 
         const [trendRows] = (await pool.query(
@@ -935,28 +1114,36 @@ router.get(
                   COALESCE(SUM(o.status = 'Delivered'), 0) AS completed
            FROM orders o
            WHERE o.deleted_at IS NULL
-             AND o.created_by_staff_id = ?
              AND o.created_at BETWEEN ? AND ?
+             AND ${whereStaff}
            GROUP BY DATE(o.created_at)
            ORDER BY date ASC`,
-          [staffId, params[0], params[1]]
+          [params[0], params[1], ...staffVals]
         )) as [any[], any];
 
         const r = rows[0] || {};
         const transactions = Number(r.transactions || 0);
         const delivered = Number(r.delivered || 0);
         const pending = Number(r.pending || 0);
+        const cancelled = Number(r.cancelled || 0);
         const capturedCustomers = Number(r.captured_customers || 0);
         const captureRate = transactions > 0 ? Number(((capturedCustomers / transactions) * 100).toFixed(1)) : 100;
+        const cancellationRate = transactions > 0 ? Number(((cancelled / transactions) * 100).toFixed(1)) : 0;
+        const itemsHandled = Number(itemsRows[0]?.items_handled || 0);
+        const avgItemsPerOrder = transactions > 0 ? Number((itemsHandled / transactions).toFixed(1)) : 0;
 
         data.kpis = {
           transactions,
           delivered,
           pending,
+          cancelled,
           pickup_orders: Number(r.pickup_orders || 0),
           delivery_orders: Number(r.delivery_orders || 0),
           captured_customers: capturedCustomers,
           capture_rate: captureRate,
+          cancellation_rate: cancellationRate,
+          items_handled: itemsHandled,
+          avg_items_per_order: avgItemsPerOrder,
           trend: trendRows.map((t: any) => ({
             date: String(t.date).slice(0, 10),
             transactions: Number(t.transactions || 0),
@@ -964,7 +1151,7 @@ router.get(
           })),
         };
       } else {
-        // MANAGER / ADMIN OPERATIONAL OVERVIEW (NON-FINANCIAL)
+        // ── 5. MANAGER / ADMIN OPERATIONAL OVERVIEW ─────────────────────────
         const [pipelineRows] = (await pool.query(
           `SELECT
              COUNT(*) AS total_orders,
@@ -975,7 +1162,11 @@ router.get(
              COALESCE(SUM(status IN ('Cancelled', 'CANCELLED')), 0) AS cancelled,
              COALESCE(SUM(status IN ('Issue', 'Returned')), 0) AS issues,
              COALESCE(SUM(LOWER(COALESCE(order_type, '')) = 'delivery'), 0) AS delivery_orders,
-             COALESCE(SUM(LOWER(COALESCE(order_type, '')) LIKE '%pickup%'), 0) AS pickup_orders
+             COALESCE(SUM(LOWER(COALESCE(order_type, '')) LIKE '%pickup%'), 0) AS pickup_orders,
+             COALESCE(SUM(source = 'website'), 0) AS channel_web,
+             COALESCE(SUM(source = 'telegram' OR source = 'tma'), 0) AS channel_telegram,
+             COALESCE(SUM(source = 'phone' OR source = 'call_center'), 0) AS channel_call_center,
+             COALESCE(SUM(source = 'walk-in' OR source = 'pos'), 0) AS channel_pos
            FROM orders
            WHERE deleted_at IS NULL AND created_at BETWEEN ? AND ?`,
           params
@@ -990,7 +1181,17 @@ router.get(
         )) as [any[], any];
 
         const [stockAlerts] = (await pool.query(
-          `SELECT COUNT(*) AS low_stock_count FROM products WHERE inventory_quantity <= low_stock_threshold AND active = TRUE`
+          `SELECT
+             COUNT(*) AS low_stock_count,
+             COALESCE(SUM(inventory_quantity = 0), 0) AS out_of_stock_count
+           FROM products WHERE inventory_quantity <= low_stock_threshold AND active = TRUE`
+        )) as [any[], any];
+
+        const [activeStaff] = (await pool.query(
+          `SELECT COUNT(DISTINCT created_by_staff_id) AS active_count
+           FROM orders
+           WHERE deleted_at IS NULL AND created_at BETWEEN ? AND ?`,
+          params
         )) as [any[], any];
 
         const [trendRows] = (await pool.query(
@@ -1008,7 +1209,9 @@ router.get(
         const b = bottlenecks[0] || {};
         const totalOrders = Number(r.total_orders || 0);
         const delivered = Number(r.delivered || 0);
+        const cancelled = Number(r.cancelled || 0);
         const fulfillmentRate = totalOrders > 0 ? Number(((delivered / totalOrders) * 100).toFixed(1)) : 100;
+        const cancellationRate = totalOrders > 0 ? Number(((cancelled / totalOrders) * 100).toFixed(1)) : 0;
 
         data.kpis = {
           total_orders: totalOrders,
@@ -1016,14 +1219,21 @@ router.get(
           confirmed: Number(r.confirmed || 0),
           in_transit: Number(r.in_transit || 0),
           delivered,
-          cancelled: Number(r.cancelled || 0),
+          cancelled,
           issues: Number(r.issues || 0),
           delivery_orders: Number(r.delivery_orders || 0),
           pickup_orders: Number(r.pickup_orders || 0),
+          channel_web: Number(r.channel_web || 0),
+          channel_telegram: Number(r.channel_telegram || 0),
+          channel_call_center: Number(r.channel_call_center || 0),
+          channel_pos: Number(r.channel_pos || 0),
           fulfillment_rate: fulfillmentRate,
+          cancellation_rate: cancellationRate,
           stuck_pending: Number(b.stuck_pending || 0),
           stuck_transit: Number(b.stuck_transit || 0),
           low_stock_count: Number(stockAlerts[0]?.low_stock_count || 0),
+          out_of_stock_count: Number(stockAlerts[0]?.out_of_stock_count || 0),
+          active_staff_count: Number(activeStaff[0]?.active_count || 0),
           trend: trendRows.map((t: any) => ({
             date: String(t.date).slice(0, 10),
             total: Number(t.total || 0),
@@ -1032,6 +1242,123 @@ router.get(
         };
       }
 
+      // ── 6. DYNAMIC OPERATIONAL EXCELLENCE BADGES ──────────────────────────
+      const k = data.kpis || {};
+      const activeOps = k.total_orders ?? k.total_assigned ?? k.orders_booked ?? k.transactions ?? k.total_handled ?? 0;
+      const compRate = k.fulfillment_rate ?? k.completion_rate ?? k.success_rate ?? k.pickup_success_rate ?? 100;
+      const totalDelivered = k.delivered ?? k.pickups_delivered ?? 0;
+      const issueCount = (k.issues ?? 0) + (k.cancelled ?? 0);
+      const capRate = k.capture_rate ?? k.first_attempt_rate ?? 100;
+      const shiftReports = k.reports_submitted ?? 0;
+      const backdatedReports = k.backdated_reports ?? 0;
+      const regionalCount = k.regional_orders ?? (data.lifetime?.regional_orders || 0);
+
+      const badges: PerformanceBadge[] = [
+        {
+          id: "fulfillment-purity",
+          title: "Fulfillment Purity",
+          category: "Quality",
+          description: "High execution accuracy without order drop-offs or fulfillment cancellations.",
+          icon: "verified",
+          tier: "Gold",
+          unlocked: activeOps >= 5 && compRate >= 90,
+          progress: activeOps === 0 ? 0 : Math.min(100, Math.round((Math.min(activeOps, 5) / 5) * (compRate / 90) * 100)),
+          progressLabel: `${compRate}% / 90% (${activeOps}/5 min ops)`,
+          requirement: "Maintain ≥ 90% completion rate with at least 5 operations handled in the window.",
+        },
+        {
+          id: "operational-velocity",
+          title: "Operational Velocity",
+          category: "Throughput",
+          description: "Active throughput driving substantial customer transactions and movement volume.",
+          icon: "bolt",
+          tier: "Silver",
+          unlocked: activeOps >= 10,
+          progress: Math.min(100, Math.round((activeOps / 10) * 100)),
+          progressLabel: `${activeOps} / 10 operations`,
+          requirement: "Process at least 10 customer operations, orders, or delivery trips.",
+        },
+        {
+          id: "data-integrity",
+          title: "Data Integrity Guardian",
+          category: "Mastery",
+          description: "Ensure high fidelity customer contact information and delivery accuracy.",
+          icon: "fingerprint",
+          tier: "Bronze",
+          unlocked: activeOps >= 3 && capRate >= 80,
+          progress: activeOps === 0 ? 0 : Math.min(100, Math.round((capRate / 80) * 100)),
+          progressLabel: `${capRate}% / 80% fidelity`,
+          requirement: "Achieve ≥ 80% customer contact capture or first-arrival success (min 3 ops).",
+        },
+        {
+          id: "quality-shield",
+          title: "Zero-Defect Shield",
+          category: "Quality",
+          description: "Flawless handover with zero customer defect tickets, returns, or cancellations.",
+          icon: "shield",
+          tier: "Gold",
+          unlocked: activeOps >= 5 && issueCount === 0,
+          progress: activeOps >= 5 && issueCount > 0 ? 40 : Math.min(100, Math.round((activeOps / 5) * 100)),
+          progressLabel: issueCount === 0 ? `${activeOps} / 5 defect-free` : `${issueCount} defect(s) logged`,
+          requirement: "Process at least 5 orders with zero cancellations or returns.",
+        },
+        {
+          id: "shift-discipline",
+          title: "Shift Reporting Discipline",
+          category: "Discipline",
+          description: "Timely operational shift log filing with zero missing or delayed submissions.",
+          icon: "military_tech",
+          tier: "Silver",
+          unlocked: (role === "call_center" ? shiftReports >= 2 && backdatedReports === 0 : activeOps >= 3),
+          progress: role === "call_center"
+            ? Math.min(100, Math.round((shiftReports / 2) * 100))
+            : Math.min(100, Math.round((activeOps / 3) * 100)),
+          progressLabel: role === "call_center"
+            ? `${shiftReports} / 2 reports on-time`
+            : `${Math.min(activeOps, 3)} / 3 active work milestones`,
+          requirement: role === "call_center"
+            ? "File at least 2 daily shift reports with 100% on-time submission (0 backdated)."
+            : "Complete at least 3 operational tasks across your active shifts.",
+        },
+        {
+          id: "centurion-veteran",
+          title: "Centurion Operations Veteran",
+          category: "Mastery",
+          description: "Prestigious career milestone honoring senior operational contributions.",
+          icon: "workspace_premium",
+          tier: "Gold",
+          unlocked: (lifetimeDelivered >= 50 || lifetimeTotal >= 50),
+          progress: Math.min(100, Math.round((Math.max(lifetimeDelivered, lifetimeTotal) / 50) * 100)),
+          progressLabel: `${Math.max(lifetimeDelivered, lifetimeTotal)} / 50 career operations`,
+          requirement: "Complete 50+ career operations or orders platform-wide.",
+        },
+        {
+          id: "regional-vanguard",
+          title: "Regional Vanguard",
+          category: "Reliability",
+          description: "Expanding delivery and service outreach to customers in regional areas outside Addis Ababa.",
+          icon: "hub",
+          tier: "Silver",
+          unlocked: regionalCount >= 2,
+          progress: Math.min(100, Math.round((regionalCount / 2) * 100)),
+          progressLabel: `${regionalCount} / 2 regional orders`,
+          requirement: "Successfully coordinate or deliver at least 2 regional orders outside the capital.",
+        },
+        {
+          id: "stock-sentinel",
+          title: "Inventory Sentinel",
+          category: "Reliability",
+          description: "Proactive stock oversight, preventing out-of-stock shortages and raising timely replenishment.",
+          icon: "inventory_2",
+          tier: "Bronze",
+          unlocked: (k.low_stock_count !== undefined ? k.low_stock_count <= 5 : true) && activeOps >= 1,
+          progress: activeOps >= 1 ? 100 : 0,
+          progressLabel: activeOps >= 1 ? "Active Stock Oversight" : "Awaiting Operational Task",
+          requirement: "Maintain active inventory vigilance and manage catalog stock readiness.",
+        },
+      ];
+
+      data.badges = badges;
       res.json({ success: true, data });
     } catch (err) {
       log.error("Failed to build personal performance report", err);
