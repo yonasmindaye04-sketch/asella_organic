@@ -1295,7 +1295,8 @@ function StockTab({ reloadKey, initialSearch = '', initialSection = 'stock' }: S
 
               {/* Desktop Table View */}
               <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[620px]">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                       <th className="px-4 py-3 text-left">Product</th>
@@ -1367,6 +1368,7 @@ function StockTab({ reloadKey, initialSearch = '', initialSection = 'stock' }: S
                     })}
                   </tbody>
                 </table>
+                </div>
                 {visible.length === 0 && (
                   <div className="text-center py-10 text-gray-400 text-sm">No products match your filter.</div>
                 )}
@@ -1436,7 +1438,8 @@ function StockTab({ reloadKey, initialSearch = '', initialSection = 'stock' }: S
               {movements.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">No movements recorded yet.</div>
               ) : (
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[620px]">
                   <thead>
                     <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
                       <th className="px-4 py-3 text-left">Date</th>
@@ -1471,6 +1474,7 @@ function StockTab({ reloadKey, initialSearch = '', initialSection = 'stock' }: S
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           )}
@@ -1485,7 +1489,8 @@ function StockTab({ reloadKey, initialSearch = '', initialSection = 'stock' }: S
               {requests.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">No stock requests yet.</div>
               ) : (
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[620px]">
                   <thead>
                     <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
                       <th className="px-4 py-3 text-left">Date</th>
@@ -1544,6 +1549,7 @@ function StockTab({ reloadKey, initialSearch = '', initialSection = 'stock' }: S
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           )}

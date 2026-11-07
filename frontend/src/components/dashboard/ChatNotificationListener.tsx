@@ -22,13 +22,19 @@ interface UnreadResponse {
   mentions: number;
   urgent: number;
   announcements: number;
+  direct_unreads?: number;
+  direct_unreads_by_user?: Record<string, number>;
   latest: {
     id: string;
     channel: string;
     sender_id: string;
     sender_name: string;
     sender_role: string;
+    recipient_id?: string | null;
+    is_direct?: boolean | number;
     content: string;
+    media_url?: string | null;
+    media_type?: string | null;
     priority: 'normal' | 'urgent' | 'announcement';
     is_announcement: boolean | number;
     mentions?: string[];
@@ -87,6 +93,7 @@ export const ChatNotificationListener: React.FC = () => {
             // Notify sidebar and internal messaging page
             window.dispatchEvent(new CustomEvent('asella:new-message-received', { detail: latest }));
 
+            const isDirect = Boolean(latest.is_direct);
             const isUrgent = latest.priority === 'urgent';
             const isAnnouncement = Boolean(latest.is_announcement) || latest.priority === 'announcement';
             const mentionsList = latest.mentions || [];
@@ -102,11 +109,14 @@ export const ChatNotificationListener: React.FC = () => {
             // 2. Native Browser Push Notification (when window is not active or user is in another tab/page)
             if (!isOnMessagesPage || document.visibilityState === 'hidden') {
               if ('Notification' in window && Notification.permission === 'granted') {
+                const isDirect = Boolean(latest.is_direct);
                 const prefix = isUrgent ? '[URGENT] ' : isMentionedMe ? '[@MENTION] ' : isAnnouncement ? '[ANNOUNCEMENT] ' : '';
-                const notifTitle = `${prefix}#${latest.channel} · ${latest.sender_name}`;
+                const notifTitle = isDirect
+                  ? `[DIRECT] ${latest.sender_name}`
+                  : `${prefix}#${latest.channel} · ${latest.sender_name}`;
                 try {
                   const browserNotif = new Notification(notifTitle, {
-                    body: latest.content,
+                    body: latest.content || (latest.media_url ? '[Sent an attachment]' : 'New message'),
                     tag: `asella-chat-${latest.id}`,
                     icon: '/favicon.ico',
                   });
@@ -121,7 +131,9 @@ export const ChatNotificationListener: React.FC = () => {
 
               // 3. In-App Toast
               if (!isOnMessagesPage) {
-                const toastMsg = isMentionedMe
+                const toastMsg = isDirect
+                  ? `${latest.sender_name} sent you a direct message`
+                  : isMentionedMe
                   ? `${latest.sender_name} mentioned you in #${latest.channel}`
                   : `New message from ${latest.sender_name} in #${latest.channel}`;
                 showToast(toastMsg, isUrgent ? 'warning' : 'info');

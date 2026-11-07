@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
@@ -38,6 +38,13 @@ const DashboardLayoutInner: React.FC<DashboardLayoutProps> = ({ children }) => {
   const isPosTerminal = location.pathname === '/dashboard/pos';
 
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+
+  // Automatically collapse sidebar on mobile navigation
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  }, [location.pathname]);
 
   // Matches the guard on GET /api/performance/teams.
   const canViewTeamPerformance = user?.role === 'admin' || user?.role === 'manager';

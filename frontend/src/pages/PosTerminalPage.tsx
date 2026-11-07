@@ -18,7 +18,7 @@ import {
 import type { RootState } from '../store';
 import { useGroupedProducts, type GroupedProduct, type Variant } from '../hooks/useProducts';
 import { api } from '../services/api';
-import DashboardLayout from '../layouts/DashboardLayout';
+import DashboardLayout, { useDashboardSidebar } from '../layouts/DashboardLayout';
 import OrderReceipt, { type ReceiptData } from '../components/storefront/OrderReceipt';
 import { COUNTRY_CODES as _CC } from '../constants/countries';
 
@@ -184,6 +184,10 @@ export default function PosTerminalPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+
+  // Dashboard navigation & Mobile View State
+  const { toggleSidebar } = useDashboardSidebar();
+  const [mobileTab, setMobileTab] = useState<'catalog' | 'order'>('catalog');
 
 
 
@@ -381,6 +385,7 @@ export default function PosTerminalPage() {
   const clearCart = () => {
     setCart([]);
     setDiscountAmount(0);
+        setMobileTab('catalog');
   };
 
   // Cart calculations
@@ -508,9 +513,19 @@ export default function PosTerminalPage() {
       <div className="h-full flex flex-col overflow-hidden bg-[#f8faf9] text-gray-900 font-sans select-none">
 
         {/* 1. DEDICATED FOREST GREEN POS TERMINAL HEADER BAR */}
-        <header className="bg-[#1b4d24] text-white px-4 py-2 flex items-center justify-between border-b border-[#143b1c] shrink-0 z-20 shadow-sm">
+        <header className="bg-[#1b4d24] text-white px-3 sm:px-4 py-2 flex items-center justify-between border-b border-[#143b1c] shrink-0 z-20 shadow-sm gap-2">
           {/* Brand & Dynamic Store/Branch Info */}
-          <div className="flex items-center gap-2.5 sm:gap-3 w-auto md:w-72 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Mobile Hamburger Sidepanel Button */}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="lg:hidden p-2 -ml-1 text-white hover:bg-white/10 rounded-lg flex items-center justify-center shrink-0 cursor-pointer min-w-[40px] min-h-[40px]"
+              aria-label="Toggle navigation sidepanel"
+              title="Toggle navigation"
+            >
+              <span className="material-symbols-outlined text-2xl">menu</span>
+            </button>
             <div className="w-9 h-9 rounded-md bg-white flex items-center justify-center p-1 border border-gray-200 shadow-sm shrink-0">
               <img
                 src="/icons/icon-192.png"
@@ -522,26 +537,26 @@ export default function PosTerminalPage() {
               />
             </div>
             <div>
-              <h1 className="font-heading font-extrabold text-[15px] tracking-wide text-white leading-tight">
+              <h1 className="font-heading font-extrabold text-xs sm:text-[15px] tracking-wide text-white leading-tight">
                 ASELLA ORGANIC
               </h1>
-              <p className="text-[11px] text-green-200 font-medium">{storeBranchName}</p>
+              <p className="text-[10px] sm:text-[11px] text-green-200 font-medium truncate max-w-[110px] sm:max-w-none">{storeBranchName}</p>
             </div>
           </div>
 
           {/* Center Search Bar */}
-          <div className="flex-1 max-w-lg mx-4">
+          <div className="flex-1 max-w-lg mx-1.5 sm:mx-4 min-w-0">
             <div className="relative flex items-center">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3.5 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 sm:left-3.5 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search products by name, variant or category... (Press Esc to clear)"
+                placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') setSearchQuery('');
                 }}
-                className="w-full pl-9 pr-8 py-1.5 rounded-md bg-white text-gray-900 text-xs font-medium border border-gray-300 focus:border-[#1b4d24] focus:outline-none focus:ring-1 focus:ring-[#1b4d24] placeholder:text-gray-400"
+                className="w-full pl-7 sm:pl-9 pr-6 sm:pr-8 py-1 sm:py-1.5 rounded-md bg-white text-gray-900 text-xs font-medium border border-gray-300 focus:border-[#1b4d24] focus:outline-none focus:ring-1 focus:ring-[#1b4d24] placeholder:text-gray-400"
               />
               {searchQuery && (
                 <button
@@ -558,7 +573,7 @@ export default function PosTerminalPage() {
           {/* Cashier & Terminal Identity */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
 
-            <div className="text-right hidden sm:block">
+            <div className="text-right hidden md:block">
               <div className="font-bold text-xs text-white">
                 {displayName} ({displayRole})
               </div>
@@ -570,11 +585,50 @@ export default function PosTerminalPage() {
           </div>
         </header>
 
+        {/* MOBILE VIEW SWITCHER (CATALOG vs CURRENT ORDER) */}
+        <div className="lg:hidden bg-white border-b border-gray-200 px-3 py-1.5 flex items-center gap-2 shrink-0 select-none shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setMobileTab('catalog')}
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[42px] cursor-pointer ${
+              mobileTab === 'catalog'
+                ? 'bg-[#1b4d24] text-white shadow-2xs'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>Catalog ({filteredProducts.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('order')}
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 min-h-[42px] cursor-pointer relative ${
+              mobileTab === 'order'
+                ? 'bg-[#1b4d24] text-white shadow-2xs'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>Current Order</span>
+            {totalCartCount > 0 && (
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                  mobileTab === 'order'
+                    ? 'bg-white text-[#1b4d24]'
+                    : 'bg-[#1b4d24] text-white'
+                }`}
+              >
+                {totalCartCount}
+              </span>
+            )}
+          </button>
+        </div>
+
         {/* 2. MAIN POS WORKSPACE: CATALOG ON LEFT + CURRENT ORDER ON RIGHT */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden relative">
 
           {/* CATALOG SECTION */}
-          <main className="flex-1 flex flex-col overflow-hidden bg-[#f8faf9] px-4 py-2.5">
+          <main className={`${mobileTab === 'catalog' ? 'flex' : 'hidden'} lg:flex flex-1 flex-col overflow-hidden bg-[#f8faf9] px-2.5 sm:px-4 py-2 sm:py-2.5 min-w-0`}>
 
             {/* Breadcrumb4 Dot-Separator Category Filter Bar */}
             <div className="mb-2 shrink-0 flex items-center justify-between border-b border-gray-200/80 pb-2">
@@ -745,10 +799,41 @@ export default function PosTerminalPage() {
                 </div>
               )}
             </div>
+
+            {/* Sticky Mobile Floating Order Bar */}
+            {totalCartCount > 0 && mobileTab === 'catalog' && (
+              <div className="lg:hidden p-2.5 bg-white border-t border-gray-200 shrink-0 shadow-lg mt-auto">
+                <button
+                  type="button"
+                  onClick={() => setMobileTab('order')}
+                  className="w-full py-2.5 px-4 bg-[#1b4d24] hover:bg-[#143e1c] active:scale-[0.99] text-white rounded-xl font-bold text-xs flex items-center justify-between shadow-md transition cursor-pointer min-h-[44px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4 text-white" />
+                    <span>{totalCartCount} {totalCartCount === 1 ? 'item' : 'items'} in order</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-heading font-black text-xs sm:text-sm">
+                    <span>ETB {totalPayable.toLocaleString()}</span>
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </div>
+                </button>
+              </div>
+            )}
           </main>
 
           {/* 3. RIGHT ORDER & CHECKOUT PANEL */}
-          <aside className="w-[340px] 2xl:w-[370px] bg-white border-l border-gray-200 flex flex-col h-full shadow-lg shrink-0 z-10">
+          <aside className={`${mobileTab === 'order' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[340px] 2xl:w-[370px] bg-white border-l border-gray-200 flex-col h-full shadow-lg shrink-0 z-10 min-w-0`}>
+            {/* Mobile Back to Products Catalog Bar */}
+            <div className="lg:hidden p-2.5 bg-[#f4f7f4] border-b border-gray-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMobileTab('catalog')}
+                className="w-full py-2 px-3 rounded-lg bg-white border border-[#1b4d24]/20 text-[#1b4d24] text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#eef6ee] transition shadow-2xs min-h-[40px] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">arrow_back</span>
+                <span>Back to Products Catalog</span>
+              </button>
+            </div>
 
             {/* Header & Order Mode */}
             <div className="p-2.5 border-b border-gray-200 bg-[#fafbfa]">
@@ -1085,7 +1170,7 @@ export default function PosTerminalPage() {
               </div>
 
               {/* Body */}
-              <div className="p-6 overflow-y-auto space-y-4 text-xs scrollbar-thin">
+              <div className="p-3.5 sm:p-6 overflow-y-auto space-y-4 text-xs scrollbar-thin">
                 
                 {/* 1. Lookup Existing Customer Section (Website Theme) */}
                 <div className="bg-[#f8faf8] p-3.5 rounded-xl border border-[#d6ebd6]">

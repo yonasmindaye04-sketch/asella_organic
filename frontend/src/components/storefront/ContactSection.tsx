@@ -88,7 +88,7 @@ const ContactSection: React.FC = () => {
                 title={t('contact.storePiasaTitle')}
                 address={t('contact.storePiasaDesc')}
                 mapQuery="Piasa Store, Piazza Giorgis, Ethel Apartment, Addis Ababa, Ethiopia"
-                directionsUrl="https://maps.app.goo.gl/mssptHZ9dAXRCbCh7"
+                directionsUrl="https://maps.app.goo.gl/PR419o91jPvFejgy7"
                 viewOnMapLabel={t('contact.viewOnMap')}
                 triggerLabel={t('contact.directions')}
                 directionsLabel={t('contact.directions')}
@@ -112,7 +112,9 @@ const ContactSection: React.FC = () => {
           </div>
 
           {/* Right Column: Appointment Form */}
-          <div className="self-start mx-auto max-w-[460px] w-full bg-obsidian dark:bg-[#0A0A0A] rounded-[32px] p-6 md:p-6 text-white shadow-xl flex flex-col border border-highland-gold/20 relative overflow-hidden">
+          <div className="self-start mx-auto max-w-[460px] w-full bg-obsidian 
+              dark:bg-[#0A0A0A] rounded-[32px] p-6 md:p-6 text-white shadow-xl 
+                   flex flex-col border border-highland-gold/20 relative overflow-hidden">
             {/* Subtle background glow */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-highland-gold/5 rounded-full blur-2xl pointer-events-none"></div>
             
@@ -141,7 +143,9 @@ const ContactSection: React.FC = () => {
                   value={formData.full_name}
                   onChange={e => setFormData(p => ({...p, full_name: e.target.value}))}
                   placeholder={t('contact.fullNamePlaceholder')}
-                  className="w-full px-4 py-2 bg-white border border-transparent rounded-xl text-obsidian placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold focus:border-transparent transition-all text-base font-sans" 
+                  className="w-full px-4 py-2 bg-white border border-transparent rounded-xl text-obsidian
+                              placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-highland-gold 
+                                   focus:border-transparent transition-all text-base font-sans" 
                 />
               </div>
 

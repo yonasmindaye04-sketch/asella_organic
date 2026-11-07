@@ -194,7 +194,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
       )}
 
       <aside className={`sidebar-root ${isOpen ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
-        <div className="sidebar-header-toggle">
+        <div className="sidebar-header-toggle flex items-center justify-between">
+          <div className="flex items-center gap-2">
           <button
             onClick={onClose}
             className="sidebar-hamburger-btn"
@@ -202,6 +203,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             title={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             <Icon name="menu" />
+          </button>
+            <span className="font-heading font-black text-xs sm:text-sm text-white tracking-wide lg:hidden pl-1 select-none">
+              ASELLA ORGANIC
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="lg:hidden p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/10 flex items-center justify-center cursor-pointer mr-1"
+            aria-label="Close sidebar"
+            title="Close sidebar"
+          >
+            <Icon name="close" />
           </button>
         </div>
 

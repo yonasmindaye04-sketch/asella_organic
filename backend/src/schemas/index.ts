@@ -483,11 +483,22 @@ export const CreateChannelSchema = z.object({
 });
 
 export const CreateInternalMessageSchema = z.object({
-  channel: z.string().trim().min(1, "Channel is required").max(50),
-  content: z.string().trim().min(1, "Message content cannot be empty").max(2000, "Message content cannot exceed 2000 characters"),
+  channel: z.string().trim().max(50).optional().default("general"),
+  recipient_id: z.string().trim().uuid("Invalid recipient ID").optional(),
+  content: z.string().trim().max(2000, "Message content cannot exceed 2000 characters").optional().default(""),
+  media_url: z.string().trim().max(1000).optional().nullable(),
+  media_type: z.string().trim().max(100).optional().nullable(),
+  media_name: z.string().trim().max(255).optional().nullable(),
+  media_size: z.number().int().nonnegative().optional().nullable(),
   priority: z.enum(["normal", "urgent", "announcement"]).optional().default("normal"),
   is_announcement: z.boolean().optional().default(false),
-});
+}).refine(
+  (data) => Boolean((data.content && data.content.trim().length > 0) || data.media_url),
+  { message: "Either message content or media attachment must be provided" }
+).refine(
+  (data) => Boolean(data.recipient_id || (data.channel && data.channel.trim().length > 0)),
+  { message: "Either channel or recipient_id is required" }
+);
 
 // ─── Type exports (inferred from schemas) ────────────────────────────────
 

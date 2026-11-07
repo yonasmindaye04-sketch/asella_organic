@@ -63,7 +63,8 @@
 - **Responsive Modals & Dialogs:** Modals must comfortably fit mobile screens (`max-h-[90vh]` or `max-h-screen`, `overflow-y-auto`, `p-3 sm:p-6`). Mobile action footers must stack buttons full-width (`w-full sm:w-auto`) for thumb accessibility.
 - **Responsive Data Grids & Tables:** Complex tables (orders, stock, customers, analytics) must provide horizontal scroll containers (`overflow-x-auto`) or mobile card layouts so columns never collide or get clipped.
 - **iOS & Mobile Form Zoom Prevention:** Mobile inputs and selects must be legible and formatted (font size at least 14px–16px) to avoid erratic browser auto-zooming on focus.
-- **Collapsible Navigation:** Navigation drawers and sidebars must collapse into intuitive mobile drawers with touch-friendly backdrops on screens under 1024px.
+- **Collapsible Navigation & Universal Sidepanel Reachability:** Navigation drawers and sidebars must collapse into intuitive mobile drawers with touch-friendly backdrops on screens under 1024px. Every screen and terminal (including POS terminals with custom header bars) must feature a visible, accessible hamburger toggle button so staff can open the navigation sidepanel on mobile at all times.
+- **POS Terminal Mobile Standards:** On viewports < 1024px, the POS terminal must provide responsive tab switching between `Catalog` and `Current Order`, a sticky floating order bar showing total count & price, and full-width panels. The right checkout panel must never squish or hide the product catalog on mobile.
 
 ---
 

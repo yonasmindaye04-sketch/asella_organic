@@ -140,11 +140,11 @@ export default function KPICards({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6">
       {cards.map((kpi, i) => (
         <div
           key={kpi.label}
-          className="card p-5 flex flex-col justify-between animate-in"
+          className="card p-3 sm:p-5 flex flex-col justify-between animate-in"
           style={{ animationDelay: `${0.04 * (i + 1)}s` }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -152,7 +152,7 @@ export default function KPICards({
               <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 {kpi.label}
               </p>
-              <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mt-1.5 tabular-nums">
+              <h3 className="text-lg sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mt-1 sm:mt-1.5 tabular-nums">
                 <AnimatedNumber target={kpi.value} suffix={kpi.suffix} />
               </h3>
             </div>
