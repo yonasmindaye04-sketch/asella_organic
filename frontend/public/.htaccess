@@ -123,13 +123,31 @@ ErrorDocument 404 /offline.html
   Header always set X-Frame-Options "SAMEORIGIN"
 </IfModule>
 
-# ── 5. Discovery CORS ──────────────────────────────────────────────
-# Machine-readable discovery files for AI agents, crawlers, and LLMs
+# ── 5. Discovery CORS & Agent Metadata Caching ────────────────────
+# Agent-readable metadata. These previously fell through to default
+# Expires rules and stayed DYNAMIC at the Cloudflare edge, causing
+# Lighthouse agentic-browsing and LLM audits to time out.
+  <FilesMatch "^(ai-catalog\.json|catalog\.json|ard\.json)$">
+    Header set Content-Type "application/json"
+    Header set Cache-Control "public, max-age=3600, stale-while-revalidate=86400"
+    Header set Access-Control-Allow-Origin "*"
+  </FilesMatch>
+  <FilesMatch "^(sitemap\.xml)$">
+    Header set Content-Type "application/xml; charset=utf-8"
+    Header set Cache-Control "public, max-age=3600, stale-while-revalidate=86400"
+    Header set Access-Control-Allow-Origin "*"
+  </FilesMatch>
+  <FilesMatch "^(llms\.txt|llms-full\.txt|robots\.txt)$">
+    Header set Content-Type "text/plain; charset=utf-8"
+    Header set Cache-Control "public, max-age=3600, stale-while-revalidate=86400"
+    Header set Access-Control-Allow-Origin "*"
+  </FilesMatch>
+  # Fallback CORS for all discovery files in .well-known and root
   <FilesMatch "\.(json|txt|xml)$">
     Header set Access-Control-Allow-Origin "*"
   </FilesMatch>
 
-# ── 5. Block access to dotfiles (except .well-known and .htaccess) ──
+# ── 6. Block access to dotfiles (except .well-known and .htaccess) ──
 <FilesMatch "^\.(?!well-known|htaccess)">
   Require all denied
 </FilesMatch>
