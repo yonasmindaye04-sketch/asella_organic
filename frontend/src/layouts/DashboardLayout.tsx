@@ -18,10 +18,35 @@ export interface DashboardSidebarContextValue {
   setIsSidebarOpen: (open: boolean) => void;
 }
 
+export const TOGGLE_SIDEBAR_EVENT = 'asella:toggle-sidebar';
+export const OPEN_SIDEBAR_EVENT = 'asella:open-sidebar';
+export const CLOSE_SIDEBAR_EVENT = 'asella:close-sidebar';
+
+export const toggleDashboardSidebar = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(TOGGLE_SIDEBAR_EVENT));
+  }
+};
+
+export const openDashboardSidebar = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(OPEN_SIDEBAR_EVENT));
+  }
+};
+
+export const closeDashboardSidebar = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CLOSE_SIDEBAR_EVENT));
+  }
+};
+
 export const DashboardSidebarContext = createContext<DashboardSidebarContextValue>({
   isSidebarOpen: false,
-  toggleSidebar: () => {},
-  setIsSidebarOpen: () => {},
+  toggleSidebar: toggleDashboardSidebar,
+  setIsSidebarOpen: (open: boolean) => {
+    if (open) openDashboardSidebar();
+    else closeDashboardSidebar();
+  },
 });
 
 export const useDashboardSidebar = () => useContext(DashboardSidebarContext);
@@ -38,6 +63,23 @@ const DashboardLayoutInner: React.FC<DashboardLayoutProps> = ({ children }) => {
   const isPosTerminal = location.pathname === '/dashboard/pos';
 
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+
+  // Listen to global sidebar toggle/open/close events
+  useEffect(() => {
+    const handleToggle = () => setIsSidebarOpen((prev) => !prev);
+    const handleOpen = () => setIsSidebarOpen(true);
+    const handleClose = () => setIsSidebarOpen(false);
+
+    window.addEventListener(TOGGLE_SIDEBAR_EVENT, handleToggle);
+    window.addEventListener(OPEN_SIDEBAR_EVENT, handleOpen);
+    window.addEventListener(CLOSE_SIDEBAR_EVENT, handleClose);
+
+    return () => {
+      window.removeEventListener(TOGGLE_SIDEBAR_EVENT, handleToggle);
+      window.removeEventListener(OPEN_SIDEBAR_EVENT, handleOpen);
+      window.removeEventListener(CLOSE_SIDEBAR_EVENT, handleClose);
+    };
+  }, []);
 
   // Automatically collapse sidebar on mobile navigation
   useEffect(() => {

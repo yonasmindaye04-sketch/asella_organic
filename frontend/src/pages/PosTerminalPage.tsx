@@ -149,7 +149,7 @@ const splitPhoneNumber = (rawPhone: string) => {
   return { code: matchedCode, local: localNum };
 };
 
-export default function PosTerminalPage() {
+function PosTerminalInner() {
   const { user } = useSelector((state: RootState) => state.auth);
   const { groupedProducts, loading, error, refreshGroupedProducts } = useGroupedProducts();
 
@@ -509,8 +509,7 @@ export default function PosTerminalPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="h-full flex flex-col overflow-hidden bg-[#f8faf9] text-gray-900 font-sans select-none">
+    <div className="h-full flex flex-col overflow-hidden bg-[#f8faf9] text-gray-900 font-sans select-none">
 
         {/* 1. DEDICATED FOREST GREEN POS TERMINAL HEADER BAR */}
         <header className="bg-[#1b4d24] text-white px-3 sm:px-4 py-2 flex items-center justify-between border-b border-[#143b1c] shrink-0 z-20 shadow-sm gap-2">
@@ -520,7 +519,7 @@ export default function PosTerminalPage() {
             <button
               type="button"
               onClick={toggleSidebar}
-              className="lg:hidden p-2 -ml-1 text-white hover:bg-white/10 rounded-lg flex items-center justify-center shrink-0 cursor-pointer min-w-[40px] min-h-[40px]"
+              className="p-2 -ml-1 text-white hover:bg-white/10 active:bg-white/20 rounded-lg flex items-center justify-center shrink-0 cursor-pointer min-w-[40px] min-h-[40px]"
               aria-label="Toggle navigation sidepanel"
               title="Toggle navigation"
             >
@@ -1516,6 +1515,13 @@ export default function PosTerminalPage() {
           />
         )}
       </div>
+  );
+}
+
+export default function PosTerminalPage() {
+  return (
+    <DashboardLayout>
+      <PosTerminalInner />
     </DashboardLayout>
   );
 }
