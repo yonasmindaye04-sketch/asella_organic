@@ -3,9 +3,11 @@
  * Full analytics modal for a single employee.
  * Matches the Asella Organic dashboard design system:
  *   - material-symbols-outlined icons
- *   - CSS variables (--fg, --muted, --border, --bg-deep, --accent, etc.)
- *   - .card class and border-radius tokens
- *   - Chart.js for line / bar charts (already registered in ChartsRow)
+ *   - Outfit (font-heading), DM Sans/Inter (font-sans), font-mono for metrics
+ *   - High contrast, legible typography scale for light and dark modes
+ *   - Zero emojis per rule.md
+ *   - Status indicators in bold colored uppercase text per rule.md
+ *   - Chart.js for line / bar charts
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -26,24 +28,25 @@ import { CHART, CHART_AXIS, CHART_TOOLTIP } from "./chartTheme";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, BarElement, Tooltip, Filler);
 
-// ── Source colour map (brand cream / natural-green series) ───────────────────
+// ── Source colour map ────────────────────────────────────────────────────────
 const SOURCE_MAP: Record<string, { label: string; color: string; icon: string }> = {
-  website:   { label: "Website",        color: CHART.gold, icon: "language" },
-  telegram:  { label: "Telegram",       color: CHART.green700, icon: "send" },
-  instagram: { label: "Instagram",      color: CHART.green300, icon: "photo_camera" },
-  tiktok:    { label: "TikTok",         color: CHART.green500, icon: "music_video" },
+  website:   { label: "Website",          color: CHART.gold,     icon: "language" },
+  telegram:  { label: "Telegram",         color: CHART.green700, icon: "send" },
+  instagram: { label: "Instagram",        color: CHART.green300, icon: "photo_camera" },
+  tiktok:    { label: "TikTok",           color: CHART.green500, icon: "music_video" },
   franchise: { label: "Bulk / Franchise", color: CHART.goldLight, icon: "inventory" },
-  sales:     { label: "Walk-in / Phone", color: CHART.mutedInk, icon: "phone_in_talk" },
-  phone:     { label: "Phone",          color: CHART.mutedInk, icon: "phone_in_talk" },
+  sales:     { label: "Walk-in / Phone",  color: CHART.mutedInk, icon: "phone_in_talk" },
+  phone:     { label: "Phone",            color: CHART.mutedInk, icon: "phone_in_talk" },
 };
 const FALLBACK_SOURCE = { label: "Other", color: CHART.inkSoft, icon: "help_outline" };
 
-const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  delivered:  { bg: "text-green-700 dark:text-green-400", text: "Delivered" },
-  pending:    { bg: "text-amber-600 dark:text-amber-400", text: "Pending" },
-  "in transit": { bg: "text-blue-700 dark:text-blue-400", text: "In Transit" },
-  cancelled:  { bg: "text-red-700 dark:text-red-400", text: "Cancelled" },
-  packed:     { bg: "text-violet-700 dark:text-violet-400", text: "Packed" },
+// ── Status indicators per rule.md (bold colored text in CAPITAL LETTERS) ─────
+const STATUS_STYLE: Record<string, { color: string; label: string }> = {
+  delivered:    { color: "text-emerald-600 dark:text-emerald-400", label: "DELIVERED" },
+  pending:      { color: "text-amber-600 dark:text-amber-400",     label: "PENDING" },
+  "in transit": { color: "text-blue-600 dark:text-blue-400",       label: "IN TRANSIT" },
+  cancelled:    { color: "text-rose-600 dark:text-rose-400",       label: "CANCELLED" },
+  packed:       { color: "text-violet-600 dark:text-violet-400",   label: "PACKED" },
 };
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -54,11 +57,6 @@ interface PerformanceData {
     revenue: number; avg_order_value: number; delivery_rate: number;
     cancellation_rate: number; orders_per_day: number;
   };
-  /**
-   * Delivery workload. Present only for drivers — a driver has no sales
-   * history, so the sales summary above reads as all zeroes for them and
-   * this block carries the numbers that actually describe their work.
-   */
   delivery?: {
     total_assigned: number; delivered: number; cancelled: number; pending: number;
     revenue: number; rejected: number; delivery_rate: number;
@@ -82,22 +80,30 @@ interface Props {
   onClose: () => void;
 }
 
-// ── KPI chip ─────────────────────────────────────────────────────────────────
+// ── KPI Chip ─────────────────────────────────────────────────────────────────
 function KpiChip({ icon, label, value, sub, accent }: {
   icon: string; label: string; value: string; sub?: string; accent?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 p-3 rounded-[var(--radius-sm)] bg-[var(--bg-deep)] border border-[var(--border)]">
+    <div className="flex items-start gap-3 p-3.5 sm:p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xs transition hover:border-zinc-300 dark:hover:border-zinc-700">
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-        style={{ background: accent ?? "var(--accent)", opacity: 0.9 }}
+        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs"
+        style={{ background: accent ?? "var(--accent)" }}
       >
-        <span className="material-symbols-outlined text-white text-[16px]">{icon}</span>
+        <span className="material-symbols-outlined text-white text-xl">{icon}</span>
       </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">{label}</p>
-        <p className="text-[15px] font-extrabold text-[var(--fg)] leading-tight">{value}</p>
-        {sub && <p className="text-[10px] text-[var(--muted)]">{sub}</p>}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300 font-heading truncate">
+          {label}
+        </p>
+        <p className="text-xl sm:text-2xl font-black font-mono text-zinc-900 dark:text-zinc-50 leading-tight tracking-tight mt-0.5 truncate">
+          {value}
+        </p>
+        {sub && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium truncate mt-0.5">
+            {sub}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -170,9 +176,9 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
       backgroundColor: `${staffColor}18`,
       fill: true,
       tension: 0.4,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      borderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      borderWidth: 2.5,
     }],
   };
   const revenueChartOptions: any = {
@@ -183,8 +189,21 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
       tooltip: { ...CHART_TOOLTIP, callbacks: { label: (ctx: any) => ` ETB ${(ctx.parsed.y || 0).toLocaleString()}` } },
     },
     scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { color: CHART_AXIS.tick, maxTicksLimit: 8 } },
-      y: { beginAtZero: true, grid: { color: CHART_AXIS.grid }, border: { display: false }, ticks: { color: CHART_AXIS.tick, callback: (v: any) => `${(v / 1000).toFixed(0)}k` } },
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: CHART_AXIS.tick, font: { size: 11, weight: "600" }, maxTicksLimit: 8 },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: CHART_AXIS.grid },
+        border: { display: false },
+        ticks: {
+          color: CHART_AXIS.tick,
+          font: { size: 11, weight: "600" },
+          callback: (v: any) => `${(v / 1000).toFixed(0)}k`,
+        },
+      },
     },
   };
 
@@ -206,8 +225,17 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
     maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { ...CHART_TOOLTIP } },
     scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { color: CHART_AXIS.tick, maxTicksLimit: 12 } },
-      y: { beginAtZero: true, grid: { color: CHART_AXIS.grid }, border: { display: false }, ticks: { color: CHART_AXIS.tick, precision: 0 } },
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: CHART_AXIS.tick, font: { size: 10, weight: "600" }, maxTicksLimit: 12 },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: CHART_AXIS.grid },
+        border: { display: false },
+        ticks: { color: CHART_AXIS.tick, font: { size: 11, weight: "600" }, precision: 0 },
+      },
     },
   };
 
@@ -215,7 +243,6 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
   const maxCityRevenue    = Math.max(...(data?.by_city.map(c => Number(c.revenue)) ?? [1]), 1);
 
   if (typeof document === "undefined") return null;
-  console.log("Rendering EmployeeDetailModal via React Portal to document.body");
 
   return createPortal(
     <div
@@ -225,108 +252,115 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
       style={{ background: "rgba(10,30,10,0.65)", backdropFilter: "blur(6px)" }}
     >
       <div
-        className="relative w-full max-w-6xl h-[88vh] flex flex-col rounded-[var(--radius)] bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden"
+        className="relative w-full max-w-6xl h-[90vh] flex flex-col rounded-2xl bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden font-sans text-zinc-900 dark:text-zinc-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ─────────────────────────────────────────────── */}
-        <div className="flex items-center gap-4 px-6 py-4 border-b border-[var(--border)] shrink-0 bg-[var(--bg-card)] z-10">
+        <div className="flex items-center gap-4 px-4 sm:px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0 bg-white dark:bg-zinc-900 z-10 shadow-2xs">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold uppercase text-sm shrink-0"
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold uppercase text-base shrink-0 shadow-xs"
             style={{ background: staffColor }}
           >
             {staffName.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-[15px] font-extrabold text-[var(--fg)] truncate">{staffName}</h2>
-            <p className="text-[11px] text-[var(--muted)] capitalize">{staffRole}</p>
+            <h2 className="text-lg sm:text-2xl font-bold font-heading text-zinc-900 dark:text-zinc-50 truncate tracking-tight">
+              {staffName}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-zinc-600 dark:text-zinc-300 font-heading capitalize">
+              {staffRole}
+            </p>
           </div>
           {from && to && (
-            <span className="hidden sm:flex items-center gap-1.5 text-[11px] text-[var(--muted)] bg-[var(--bg-deep)] border border-[var(--border)] rounded-full px-3 py-1">
-              <span className="material-symbols-outlined text-[13px]">calendar_month</span>
-              {from} → {to}
+            <span className="hidden sm:flex items-center gap-1.5 text-xs sm:text-sm font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-1.5">
+              <span className="material-symbols-outlined text-base">calendar_month</span>
+              <span>{from} → {to}</span>
             </span>
           )}
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-deep)] transition-colors shrink-0"
+            className="flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0 cursor-pointer"
             title="Close modal"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
         {/* ── Scrollable body ────────────────────────────────────── */}
         <div
-          className="overflow-y-auto flex-1 min-h-0 px-6 py-5 space-y-6 overscroll-contain"
+          className="overflow-y-auto flex-1 min-h-0 px-4 sm:px-6 py-5 space-y-6 overscroll-contain"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
 
           {loading && (
-            <div className="flex items-center justify-center h-64 gap-3 text-[var(--muted)]">
-              <span className="material-symbols-outlined text-[28px] animate-spin">progress_activity</span>
-              <span className="text-sm">Loading analytics…</span>
+            <div className="flex flex-col items-center justify-center h-64 gap-3 text-zinc-500 dark:text-zinc-400">
+              <span className="material-symbols-outlined text-3xl animate-spin text-[#1b4d24] dark:text-emerald-400">sync</span>
+              <span className="text-sm font-semibold">Loading employee analytics…</span>
             </div>
           )}
 
           {error && !loading && (
-            <div className="flex flex-col items-center justify-center h-64 gap-2 text-[var(--muted)]">
-              <span className="material-symbols-outlined text-[32px] text-[var(--rose)]">error_outline</span>
-              <p className="text-sm">{error}</p>
+            <div className="flex flex-col items-center justify-center h-64 gap-2 text-zinc-600 dark:text-zinc-400 text-center">
+              <span className="material-symbols-outlined text-4xl text-rose-600">error_outline</span>
+              <p className="text-base font-semibold">{error}</p>
             </div>
           )}
 
           {data && s && (
             <>
               {/* ── KPI Grids ─────────────────────────────────────── */}
-              {/* Drivers are measured on deliveries, salespeople on sales.
-                  Someone who does both gets both grids — showing only one
-                  would hide half of their work. */}
               {data.delivery && (
-                <section>
+                <section className="space-y-3">
                   {s.total_orders > 0 && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="material-symbols-outlined text-[15px] text-[var(--muted)]">local_shipping</span>
-                      <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Delivery</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">local_shipping</span>
+                      <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                        Delivery Performance
+                      </h3>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     <KpiChip icon="local_shipping" label="Assigned"        value={fmt(data.delivery.total_assigned)} sub="jobs accepted" accent={CHART.gold} />
-                    <KpiChip icon="check_circle"   label="Delivered"       value={fmt(data.delivery.delivered)}    sub={`${data.delivery.delivery_rate}% completion`} accent="var(--emerald)" />
-                    <KpiChip icon="how_to_reg"     label="Accept Rate"     value={`${data.delivery.acceptance_rate}%`} sub={`${data.delivery.rejected} rejected`} accent="var(--sky)" />
-                    <KpiChip icon="timer"          label="On-Time Rate"    value={`${data.delivery.on_time_rate}%`} sub="vs promised date" accent="var(--accent)" />
-                    <KpiChip icon="cancel"         label="Cancelled"       value={fmt(data.delivery.cancelled)}    accent="var(--rose)" />
-                    <KpiChip icon="payments"       label="Delivered Value" value={fmtEtb(data.delivery.revenue)}   accent="var(--emerald)" />
+                    <KpiChip icon="check_circle"   label="Delivered"       value={fmt(data.delivery.delivered)}    sub={`${data.delivery.delivery_rate}% completion`} accent={CHART.green700} />
+                    <KpiChip icon="how_to_reg"     label="Accept Rate"     value={`${data.delivery.acceptance_rate}%`} sub={`${data.delivery.rejected} rejected`} accent={CHART.green300} />
+                    <KpiChip icon="timer"          label="On-Time Rate"    value={`${data.delivery.on_time_rate}%`} sub="vs promised date" accent={CHART.mutedInk} />
+                    <KpiChip icon="cancel"         label="Cancelled"       value={fmt(data.delivery.cancelled)}    accent={CHART.red} />
+                    <KpiChip icon="payments"       label="Delivered Value" value={fmtEtb(data.delivery.revenue)}   accent={CHART.green700} />
                   </div>
                 </section>
               )}
 
               {(!data.delivery || s.total_orders > 0) && (
-                <section>
+                <section className="space-y-3">
                   {data.delivery && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="material-symbols-outlined text-[15px] text-[var(--muted)]">shopping_bag</span>
-                      <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Sales</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">shopping_bag</span>
+                      <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                        Sales Performance
+                      </h3>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                    <KpiChip icon="payments"        label="Revenue"        value={fmtEtb(s.revenue)}          accent="var(--emerald)" />
-                    <KpiChip icon="shopping_bag"    label="Orders"         value={fmt(s.total_orders)}        sub={`${s.delivered} delivered`} accent="var(--sky)" />
-                    <KpiChip icon="check_circle"    label="Delivery Rate"  value={`${s.delivery_rate}%`}      sub={`${s.delivered} of ${s.total_orders}`} accent="var(--accent)" />
-                    <KpiChip icon="cancel"          label="Cancel Rate"    value={`${s.cancellation_rate}%`}  sub={`${s.cancelled} cancelled`} accent="var(--rose)" />
-                    <KpiChip icon="bar_chart"       label="Avg Order"      value={fmtEtb(s.avg_order_value)}  accent="var(--amber)" />
-                    <KpiChip icon="today"           label="Orders / Day"   value={`${s.orders_per_day}`}      accent={CHART.mutedInk} />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <KpiChip icon="payments"        label="Revenue"        value={fmtEtb(s.revenue)}          accent={CHART.green700} />
+                    <KpiChip icon="shopping_bag"    label="Orders"         value={fmt(s.total_orders)}        sub={`${s.delivered} delivered`} accent={CHART.mutedInk} />
+                    <KpiChip icon="check_circle"    label="Delivery Rate"  value={`${s.delivery_rate}%`}      sub={`${s.delivered} of ${s.total_orders}`} accent={CHART.green500} />
+                    <KpiChip icon="cancel"          label="Cancel Rate"    value={`${s.cancellation_rate}%`}  sub={`${s.cancelled} cancelled`} accent={CHART.red} />
+                    <KpiChip icon="bar_chart"       label="Avg Order"      value={fmtEtb(s.avg_order_value)}  accent={CHART.gold} />
+                    <KpiChip icon="today"           label="Orders / Day"   value={`${s.orders_per_day}`}      accent={CHART.inkSoft} />
                   </div>
                 </section>
               )}
 
               {/* ── Revenue over time ─────────────────────────────── */}
               {data.revenue_over_time.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="material-symbols-outlined text-[17px] text-[var(--muted)]">trending_up</span>
-                    <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Revenue Over Time</h3>
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">trending_up</span>
+                    <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                      Revenue Over Time
+                    </h3>
                   </div>
-                  <div className="card p-4" style={{ height: 180 }}>
+                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 shadow-2xs" style={{ height: 210 }}>
                     <Line data={revenueChartData} options={revenueChartOptions} />
                   </div>
                 </section>
@@ -337,29 +371,35 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
 
                 {/* Sales by channel */}
                 {data.by_channel.length > 0 && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="material-symbols-outlined text-[17px] text-[var(--muted)]">hub</span>
-                      <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Sales by Channel</h3>
+                  <section className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">hub</span>
+                      <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                        Sales by Channel
+                      </h3>
                     </div>
-                    <div className="card p-4 space-y-3">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 space-y-4 shadow-2xs">
                       {data.by_channel.map(ch => {
                         const info = SOURCE_MAP[ch.source?.toLowerCase()] ?? FALLBACK_SOURCE;
                         const pct  = Math.max((Number(ch.revenue) / maxChannelRevenue) * 100, 2);
                         return (
-                          <div key={ch.source} className="flex items-center gap-2.5">
+                          <div key={ch.source} className="flex items-center gap-3">
                             <div
-                              className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                               style={{ background: `${info.color}22`, color: info.color }}
                             >
-                              <span className="material-symbols-outlined text-[13px]">{info.icon}</span>
+                              <span className="material-symbols-outlined text-base">{info.icon}</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-semibold text-[var(--fg)] truncate">{info.label}</span>
-                                <span className="text-[10px] text-[var(--muted)] shrink-0 ml-2">{ch.orders} · ETB {Number(ch.revenue).toLocaleString()}</span>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 font-heading truncate">
+                                  {info.label}
+                                </span>
+                                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-700 dark:text-zinc-300 shrink-0 ml-2">
+                                  {ch.orders} orders · ETB {Number(ch.revenue).toLocaleString()}
+                                </span>
                               </div>
-                              <div className="h-[3px] rounded-full bg-[var(--bg-deep)] overflow-hidden">
+                              <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                                 <div
                                   className="h-full rounded-full transition-all duration-700"
                                   style={{ width: `${pct}%`, background: info.color }}
@@ -375,25 +415,31 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
 
                 {/* Sales by city */}
                 {data.by_city.length > 0 && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="material-symbols-outlined text-[17px] text-[var(--muted)]">location_on</span>
-                      <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Sales by City</h3>
+                  <section className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">location_on</span>
+                      <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                        Sales by City
+                      </h3>
                     </div>
-                    <div className="card p-4 space-y-3">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 space-y-4 shadow-2xs">
                       {data.by_city.map(c => {
                         const pct = Math.max((Number(c.revenue) / maxCityRevenue) * 100, 2);
                         return (
-                          <div key={c.city} className="flex items-center gap-2.5">
-                            <div className="w-6 h-6 rounded-md bg-[var(--bg-deep)] flex items-center justify-center shrink-0">
-                              <span className="material-symbols-outlined text-[13px] text-[var(--muted)]">apartment</span>
+                          <div key={c.city} className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined text-base text-zinc-600 dark:text-zinc-300">apartment</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-semibold text-[var(--fg)] truncate">{c.city || "Unknown"}</span>
-                                <span className="text-[10px] text-[var(--muted)] shrink-0 ml-2">{c.orders} · ETB {Number(c.revenue).toLocaleString()}</span>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 font-heading truncate">
+                                  {c.city || "Unknown"}
+                                </span>
+                                <span className="text-xs sm:text-sm font-bold font-mono text-zinc-700 dark:text-zinc-300 shrink-0 ml-2">
+                                  {c.orders} orders · ETB {Number(c.revenue).toLocaleString()}
+                                </span>
                               </div>
-                              <div className="h-[3px] rounded-full bg-[var(--bg-deep)] overflow-hidden">
+                              <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                                 <div
                                   className="h-full rounded-full transition-all duration-700"
                                   style={{ width: `${pct}%`, background: staffColor }}
@@ -410,48 +456,54 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
 
               {/* ── Top Products ──────────────────────────────────── */}
               {data.top_products.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="material-symbols-outlined text-[17px] text-[var(--muted)]">inventory_2</span>
-                    <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Top Products Sold</h3>
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">inventory_2</span>
+                    <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                      Top Products Sold
+                    </h3>
                   </div>
-                  <div className="card overflow-x-auto">
-                    <table className="w-full text-[12px] min-w-[600px]">
-                      <thead>
-                        <tr className="border-b border-[var(--border)] bg-[var(--bg-deep)]">
-                          <th className="text-left px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">#</th>
-                          <th className="text-left px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Product</th>
-                          <th className="text-left px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)] hidden sm:table-cell">Size</th>
-                          <th className="text-right px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Qty</th>
-                          <th className="text-right px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Revenue</th>
-                          <th className="text-right px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)] hidden sm:table-cell">Orders</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.top_products.map((p, i) => (
-                          <tr key={`${p.item_name}-${p.package_size}`} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-deep)] transition-colors">
-                            <td className="px-4 py-2.5 text-[var(--muted)] font-bold">{i + 1}</td>
-                            <td className="px-4 py-2.5 font-semibold text-[var(--fg)]">{p.item_name}</td>
-                            <td className="px-4 py-2.5 text-[var(--muted)] hidden sm:table-cell">{p.package_size}</td>
-                            <td className="px-4 py-2.5 text-right font-semibold text-[var(--fg)]">{Number(p.qty).toLocaleString()}</td>
-                            <td className="px-4 py-2.5 text-right font-bold" style={{ color: staffColor }}>ETB {Number(p.revenue).toLocaleString()}</td>
-                            <td className="px-4 py-2.5 text-right text-[var(--muted)] hidden sm:table-cell">{p.order_count}</td>
+                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-2xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm sm:text-base min-w-[620px]">
+                        <thead className="bg-zinc-100/80 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700">
+                          <tr>
+                            <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">#</th>
+                            <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">Product</th>
+                            <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading hidden sm:table-cell">Size</th>
+                            <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">Qty</th>
+                            <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">Revenue</th>
+                            <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading hidden sm:table-cell">Orders</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {data.top_products.map((p, i) => (
+                            <tr key={`${p.item_name}-${p.package_size}`} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                              <td className="px-4 py-3 text-xs font-mono font-bold text-zinc-500 dark:text-zinc-400">{i + 1}</td>
+                              <td className="px-4 py-3 font-bold text-zinc-900 dark:text-zinc-100 font-heading">{p.item_name}</td>
+                              <td className="px-4 py-3 text-xs sm:text-sm font-medium text-zinc-600 dark:text-zinc-300 hidden sm:table-cell">{p.package_size}</td>
+                              <td className="px-4 py-3 text-right font-bold font-mono text-zinc-900 dark:text-zinc-100">{Number(p.qty).toLocaleString()}</td>
+                              <td className="px-4 py-3 text-right font-bold font-mono" style={{ color: staffColor }}>ETB {Number(p.revenue).toLocaleString()}</td>
+                              <td className="px-4 py-3 text-right font-semibold font-mono text-zinc-600 dark:text-zinc-300 hidden sm:table-cell">{p.order_count}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </section>
               )}
 
               {/* ── Peak Hours ────────────────────────────────────── */}
               {data.peak_hours.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="material-symbols-outlined text-[17px] text-[var(--muted)]">schedule</span>
-                    <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Peak Selling Hours</h3>
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">schedule</span>
+                    <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                      Peak Selling Hours
+                    </h3>
                   </div>
-                  <div className="card p-4" style={{ height: 140 }}>
+                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 shadow-2xs" style={{ height: 160 }}>
                     <Bar data={peakData} options={peakOptions} />
                   </div>
                 </section>
@@ -459,50 +511,54 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
 
               {/* ── Recent Orders ─────────────────────────────────── */}
               {data.recent_orders.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="material-symbols-outlined text-[17px] text-[var(--muted)]">receipt_long</span>
-                    <h3 className="text-[12px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Recent Orders</h3>
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-xl text-[#1b4d24] dark:text-emerald-400">receipt_long</span>
+                    <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-heading">
+                      Recent Orders
+                    </h3>
                   </div>
-                  <div className="card overflow-x-auto">
-                    <table className="w-full text-[12px] min-w-[700px]">
-                      <thead>
-                        <tr className="border-b border-[var(--border)] bg-[var(--bg-deep)]">
-                          <th className="text-left px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Order ID</th>
-                          <th className="text-left px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)] hidden sm:table-cell">Customer</th>
-                          <th className="text-left px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)] hidden md:table-cell">Channel</th>
-                          <th className="text-right px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Total</th>
-                          <th className="text-right px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)]">Status</th>
-                          <th className="text-right px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[var(--muted)] hidden sm:table-cell">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.recent_orders.map(o => {
-                          const statusKey = o.status?.toLowerCase() ?? "";
-                          const st = STATUS_STYLE[statusKey] ?? { bg: "text-zinc-600 dark:text-zinc-400", text: o.status };
-                          const src = SOURCE_MAP[o.source?.toLowerCase()] ?? FALLBACK_SOURCE;
-                          return (
-                            <tr key={o.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-deep)] transition-colors">
-                              <td className="px-4 py-2.5 font-mono text-[11px] text-[var(--fg)] font-semibold">{o.id}</td>
-                              <td className="px-4 py-2.5 text-[var(--fg)] hidden sm:table-cell truncate max-w-[140px]">{o.customer_name}</td>
-                              <td className="px-4 py-2.5 hidden md:table-cell">
-                                <span className="flex items-center gap-1" style={{ color: src.color }}>
-                                  <span className="material-symbols-outlined text-[12px]">{src.icon}</span>
-                                  <span className="text-[11px]">{src.label}</span>
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 text-right font-semibold text-[var(--fg)]">ETB {Number(o.total).toLocaleString()}</td>
-                              <td className="px-4 py-2.5 text-right">
-                                <span className={`inline-flex text-[10px] font-bold ${st.bg}`}>{st.text}</span>
-                              </td>
-                              <td className="px-4 py-2.5 text-right text-[var(--muted)] hidden sm:table-cell whitespace-nowrap">
-                                {new Date(o.created_at).toLocaleDateString("en-GB")}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-2xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm sm:text-base min-w-[700px]">
+                        <thead className="bg-zinc-100/80 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700">
+                          <tr>
+                            <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">Order ID</th>
+                            <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading hidden sm:table-cell">Customer</th>
+                            <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading hidden md:table-cell">Channel</th>
+                            <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">Total</th>
+                            <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">Status</th>
+                            <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading hidden sm:table-cell">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {data.recent_orders.map(o => {
+                            const statusKey = o.status?.toLowerCase() ?? "";
+                            const st = STATUS_STYLE[statusKey] ?? { color: "text-zinc-600 dark:text-zinc-400", label: (o.status || "").toUpperCase() };
+                            const src = SOURCE_MAP[o.source?.toLowerCase()] ?? FALLBACK_SOURCE;
+                            return (
+                              <tr key={o.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <td className="px-4 py-3 font-mono text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100">{o.id}</td>
+                                <td className="px-4 py-3 font-bold font-heading text-zinc-900 dark:text-zinc-100 hidden sm:table-cell truncate max-w-[160px]">{o.customer_name}</td>
+                                <td className="px-4 py-3 hidden md:table-cell">
+                                  <span className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold font-heading" style={{ color: src.color }}>
+                                    <span className="material-symbols-outlined text-sm">{src.icon}</span>
+                                    <span>{src.label}</span>
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right font-bold font-mono text-zinc-900 dark:text-zinc-100">ETB {Number(o.total).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <span className={`text-xs font-black font-heading tracking-wider uppercase ${st.color}`}>{st.label}</span>
+                                </td>
+                                <td className="px-4 py-3 text-right text-xs sm:text-sm font-mono text-zinc-500 dark:text-zinc-400 hidden sm:table-cell whitespace-nowrap">
+                                  {new Date(o.created_at).toLocaleDateString("en-GB")}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </section>
               )}
