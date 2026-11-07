@@ -1,6 +1,7 @@
 import os
 import zipfile
 import sys
+import stat
 
 def make_zip(source_dir, output_zip, exclude_exts=('.zip',), exclude_names=('.htaccess',)):
     if not os.path.exists(source_dir):
@@ -20,11 +21,20 @@ def make_zip(source_dir, output_zip, exclude_exts=('.zip',), exclude_names=('.ht
                     continue
                 full_path = os.path.join(root, file)
                 rel_path = os.path.relpath(full_path, source_dir).replace('\\', '/')
-                zf.write(full_path, rel_path)
+                
+                # Explicitly set standard Unix file permissions (0644) so extraction on Linux
+                # does not inherit restrictive DOS/Windows default permissions.
+                zinfo = zipfile.ZipInfo.from_file(full_path, arcname=rel_path)
+                zinfo.create_system = 3  # Unix
+                zinfo.external_attr = (stat.S_IFREG | 0o644) << 16
+
+                with open(full_path, 'rb') as f:
+                    zf.writestr(zinfo, f.read(), compress_type=zipfile.ZIP_DEFLATED)
+
                 count += 1
 
     size_mb = os.path.getsize(output_zip) / (1024 * 1024)
-    print(f"Created {output_zip}: {count} files ({size_mb:.2f} MB)")
+    print(f"Created {output_zip}: {count} files ({size_mb:.2f} MB) with Unix 0644 permissions")
 
 if __name__ == '__main__':
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

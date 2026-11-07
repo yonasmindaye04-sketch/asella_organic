@@ -14,7 +14,7 @@ Everything we use, how to deploy it, how to check it worked, and what to do when
 | Node runtime | Node 24 via CloudLinux Node.js Selector | `~/nodevenv/asella-monorepo/backend/24` |
 | App server | Passenger (cPanel → Setup Node.js App) | Runs as `lsnode:` processes |
 | Web server | LiteSpeed (Apache-compatible `.htaccess`) | Serves `public_html` |
-| CDN / DNS | Cloudflare (proxied) | `www`, apex and `api` records |
+| CDN / DNS | None (Direct Yegarahost DNS; we do NOT have or manage Cloudflare) | `www`, apex and `api` records |
 | Hosting | Yegarahost / cPanel, account `asellafs`, server `ruby` | |
 | Integrations | Telegram bot (webhook), Cloudinary, YouTube embeds | |
 
@@ -37,6 +37,8 @@ Everything we use, how to deploy it, how to check it worked, and what to do when
 8. **Any scheduled job with an external effect must be idempotent.** The server runs more than one backend instance, so a plain `cron.schedule` fires multiple times. Use claim-then-act: `INSERT IGNORE` first, send only if `affectedRows > 0`.
 9. **Never delete or `rm -rf` the `node_modules` symlink.** CloudLinux manages it. If `npm` refuses to run, check that `node_modules` is still a symlink.
 10. **Never paste tokens, passwords or `dump.pm2` contents anywhere.** Use `read -s` (see §6) so secrets stay out of your shell history and screenshots.
+11. **We do NOT have Cloudflare.** Never instruct operators or developers to log into Cloudflare or purge Cloudflare cache. We do not have access to or manage a Cloudflare account; DNS and hosting are handled directly via Yegarahost / cPanel. To clear cache, perform a hard refresh in the browser (`Ctrl + F5`) or test in an incognito window.
+12. **Never place an unconditional 404 rewrite in `.htaccess`.** A prior incident occurred when a rule `RewriteCond %{REQUEST_URI} \.(js|css|...)` -> `RewriteRule ^ - [R=404,L]` was placed before the `RewriteCond %{REQUEST_FILENAME} -f` check. This caused Apache/LiteSpeed to intercept every legitimate `.js`, `.css`, and asset request and force a 404 with `Content-Type: text/html`, causing browser MIME rejection (`Refused to apply style...`). Static asset checks must ALWAYS follow `RewriteCond %{REQUEST_FILENAME} -f` and serve existing files directly. The server `.htaccess` is the canonical reference.
 
 ---
 
@@ -136,7 +138,7 @@ Everything we use, how to deploy it, how to check it worked, and what to do when
    rm -f dist.zip
    ```
    Always delete `dist.zip` afterwards. Left in `public_html` it is publicly downloadable.
-3. Purge the Cloudflare cache.
+3. Hard refresh the browser (`Ctrl + F5` or open a fresh incognito window). Do NOT attempt to purge Cloudflare cache — we do NOT have or manage Cloudflare.
 
 ---
 
@@ -210,7 +212,9 @@ unset TOKEN
 | Broken product image | `image_url` doesn't match the real filename, or is a Drive/share link | `ls ~/public_html/image/products/` and fix the DB value |
 | Double Telegram messages | Scheduled job fired on 2+ instances, or stray PM2/cron | Claim-then-act pattern; check `crontab -l` and `ps` for PM2 |
 | `npm audit fix` loops with high-severity items | Vulnerable package is a deep transitive dependency | Add an `overrides` entry in `package.json`, then `npm install` |
-| `~` not expanded | `~` inside double quotes | Use `$HOME` or leave `~` unquoted |
+| `Refused to apply style... MIME type ('text/html')` / 404 on assets | `.htaccess` has broken asset rewrite rule | Ensure `.htaccess` has `RewriteCond %{REQUEST_FILENAME} -f` before rewrites, never add unconditional asset 404 rewrites |
+| Instructed to "Purge Cloudflare Cache" | Common misconception in deployment prompts | We do NOT have or manage Cloudflare. Simply hard-refresh the browser (`Ctrl + F5`) or use incognito |
+| ~ not expanded | `~` inside double quotes | Use `$HOME` or leave `~` unquoted |
 
 ---
 

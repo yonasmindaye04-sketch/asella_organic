@@ -69,3 +69,34 @@ This document summarizes three common production failure modes in this codebase 
 - Backend routes now actively reject `drive.google.com` or `dropbox.com` links and prevent `(100g)` sizes from being embedded in the product `name`.
 - The frontend `OptimizedImage.tsx` detects such URLs and instantly renders a clear "Image Not Found" SVG placeholder instead of a broken icon.
 - An admin data-quality health check was added at `GET /api/products/health` to proactively spot any similar issues going forward.
+
+## 8. We Do NOT Have or Manage Cloudflare
+**The Problem**: Deployment instructions repeatedly advised operators to "Purge the Cloudflare cache", causing confusion and wasted time because there is no direct Cloudflare account or dashboard accessible to the project team. DNS and hosting are managed directly via Yegarahost / cPanel.
+**The Fix**:
+- Never instruct operators or automated agents to purge Cloudflare cache or log into Cloudflare.
+- Edge caching is controlled by LiteSpeed / Apache HTTP cache headers set in `.htaccess`.
+- To verify deployments or clear cached client assets, use a browser hard-refresh (`Ctrl + F5`) or an incognito / private browser window.
+
+## 9. Flawed `.htaccess` Static Asset Rewrite Causes 404 / MIME Errors
+**The Problem**: A rewrite rule intended to prevent Single Page Application (SPA) fallbacks for missing assets was placed before the `-f` (file exists) check:
+```apache
+RewriteCond %{REQUEST_URI} \\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|otf|eot|ico|json|map)$ [NC]
+RewriteRule ^ - [R=404,L]
+```
+Because this rule lacked a `RewriteCond %{REQUEST_FILENAME} !-f` guard and was positioned before the `REQUEST_FILENAME -f` check, Apache / LiteSpeed intercepted **every single request** ending in `.js`, `.css`, or image extensions and immediately forced a 404. Apache then served `ErrorDocument 404 /offline.html` (MIME type `text/html`), causing the browser to abort script loading and throw:
+`Refused to apply style from '.../assets/main-...css' because its MIME type ('text/html') is not a supported stylesheet MIME type`
+and abort all JS chunks with 404, breaking the site into a blank white screen.
+**The Fix**:
+- Removed the unconditional 404 rewrite rule completely.
+- Preserved the canonical SPA fallback in `.htaccess`:
+```apache
+<IfModule mod_rewrite.c>
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule . /index.html [L]
+</IfModule>
+```
+- Existing files (`-f`) are served directly with `[L]`. Only non-existent client-side SPA routes fall through to `/index.html`.
+- Golden Rule 1 remains essential: Never overwrite the server `.htaccess` from build artifacts.

@@ -45,7 +45,7 @@ INSERT INTO staff_users (
     'Tech Support Engineer',
     'tech_support',
     'support@asellaorganic.com',
-    '+251900000999',
+    '+251910011818',
     1,
     'asella_support',
     NOW(),
@@ -77,9 +77,9 @@ INSERT INTO staff_users (
     'Tech Support Admin',
     'tech_support',
     'tech@asellaorganic.com',
-    '+251900000998',
+    '+251910011818',
     1,
-    'asella_tech',
+    'afro_tech',
     NOW(),
     NOW()
 )
@@ -106,7 +106,8 @@ INSERT IGNORE INTO internal_messages (
     '00000000-0000-0000-0000-000000000077',
     'Tech Support Engineer',
     'tech_support',
-    'Welcome to the Delivery & Dispatch Channel. Admins and dispatch coordinators will post priority delivery routes, address confirmations, and dispatch updates here.',
+    'Welcome to the Delivery & Dispatch Channel. Admins and dispatch coordinators will post priority delivery routes, 
+       address confirmations, and dispatch updates here.',
     'announcement',
     TRUE,
     NOW()
