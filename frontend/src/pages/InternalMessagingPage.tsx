@@ -117,6 +117,23 @@ function formatTime(iso: string): string {
   }
 }
 
+function safeParseMentions(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((item): item is string => typeof item === 'string');
+  }
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === 'string');
+      }
+    } catch {
+      return raw.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
@@ -1542,10 +1559,10 @@ export default function InternalMessagingPage() {
                   const isAnnouncement = Boolean(msg.is_announcement) || msg.priority === 'announcement';
 
                   // Check if current user is mentioned in this message
-                  const mentionsList = msg.mentions || [];
+                  const mentionsList = safeParseMentions(msg.mentions);
                   const isMentionedMe =
-                    mentionsList.some((m) => m.toLowerCase() === currentUsername) ||
-                    (msg.content && msg.content.toLowerCase().includes(`@${currentUsername}`));
+                    mentionsList.some((m) => typeof m === 'string' && m.toLowerCase() === currentUsername) ||
+                    Boolean(msg.content && msg.content.toLowerCase().includes(`@${currentUsername}`));
 
                   const showDateDivider =
                     index === 0 ||

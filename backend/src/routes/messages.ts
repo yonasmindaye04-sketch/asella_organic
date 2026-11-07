@@ -363,11 +363,28 @@ router.get("/direct/:userId", authenticate, async (req: Request, res: Response):
       [currentUserId, targetUserId]
     );
 
+    const parsedRows = (rows || []).map((m: any) => {
+      let parsedMentions: string[] = [];
+      if (typeof m.mentions === "string") {
+        try {
+          parsedMentions = JSON.parse(m.mentions);
+        } catch {
+          parsedMentions = [];
+        }
+      } else if (Array.isArray(m.mentions)) {
+        parsedMentions = m.mentions;
+      }
+      return {
+        ...m,
+        mentions: parsedMentions,
+      };
+    });
+
     res.json({
       success: true,
-      data: rows || [],
+      data: parsedRows,
       user: targetUser,
-      total: (rows || []).length,
+      total: parsedRows.length,
     });
   } catch (err: any) {
     const log = createLogger(req);
