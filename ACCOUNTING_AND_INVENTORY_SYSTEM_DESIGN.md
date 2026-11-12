@@ -231,14 +231,15 @@ Enforced in `PATCH /api/orders/:id/status` (`/backend/src/routes/orders.ts`):
 
 | Current Status | Allowed Next Statuses | Stock Impact |
 | :--- | :--- | :--- |
-| **`Pending`** | `Confirmed`, `Processing`, `In Transit`, `Delivered`, `Cancelled`, `Issue` | Deducts stock (`sale`) only if jumping directly to `Delivered`. |
-| **`Confirmed`** | `Processing`, `In Transit`, `Delivered`, `Cancelled`, `Issue` | Deducts stock (`sale`) if moving to `Delivered`. |
-| **`Processing`** | `In Transit`, `Delivered`, `Cancelled`, `Issue` | Deducts stock (`sale`) if moving to `Delivered`. |
-| **`In Transit`** | `Delivered`, `Cancelled`, `Issue`, `Returned` | Deducts stock (`sale`) if moving to `Delivered`. |
-| **`Delivered`** | `Returned`, `Cancelled`, `Issue` | **Restores stock (`return`)** atomically inside the transaction. Cannot jump back to `Pending`. |
-| **`Issue`** | `Pending`, `Confirmed`, `Processing`, `In Transit`, `Delivered`, `Cancelled`, `Returned` | Deducts stock (`sale`) if resolved to `Delivered`. |
-| **`Returned`** | *(Terminal)* | None |
-| **`Cancelled`** | *(Terminal)* | None |
+| **`Pending`** | Any valid status (`Confirmed`, `Processing`, `Packed`, `In Transit`, `Delivered`, `Cancelled`, `Issue`) | Deducts stock (`sale`) if moving to `Delivered`. |
+| **`Confirmed`** | Any valid status (can step back to `Pending`, or advance) | Deducts stock (`sale`) if moving to `Delivered`. |
+| **`Processing`** | Any valid status (can step back or advance) | Deducts stock (`sale`) if moving to `Delivered`. |
+| **`Packed`** | Any valid status (can step back or advance) | Deducts stock (`sale`) if moving to `Delivered`. |
+| **`In Transit`** | Any valid status (can step back or advance) | Deducts stock (`sale`) if moving to `Delivered`. |
+| **`Delivered`** | Any valid status (can step back to previous status, `Returned`, `Cancelled`, `Issue`) | **Restores stock (`return`)** atomically inside the transaction when leaving `Delivered`. |
+| **`Issue`** | Any valid status | Deducts stock (`sale`) if resolved to `Delivered`. |
+| **`Returned`** | Any valid status (can be reopened/reverted) | Deducts stock (`sale`) if moving to `Delivered`. |
+| **`Cancelled`** | Any valid status (can be un-cancelled/reverted) | Deducts stock (`sale`) if moving to `Delivered`. |
 
 ---
 

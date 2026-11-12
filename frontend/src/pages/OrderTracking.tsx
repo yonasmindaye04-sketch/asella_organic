@@ -21,8 +21,10 @@ interface OrderHistory {
   id: string;
   order_id: string;
   status: string;
+  old_status?: string;
   new_status?: string;
   changed_by?: string;
+  note?: string;
   notes?: string;
   created_at: string;
 }
@@ -374,6 +376,30 @@ const OrderTracking: React.FC = () => {
     return ORDER_STATUSES[Math.min(idx + 1, ORDER_STATUSES.length - 1)] || 'Delivered';
   };
 
+  const getPreviousStatus = (order: Order): string | null => {
+    // 1. Try history first: look for the last recorded transition that had a different previous status
+    if (order.history && order.history.length > 0) {
+      for (let i = order.history.length - 1; i >= 0; i--) {
+        const h = order.history[i];
+        const oldSt = h.old_status || h.status;
+        if (oldSt && normalizeStatus(oldSt) !== normalizeStatus(order.status)) {
+          return normalizeStatus(oldSt);
+        }
+      }
+    }
+    // 2. Otherwise determine pipeline step back
+    const norm = normalizeStatus(order.status);
+    const pipeline = ['Pending', 'Confirmed', 'Packed', 'In Transit', 'Delivered'];
+    const idx = pipeline.indexOf(norm);
+    if (idx > 0) {
+      return pipeline[idx - 1];
+    }
+    if (norm === 'Cancelled' || norm === 'Issue') {
+      return 'Pending';
+    }
+    return null;
+  };
+
   const handleQuickAdvance = async (e: React.MouseEvent, order: Order) => {
     e.stopPropagation();
     const nextSt = getNextStatus(order.status);
@@ -388,6 +414,27 @@ const OrderTracking: React.FC = () => {
       void fetchOrders();
       if (selectedOrder && selectedOrder.id === order.id) {
         openDrawer({ ...selectedOrder, status: nextSt });
+      }
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      alert(error.message || 'Failed to update');
+    }
+  };
+
+  const handleRevertPrevious = async (e: React.MouseEvent, order: Order) => {
+    e.stopPropagation();
+    const prevSt = getPreviousStatus(order);
+    if (!prevSt || prevSt === order.status) return;
+    try {
+      const currentStaff = staffId || 'staff';
+      const res = await api.patch(`/api/orders/${order.id}/status`, {
+        status: prevSt,
+        note: `Reverted to ${prevSt} by ${currentStaff}`
+      });
+      if (!res.success) throw new Error(res.error || 'Failed to update');
+      void fetchOrders();
+      if (selectedOrder && selectedOrder.id === order.id) {
+        openDrawer({ ...selectedOrder, status: prevSt });
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
@@ -1002,6 +1049,11 @@ const OrderTracking: React.FC = () => {
                     <button onClick={(e) => handleQuickAdvance(e, selectedOrder)} className="p-2 rounded-lg border-[1.5px] border-[#ddeedd] bg-white text-[#2d3e2f] text-[12px] font-bold flex items-center justify-center gap-1.5 transition hover:bg-[#f1f8f1] hover:border-[#2e7d32] hover:text-[#2e7d32]">
                       <span className="material-symbols-outlined text-[16px]">fast_forward</span> Quick Advance → {getNextStatus(selectedOrder.status)}
                     </button>
+                    {getPreviousStatus(selectedOrder) && (
+                      <button onClick={(e) => handleRevertPrevious(e, selectedOrder)} className="p-2 rounded-lg border-[1.5px] border-[#fcd34d] bg-[#fffbeb] text-[#92400e] text-[12px] font-bold flex items-center justify-center gap-1.5 transition hover:bg-[#fef3c7] hover:border-[#f59e0b]">
+                        <span className="material-symbols-outlined text-[16px]">fast_rewind</span> Revert to Previous → {getPreviousStatus(selectedOrder)}
+                      </button>
+                    )}
                   </div>
                 </div>
                 )}

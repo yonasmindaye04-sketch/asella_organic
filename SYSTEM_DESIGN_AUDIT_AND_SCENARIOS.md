@@ -77,7 +77,7 @@ This document contains the end-to-end architectural audit across all **8 system 
    - **Behavior**: Abandoned carts and unconfirmed `Pending` orders never lock physical inventory.
 5. **An order is cancelled or refunded. Is stock restored automatically, and is it restored only once?**
    - **Code Path**: `PATCH /api/orders/:id/status` (`orders.ts`) → `restoreOrderStock()` (`inventory.ts`).
-   - **Behavior**: Enforces `VALID_ORDER_TRANSITIONS` (`Delivered` can only transition to `Returned`, `Cancelled`, or `Issue`, which are terminal for `Returned`/`Cancelled`) and restores stock inside the same DB transaction.
+   - **Behavior**: Enforces `VALID_ORDER_TRANSITIONS` (orders can transition to any valid status forward or backward; leaving `Delivered` automatically restores stock inside the same DB transaction, and entering `Delivered` deducts stock).
 6. **Stock goes negative. Can it, and who gets alerted?**
    - **Code Path**: `recordMovement()` (`inventory.ts`) and `fetchAggregatedNotifications()` (`notifications.ts`).
    - **Behavior**: Negative stock is blocked (`allowNegative: false` by default). When `finalQty <= low_stock_threshold` across `sale`, `adjustment`, or `damage_loss`, both Telegram (`sendLowStockAlert`) and the in-app Notification Center (`low_stock`) alert admins.

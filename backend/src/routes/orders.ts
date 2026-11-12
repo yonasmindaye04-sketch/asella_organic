@@ -694,18 +694,34 @@ router.get(
 // PATCH /api/orders/:id/status
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Valid order state machine transitions
+// All valid order statuses supported by the system
+const ALL_ORDER_STATUSES = [
+  "Pending",
+  "Confirmed",
+  "Processing",
+  "Packed",
+  "In Transit",
+  "Out for Delivery",
+  "Delivered",
+  "Cancelled",
+  "Issue",
+  "Returned",
+];
+
+// Valid order state machine transitions: allows staff to move orders forward,
+// step back to previous statuses, or un-cancel/reopen orders as needed.
 const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
-  "Pending":    ["Confirmed", "Processing", "Packed", "In Transit", "Delivered", "Cancelled", "Issue"],
-  "Confirmed":  ["Processing", "Packed", "In Transit", "Delivered", "Cancelled", "Issue"],
-  "Processing": ["In Transit", "Delivered", "Cancelled", "Issue"],
-  "Packed":     ["In Transit", "Delivered", "Cancelled", "Issue"],
-  "In Transit": ["Delivered", "Cancelled", "Issue", "Returned"],
-  "Delivered":  ["Returned", "Cancelled", "Issue"],
-  "Issue":      ["Pending", "Confirmed", "Processing", "Packed", "In Transit", "Delivered", "Cancelled", "Returned"],
-  "Returned":   [],
-  "Cancelled":  [],
-  "CANCELLED":  [],
+  "Pending":          ALL_ORDER_STATUSES.filter(s => s !== "Pending"),
+  "Confirmed":        ALL_ORDER_STATUSES.filter(s => s !== "Confirmed"),
+  "Processing":       ALL_ORDER_STATUSES.filter(s => s !== "Processing"),
+  "Packed":           ALL_ORDER_STATUSES.filter(s => s !== "Packed"),
+  "In Transit":       ALL_ORDER_STATUSES.filter(s => s !== "In Transit"),
+  "Out for Delivery": ALL_ORDER_STATUSES.filter(s => s !== "Out for Delivery"),
+  "Delivered":        ALL_ORDER_STATUSES.filter(s => s !== "Delivered"),
+  "Issue":            ALL_ORDER_STATUSES.filter(s => s !== "Issue"),
+  "Returned":         ALL_ORDER_STATUSES.filter(s => s !== "Returned"),
+  "Cancelled":        ALL_ORDER_STATUSES.filter(s => s !== "Cancelled"),
+  "CANCELLED":        ALL_ORDER_STATUSES.filter(s => s !== "Cancelled"),
 };
 
 router.patch(
@@ -820,8 +836,8 @@ router.patch(
           return;
         }
       } else if (
-        (status === "Cancelled" || status === "Issue" || status === "Returned") &&
-        current.status === "Delivered"
+        current.status === "Delivered" &&
+        status !== "Delivered"
       ) {
         try {
           const stockResult = await restoreOrderStock(orderId, (req as any).user?.id ?? null, conn);
@@ -836,6 +852,18 @@ router.patch(
             error: `Stock restoration failed: ${stockErr.message}`,
           });
           return;
+        }
+
+        // When moving away from Delivered to a non-void status (like In Transit, Packed, Pending, etc.),
+        // reverse pending referral commissions since the order is no longer delivered.
+        if (!["Cancelled", "Returned", "Issue"].includes(status)) {
+          await conn.query(
+            `UPDATE referral_commissions
+             SET status = 'reversed', reversed_at = NOW(),
+                 reversal_reason = ?
+             WHERE order_id = ? AND status = 'pending'`,
+            [`Order ${orderId} moved back to ${status}`, orderId]
+          );
         }
       }
 
