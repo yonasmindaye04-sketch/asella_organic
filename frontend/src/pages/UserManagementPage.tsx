@@ -95,11 +95,16 @@ const UserManagementPage: React.FC = () => {
       const headers = twoFaToken.trim() ? { 'x-2fa-token': twoFaToken.trim() } : undefined;
       if (editingUser) {
         const { password, ...updateData } = formData;
-        const res = await api.patch(`/api/staff/${editingUser.id}`, updateData, headers);
+        if (password && password.length < 8) {
+          showToast('Password must be at least 8 characters long.', 'error');
+          return;
+        }
+        const payload = {
+          ...updateData,
+          ...(password ? { password } : {})
+        };
+        const res = await api.patch(`/api/staff/${editingUser.id}`, payload, headers);
         if (res.success) {
-          if (password) {
-            await api.put(`/api/staff/${editingUser.id}/password`, { password }, headers);
-          }
           fetchUsers();
           showToast('User updated successfully', 'success');
           setIsModalOpen(false);
@@ -107,6 +112,10 @@ const UserManagementPage: React.FC = () => {
           showToast(res.error || 'Failed to update user', 'error');
         }
       } else {
+        if (!formData.password || formData.password.length < 8) {
+          showToast('Password must be at least 8 characters long.', 'error');
+          return;
+        }
         const res = await api.post('/api/staff', formData, headers);
         if (res.success) {
           fetchUsers();
@@ -271,9 +280,17 @@ const UserManagementPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
-                  {editingUser ? 'Reset Password (optional)' : 'Password'}
+                  {editingUser ? 'Reset Password (optional, min 8 chars)' : 'Password (min 8 chars)'}
                 </label>
-                <input required={!editingUser} type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full border rounded-lg px-3 py-2" />
+                <input
+                  required={!editingUser}
+                  type="password"
+                  minLength={8}
+                  placeholder={editingUser ? 'Leave blank to keep current password' : 'At least 8 characters'}
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  className="w-full border rounded-lg px-3 py-2"
+                />
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-gray-300">
                 <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">

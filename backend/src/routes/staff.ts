@@ -814,8 +814,9 @@ router.patch(
         return;
       }
 
-      const { full_name, role, email, phone, location, telegram_username, active } = req.body as {
+      const { full_name, role, email, phone, location, telegram_username, active, password, new_password } = req.body as {
         full_name?: string; role?: string; email?: string; phone?: string; location?: string; telegram_username?: string; active?: boolean;
+        password?: string; new_password?: string;
       };
 
       if (role && !isValidRole(role)) {
@@ -854,6 +855,20 @@ router.patch(
       for (const [field, val] of Object.entries({ full_name, role, email, phone, location, telegram_username, active })) {
         if (val !== undefined) { updates.push(`${field} = ?`); values.push(val); }
       }
+
+      const rawPassword = password || new_password;
+      let passwordChanged = false;
+      if (rawPassword !== undefined && rawPassword !== "") {
+        if (typeof rawPassword !== "string" || rawPassword.length < 8) {
+          res.status(400).json({ success: false, error: "Password must be at least 8 characters." });
+          return;
+        }
+        const passwordHash = await bcrypt.hash(rawPassword, BCRYPT_ROUNDS);
+        updates.push("password_hash = ?");
+        values.push(passwordHash);
+        passwordChanged = true;
+      }
+
       if (updates.length === 0) {
         res.status(400).json({ success: false, error: "No valid fields to update." });
         return;
@@ -872,7 +887,7 @@ router.patch(
       }
 
       invalidateUserStatusCache(staffId);
-      if (active === false) {
+      if (active === false || passwordChanged) {
         await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [staffId]).catch(() => {});
       }
       log.info("Staff updated", { staffId: req.params.id });
@@ -898,23 +913,32 @@ router.put(
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
-      const staffId = req.params.id;
-      const { password } = req.body;
-      if (!password || password.length < 8) {
+      const staffId = entityIdParam(req.params.id);
+      if (!staffId) {
+        res.status(400).json({ success: false, error: "Invalid staff ID" });
+        return;
+      }
+      const rawPassword = req.body.password || req.body.new_password;
+      if (!rawPassword || typeof rawPassword !== "string" || rawPassword.length < 8) {
         res.status(400).json({ success: false, error: "Password must be at least 8 characters." });
         return;
       }
-      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      const passwordHash = await bcrypt.hash(rawPassword, BCRYPT_ROUNDS);
       const [result] = await pool.query(
-        `UPDATE staff_users SET password_hash = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
+        `UPDATE staff_users SET password_hash = ?, must_change_password = 0, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
         [passwordHash, staffId]
       ) as [any, any];
       if (result.affectedRows === 0) {
         res.status(404).json({ success: false, error: "Staff member not found." });
         return;
       }
-      log.info("Staff password reset", { staffId });
-      res.json({ success: true, data: { message: "Password updated." } });
+
+      // Revoke all sessions after password change
+      await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [staffId]).catch(() => {});
+      invalidateUserStatusCache(staffId);
+
+      log.info("Staff password reset", { staffId, by: req.user!.id });
+      res.json({ success: true, data: { message: "Password updated. All sessions revoked." } });
     } catch (err) {
       log.error("Failed to reset password", err);
       res.status(500).json({ success: false, error: "Internal server error" });
@@ -1013,30 +1037,31 @@ router.patch(
         return;
       }
 
-      const { new_password } = req.body as { new_password?: string };
-      if (!new_password || new_password.length < 8) {
-        res.status(400).json({ success: false, error: "new_password must be at least 8 characters." });
+      const rawPassword = req.body.password || req.body.new_password;
+      if (!rawPassword || typeof rawPassword !== "string" || rawPassword.length < 8) {
+        res.status(400).json({ success: false, error: "Password must be at least 8 characters." });
         return;
       }
 
       const [existing] = await pool.query(
-        `SELECT id FROM staff_users WHERE id = ? AND deleted_at IS NULL`, [req.params.id]
+        `SELECT id FROM staff_users WHERE id = ? AND deleted_at IS NULL`, [staffId]
       ) as [any[], any];
       if (!existing[0]) {
         res.status(404).json({ success: false, error: "Staff member not found." });
         return;
       }
 
-      const passwordHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
+      const passwordHash = await bcrypt.hash(rawPassword, BCRYPT_ROUNDS);
       await pool.query(
-        `UPDATE staff_users SET password_hash = ?, updated_at = NOW() WHERE id = ?`,
-        [passwordHash, req.params.id]
+        `UPDATE staff_users SET password_hash = ?, must_change_password = 0, updated_at = NOW() WHERE id = ?`,
+        [passwordHash, staffId]
       );
 
       // Revoke all sessions after password change
-      await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [req.params.id]).catch(() => {});
+      await pool.query(`DELETE FROM refresh_tokens WHERE user_id = ?`, [staffId]).catch(() => {});
+      invalidateUserStatusCache(staffId);
 
-      log.info("Staff password reset", { staffId: req.params.id, by: req.user!.id });
+      log.info("Staff password reset", { staffId, by: req.user!.id });
       res.json({ success: true, data: { message: "Password updated. All sessions revoked." } });
     } catch (err) {
       log.error("Failed to reset password", err);

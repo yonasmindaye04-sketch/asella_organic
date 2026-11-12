@@ -19,6 +19,7 @@ const ChangePasswordPage: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [adminPasswordReset, setAdminPasswordReset] = useState({ new: '', confirm: '' });
+  const [admin2FaToken, setAdmin2FaToken] = useState('');
   const [adminMessage, setAdminMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
 
@@ -40,6 +41,10 @@ const ChangePasswordPage: React.FC = () => {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!passwords.new || passwords.new.length < 8) {
+      setMessage({ type: 'error', text: 'New password must be at least 8 characters long.' });
+      return;
+    }
     if (passwords.new !== passwords.confirm) {
       setMessage({ type: 'error', text: 'New passwords do not match.' });
       return;
@@ -133,17 +138,27 @@ const ChangePasswordPage: React.FC = () => {
       setAdminMessage({ type: 'error', text: 'Please select an employee.' });
       return;
     }
+    if (!adminPasswordReset.new || adminPasswordReset.new.length < 8) {
+      setAdminMessage({ type: 'error', text: 'New password must be at least 8 characters long.' });
+      return;
+    }
     if (adminPasswordReset.new !== adminPasswordReset.confirm) {
       setAdminMessage({ type: 'error', text: 'Passwords do not match.' });
       return;
     }
+    if (twoFaEnabled && !admin2FaToken.trim()) {
+      setAdminMessage({ type: 'error', text: 'Please enter your 6-digit 2FA code to confirm reset.' });
+      return;
+    }
     try {
       setAdminLoading(true);
-      const res = await api.put(`/api/staff/${selectedUser}/password`, { password: adminPasswordReset.new });
+      const headers = admin2FaToken.trim() ? { 'x-2fa-token': admin2FaToken.trim() } : undefined;
+      const res = await api.put(`/api/staff/${selectedUser}/password`, { password: adminPasswordReset.new }, headers);
       if (res.success) {
         setAdminMessage({ type: 'success', text: 'Employee password reset successfully.' });
         setAdminPasswordReset({ new: '', confirm: '' });
         setSelectedUser('');
+        setAdmin2FaToken('');
       } else {
         setAdminMessage({ type: 'error', text: res.error || 'Failed to reset password.' });
       }
@@ -184,12 +199,12 @@ const ChangePasswordPage: React.FC = () => {
                 <input required type="password" value={passwords.current} onChange={e => setPasswords({...passwords, current: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">New Password</label>
-                <input required type="password" value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
+                <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">New Password (min 8 characters)</label>
+                <input required minLength={8} type="password" value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Confirm New Password</label>
-                <input required type="password" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
+                <input required minLength={8} type="password" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
               </div>
             </div>
 
@@ -296,13 +311,29 @@ const ChangePasswordPage: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">New Password</label>
-                  <input required type="password" value={adminPasswordReset.new} onChange={e => setAdminPasswordReset({...adminPasswordReset, new: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">New Password (min 8 characters)</label>
+                  <input required minLength={8} type="password" value={adminPasswordReset.new} onChange={e => setAdminPasswordReset({...adminPasswordReset, new: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Confirm New Password</label>
-                  <input required type="password" value={adminPasswordReset.confirm} onChange={e => setAdminPasswordReset({...adminPasswordReset, confirm: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
+                  <input required minLength={8} type="password" value={adminPasswordReset.confirm} onChange={e => setAdminPasswordReset({...adminPasswordReset, confirm: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-[#4ade80] outline-none transition" />
                 </div>
+                {twoFaEnabled && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-gray-300">
+                    <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                      <span>2FA Security Token</span>
+                      <span className="text-[10px] text-gray-400 font-normal">Required for admin password reset</span>
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={admin2FaToken}
+                      onChange={e => setAdmin2FaToken(e.target.value.replace(/\D/g, ''))}
+                      className="w-full border rounded-lg px-3 py-2 font-mono text-center tracking-widest text-sm bg-white"
+                      placeholder="Enter 6-digit 2FA code"
+                    />
+                  </div>
+                )}
               </div>
 
               <button type="submit" disabled={adminLoading} className="w-full mt-8 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition flex items-center justify-center gap-2 disabled:opacity-50">

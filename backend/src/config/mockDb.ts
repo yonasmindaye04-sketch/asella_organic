@@ -2080,13 +2080,65 @@ export async function executeMockQuery(
         u.deleted_at = daysAgo(0);
         u.active = 0;
       } else {
-        let pIdx = 0;
-        if (sqlLower.includes("full_name = ?")) u.full_name = params[pIdx++];
-        if (sqlLower.includes("role = ?")) u.role = params[pIdx++];
-        if (sqlLower.includes("email = ?")) u.email = params[pIdx++];
-        if (sqlLower.includes("phone = ?")) u.phone = params[pIdx++];
-        if (sqlLower.includes("telegram_username = ?")) (u as any).telegram_username = params[pIdx++];
-        if (sqlLower.includes("active = ?")) u.active = params[pIdx++] ? 1 : 0;
+        const setMatch = sqlLower.match(/set\s+(.*?)\s+where/i);
+        const setClause = setMatch?.[1];
+        if (setClause) {
+          const assignments = setClause.split(",").map((s) => s.trim());
+          let pIdx = 0;
+          for (const assignment of assignments) {
+            if (assignment.includes("password_hash = ?")) {
+              u.password_hash = params[pIdx++];
+            } else if (assignment.includes("full_name = ?")) {
+              u.full_name = params[pIdx++];
+            } else if (assignment.includes("role = ?")) {
+              u.role = params[pIdx++];
+            } else if (assignment.includes("email = ?")) {
+              u.email = params[pIdx++];
+            } else if (assignment.includes("phone = ?")) {
+              u.phone = params[pIdx++];
+            } else if (assignment.includes("location = ?")) {
+              (u as any).location = params[pIdx++];
+            } else if (assignment.includes("telegram_username = ?")) {
+              (u as any).telegram_username = params[pIdx++];
+            } else if (assignment.includes("telegram_chat_id = ?")) {
+              (u as any).telegram_chat_id = params[pIdx++];
+            } else if (assignment.includes("telegram_chat_id = null")) {
+              (u as any).telegram_chat_id = null;
+            } else if (assignment.includes("two_factor_secret = ?")) {
+              (u as any).two_factor_secret = params[pIdx++];
+            } else if (assignment.includes("two_factor_secret = null")) {
+              (u as any).two_factor_secret = null;
+            } else if (assignment.includes("two_factor_enabled = ?")) {
+              (u as any).two_factor_enabled = params[pIdx++] ? 1 : 0;
+            } else if (assignment.includes("two_factor_enabled = true") || assignment.includes("two_factor_enabled = 1")) {
+              (u as any).two_factor_enabled = 1;
+            } else if (assignment.includes("two_factor_enabled = false") || assignment.includes("two_factor_enabled = 0")) {
+              (u as any).two_factor_enabled = 0;
+            } else if (assignment.includes("active = ?")) {
+              u.active = params[pIdx++] ? 1 : 0;
+            } else if (assignment.includes("active = true") || assignment.includes("active = 1")) {
+              u.active = 1;
+            } else if (assignment.includes("active = false") || assignment.includes("active = 0")) {
+              u.active = 0;
+            } else if (assignment.includes("must_change_password = ?")) {
+              (u as any).must_change_password = params[pIdx++] ? 1 : 0;
+            } else if (assignment.includes("must_change_password = false") || assignment.includes("must_change_password = 0")) {
+              (u as any).must_change_password = 0;
+            } else if (assignment.includes("must_change_password = true") || assignment.includes("must_change_password = 1")) {
+              (u as any).must_change_password = 1;
+            }
+          }
+        } else {
+          let pIdx = 0;
+          if (sqlLower.includes("password_hash = ?")) u.password_hash = params[pIdx++];
+          if (sqlLower.includes("full_name = ?")) u.full_name = params[pIdx++];
+          if (sqlLower.includes("role = ?")) u.role = params[pIdx++];
+          if (sqlLower.includes("email = ?")) u.email = params[pIdx++];
+          if (sqlLower.includes("phone = ?")) u.phone = params[pIdx++];
+          if (sqlLower.includes("location = ?")) (u as any).location = params[pIdx++];
+          if (sqlLower.includes("telegram_username = ?")) (u as any).telegram_username = params[pIdx++];
+          if (sqlLower.includes("active = ?")) u.active = params[pIdx++] ? 1 : 0;
+        }
       }
       u.updated_at = daysAgo(0);
     }
