@@ -37,6 +37,8 @@ const EnvSchema = z.object({
   TELEGRAM_ADMIN_CHAT_ID: z.string().min(1).optional().or(z.literal("")),
   TELEGRAM_DELIVERY_GROUP_ID: z.string().min(1).optional().or(z.literal("")),
   TELEGRAM_MINIAPP_URL: z.string().url().optional().or(z.literal("")),
+  TELEGRAM_BOT_NAME: z.string().optional().or(z.literal("")),
+  TELEGRAM_BOT_USERNAME: z.string().optional().or(z.literal("")),
 
   // ── Google Sheets ─────────────────────────────────────────
   GOOGLE_SPREADSHEET_ID: z.string().min(20).optional().or(z.literal("")),

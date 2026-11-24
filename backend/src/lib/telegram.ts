@@ -21,6 +21,25 @@ async function tg(method: string, body: Record<string, unknown>): Promise<any> {
     const data = await res.json();
     if (!data.ok) {
       console.error(`[telegram] ${method} error:`, data.description);
+      if (
+        data.description &&
+        data.description.toLowerCase().includes("can't parse entities") &&
+        body.parse_mode
+      ) {
+        console.warn(`[telegram] ${method} entity parse failed (${data.description}), retrying without parse_mode as plain text...`);
+        const fallbackBody = { ...body };
+        delete fallbackBody.parse_mode;
+        const retryRes = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(fallbackBody),
+        });
+        const retryData = await retryRes.json();
+        if (retryData.ok) {
+          console.log(`[telegram] ${method} plain text retry succeeded`);
+          return retryData;
+        }
+      }
     }
     return data;
   } catch (err) {
@@ -90,6 +109,11 @@ export async function editMessageText(
 // (fires a callback_query back to your bot) or a url button (opens a link
 // in-app/browser). A button can be one or the other, never both, so this
 // is modeled as a discriminated union rather than one flat interface.
+export function escapeMarkdown(text: string | null | undefined): string {
+  if (!text) return "";
+  return String(text).replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
+}
+
 export type TelegramButton =
   | { text: string; callback_data: string }
   | { text: string; url: string }
@@ -104,8 +128,7 @@ export function formatGroupDeliveryMessage(order: Record<string, any>): string {
     ? items
         .map(
           (i: any) =>
-            `• ${i.name || i.item_name || "Item"} ` +
-            `[${i.package_size || i.size || "Std"}] × ${i.quantity ?? 1}`
+            `- ${escapeMarkdown(i.name || i.item_name || "Item")} (${escapeMarkdown(i.package_size || i.size || "Std")}) x ${i.quantity ?? 1}`
         )
         .join("\n")
     : "No items listed";
@@ -118,16 +141,18 @@ export function formatGroupDeliveryMessage(order: Record<string, any>): string {
         .toLocaleString("en-GB", { timeZone: "Africa/Addis_Ababa" })
         .replace(",", "");
 
+  const regionalTag = order.is_regional ? " [Regional Delivery]" : "";
+
   return [
-    ` *New Delivery Order*`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ` *Order:* ${order.id ?? "N/A"}`,
-    ` *City:* ${order.city ?? "Addis Ababa"}`,
-    ` *Location:* ${order.location ?? "N/A"}`,
-    ` *Items:*`,
+    `*New Delivery Order${escapeMarkdown(regionalTag)}*`,
+    `----------------------------------`,
+    `*Order:* ${escapeMarkdown(String(order.id ?? "N/A"))}`,
+    `*City:* ${escapeMarkdown(String(order.city ?? "Addis Ababa"))}`,
+    `*Location:* ${escapeMarkdown(String(order.location ?? "N/A"))}`,
+    `*Items:*`,
     itemsSummary,
-    `\n ${dateStr}`,
-    `━━━━━━━━━━━━━━━━━━`,
+    `\n${escapeMarkdown(dateStr)}`,
+    `----------------------------------`,
     `_First to accept gets assigned. Full details sent privately._`,
   ].join("\n");
 }
@@ -139,28 +164,36 @@ export function formatPrivateDeliveryMessage(order: Record<string, any>): string
     ? items
         .map(
           (i: any) =>
-            `• ${i.name || i.item_name || "Item"} ` +
-            `[${i.package_size || i.size || "Std"}] × ${i.quantity ?? 1}`
+            `- ${escapeMarkdown(i.name || i.item_name || "Item")} (${escapeMarkdown(i.package_size || i.size || "Std")}) x ${i.quantity ?? 1}`
         )
         .join("\n")
     : "No items listed";
 
+  const orderId = escapeMarkdown(String(order.id ?? "N/A"));
+  const customerName = escapeMarkdown(String(order.customer_name ?? "N/A"));
+  const phone = escapeMarkdown(String(order.phone ?? "N/A"));
+  const location = escapeMarkdown(String(order.location ?? "N/A"));
+  const city = escapeMarkdown(String(order.city ?? "Addis Ababa"));
+  const orderType = escapeMarkdown(String(order.order_type ?? "N/A"));
+  const paymentMethod = escapeMarkdown(String(order.payment_method ?? "N/A"));
+  const notes = escapeMarkdown(String(order.notes ?? "None"));
+
   return [
-    ` *DELIVERY ORDER — You're Assigned*`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ` *Order ID:* \`${order.id ?? "N/A"}\``,
-    ` *Customer:* ${order.customer_name ?? "N/A"}`,
-    ` *Phone:* ${order.phone ?? "N/A"}`,
-    ` *Address:* ${order.location ?? "N/A"}, ${order.city ?? "Addis Ababa"}`,
-    ` *Order Type:* ${order.order_type ?? "N/A"}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ` *Items:*`,
+    `*DELIVERY ORDER — You are Assigned*`,
+    `----------------------------------`,
+    `*Order ID:* \`${orderId}\``,
+    `*Customer:* ${customerName}`,
+    `*Phone:* ${phone}`,
+    `*Address:* ${location}, ${city}`,
+    `*Order Type:* ${orderType}`,
+    `----------------------------------`,
+    `*Items:*`,
     itemsSummary,
-    `━━━━━━━━━━━━━━━━━━`,
-    ` *Total:* ETB ${order.total ?? 0}`,
-    ` *Payment:* ${order.payment_method ?? "N/A"}`,
-    ` *Notes:* ${order.notes ?? "None"}`,
-    `━━━━━━━━━━━━━━━━━━`,
+    `----------------------------------`,
+    `*Total:* ETB ${order.total ?? 0}`,
+    `*Payment:* ${paymentMethod}`,
+    `*Notes:* ${notes}`,
+    `----------------------------------`,
     `_Please deliver promptly and confirm on arrival._`,
   ].join("\n");
 }
@@ -383,7 +416,10 @@ export async function sendToDeliveryGroup(
   order: Record<string, unknown>
 ): Promise<number | null> {
   const chatId = process.env.TELEGRAM_DELIVERY_GROUP_ID;
-  if (!chatId) return null;
+  if (!chatId) {
+    console.warn("[telegram] sendToDeliveryGroup: TELEGRAM_DELIVERY_GROUP_ID is not configured");
+    return null;
+  }
 
   const text    = formatGroupDeliveryMessage(order);
   const orderId = String(order.id ?? "UNKNOWN");
@@ -439,7 +475,7 @@ export async function sendDetailsToGroupAsReply(
         .join("\n")
     : "No items listed";
 
-  const botUser = process.env.TELEGRAM_BOT_USERNAME || "bot";
+  const botUser = process.env.TELEGRAM_BOT_USERNAME || process.env.TELEGRAM_BOT_NAME || "AsellaOrganicBot";
   const text = [
     `Order Assigned - ${driverDisplayName}`,
     `----------------------------------`,
@@ -451,7 +487,7 @@ export async function sendDetailsToGroupAsReply(
     itemsSummary,
     `----------------------------------`,
     `Customer contact details are protected.`,
-    `Please start a private chat with the bot (@${botUser}) by sending /start, or view customer details in the Delivery Portal (/dashboard/tracking).`,
+    `Please start a private chat with the bot (@${botUser}) by sending /start to receive full customer details directly.`,
   ].join("\n");
 
   const body: Record<string, unknown> = {

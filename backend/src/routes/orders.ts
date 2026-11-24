@@ -343,24 +343,37 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
     })();
 
     const isFranchise = (fields.notes as string | undefined)?.includes("Franchise Type:");
-    const cityLower = (fields.city as string || "").toLowerCase();
-    const isAddisAbaba = cityLower === "addis ababa";
-    const isAbroad = cityLower === "abroad";
+    const cityClean = (cleanCity || (fields.city as string) || "").trim().toLowerCase();
+    const ADDIS_MATCHERS = [
+      "addis ababa", "addis abeba", "finfinne", "sheger",
+      "bole", "yeka", "arada", "kirkos", "nifas silk", "gullele", "kolfe", "akaki", "lideta", "lemi kura"
+    ];
+    const isAddisAbaba = ADDIS_MATCHERS.some((m) => cityClean.includes(m));
+    const isAbroad = cityClean === "abroad" || cityClean.includes("abroad");
 
     if (isFranchise) {
-      // Franchise/bulk orders always go to admin (existing behaviour)
+      // Franchise/bulk orders always go to admin
       void sendOrderToAdmin({ id: orderId, ...fields, total, items, message_type: "franchise" });
     } else if (isAbroad) {
       // Abroad orders: full details to admin with a clear label
-      void sendAdminOrderAlert({ id: orderId, ...fields, total, items }, "Abroad Order ");
-    } else if (isAddisAbaba && fields.order_type === "delivery") {
-      // Standard Addis Ababa delivery: route to the delivery group (unchanged)
-      void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
+      void sendAdminOrderAlert({ id: orderId, ...fields, total, items }, "Abroad Order");
+    } else if (fields.order_type === "delivery") {
+      if (isAddisAbaba) {
+        // Standard Addis Ababa delivery: route to the delivery group
+        void sendToDeliveryGroup({ id: orderId, ...fields, total, items });
+      } else {
+        // Regional delivery: notify delivery group (marked as regional) AND notify admin
+        void sendToDeliveryGroup({ id: orderId, ...fields, total, items, is_regional: true });
+        void sendAdminOrderAlert(
+          { id: orderId, ...fields, total, items },
+          "Other Region Delivery Order"
+        );
+      }
     } else if (!isAddisAbaba) {
-      // Other regions (pickup OR delivery outside Addis): notify admin directly
+      // Other regions (pickup): notify admin directly
       void sendAdminOrderAlert(
         { id: orderId, ...fields, total, items },
-        "Other Region Order "
+        "Other Region Order"
       );
     }
     void mirrorToSheets({ id: orderId, ...fields, total, items });
