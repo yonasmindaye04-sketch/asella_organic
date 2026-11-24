@@ -10,7 +10,7 @@
  *   - Chart.js for line / bar charts
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Chart as ChartJS,
@@ -110,11 +110,90 @@ function KpiChip({ icon, label, value, sub, accent }: {
 }
 
 // ── Main modal ───────────────────────────────────────────────────────────────
-export default function EmployeeDetailModal({ staffId, staffName, staffRole, staffColor, from, to, onClose }: Props) {
+export default function EmployeeDetailModal({ staffId, staffName, staffRole, staffColor, from: initialFrom, to: initialTo, onClose }: Props) {
   const [data, setData] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  // ── Date filter state ─────────────────────────────────────────────────────
+  type RangePreset = "today" | "this_week" | "this_month" | "last_month" | "last_90" | "all" | "custom";
+  const [rangePreset, setRangePreset] = useState<RangePreset>(
+    initialFrom && initialTo ? "this_month" : "all"
+  );
+  const [customFrom, setCustomFrom] = useState(initialFrom ?? "");
+  const [customTo,   setCustomTo]   = useState(initialTo   ?? "");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
+
+  const formatLocalYMD = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dy = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dy}`;
+  };
+
+  const computedRange = useMemo(() => {
+    const now = new Date();
+    if (rangePreset === "today") {
+      const today = formatLocalYMD(now);
+      return { from: today, to: today };
+    }
+    if (rangePreset === "this_week") {
+      const day = now.getDay();
+      const diffToMon = day === 0 ? -6 : 1 - day;
+      const mon = new Date(now); mon.setDate(now.getDate() + diffToMon);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return { from: formatLocalYMD(mon), to: formatLocalYMD(sun) };
+    }
+    if (rangePreset === "all") return { from: "", to: "" };
+    if (rangePreset === "custom") return { from: customFrom, to: customTo };
+    if (rangePreset === "this_month") {
+      return {
+        from: formatLocalYMD(new Date(now.getFullYear(), now.getMonth(), 1)),
+        to:   formatLocalYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+      };
+    }
+    if (rangePreset === "last_month") {
+      return {
+        from: formatLocalYMD(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+        to:   formatLocalYMD(new Date(now.getFullYear(), now.getMonth(), 0)),
+      };
+    }
+    // last_90
+    return {
+      from: formatLocalYMD(new Date(now.getTime() - 90 * 86400000)),
+      to:   formatLocalYMD(now),
+    };
+  }, [rangePreset, customFrom, customTo]);
+
+  const activeFrom = computedRange.from;
+  const activeTo   = computedRange.to;
+
+  const rangeLabel = useMemo(() => {
+    const LABELS: Record<string, string> = {
+      today: "Today", this_week: "This Week", this_month: "This Month",
+      last_month: "Last Month", last_90: "Last 90 Days", all: "All Time",
+    };
+    if (rangePreset !== "custom") return LABELS[rangePreset] ?? "Select range";
+    if (activeFrom && activeTo) {
+      const fmt = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      return `${fmt(activeFrom)} – ${fmt(activeTo)}`;
+    }
+    return "Custom Range";
+  }, [rangePreset, activeFrom, activeTo]);
 
   // Lock background body scroll while modal is active
   useEffect(() => {
@@ -139,12 +218,14 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
 
   // Fetch data
   useEffect(() => {
+    // Skip fetch when custom range is selected but incomplete
+    if (rangePreset === "custom" && (!activeFrom || !activeTo)) return;
     const fetch = async () => {
       try {
         setLoading(true);
         setError(null);
         let url = `/api/staff/${staffId}/performance`;
-        if (from && to) url += `?from=${from}&to=${to}`;
+        if (activeFrom && activeTo) url += `?from=${activeFrom}&to=${activeTo}`;
         const res = await api.get<any>(url);
         if (res.success && res.data) {
           setData(res.data);
@@ -158,7 +239,7 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
       }
     };
     fetch();
-  }, [staffId, from, to]);
+  }, [staffId, activeFrom, activeTo, rangePreset]);
 
   const s = data?.summary;
   const fmt = (n: number) => n.toLocaleString();
@@ -271,12 +352,112 @@ export default function EmployeeDetailModal({ staffId, staffName, staffRole, sta
               {staffRole}
             </p>
           </div>
-          {from && to && (
-            <span className="hidden sm:flex items-center gap-1.5 text-xs sm:text-sm font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-1.5">
-              <span className="material-symbols-outlined text-base">calendar_month</span>
-              <span>{from} → {to}</span>
-            </span>
-          )}
+
+          {/* ── Date range dropdown ───────────────────────────────── */}
+          <div className="relative shrink-0" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setDropdownOpen((v) => !v)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs sm:text-sm font-bold font-heading text-zinc-800 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-xs cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base text-zinc-500 dark:text-zinc-400">calendar_month</span>
+              <span className="hidden sm:inline">{rangeLabel}</span>
+              <span className={`material-symbols-outlined text-base text-zinc-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}>
+                expand_more
+              </span>
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-xl overflow-hidden">
+                <div className="py-1.5">
+                  {(
+                    [
+                      { key: "today",      label: "Today",        icon: "today" },
+                      { key: "this_week",  label: "This Week",    icon: "calendar_view_week" },
+                      { key: "this_month", label: "This Month",   icon: "calendar_month" },
+                      { key: "last_month", label: "Last Month",   icon: "chevron_left" },
+                      { key: "last_90",    label: "Last 90 Days", icon: "date_range" },
+                      { key: "all",        label: "All Time",     icon: "all_inclusive" },
+                    ] as const
+                  ).map((preset) => (
+                    <button
+                      key={preset.key}
+                      type="button"
+                      onClick={() => { setRangePreset(preset.key); setDropdownOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold font-heading text-left transition-colors cursor-pointer ${
+                        rangePreset === preset.key
+                          ? "bg-[#1b4d24]/8 dark:bg-emerald-900/20 text-[#1b4d24] dark:text-emerald-400"
+                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      <span className={`material-symbols-outlined text-base ${rangePreset === preset.key ? "text-[#1b4d24] dark:text-emerald-400" : "text-zinc-400"}`}>
+                        {preset.icon}
+                      </span>
+                      <span className="flex-1">{preset.label}</span>
+                      {rangePreset === preset.key && (
+                        <span className="material-symbols-outlined text-base text-[#1b4d24] dark:text-emerald-400">check</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="border-t border-zinc-100 dark:border-zinc-800 py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setRangePreset("custom")}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold font-heading text-left transition-colors cursor-pointer ${
+                      rangePreset === "custom"
+                        ? "bg-[#1b4d24]/8 dark:bg-emerald-900/20 text-[#1b4d24] dark:text-emerald-400"
+                        : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-base ${rangePreset === "custom" ? "text-[#1b4d24] dark:text-emerald-400" : "text-zinc-400"}`}>
+                      tune
+                    </span>
+                    <span className="flex-1">Custom Range</span>
+                    {rangePreset === "custom" && (
+                      <span className="material-symbols-outlined text-base text-[#1b4d24] dark:text-emerald-400">check</span>
+                    )}
+                  </button>
+
+                  {rangePreset === "custom" && (
+                    <div className="px-4 pb-3 pt-1 space-y-2">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-heading">From</label>
+                        <input
+                          type="date"
+                          value={customFrom}
+                          max={customTo || undefined}
+                          onChange={(e) => setCustomFrom(e.target.value)}
+                          className="w-full text-sm font-mono bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#1b4d24]/30 cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-heading">To</label>
+                        <input
+                          type="date"
+                          value={customTo}
+                          min={customFrom || undefined}
+                          onChange={(e) => setCustomTo(e.target.value)}
+                          className="w-full text-sm font-mono bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#1b4d24]/30 cursor-pointer"
+                        />
+                      </div>
+                      {customFrom && customTo && (
+                        <button
+                          type="button"
+                          onClick={() => setDropdownOpen(false)}
+                          className="w-full mt-1 py-2 text-sm font-bold font-heading bg-[#1b4d24] text-white rounded-lg hover:bg-[#163d1c] transition cursor-pointer"
+                        >
+                          Apply Range
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={onClose}
             className="flex items-center justify-center w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0 cursor-pointer"

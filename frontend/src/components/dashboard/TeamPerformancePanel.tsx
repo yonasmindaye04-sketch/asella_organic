@@ -12,7 +12,7 @@
  * per rule.md (zero emojis, bold colored uppercase status indicators, full dark/light mode).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../../services/api";
 import EmployeeDetailModal from "./EmployeeDetailModal";
@@ -155,7 +155,7 @@ function RateBar({ value, label }: { value: number; label?: string }) {
 
 // ── Main Panel ──────────────────────────────────────────────────────────────
 
-type RangePreset = "all" | "this_month" | "last_month" | "last_90";
+type RangePreset = "today" | "this_week" | "this_month" | "last_month" | "last_90" | "all" | "custom";
 
 export default function TeamPerformancePanel({ open, onClose, from: initialFrom, to: initialTo }: Props) {
   const [data, setData]       = useState<PerformancePayload | null>(null);
@@ -166,6 +166,22 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<Member | null>(null);
   const [rangePreset, setRangePreset] = useState<RangePreset>(initialFrom && initialTo ? "this_month" : "all");
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo,   setCustomTo]   = useState<string>("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
 
   const formatLocalYMD = (d: Date): string => {
     const year = d.getFullYear();
@@ -175,8 +191,28 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
   };
 
   const computedRange = useMemo(() => {
-    if (rangePreset === "all") return { from: "", to: "", label: "All Time (Complete History)" };
     const now = new Date();
+    if (rangePreset === "today") {
+      const today = formatLocalYMD(now);
+      return { from: today, to: today, label: "Today" };
+    }
+    if (rangePreset === "this_week") {
+      // Week starts Monday
+      const day = now.getDay(); // 0=Sun
+      const diffToMon = day === 0 ? -6 : 1 - day;
+      const mon = new Date(now); mon.setDate(now.getDate() + diffToMon);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return { from: formatLocalYMD(mon), to: formatLocalYMD(sun), label: "This Week" };
+    }
+    if (rangePreset === "all") return { from: "", to: "", label: "All Time (Complete History)" };
+    if (rangePreset === "custom") {
+      if (customFrom && customTo) {
+        const df = new Date(customFrom).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        const dt = new Date(customTo).toLocaleDateString("en-GB",   { day: "2-digit", month: "short", year: "numeric" });
+        return { from: customFrom, to: customTo, label: `${df} – ${dt}` };
+      }
+      return { from: "", to: "", label: "Custom Range" };
+    }
     if (rangePreset === "this_month") {
       const first = formatLocalYMD(new Date(now.getFullYear(), now.getMonth(), 1));
       const last  = formatLocalYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
@@ -187,13 +223,16 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
       const last  = formatLocalYMD(new Date(now.getFullYear(), now.getMonth(), 0));
       return { from: first, to: last, label: "Previous Month" };
     }
+    // last_90
     const first = formatLocalYMD(new Date(now.getTime() - 90 * 86400000));
     const last  = formatLocalYMD(now);
     return { from: first, to: last, label: "Last 90 Days" };
-  }, [rangePreset]);
+  }, [rangePreset, customFrom, customTo]);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
+    // For custom range, require both dates before fetching
+    if (rangePreset === "custom" && (!customFrom || !customTo)) return;
     setLoading(true);
     setError(null);
     try {
@@ -214,7 +253,7 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
     } finally {
       setLoading(false);
     }
-  }, [computedRange.from, computedRange.to]);
+  }, [computedRange.from, computedRange.to, rangePreset, customFrom, customTo]);
 
   useEffect(() => {
     if (open) void fetchData();
@@ -344,29 +383,115 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-center">
-            {/* Range Presets */}
-            <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              {(
-                [
-                  { key: "all", label: "All Time" },
-                  { key: "this_month", label: "This Month" },
-                  { key: "last_month", label: "Last Month" },
-                  { key: "last_90", label: "90 Days" },
-                ] as const
-              ).map((preset) => (
-                <button
-                  key={preset.key}
-                  type="button"
-                  onClick={() => setRangePreset(preset.key)}
-                  className={`px-3 py-1.5 text-xs sm:text-sm font-bold font-heading rounded-lg transition cursor-pointer ${
-                    rangePreset === preset.key
-                      ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-xs border border-zinc-200/80 dark:border-zinc-700/80"
-                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
+            {/* ── Date range dropdown ───────────────────────────────── */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen((v) => !v)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs sm:text-sm font-bold font-heading text-zinc-800 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base text-zinc-500 dark:text-zinc-400">calendar_month</span>
+                <span>{computedRange.label}</span>
+                <span className={`material-symbols-outlined text-base text-zinc-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}>
+                  expand_more
+                </span>
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-xl overflow-hidden">
+                  {/* Preset options */}
+                  <div className="py-1.5">
+                    {(
+                      [
+                        { key: "today",      label: "Today",        icon: "today" },
+                        { key: "this_week",  label: "This Week",    icon: "calendar_view_week" },
+                        { key: "this_month", label: "This Month",   icon: "calendar_month" },
+                        { key: "last_month", label: "Last Month",   icon: "chevron_left" },
+                        { key: "last_90",    label: "Last 90 Days", icon: "date_range" },
+                        { key: "all",        label: "All Time",     icon: "all_inclusive" },
+                      ] as const
+                    ).map((preset) => (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => {
+                          setRangePreset(preset.key);
+                          setDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold font-heading text-left transition-colors cursor-pointer ${
+                          rangePreset === preset.key
+                            ? "bg-[#1b4d24]/8 dark:bg-emerald-900/20 text-[#1b4d24] dark:text-emerald-400"
+                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        }`}
+                      >
+                        <span className={`material-symbols-outlined text-base ${rangePreset === preset.key ? "text-[#1b4d24] dark:text-emerald-400" : "text-zinc-400"}`}>
+                          {preset.icon}
+                        </span>
+                        <span className="flex-1">{preset.label}</span>
+                        {rangePreset === preset.key && (
+                          <span className="material-symbols-outlined text-base text-[#1b4d24] dark:text-emerald-400">check</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Divider + Custom option */}
+                  <div className="border-t border-zinc-100 dark:border-zinc-800 py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setRangePreset("custom")}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold font-heading text-left transition-colors cursor-pointer ${
+                        rangePreset === "custom"
+                          ? "bg-[#1b4d24]/8 dark:bg-emerald-900/20 text-[#1b4d24] dark:text-emerald-400"
+                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      <span className={`material-symbols-outlined text-base ${rangePreset === "custom" ? "text-[#1b4d24] dark:text-emerald-400" : "text-zinc-400"}`}>
+                        tune
+                      </span>
+                      <span className="flex-1">Custom Range</span>
+                      {rangePreset === "custom" && (
+                        <span className="material-symbols-outlined text-base text-[#1b4d24] dark:text-emerald-400">check</span>
+                      )}
+                    </button>
+
+                    {/* Custom date pickers — shown inline when custom is selected */}
+                    {rangePreset === "custom" && (
+                      <div className="px-4 pb-3 pt-1 space-y-2">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-heading">From</label>
+                          <input
+                            type="date"
+                            value={customFrom}
+                            max={customTo || undefined}
+                            onChange={(e) => setCustomFrom(e.target.value)}
+                            className="w-full text-sm font-mono bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#1b4d24]/30 cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-heading">To</label>
+                          <input
+                            type="date"
+                            value={customTo}
+                            min={customFrom || undefined}
+                            onChange={(e) => setCustomTo(e.target.value)}
+                            className="w-full text-sm font-mono bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#1b4d24]/30 cursor-pointer"
+                          />
+                        </div>
+                        {customFrom && customTo && (
+                          <button
+                            type="button"
+                            onClick={() => { void fetchData(); setDropdownOpen(false); }}
+                            className="w-full mt-1 py-2 text-sm font-bold font-heading bg-[#1b4d24] text-white rounded-lg hover:bg-[#163d1c] transition cursor-pointer"
+                          >
+                            Apply Range
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Close Button */}
