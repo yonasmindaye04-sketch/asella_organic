@@ -41,6 +41,7 @@ import { deductOrderStock, restoreOrderStock }           from "../lib/inventory.
 import { resolveOrderItems, OrderItemResolutionError }  from "../lib/orderItems.js";
 import { orderRateLimit, orderTrackRateLimit } from "../middleware/rateLimit.js";
 import jwt from "jsonwebtoken";
+import { verifyJwt } from "../config/jwtSecret.js";
 
 const router = Router();
 
@@ -187,9 +188,11 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
 
   let staffUserId = null;
   const token = req.cookies?.access_token || (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
-  if (token && process.env.JWT_SECRET) {
+  if (token) {
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET) as any;
+      // Rotation-aware: a staff session minted before a secret rotation
+      // still attributes the order to the right user during the window.
+      const payload = verifyJwt<{ id: string }>(token);
       staffUserId = payload.id;
     } catch {
       // Ignore token errors for public endpoint

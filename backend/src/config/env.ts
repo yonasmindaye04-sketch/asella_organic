@@ -7,6 +7,11 @@ import { z } from "zod";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import {
+  JwtSecretConfigError,
+  formatJwtSecretFatalMessage,
+  resolveJwtSecrets,
+} from "./jwtSecret.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config();
@@ -24,7 +29,18 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(10).optional().or(z.literal("")).default("mysql://root@127.0.0.1:3306/asella_organic"),
 
   // ── Auth ─────────────────────────────────────────────────
-  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters").default("asella-organic-preview-jwt-secret-key-2026-secure"),
+  // JWT_SECRET and JWT_SECRET_PREVIOUS are validated by
+  // src/config/jwtSecret.ts, not by this schema.
+  //
+  // ASE-2026-003: the schema used to carry a published DEFAULT for
+  // JWT_SECRET, so an operator who forgot to set it got a signing key
+  // that is in the public git history — anyone could mint an admin token
+  // with it. The resolution rules (required, minimum length, rotation
+  // window) now live in one module so the issuer, the verifier and the
+  // boot guard cannot disagree, and there is no default anywhere.
+  //
+  // See src/config/jwtSecret.ts and security/findings/REGISTER.md
+  // ASE-2026-003 for the full rationale.
 
   // ── Frontend ──────────────────────────────────────────────
   ALLOWED_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000"),
@@ -135,13 +151,45 @@ const EnvSchema = z.object({
 const result = EnvSchema.safeParse(process.env);
 
 let env: z.infer<typeof EnvSchema>;
+
+// ── Hard-fail on missing/short JWT_SECRET (ASE-2026-003) ────────────────────
+// Without a JWT_SECRET, every signed token is forgeable. We refuse to boot
+// rather than fall through to a published default.
+//
+// The exit shape (ExitCode=78, EX_USAGE) is intentional: systemd / launchd
+// surface exit codes 64-78 in their journal; 78 is the closest conventional
+// value for "config error" that won't be confused with a runtime crash.
+//
+// The rules live in src/config/jwtSecret.ts so that the boot guard, the
+// token issuer and the token verifier cannot disagree about what a usable
+// key is.
+try {
+  resolveJwtSecrets(process.env);
+} catch (err) {
+  if (err instanceof JwtSecretConfigError) {
+    // Use stderr explicitly so the message survives stdout redirection.
+    process.stderr.write(formatJwtSecretFatalMessage(err.fault));
+    process.exit(78);
+  }
+  throw err;
+}
+
 if (!result.success) {
-  console.warn("\n Environment variable validation warning (using safe defaults for invalid fields):\n");
-  result.error.issues.forEach((issue) => {
+  const issues = result.error.issues;
+
+  // Everything else — log warnings, fall back to schema defaults.
+  // This is the pre-existing fallback path; it stays in place for the
+  // SMS dispatcher tuning knobs, RETENTION_YEARS, etc. It is deliberately
+  // NOT used for the JWT path, because every other variable has a safe
+  // default and the signing key does not.
+  console.warn(
+    "\n[env] Environment variable validation warning (using safe defaults for invalid fields):\n"
+  );
+  issues.forEach((issue) => {
     console.warn(`  ${issue.path.join(".")}: ${issue.message}`);
   });
   const sanitizedEnv: Record<string, unknown> = { ...process.env };
-  for (const issue of result.error.issues) {
+  for (const issue of issues) {
     const key = String(issue.path[0]);
     delete sanitizedEnv[key];
   }
@@ -150,7 +198,19 @@ if (!result.success) {
   env = result.data;
 }
 
-if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = env.JWT_SECRET;
+// Publish the *validated* (trimmed) JWT_SECRET values into process.env so
+// that any downstream reader sees the canonical value rather than
+// re-reading whatever the operator put in .env (which can have
+// whitespace, trailing newlines, BOM chars, etc. — see
+// security/findings/REGISTER.md ASE-2026-003).
+const jwtSecrets = resolveJwtSecrets(process.env);
+process.env.JWT_SECRET = jwtSecrets.secret;
+if (jwtSecrets.previous) {
+  process.env.JWT_SECRET_PREVIOUS = jwtSecrets.previous;
+} else {
+  // Do not leave a stale previous key behind: if the operator removed it,
+  // the process must forget it too.
+  delete process.env.JWT_SECRET_PREVIOUS;
 }
+
 export default env;

@@ -32,6 +32,7 @@ import { generalRateLimit } from "../middleware/rateLimit.js";
 import { buildAffiliateReport } from "../lib/affiliateReport.js";
 import { currentWeekPeriod } from "../lib/affiliateReport.js";
 import bcrypt from "bcryptjs";
+import { getJwtSecret } from "../config/jwtSecret.js";
 
 const router = Router();
 
@@ -74,7 +75,11 @@ publicAffiliateRouter.post("/track-click", async (req, res) => {
   }
 
   const ip = req.ip ?? "";
-  const salt = process.env.JWT_SECRET ?? "asella";
+  // Salt the visitor hash with the signing key so the same IP cannot be
+  // correlated across instances via the referral_clicks table. There is
+  // deliberately no fallback value: "asella" was a published constant,
+  // which made the hashes reproducible for anyone who knew it.
+  const salt = getJwtSecret();
   const visitorHash = ip
     ? crypto.createHash("sha256").update(`${salt}:${ip}`).digest("hex")
     : null;

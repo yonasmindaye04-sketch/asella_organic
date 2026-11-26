@@ -21,6 +21,7 @@ import jwt    from "jsonwebtoken";
 import pool   from "../config/db.js";
 import crypto from "crypto";
 import { LRUCache } from "lru-cache";
+import { signJwt, verifyJwt } from "../config/jwtSecret.js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,10 +64,16 @@ export function invalidateUserStatusCache(userId?: string): void {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getJwtSecret(): string {
-  const s = process.env.JWT_SECRET;
-  if (!s) throw new Error("JWT_SECRET is not set");
-  return s;
+/**
+ * Verify a token.
+ *
+ * Rotation-aware: accepts either the current secret or JWT_SECRET_PREVIOUS
+ * (during a rotation window). The rules — including the rule that an
+ * EXPIRED token is never rescued by the previous secret — live in
+ * src/config/jwtSecret.ts so the verifier and the issuer agree.
+ */
+function verifyToken(token: string): TokenPayload {
+  return verifyJwt<TokenPayload>(token);
 }
 
 // ── authenticate ──────────────────────────────────────────────────────────────
@@ -101,7 +108,7 @@ export async function authenticate(
 
   let payload: TokenPayload;
   try {
-    payload = jwt.verify(token, getJwtSecret()) as TokenPayload;
+    payload = verifyToken(token);
   } catch (err: any) {
     const message =
       err.name === "TokenExpiredError"
@@ -203,14 +210,14 @@ export function issueToken(
   expiresIn  = "7d"
 ): string {
   const jti = crypto.randomBytes(16).toString("hex");
-  return jwt.sign({ ...payload, jti }, getJwtSecret(), { expiresIn } as any);
+  return signJwt({ ...payload, jti }, { expiresIn } as any);
 }
 
 export function issueTokens(
   payload: Omit<TokenPayload, "jti">
 ): { accessToken: string; refreshToken: string; jti: string } {
   const jti          = crypto.randomBytes(16).toString("hex");
-  const accessToken  = jwt.sign({ ...payload, jti }, getJwtSecret(), { expiresIn: "1h" } as any);
+  const accessToken  = signJwt({ ...payload, jti }, { expiresIn: "1h" } as any);
   const refreshToken = crypto.randomBytes(40).toString("hex");
   return { accessToken, refreshToken, jti };
 }
