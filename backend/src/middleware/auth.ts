@@ -17,7 +17,6 @@
  */
 
 import { Request, Response, NextFunction } from "express";
-import jwt    from "jsonwebtoken";
 import pool   from "../config/db.js";
 import crypto from "crypto";
 import { LRUCache } from "lru-cache";

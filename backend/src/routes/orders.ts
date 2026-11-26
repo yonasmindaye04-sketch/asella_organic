@@ -40,7 +40,7 @@ import { createLogger }               from "../lib/logger.js";
 import { deductOrderStock, restoreOrderStock }           from "../lib/inventory.js";
 import { resolveOrderItems, OrderItemResolutionError }  from "../lib/orderItems.js";
 import { orderRateLimit, orderTrackRateLimit } from "../middleware/rateLimit.js";
-import jwt from "jsonwebtoken";
+
 import { verifyJwt } from "../config/jwtSecret.js";
 
 const router = Router();
