@@ -234,6 +234,91 @@ describe("generateResetToken + verifyResetToken", () => {
     const t2 = generateResetToken("same-user");
     expect(t1).not.toBe(t2);
   });
+
+  // ── JWT_SECRET rotation (ASE-2026-003 follow-up) ────────────────────────
+  // The application keeps two valid secrets during the rotation window:
+  //   JWT_SECRET            — what new tokens are signed with
+  //   JWT_SECRET_PREVIOUS   — old value, still accepted until the window
+  //                           closes
+  // generateResetToken always signs with the CURRENT secret. verifyResetToken
+  // must accept either. Together with auth.ts's verifyToken() this gives
+  // a zero-downtime rotation: deploy with both set, drop JWT_SECRET_PREVIOUS
+  // after the longest access-token TTL elapses.
+  describe("rotation via JWT_SECRET_PREVIOUS", () => {
+    it("verifies a token signed under the previous secret when both are set", () => {
+      const previous = "previous-secret-32-chars-minimum-ok!!";
+      const current  = "current-secret-32-chars-minimum-ok!!!";
+
+      // Sign under the previous secret
+      const userId = "rotate-target";
+      const payload = {
+        userId,
+        exp:   Date.now() + 15 * 60 * 1_000,
+        nonce: crypto.randomBytes(16).toString("hex"),
+      };
+      const b64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
+      const sig = crypto.createHmac("sha256", previous).update(b64).digest("base64url");
+      const legacyToken = `${b64}.${sig}`;
+
+      // Rotate: now JWT_SECRET is the new value
+      process.env.JWT_SECRET         = current;
+      process.env.JWT_SECRET_PREVIOUS = previous;
+
+      expect(verifyResetToken(legacyToken)).toBe(userId);
+    });
+
+    it("rejects a token signed with an unrelated secret even when both are set", () => {
+      process.env.JWT_SECRET          = "current-secret-32-chars-minimum-okay";
+      process.env.JWT_SECRET_PREVIOUS = "previous-secret-32-chars-minimum-fine";
+
+      const userId = "rotate-target";
+      const payload = {
+        userId,
+        exp:   Date.now() + 15 * 60 * 1_000,
+        nonce: crypto.randomBytes(16).toString("hex"),
+      };
+      const b64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
+      const sig = crypto
+        .createHmac("sha256", "totally-different-secret-32-chars-aaaaa")
+        .update(b64)
+        .digest("base64url");
+      const foreign = `${b64}.${sig}`;
+
+      expect(() => verifyResetToken(foreign)).toThrow("Invalid signature");
+    });
+
+    it("does not fall back to JWT_SECRET_PREVIOUS on an expired token", () => {
+      // The fallback is for signature mismatch only. An expired token has
+      // a valid signature but is past its absolute deadline — extending the
+      // lifetime via the previous secret would defeat the TTL.
+      const previous = "previous-secret-32-chars-minimum-ok!!";
+
+      const payload = {
+        userId: "rotate-target",
+        exp:    Date.now() - 1_000, // already expired
+        nonce:  crypto.randomBytes(16).toString("hex"),
+      };
+      const b64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
+      const sig = crypto.createHmac("sha256", previous).update(b64).digest("base64url");
+      const expiredLegacy = `${b64}.${sig}`;
+
+      process.env.JWT_SECRET          = "current-secret-32-chars-minimum-okay";
+      process.env.JWT_SECRET_PREVIOUS = previous;
+
+      expect(() => verifyResetToken(expiredLegacy)).toThrow("Token expired");
+    });
+
+    it("returns the same userId from a token signed under the current secret", () => {
+      // Sanity check that current-secret verification still works AND is
+      // the path verifyResetToken takes first (so we don't waste cycles
+      // falling back when we don't need to).
+      process.env.JWT_SECRET          = "current-secret-32-chars-minimum-okay";
+      delete process.env.JWT_SECRET_PREVIOUS;
+
+      const token = generateResetToken("current-secret-user");
+      expect(verifyResetToken(token)).toBe("current-secret-user");
+    });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

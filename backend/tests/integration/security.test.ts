@@ -273,7 +273,13 @@ describe("A07 — Authentication Failures", () => {
 
 describe("CORS", () => {
   it("responds with correct CORS headers for allowed origin", async () => {
-    const allowedOrigin = process.env.ALLOWED_ORIGINS ?? "http://localhost:5173";
+    // Normalize exactly the way src/lib/origins.ts does: the allow-list
+    // strips trailing slashes, so the raw env value ("http://localhost:5173/")
+    // is not what the browser sends in the Origin header.
+    const allowedOrigin = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173")
+      .split(",")[0]
+      .trim()
+      .replace(/\/+$/, "");
     const res = await request(app)
       .get("/api/health")
       .set("Origin", allowedOrigin);
