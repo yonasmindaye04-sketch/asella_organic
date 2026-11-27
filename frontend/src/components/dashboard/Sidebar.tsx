@@ -376,11 +376,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   <SectionLabel>Administration</SectionLabel>
                   <ul className="sidebar-nav-group">
                     <NavItem to="/dashboard/users" icon="manage_accounts" label="Staff & Roles" />
-                    <NavItem to="/dashboard/affiliates" icon="handshake" label="Affiliate Control" />
                     <NavItem to="/dashboard/videos" icon="smart_display" label="Community Videos" />
                     <NavItem to="/dashboard/audit-log" icon="history" label="System Audit Log" />
                   </ul>
                 </>
+              )}
+
+              {/* Affiliate Control is admin-only on the server: the whole
+                  /api/referrals router sits behind authorise("admin"),
+                  including commission payout and reversal. tech_support no
+                  longer reaches it now that the blanket role bypass is
+                  gone, so it must not be offered here either. */}
+              {role === 'admin' && (
+                <NavItem to="/dashboard/affiliates" icon="handshake" label="Affiliate Control" />
               )}
             </>
           )}

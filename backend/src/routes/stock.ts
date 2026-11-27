@@ -82,7 +82,7 @@ router.get(
   // Exposes stock_value = quantity × unit_cost for every SKU, i.e. a full
   // COGS valuation. `authenticate` alone let any role (including affiliate)
   // read it. Matches the guard already on /movements below.
-  authorise("admin", "manager", "employee", "store_manager", "call_center"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const { search, status } = req.query as Record<string, string | undefined>;
 
@@ -161,7 +161,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
-  authorise("admin", "manager", "employee", "store_manager", "call_center"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const isCostAuth = req.user?.role === "admin" || req.user?.role === "manager" || req.user?.role === "tech_support";
     try {
@@ -224,7 +224,7 @@ router.get(
 router.get(
   "/movements",
   authenticate,
-  authorise("admin", "manager", "employee", "store_manager", "call_center"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const {
       product_id, type, reference_type,
@@ -303,7 +303,7 @@ router.get(
 router.get(
   "/low",
   authenticate,
-  authorise("admin", "manager", "employee", "store_manager", "call_center"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center", "tech_support"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const [rows] = await pool.query(
@@ -677,7 +677,7 @@ router.post(
 router.get(
   "/requests",
   authenticate,
-  authorise("admin", "manager", "store_manager", "call_center"),
+  authorise("admin", "manager", "store_manager", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const { status, item, store_id } = req.query as Record<string, string | undefined>;
     const conditions: string[] = [];

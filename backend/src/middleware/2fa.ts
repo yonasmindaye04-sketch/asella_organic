@@ -35,24 +35,39 @@ export const require2FA = async (
       return;
     }
 
-    // Only enforce 2FA verification if 2FA is enabled on the caller's account
-    if (staff.two_factor_enabled && staff.two_factor_secret) {
-      if (!token) {
-        res.status(401).json({ success: false, error: "2FA token required for this action." });
-        return;
-      }
+    // The account must HAVE 2FA enabled for this route to be usable.
+    //
+    // This used to challenge only accounts that already had 2FA switched
+    // on, so an account with 2FA off produced no challenge at all and
+    // simply passed. On a route guarded by require2FA that is not a
+    // control, it is a no-op — and on the routes that can mint or
+    // promote an administrator it is the whole ballgame.
+    //
+    // POST /api/staff accepts any role including admin, and
+    // PATCH /api/staff/:id can change one, so behind the old behaviour a
+    // single request from an account with 2FA off could create a brand
+    // new administrator.
+    //
+    // A caller without 2FA is told where to set it up rather than being
+    // waved through. The setup route only needs authentication:
+    // POST /api/staff/2fa/setup.
+    if (!staff.two_factor_enabled || !staff.two_factor_secret) {
+      res.status(403).json({
+        success: false,
+        error: "2FA is not enabled on your account. Set it up at POST /api/staff/2fa/setup to perform this action.",
+      });
+      return;
+    }
 
-      const result = verifySync({ token, secret: staff.two_factor_secret });
-      if (!result.valid) {
-        res.status(401).json({ success: false, error: "Invalid or expired 2FA token." });
-        return;
-      }
-    } else if (token && staff.two_factor_secret) {
-      const result = verifySync({ token, secret: staff.two_factor_secret });
-      if (!result.valid) {
-        res.status(401).json({ success: false, error: "Invalid 2FA token." });
-        return;
-      }
+    if (!token) {
+      res.status(401).json({ success: false, error: "2FA token required for this action." });
+      return;
+    }
+
+    const result = verifySync({ token, secret: staff.two_factor_secret });
+    if (!result.valid) {
+      res.status(401).json({ success: false, error: "Invalid or expired 2FA token." });
+      return;
     }
 
     next();

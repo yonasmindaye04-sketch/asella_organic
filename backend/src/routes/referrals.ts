@@ -625,7 +625,8 @@ router.delete("/affiliates/:id", require2FA, async (req, res) => {
   }
 
   const [rows] = await pool.query(
-    `SELECT ap.id, COALESCE(s.full_name, ap.full_name, ap.referral_code) AS name,
+    `SELECT ap.id, ap.user_id,
+            COALESCE(s.full_name, ap.full_name, ap.referral_code) AS name,
             (SELECT COUNT(*) FROM referral_commissions rc
               WHERE rc.affiliate_id = ap.id AND rc.status = 'pending')  AS pending_count,
             (SELECT COALESCE(SUM(rc.commission_amount), 0)

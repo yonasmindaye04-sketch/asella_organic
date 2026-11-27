@@ -39,7 +39,7 @@ const isValidRole = (r: unknown): r is StaffRole => VALID_ROLES.includes(r as St
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -108,7 +108,7 @@ router.get(
 router.get(
   "/:id/performance",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -452,7 +452,7 @@ function getWeekNumber(d: Date): number {
 router.get(
   "/delivery-performance",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -701,7 +701,7 @@ router.get(
 router.get(
   "/:id",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -740,6 +740,11 @@ router.post(
   // Creating a user is enough for permanent takeover — CreateStaffSchema
   // accepts any role, including admin. DELETE and the password routes below
   // already require 2FA; this one did not.
+  //
+  // require2FA is fail-closed: the account must have 2FA enabled AND
+  // present a valid code. An administrator with 2FA off used to reach
+  // this route with no second factor at all. On the one route that can
+  // mint an admin, that is the whole point.
   require2FA,
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
@@ -804,6 +809,9 @@ router.patch(
   authorise("admin"),
   // `role` is in the updatable set, so this is an escalation primitive as
   // well as an edit. Requires 2FA for the same reason DELETE does.
+  //
+  // require2FA is fail-closed: promoting a role to admin must not be
+  // possible by an administrator account that has 2FA off.
   require2FA,
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);

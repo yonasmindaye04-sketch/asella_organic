@@ -179,7 +179,7 @@ export function normalizeCustomerFields(r: any) {
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
 
@@ -293,7 +293,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
-  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center", "tech_support"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const [segments] = await pool.query(
@@ -368,7 +368,7 @@ router.get(
 router.get(
   "/activity",
   authenticate,
-  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
 
@@ -442,7 +442,7 @@ router.get(
 router.get(
   "/:id",
   authenticate,
-  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center"),
+  authorise("admin", "manager", "store_manager", "employee", "staff", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log    = createLogger(req);
     const id     = customerIdFrom(req.params.id);

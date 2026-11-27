@@ -261,7 +261,7 @@ router.get(
   "/low-stock",
   authenticate,
   // Returns exact quantities against the threshold, per SKU. Staff-only.
-  authorise("admin", "manager", "employee"),
+  authorise("admin", "manager", "employee", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
