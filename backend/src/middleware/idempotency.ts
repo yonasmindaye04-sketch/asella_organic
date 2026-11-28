@@ -45,9 +45,15 @@
  *         order schema already requires.
  *     A caller who guesses somebody else's key simply lands in their own
  *     scope and gets their own response.
+ *   • The key is RESERVED before the handler runs, with an atomic INSERT
+ *     against the unique index. The lookup and the insert used to be two
+ *     separate statements, so parallel requests with the same key could all
+ *     miss the cache and all run the handler — and all create an order.
+ *     Two concurrent retries of one checkout produced two orders.
  */
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import type { ResultSetHeader } from "mysql2";
 import pool from "../config/db.js";
 import { extractAccessToken } from "./auth.js";
 import { verifyJwt } from "../config/jwtSecret.js";
@@ -64,6 +70,20 @@ const IDEMPOTENT_METHODS = new Set(["POST"]);
  * whole of ASE-SESS-04.
  */
 const NEVER_CACHED_PATH = /^\/auth\//;
+
+/**
+ * How long to wait for a request that already holds this key to finish,
+ * so its response can be replayed instead of the caller being told to
+ * come back later.
+ */
+const IN_FLIGHT_WAIT_MS = 5_000;
+const IN_FLIGHT_POLL_MS = 100;
+
+/**
+ * A reservation older than this is presumed to belong to a request that
+ * died. The key is taken over rather than being blocked for the full TTL.
+ */
+const STALE_RESERVATION_SECONDS = 60;
 
 function hashRequest(method: string, path: string, body: unknown): string {
   const h = crypto.createHash("sha256");
@@ -138,6 +158,101 @@ function resolveCallerScope(req: Request): CallerScope {
   return { scopeKey: hashScope("a:", JSON.stringify(body)), userId: null };
 }
 
+/**
+ * True for MySQL/MariaDB's ER_DUP_ENTRY — the unique index refused a
+ * second row for the same key.
+ */
+function isDuplicateKeyError(err: unknown): boolean {
+  const e = err as { code?: string; errno?: number } | null;
+  if (!e) return false;
+  return e.code === "ER_DUP_ENTRY" || e.errno === 1062;
+}
+
+type HolderOutcome =
+  | { kind: "replay"; status: number | null; response_body: unknown }
+  | { kind: "conflict" }
+  | { kind: "taken-over" }
+  | { kind: "in-flight" };
+
+/**
+ * Waits for the request that holds this key to finish, so its response can
+ * be replayed.
+ *
+ * A retry that arrives while the original request is still running must
+ * NOT run the handler again — that is the whole point of the key. So the
+ * duplicate waits, and when the holder completes it gets that response.
+ *
+ * If the holder has not finished within the budget the caller is told the
+ * request is still in progress, rather than being allowed to run the
+ * handler a second time.
+ */
+async function waitForHolder(
+  scopeKey: string,
+  idemKey: string,
+  reqHash: string
+): Promise<HolderOutcome> {
+  const deadline = Date.now() + IN_FLIGHT_WAIT_MS;
+
+  for (;;) {
+    const [rows] = await pool.query(
+      `SELECT request_hash, status, response_body, created_at
+       FROM idempotency_keys
+       WHERE scope_key = ? AND idem_key = ?
+       LIMIT 1`,
+      [scopeKey, idemKey]
+    ) as [any[], any];
+
+    const holder = rows[0];
+
+    if (!holder) {
+      // The holder's row is gone (expired and purged). Treat the key as
+      // free; the caller will retry and the reservation will succeed.
+      return { kind: "in-flight" };
+    }
+
+    // A reservation with no response body is a request still in flight —
+    // unless it is old enough that the request must have died.
+    const hasResponse = holder.response_body !== null && holder.response_body !== undefined;
+    if (!hasResponse) {
+      const ageSeconds = holder.created_at
+        ? Math.floor((Date.now() - new Date(holder.created_at).getTime()) / 1000)
+        : 0;
+
+      if (ageSeconds > STALE_RESERVATION_SECONDS) {
+        // The holder is presumed dead. Take the reservation over: the
+        // conditional UPDATE only succeeds if the row is still unclaimed.
+        const [taken] = await pool.query(
+          `UPDATE idempotency_keys
+           SET request_hash = ?, created_at = NOW()
+           WHERE scope_key = ? AND idem_key = ?
+             AND response_body IS NULL
+             AND created_at < (NOW() - INTERVAL ? SECOND)`,
+          [reqHash, scopeKey, idemKey, STALE_RESERVATION_SECONDS]
+        ) as [ResultSetHeader, unknown];
+
+        if (taken.affectedRows === 1) {
+          // We now own the reservation — run the handler.
+          return { kind: "taken-over" };
+        }
+        // Somebody else got there first; loop and read the row again.
+        continue;
+      }
+
+      if (Date.now() >= deadline) return { kind: "in-flight" };
+      await new Promise(r => setTimeout(r, IN_FLIGHT_POLL_MS));
+      continue;
+    }
+
+    // The holder finished.
+    if (holder.request_hash !== reqHash) return { kind: "conflict" };
+    return {
+      kind: "replay",
+      status: holder.status ?? null,
+      response_body: holder.response_body,
+    };
+  }
+}
+
 export async function idempotencyMiddleware(
   req: Request,
   res: Response,
@@ -164,21 +279,40 @@ export async function idempotencyMiddleware(
   const path    = req.path;
   const reqHash = hashRequest(method, path, req.body);
 
-  // 1. Look up an existing key for this (scope, idem_key)
-  const [rows] = await pool.query(
-    `SELECT request_hash, status, response_body
-     FROM idempotency_keys
-     WHERE scope_key = ?
-       AND idem_key = ?
-     LIMIT 1`,
-    [scopeKey, idemKey]
-  ) as [any[], any];
+  // 1. Reserve the key, atomically.
+  //
+  // ASE-2026-009: the lookup and the insert used to be two separate
+  // statements, so N parallel requests with the same key could all miss
+  // the cache and all run the handler — and all create an order. The
+  // reservation is a single INSERT against the (scope_key, idem_key)
+  // unique index, so exactly one request can win it.
+  const expiresAt = new Date(Date.now() + TTL_HOURS * 60 * 60 * 1000);
 
-  if (rows[0]) {
-    const existing = rows[0];
+  try {
+    await pool.query(
+      `INSERT INTO idempotency_keys
+         (idem_key, user_id, scope_key, method, path, request_hash,
+          status, response_body, response_headers, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NOW(), ?)`,
+      [idemKey, userId, scopeKey, method, path, reqHash, expiresAt]
+    );
+  } catch (err) {
+    if (!isDuplicateKeyError(err)) {
+      // A database problem is not the caller's fault, and it must not
+      // silently disable the guarantee. Fail the request rather than run
+      // the handler unprotected.
+      console.error("[idempotency] failed to reserve key:", err);
+      res.status(503).json({
+        success: false,
+        error:   "Could not reserve the Idempotency-Key. Please retry.",
+      });
+      return;
+    }
 
-    // 2a. Same payload — return the cached response
-    if (existing.request_hash === reqHash) {
+    // 2. Someone else holds this key.
+    const existing = await waitForHolder(scopeKey, idemKey, reqHash);
+
+    if (existing.kind === "replay") {
       let body: unknown;
       try {
         body = typeof existing.response_body === "string"
@@ -199,15 +333,30 @@ export async function idempotencyMiddleware(
       return;
     }
 
-    // 2b. Different payload with same key — caller error
-    res.status(409).json({
-      success: false,
-      error:   "Idempotency-Key reused with a different payload",
-    });
-    return;
+    if (existing.kind === "conflict") {
+      // 2a. Different payload with same key — caller error
+      res.status(409).json({
+        success: false,
+        error:   "Idempotency-Key reused with a different payload",
+      });
+      return;
+    }
+
+    if (existing.kind === "in-flight") {
+      // 2b. The holder has not finished yet and did not finish in time.
+      res.setHeader("Retry-After", "1");
+      res.status(409).json({
+        success: false,
+        error:   "A request with this Idempotency-Key is still in progress. Please retry shortly.",
+      });
+      return;
+    }
+
+    // 2c. "taken-over": the previous holder died and we hold its
+    // reservation now. Fall through and run the handler ourselves.
   }
 
-  // 3. New key — wrap res to capture the response
+  // 3. We own the key — wrap res to capture the response
   const originalJson = res.json.bind(res);
   const originalSend = res.send.bind(res);
   let capturedStatus  = 200;
@@ -252,29 +401,25 @@ export async function idempotencyMiddleware(
   }) as typeof res.status;
 
   // Continue the middleware chain. After the route handler finishes,
-  // save the result to the idempotency_keys table.
+  // write the result onto the reservation we already hold.
   res.on("finish", async () => {
     if (captureSkipped) return;
     try {
       // Use a fresh connection from the pool so the write is independent
       // of the request's connection lifecycle.
-      const expiresAt = new Date(Date.now() + TTL_HOURS * 60 * 60 * 1000);
       await pool.query(
-        `INSERT INTO idempotency_keys
-           (idem_key, user_id, scope_key, method, path, request_hash,
-            status, response_body, response_headers, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           status          = VALUES(status),
-           response_body   = VALUES(response_body),
-           response_headers = VALUES(response_headers),
-           expires_at      = VALUES(expires_at)`,
+        `UPDATE idempotency_keys
+         SET status = ?, response_body = ?, response_headers = ?,
+             request_hash = ?, expires_at = ?
+         WHERE scope_key = ? AND idem_key = ?`,
         [
-          idemKey, userId, scopeKey, method, path, reqHash,
           capturedStatus,
           JSON.stringify(capturedBody),
           JSON.stringify({}),
+          reqHash,
           expiresAt,
+          scopeKey,
+          idemKey,
         ]
       );
     } catch (err) {
@@ -283,5 +428,6 @@ export async function idempotencyMiddleware(
     }
   });
 
+  void 0;
   next();
 }
