@@ -121,8 +121,8 @@ export default function NewOrderPage() {
     const zeroPriceItems = form.items.filter(i => i.unit_price === 0);
     if (zeroPriceItems.length > 0) {
       setError(
-        `Price is 0 for: ${zeroPriceItems.map(i => i.name || 'unnamed item').join(', ')}. ` +
-        `Please select a product or enter a price manually.`
+        `No price for: ${zeroPriceItems.map(i => i.name || 'unnamed item').join(', ')}. ` +
+        `Please select a product and its size — the price comes from the catalogue.`
       );
       return;
     }
@@ -160,15 +160,17 @@ export default function NewOrderPage() {
           name:         item.name,
           package_size: item.package_size,
           quantity:     item.quantity,
-          unit_price:   item.unit_price,
           product_id:   item.product_id,
         })),
       };
 
       const res = await api.post<any>('/api/orders', payload);
       if (res.success && res.data) {
+        // The server prices the order from the catalogue, so its total is
+        // the authoritative one.
+        const serverTotal = Number(res.data.total ?? total);
         navigate(`/dashboard/tracking`, {
-          state: { successMessage: `Order ${res.data.id} created — Total: ETB ${total.toLocaleString()}` }
+          state: { successMessage: `Order ${res.data.id} created — Total: ETB ${serverTotal.toLocaleString()}` }
         });
       } else {
         setError(

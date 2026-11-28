@@ -77,10 +77,29 @@ const BulkOrdersPage: React.FC = () => {
         return;
       }
 
+      // Orders are priced from the catalogue (ASE-2026-001), so every line
+      // has to match a product exactly. Say so here, naming the lines that
+      // do not match, rather than letting the whole order bounce back from
+      // the server.
+      const unmatched = validItems.filter(
+        item => !products.some(
+          p => p.name === item.name && p.package_size === item.packageSize
+        )
+      );
+      if (unmatched.length > 0) {
+        setMessage({
+          type: 'error',
+          text: `Not in the catalogue: ${unmatched.map(i => `${i.name} (${i.packageSize})`).join(', ')}. ` +
+                `Lines are priced from the catalogue, so the name and size must match a product exactly.`
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const orderItems = validItems.map(item => {
-        // Send the real variant id when the typed name/size matches the
-        // catalog; otherwise omit it and let the backend treat the line as a
-        // custom item instead of inventing a fake id.
+        // Send the real variant id for the matched product. The price is
+        // resolved by the server from that product — the client does not
+        // choose it.
         const match = products.find(
           p => p.name === item.name && p.package_size === item.packageSize
         );
@@ -89,7 +108,6 @@ const BulkOrdersPage: React.FC = () => {
           name: item.name,
           package_size: item.packageSize,
           quantity: item.qty,
-          unit_price: item.unitPrice || 0,
           delivery_date: item.deliveryDate
         };
       });

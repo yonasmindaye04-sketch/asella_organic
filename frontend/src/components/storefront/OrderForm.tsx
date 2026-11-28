@@ -158,7 +158,10 @@ const OrderForm: React.FC = () => {
           name: item.name, 
           package_size: item.packageSize, 
           quantity: isNaN(qty) || qty < 1 ? 1 : qty, 
-          unit_price: product ? Math.max(Number(product.price), 1) : 1
+          // The receipt below shows what the customer was charged, so it
+          // needs the price. The REQUEST does not: the server resolves the
+          // price from the catalogue (ASE-2026-001).
+          unit_price: product ? Number(product.price) : 0,
         };
       });
 
@@ -177,7 +180,9 @@ const OrderForm: React.FC = () => {
         order_type: formData.order_type,
         referral_code: formData.referral_code || undefined,
         notes: finalNotes || undefined,
-        items: orderItems
+        items: orderItems.map(({ product_id, name, package_size, quantity }) => ({
+          product_id, name, package_size, quantity,
+        }))
       };
       
       if (topLevelDeliveryDate) {

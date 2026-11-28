@@ -78,6 +78,28 @@ function verifyToken(token: string): TokenPayload {
 // ── authenticate ──────────────────────────────────────────────────────────────
 
 /**
+ * Reads the raw access token from the request, in the same order authenticate
+ * uses:
+ *   1. `access_token` HttpOnly cookie (browser / cookie-auth clients)
+ *   2. `Authorization: Bearer <token>` header (API / mobile / Postman clients)
+ *
+ * Exported so middleware that runs BEFORE the per-route authenticate() can
+ * still work out who the caller is. The idempotency middleware needs this:
+ * it is mounted app-wide, ahead of the routers, so req.user is not populated
+ * yet when it runs, and without a caller it cannot scope an idempotency key
+ * to anything but "everybody on the internet".
+ */
+export function extractAccessToken(req: Request): string | undefined {
+  const cookieToken = req.cookies?.access_token;
+  if (cookieToken) return cookieToken;
+
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
+
+  return undefined;
+}
+
+/**
  * Reads the JWT from:
  *   1. `access_token` HttpOnly cookie (browser / cookie-auth clients)
  *   2. `Authorization: Bearer <token>` header (API / mobile / Postman clients)
@@ -89,16 +111,7 @@ export async function authenticate(
   res:  Response,
   next: NextFunction
 ): Promise<void> {
-  // 1. Cookie (browser)
-  let token: string | undefined = req.cookies?.access_token;
-
-  // 2. Bearer header (API clients)
-  if (!token) {
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith("Bearer ")) {
-      token = authHeader.slice(7);
-    }
-  }
+  const token = extractAccessToken(req);
 
   if (!token) {
     res.status(401).json({ success: false, error: "Unauthorized: no token" });

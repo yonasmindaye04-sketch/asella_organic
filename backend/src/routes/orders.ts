@@ -183,7 +183,6 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
   }
 
   const { referral_code, items: itemInputs, ...fields } = parsed.data;
-  const total   = itemInputs.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
 
   let staffUserId = null;
@@ -205,6 +204,10 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
 
     // Resolve every line against the catalog before writing anything.
     // A supplied product_id wins; legacy name/size input is still accepted.
+    //
+    // ASE-2026-001: the price comes from products.price, never from the
+    // request, so the order total is computed from the RESOLVED lines and
+    // not from what the client claimed they cost.
     const items = (await resolveOrderItems(connection, itemInputs)).map((item) => ({
       name:         item.name,
       package_size: item.packageSize,
@@ -213,6 +216,8 @@ router.post("/", orderRateLimit, async (req: Request, res: Response): Promise<vo
       product_id:   item.productId,
       unit_cost:    item.unitCost,
     }));
+
+    const total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
     const cleanCity = fields.city ? String(fields.city).replace(/\s+/g, " ").trim() : fields.city;
     const cleanLocation = fields.location ? String(fields.location).replace(/\s+/g, " ").trim() : fields.location;
@@ -998,7 +1003,6 @@ router.patch(
         name: string;
         package_size: string;
         quantity: number;
-        unit_price: number;
       }>;
     };
     const orderId = String(req.params.id);
