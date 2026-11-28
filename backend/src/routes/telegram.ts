@@ -656,7 +656,9 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
   const connection = await pool.getConnection();
 
   // Declared outside the transaction block because the delivery notification
-  // below needs the resolved (canonical) item names.
+  // below needs the resolved (canonical) item names. It is assigned inside
+  // the transaction, and the catch block rethrows, so it is always assigned
+  // by the time it is used.
   let items: Array<{
     name: string;
     package_size: string;
@@ -664,7 +666,7 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
     unit_price: number;
     product_id: string | null;
     unit_cost: number;
-  }> = [];
+  }>;
   // ASE-2026-001: the total is the sum of the CATALOGUE prices of the
   // resolved lines. The price the customer typed into the chat is not part
   // of the request any more.

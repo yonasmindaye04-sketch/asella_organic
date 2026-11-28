@@ -679,7 +679,7 @@ router.get(
   authenticate,
   authorise("admin", "manager", "store_manager", "call_center", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
-    const { status, item, store_id } = req.query as Record<string, string | undefined>;
+    const { status, item } = req.query as Record<string, string | undefined>;
     const conditions: string[] = [];
     const values:     unknown[] = [];
 

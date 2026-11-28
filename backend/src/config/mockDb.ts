@@ -2143,7 +2143,9 @@ export async function executeMockQuery(
           if (sqlLower.includes("phone = ?")) u.phone = params[pIdx++];
           if (sqlLower.includes("location = ?")) (u as any).location = params[pIdx++];
           if (sqlLower.includes("telegram_username = ?")) (u as any).telegram_username = params[pIdx++];
-          if (sqlLower.includes("active = ?")) u.active = params[pIdx++] ? 1 : 0;
+          // Last read of this cursor: nothing reads it afterwards, so it
+          // does not need to advance.
+          if (sqlLower.includes("active = ?")) u.active = params[pIdx] ? 1 : 0;
         }
       }
       u.updated_at = daysAgo(0);
@@ -2286,7 +2288,7 @@ export async function executeMockQuery(
       unit_cost: Number(params[4] || 250),
       description: params[5] || "Premium Ethiopian organic supplement.",
       image_url: params[6] || "/image/products/Moringa 200g,500g and 1kg.png",
-      featured: Boolean(params[7]) ? 1 : 0,
+      featured: params[7] ? 1 : 0,
       tag: params[8] || "Herbs",
       inventory_quantity: Number(params[9] ?? 50),
       low_stock_threshold: Number(params[10] ?? 10),
@@ -2454,7 +2456,8 @@ export async function executeMockQuery(
       list = list.filter((o) => String(o.created_at || "").slice(0, 10) >= fromDate);
     }
     if (sqlLower.includes("created_at <= ?")) {
-      const toVal = String(params[paramIdx++] || "");
+      // Last read of this cursor: nothing reads it afterwards.
+      const toVal = String(params[paramIdx] || "");
       const toDate = toVal.slice(0, 10);
       list = list.filter((o) => String(o.created_at || "").slice(0, 10) <= toDate);
     }
@@ -2690,7 +2693,8 @@ export async function executeMockQuery(
       activeExp = activeExp.filter((e) => String(e.created_at || "").slice(0, 10) >= fromDate);
     }
     if (sqlLower.includes("created_at <= ?")) {
-      const toDate = String(params[expParamIdx++] || "").slice(0, 10);
+      // Last read of this cursor: nothing reads it afterwards.
+      const toDate = String(params[expParamIdx] || "").slice(0, 10);
       activeExp = activeExp.filter((e) => String(e.created_at || "").slice(0, 10) <= toDate);
     }
     if (sqlLower.includes("total_expenses") && sqlLower.includes("total_vendor_purchases")) {

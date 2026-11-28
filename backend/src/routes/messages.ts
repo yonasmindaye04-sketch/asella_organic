@@ -819,7 +819,7 @@ router.get("/unread", authenticate, async (req: Request, res: Response): Promise
     let announcementCount = 0;
 
     for (const msg of allRecent || []) {
-      if (Boolean(msg.is_direct)) {
+      if (msg.is_direct) {
         // Direct messages are counted via directUnreadsByUser
         continue;
       }

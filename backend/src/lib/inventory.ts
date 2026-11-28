@@ -253,38 +253,6 @@ function skippedItem(item: any, reason: SkippedOrderItem["reason"]): SkippedOrde
   };
 }
 
-async function resolveOrderItemsWithProducts(conn: PoolConnection, orderId: string): Promise<Array<{ quantity: number; product_id: string }>> {
-  const [rawItems] = await conn.query(
-    `SELECT product_id, item_name, package_size, quantity FROM order_items WHERE order_id = ?`,
-    [orderId]
-  ) as [any[], any];
-
-  const resolved: Array<{ quantity: number; product_id: string }> = [];
-
-  for (const item of rawItems) {
-    let matchedId: string | null = null;
-    if (item.product_id) {
-      const [byId] = await conn.query(
-        `SELECT id FROM products WHERE id = ? AND active = true LIMIT 1`,
-        [item.product_id]
-      ) as [any[], any];
-      if (byId[0]?.id) matchedId = byId[0].id;
-    }
-    if (!matchedId && item.item_name) {
-      const [byName] = await conn.query(
-        `SELECT id FROM products WHERE LOWER(name) = LOWER(?) AND package_size = ? AND active = true LIMIT 1`,
-        [item.item_name, item.package_size]
-      ) as [any[], any];
-      if (byName[0]?.id) matchedId = byName[0].id;
-    }
-    if (matchedId) {
-      resolved.push({ quantity: Number(item.quantity), product_id: matchedId });
-    }
-  }
-
-  return resolved;
-}
-
 /**
  * Deduct stock for all linked items in an order in a single transaction.
  *

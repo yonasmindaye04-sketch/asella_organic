@@ -58,7 +58,7 @@ const SmsDispatchPanel: React.FC<Props> = ({ campaignId, onDispatched, onCancel 
       } else {
         setError(res.error ?? 'Dispatch failed.');
       }
-    } catch (err) {
+    } catch {
       setError('A network error occurred.');
     } finally {
       setDispatching(false);
