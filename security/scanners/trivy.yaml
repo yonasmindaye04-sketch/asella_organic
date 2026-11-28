@@ -1,0 +1,44 @@
+api:
+  host: staging.example.com
+  scheme: https
+  port: 443
+
+# ── Certificate and transport ────────────────────────────────────────────────
+certificate:
+  min_version: TLS1.2
+  strict: true
+  timeout: 10s
+
+# ── Scan behaviour ───────────────────────────────────────────────────────────
+scan:
+  # Do not run the DoS templates. They take the target down and are never
+  # justified on a shared staging environment.
+  skip-dirs:
+    - node_modules
+    - dist
+    - coverage
+    - playwright-report
+    - security/reports
+  # Each scanner runs independently so a failure in one does not hide the rest.
+  scanners:
+    - vuln
+    - secret
+    - misconfig
+
+# ── Reporting ────────────────────────────────────────────────────────────────
+report:
+  format: table,json
+  severity:
+    - CRITICAL
+    - HIGH
+    - MEDIUM
+  exit-code: 1
+
+# ── Ignore findings that are design decisions, not defects ───────────────────
+# Add one line per accepted finding with the reason. Keep this list short and
+# justify every entry; an unbounded ignore list turns the scan into theatre.
+ignore:
+  # Example:
+  # - id: AVD-DS-0002
+  #   path: frontend/public/.htaccess
+  #   statement: "Header is required by the Cloudflare origin setup."

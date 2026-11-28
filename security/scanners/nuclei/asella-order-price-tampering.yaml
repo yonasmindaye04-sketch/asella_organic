@@ -1,0 +1,56 @@
+id: asella-order-price-tampering
+
+info:
+  name: Asella - Order total follows the client supplied unit price
+  author: asella-security
+  severity: critical
+  description: |
+    POST /api/orders accepts unit_price from the request and computes the
+    order total from it. The probe submits a price of 0.01 for a catalogue
+    item and checks whether the accepted total reflects it.
+  impact: |
+    Orders can be created at an arbitrary price. The same total drives revenue
+    reporting and the affiliate commission trigger, so this is a direct
+    financial loss.
+  remediation: |
+    Resolve the price from products.price inside the order transaction and
+    ignore any client-supplied price.
+  reference:
+    - https://cwe.mitre.org/data/definitions/472.html
+    - SECURITY_REVIEW.md#c
+  classification:
+    cwe: CWE-472
+  tags: asella,business-logic,staging-only
+
+requests:
+  - method: POST
+    path:
+      - "{{BaseURL}}/api/orders"
+    headers:
+      Content-Type: application/json
+      Origin: "{{BaseURL}}"
+    body: |
+      {
+        "customer_name": "Nuclei Price Probe",
+        "phone": "+251900000042",
+        "city": "Addis Ababa",
+        "location": "Nuclei Security Probe",
+        "source": "other",
+        "order_type": "delivery",
+        "items": [
+          {
+            "name": "Security Probe Item",
+            "package_size": "250g",
+            "quantity": 1,
+            "unit_price": 0.01
+          }
+        ]
+      }
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 201
+      - type: dsl
+        dsl:
+          - "contains(to_lower(body), '\"total\":0.01') || contains(to_lower(body), '\"total\": 0.01')"

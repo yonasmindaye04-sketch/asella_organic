@@ -1,0 +1,65 @@
+title = "Asella Organic — gitleaks configuration"
+
+# Start from the upstream default rules, then add the application-specific ones.
+[extend]
+useDefault = true
+
+# ── Application-specific rules ───────────────────────────────────────────────
+
+[[rules]]
+id = "asella-telegram-bot-token"
+description = "Telegram bot token committed to the repository"
+regex = '''\b\d{8,10}:[A-Za-z0-9_-]{35}\b'''
+keywords = ["telegram"]
+path = '''(?i)(telegram|bot)'''
+
+[[rules]]
+id = "asella-default-jwt-secret"
+description = "The JWT secret that is hard-coded as the application default"
+regex = '''asella-organic-(preview-jwt-secret-key-2026-secure|secret-key-change-in-production)'''
+keywords = ["asella-organic"]
+
+[[rules]]
+id = "asella-google-service-account-key"
+description = "Google service account private key committed to the repository"
+regex = '''"private_key"\s*:\s*"-----BEGIN [A-Z ]*PRIVATE KEY-----'''
+keywords = ["private_key", "service_account"]
+
+[[rules]]
+id = "asella-mysql-connection-string"
+description = "MySQL connection string with an embedded password"
+regex = '''mysql://[^:]+:[^@]+@'''
+keywords = ["mysql://"]
+
+# ── Allow lists ──────────────────────────────────────────────────────────────
+# Only paths that cannot contain real credentials are allowed out.
+
+[[allowlists]]
+description = "Generated and vendored directories"
+paths = [
+  '''node_modules/''',
+  '''dist/''',
+  '''build/''',
+  '''coverage/''',
+  '''playwright-report/''',
+  '''security/reports/''',
+  '''security/.env''',
+  '''\.min\.js$''',
+  '''\.map$''',
+]
+
+[[allowlists]]
+description = "Test fixtures and fixtures that contain deliberate test values"
+paths = [
+  '''backend/tests/fixtures/''',
+  '''tests/fixtures/''',
+  '''db/sql/''',
+]
+
+[[allowlists]]
+description = "Documentation examples"
+regexes = [
+  '''example\.com''',
+  '''your[-_]?api[-_]?key''',
+  '''xxxxx''',
+]

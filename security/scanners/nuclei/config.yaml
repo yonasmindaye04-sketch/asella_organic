@@ -1,0 +1,36 @@
+# Nuclei configuration — Asella Organic
+#
+# Copy to ~/.config/nuclei/config.yaml or pass with:
+#   nuclei -config security/scanners/nuclei/config.yaml -u "$SECURITY_TARGET" \
+#          -t security/scanners/nuclei/ -t cves/ -t misconfiguration/ -t exposures/
+#
+# Run against STAGING only for the active templates. The custom templates in
+# this folder are marked `tags: asella` and two of them create records.
+
+template:
+  # Keep the default community templates enabled.
+  no-remote: false
+
+# Rate limiting — staging must stay usable while you scan it.
+rate-limit: 10
+bulk-size: 5
+crawl-concurrency: 5
+headless:
+  enabled: false
+
+# Timeouts
+retries: 1
+timeout: 15
+
+# Do not hammer auth endpoints: the login limiter is 10 per 5 minutes.
+exclude-tags:
+  - dos
+  - fuzz
+  - headless
+
+# Report every match, including informational ones, so triage has the data.
+matcher-status: true
+disable-update-check: false
+
+# Offline mode: set true when there is no internet access.
+offline: false

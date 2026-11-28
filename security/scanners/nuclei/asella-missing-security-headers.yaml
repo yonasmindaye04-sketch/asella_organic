@@ -1,0 +1,35 @@
+id: asella-missing-security-headers
+
+info:
+  name: Asella - API response is missing security headers
+  author: asella-security
+  severity: medium
+  description: |
+    A dynamic API response is missing Strict-Transport-Security or
+    X-Content-Type-Options. Helmet normally sets both, so this points at a
+    route or proxy that strips them.
+  impact: |
+    Missing HSTS allows SSL stripping on first contact. Missing nosniff
+    allows MIME confusion on served content.
+  remediation: |
+    Keep the Helmet middleware first in the chain and re-assert the headers
+    in a belt-and-braces middleware, as described in ZAP_MITIGATION_PLAN.md.
+  reference:
+    - https://owasp.org/www-project-secure-headers/
+  classification:
+    cwe: CWE-693
+  tags: asella,headers,misconfiguration
+
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/health"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+          - 503
+      - type: dsl
+        dsl:
+          - "!contains(to_lower(all_headers), 'strict-transport-security') || !contains(to_lower(all_headers), 'x-content-type-options: nosniff')"

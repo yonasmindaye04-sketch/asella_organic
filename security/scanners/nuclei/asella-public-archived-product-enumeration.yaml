@@ -1,0 +1,33 @@
+id: asella-public-archived-product-enumeration
+
+info:
+  name: Asella - Archived products are enumerable without authentication
+  author: asella-security
+  severity: medium
+  description: |
+    GET /api/products accepts an active query parameter. The public route has
+    no role guard, so ?active=false returns archived and discontinued items.
+  impact: |
+    The full historical catalogue, including products withdrawn for supply,
+    quality, or commercial reasons, is readable by anyone.
+  remediation: |
+    Ignore the active parameter for anonymous callers and require an
+    admin/manager role for archived listings.
+  reference:
+    - https://cwe.mitre.org/data/definitions/200.html
+  classification:
+    cwe: CWE-200
+  tags: asella,exposure
+
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/products?active=false&limit=5"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: dsl
+        dsl:
+          - "contains(to_lower(body), '\"active\":0') || contains(to_lower(body), '\"active\": false')"
