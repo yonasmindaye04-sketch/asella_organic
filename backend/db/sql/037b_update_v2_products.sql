@@ -1,10 +1,27 @@
 -- ===================================================================
--- 055_update_v2_products.sql
+-- 037b_update_v2_products.sql
 -- Asella Organic — Canonical v2 Catalog Upsert (Groups & Products)
 --
 -- Source of truth: backend/data/catalog-active.csv
 -- 23 canonical product groups & 36 canonical product variants.
 -- Fully idempotent (INSERT ... ON DUPLICATE KEY UPDATE).
+--
+-- RENAMED from 055_update_v2_products.sql. The catalogue has to be in
+-- place before 041_v2_unique_active_variant.sql, which adds the unique
+-- index over (product_group_id, package_size) and therefore refuses to
+-- run while an active product still has no group. On a fresh database
+-- the product_groups table is empty at that point, so the next migration
+-- in order - 055 - never got the chance to fill it, and the migration
+-- queue stopped there. Renumbering the file so it runs between 037 and
+-- 038 puts the catalogue in place first. It is idempotent, so a
+-- database that already ran it as 055 simply runs it again.
+--
+-- inventory_quantity and active are no longer overwritten on conflict.
+-- Live stock and staff deactivations are business state, not catalogue
+-- attributes, and the trg_prevent_direct_stock_update trigger refuses
+-- the direct update anyway. Insertion still sets the opening stock, so
+-- a fresh database gets the catalogue as the CSV describes it. This
+-- mirrors what 006_clean_products.sql already does.
 -- ===================================================================
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -134,13 +151,11 @@ ON DUPLICATE KEY UPDATE
   image_url           = VALUES(image_url),
   featured            = VALUES(featured),
   tag                 = VALUES(tag),
-  inventory_quantity  = VALUES(inventory_quantity),
   low_stock_threshold = VALUES(low_stock_threshold),
-  active              = VALUES(active),
   active_unique       = VALUES(active_unique),
   updated_at          = VALUES(updated_at);
 
 -- ── 3. Migration Log Entry ────────────────────────────────────────
-INSERT IGNORE INTO migrations_log (filename) VALUES ('055_update_v2_products.sql');
-SELECT '055_update_v2_products.sql applied' AS result;
+INSERT IGNORE INTO migrations_log (filename) VALUES ('037b_update_v2_products.sql');
+SELECT '037b_update_v2_products.sql applied' AS result;
 SET FOREIGN_KEY_CHECKS=1;
