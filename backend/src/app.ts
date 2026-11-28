@@ -58,16 +58,35 @@ import cspConfig from "../../csp-config.js";
 // Behind Cloudflare (and any reverse proxy) the client IP is in
 // x-forwarded-for. Without this, req.ip is the proxy's address and the rate
 // limiter collapses every customer into a single bucket.
-// TRUST_PROXY accepts a hop count ("1") or "true". Defaults to 1 hop, which is
-// correct for Cloudflare -> origin. Set to "false"/"0" when running with no
-// proxy so a spoofed header cannot influence the key.
-const trustProxyRaw = (process.env.TRUST_PROXY ?? "1").trim().toLowerCase();
+// TRUST_PROXY accepts a hop count ("1") or "true".
+//
+// ASE-2026-010: this used to default to 1 hop, which is only correct if a
+// proxy really is in front. When the app is reached directly, a hop count
+// of 1 means Express trusts the caller's own x-forwarded-for header — so
+// the caller chooses the address the rate limiters bucket on, and the
+// login limiter (10 attempts per 5 minutes) can be walked straight around
+// by sending a new header with every request.
+//
+// The default is now to trust NOTHING. Behind Cloudflare, set TRUST_PROXY=1
+// (or 2 when the origin sits behind a second proxy); with nothing in front,
+// leave it unset and the peer address is used. The effective value is
+// logged at startup, and production warns when it is left unset, because
+// that is the case where every customer shares one rate-limit bucket.
+const trustProxyRaw = (process.env.TRUST_PROXY ?? "0").trim().toLowerCase();
 const trustProxy =
   trustProxyRaw === "false" || trustProxyRaw === "0" ? false
   : trustProxyRaw === "true" ? true
   : Number.isNaN(Number(trustProxyRaw)) ? false
   : Number(trustProxyRaw);
 app.set("trust proxy", trustProxy);
+
+console.log(
+  `Trust proxy: ${trustProxy === false ? "disabled (peer address used)" : trustProxy}` +
+  (isProduction && !trustProxy
+    ? " — WARNING: in production, set TRUST_PROXY=1 when a proxy (Cloudflare) is in " +
+      "front of this app, otherwise every client shares one rate-limit bucket."
+    : "")
+);
 
 // ── 1. Security headers (helmet) — must be first ──────────────────────────────
 app.use(helmet({

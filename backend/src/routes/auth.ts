@@ -53,6 +53,21 @@ const REFRESH_COOKIE: CookieOptions = {
 
 const CLEAR_OPTS: CookieOptions = { httpOnly: true, secure: IS_PROD, sameSite: "strict", path: "/" };
 
+/**
+ * Mark a response that carries a session token as uncacheable.
+ *
+ * ASE-2026-024: /api/auth/login returned a live access token and refresh
+ * token with no cache directives. Any shared cache between the client and
+ * the API — a CDN, a corporate proxy, a browser's back/forward cache —
+ * was free to keep the body and hand the same tokens to the next person
+ * who asked for them. A response that carries a credential says so.
+ */
+function noStore(res: Response): void {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+}
+
 // ── Audit helper ──────────────────────────────────────────────────────────────
 async function audit(
   actor:  string,
@@ -110,6 +125,9 @@ router.post("/login", loginRateLimit, validate(LoginSchema),
       `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)`,
       [tokenId, user.id, tokenHash, expiresAt]
     );
+
+    // This body carries live session tokens — no cache may keep it.
+    noStore(res);
 
     // ── Set HttpOnly cookies (browser clients) ────────────────────────────
     res.cookie("access_token",  accessToken,  ACCESS_COOKIE);
@@ -189,6 +207,9 @@ router.post("/refresh", async (req: Request, res: Response): Promise<void> => {
   res.cookie("refresh_token", newTokens.refreshToken, REFRESH_COOKIE);
 
   log.info("Token refreshed", { userId: record.user_id });
+
+  // This body carries live session tokens — no cache may keep it.
+  noStore(res);
 
   res.json({
     success: true,

@@ -75,10 +75,23 @@ async function check(
   return bucket.count <= max;
 }
 
+/**
+ * The client address a rate-limit bucket is keyed on.
+ *
+ * ASE-2026-010: this used to read `x-forwarded-for` directly and take its
+ * FIRST entry. That entry is chosen by the caller, so every request could
+ * carry a different one and land in a different bucket — which switched the
+ * rate limiters off. The login limiter allows 10 attempts per 5 minutes per
+ * bucket, so with a header the caller could try unlimited passwords.
+ *
+ * `req.ip` is the address Express computes under the app's single
+ * `trust proxy` policy (see app.ts). Behind Cloudflare with TRUST_PROXY=1
+ * that is the client address Cloudflare recorded, not the caller's claim;
+ * with TRUST_PROXY=0 it is the socket address. Either way the caller
+ * cannot choose it.
+ */
 function getIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") return (forwarded.split(",")[0] ?? "unknown").trim();
-  return req.socket.remoteAddress ?? "unknown";
+  return req.ip || req.socket.remoteAddress || "unknown";
 }
 
 /**
