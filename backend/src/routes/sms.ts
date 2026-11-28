@@ -769,14 +769,6 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
   const log = createLogger(req);
   try {
-    if (!isSmsConfigured()) {
-      res.status(503).json({
-        success: false,
-        error: `${activeSmsProviderName()} is not configured`,
-      });
-      return;
-    }
-
     const { to, text } = req.body as { to: string; text: string };
 
     const [customerRows] = await pool.query(
@@ -784,12 +776,28 @@ router.post(
       [to.replace(/\s+/g, "")],
     ) as [any[], any];
 
+    // The opt-out check comes BEFORE the provider check.
+    //
+    // A hard opt-out is a compliance decision about the recipient, not
+    // about the provider: "this customer has opted out of all SMS" is true
+    // whether or not a provider is configured. Answering 503 first meant
+    // that on a box without credentials the guard was never reached — and
+    // the refusal was decided by the server's configuration rather than by
+    // the customer's consent.
     const hardOptOut = customerRows[0]
       ? await hasHardOptOut(customerRows[0].id)
       : false;
 
     if (hardOptOut) {
       res.status(409).json({ success: false, error: "This customer has opted out of all SMS" });
+      return;
+    }
+
+    if (!isSmsConfigured()) {
+      res.status(503).json({
+        success: false,
+        error: `${activeSmsProviderName()} is not configured`,
+      });
       return;
     }
 

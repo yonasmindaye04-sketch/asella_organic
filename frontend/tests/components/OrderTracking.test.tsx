@@ -124,11 +124,20 @@ describe("OrderTracking — source filter & badges", () => {
   it("status counter bar shows correct totals", async () => {
     renderOrderTracking();
     await waitFor(() => {
-      // 4 total orders
-      expect(screen.getByText("4")).toBeInTheDocument();
-      // 2 Pending (ORD-001 and ORD-004)
-      expect(screen.getByText("2")).toBeInTheDocument();
+      expect(screen.getByText("Abebe G")).toBeInTheDocument();
     });
+
+    // The stat bar renders each label with its value as the next sibling.
+    // Reading the value that way keeps the assertion on the counter bar:
+    // a plain getByText("4") also matches the sidebar's pending badge,
+    // which shows the same number.
+    const statValue = (label: string) =>
+      screen.getByText(label, { selector: "div" }).nextElementSibling;
+
+    // 4 total orders
+    expect(statValue("All Orders")).toHaveTextContent(/^4$/);
+    // 2 Pending (ORD-001 and ORD-004)
+    expect(statValue("Pending")).toHaveTextContent(/^2$/);
   });
 
   it("shows error message on API failure", async () => {

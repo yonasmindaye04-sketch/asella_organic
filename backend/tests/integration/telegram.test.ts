@@ -11,6 +11,9 @@ import crypto from "crypto";
 const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET ?? "test-secret";
 const testOrderId = `ORD-TGTEST-${Date.now()}`;
 const testVendorOrderId = `VO-TGTEST-${Date.now()}`;
+// A second, still-pending PO: the first one is accepted by the test above,
+// and a PO that has already been accepted can no longer be declined.
+const testVendorOrderIdToDecline = `VO-TGTEST-DECLINE-${Date.now()}`;
 let updateCounter = Date.now();
 
 function nextUpdateId() {
@@ -38,6 +41,13 @@ beforeAll(async () => {
      VALUES (UUID(), ?, 'Test Vendor', 'Test Item', '50 units', 1000, 'pending')`,
     [testVendorOrderId]
   );
+
+  // ...and a second one, left pending, for the decline test.
+  await pool.query(
+    `INSERT INTO vendor_orders (id, order_id, vendor_name, item, amount, price, status)
+     VALUES (UUID(), ?, 'Test Vendor', 'Test Item', '50 units', 1000, 'pending')`,
+    [testVendorOrderIdToDecline]
+  );
 });
 
 afterAll(async () => {
@@ -45,6 +55,7 @@ afterAll(async () => {
   await pool.query(`DELETE FROM order_items WHERE order_id = ?`, [testOrderId]).catch(() => {});
   await pool.query(`DELETE FROM orders WHERE id = ?`, [testOrderId]).catch(() => {});
   await pool.query(`DELETE FROM vendor_orders WHERE order_id = ?`, [testVendorOrderId]).catch(() => {});
+  await pool.query(`DELETE FROM vendor_orders WHERE order_id = ?`, [testVendorOrderIdToDecline]).catch(() => {});
   await pool.query(`DELETE FROM webhook_events WHERE update_id > ${updateCounter - 100}`).catch(() => {});
   await pool.query(`DELETE FROM telegram_users WHERE username = 'test_tg_user'`).catch(() => {});
   await pool.end();
@@ -225,7 +236,7 @@ describe("POST /api/telegram/webhook — PO callbacks", () => {
         callback_query: {
           id: "cb_po_decline",
           from: { id: 222222 },
-          data: `po_decline_${testVendorOrderId}`,
+          data: `po_decline_${testVendorOrderIdToDecline}`,
           message: { message_id: 1003, text: "PO", date: Math.floor(Date.now() / 1000) },
         },
       });
@@ -233,7 +244,7 @@ describe("POST /api/telegram/webhook — PO callbacks", () => {
 
     const [rows] = await pool.query(
       `SELECT status FROM vendor_orders WHERE order_id = ?`,
-      [testVendorOrderId]
+      [testVendorOrderIdToDecline]
     ) as [any[], any];
     expect(rows[0]?.status).toBe("cancelled");
   });
