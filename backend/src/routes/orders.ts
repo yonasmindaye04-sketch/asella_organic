@@ -1148,11 +1148,14 @@ router.delete(
     // client's IP (respecting X-Forwarded-For if behind a proxy).
     // deleted_reason is optional — admins can pass it via the JSON
     // body to document WHY they deleted the order.
+    //
+    // ASE-2026-010: the address recorded here used to be parsed straight
+    // out of x-forwarded-for, whose first entry is whatever the caller
+    // typed. The audit trail could therefore record any address at all.
+    // `req.ip` is the address Express computes under the app's trust-proxy
+    // policy, so it cannot be chosen by the caller.
     const userId = (req as any).user?.id ?? null;
-    const forwarded = req.headers["x-forwarded-for"];
-    const ip = (typeof forwarded === "string"
-      ? (forwarded.split(",")[0] ?? "").trim()
-      : req.socket.remoteAddress) || null;
+    const ip = req.ip || req.socket.remoteAddress || null;
     const reason = (req.body as any)?.reason ?? null;
 
     const [result] = await pool.query(

@@ -44,6 +44,18 @@ const EnvSchema = z.object({
 
   // ── Frontend ──────────────────────────────────────────────
   ALLOWED_ORIGINS: z.string().default("http://localhost:5173,http://localhost:3000"),
+  // Extra origins allowed to call this API cross-origin OUTSIDE
+  // production, named one by one.
+  //
+  // ASE-2026-011: the allowlist used to trust any host under
+  // *.trycloudflare.com / *.ngrok.io / *.run.app and friends. Those
+  // suffixes are free to claim, and the same list is the CSRF Origin
+  // check, so the wildcard handed any of them a trusted channel to the
+  // API. Name the origins you actually run instead.
+  //
+  // The origin of TELEGRAM_MINIAPP_URL is trusted automatically outside
+  // production — it is already an operator-set URL.
+  PREVIEW_ORIGINS: z.string().optional().or(z.literal("")),
 
   // ── Telegram ─────────────────────────────────────────────
   TELEGRAM_BOT_TOKEN: z.string().min(20, "TELEGRAM_BOT_TOKEN looks too short").optional().or(z.literal("")),
