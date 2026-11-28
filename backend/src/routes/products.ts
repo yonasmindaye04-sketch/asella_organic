@@ -224,7 +224,7 @@ router.get("/grouped", apiCache, async (req: Request, res: Response): Promise<vo
           active: Boolean(row.group_active ?? row.active),
           variants: [],
         });
-      } else if (Boolean(row.featured)) {
+      } else if (row.featured) {
         groupsMap.get(key)!.featured = true;
       }
 

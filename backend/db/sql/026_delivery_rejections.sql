@@ -15,6 +15,46 @@ CREATE INDEX idx_delivery_rejections_driver ON delivery_rejections(driver_userna
 CREATE INDEX idx_delivery_rejections_order  ON delivery_rejections(order_id);
 
 -- Indexes to speed up delivery-performance aggregation queries.
-CREATE INDEX IF NOT EXISTS idx_orders_assigned_status ON orders(assigned_to, status);
-CREATE INDEX IF NOT EXISTS idx_orders_delivery_date   ON orders(delivery_date);
-CREATE INDEX IF NOT EXISTS idx_orders_city_location   ON orders(city, location);
+--
+-- CREATE INDEX IF NOT EXISTS is MariaDB-only. MySQL 8 rejects it with a
+-- syntax error, and this migration is the one that stops the whole queue
+-- on a MySQL host, because the runner applies the files in order and
+-- gives up on the first failure. The information_schema guard runs on
+-- both engines and keeps the file re-runnable, which is the property the
+-- IF NOT EXISTS was there to provide.
+DROP PROCEDURE IF EXISTS add_orders_delivery_indexes;
+
+DELIMITER $$
+CREATE PROCEDURE add_orders_delivery_indexes()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'orders'
+          AND INDEX_NAME   = 'idx_orders_assigned_status'
+    ) THEN
+        CREATE INDEX idx_orders_assigned_status ON orders(assigned_to, status);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'orders'
+          AND INDEX_NAME   = 'idx_orders_delivery_date'
+    ) THEN
+        CREATE INDEX idx_orders_delivery_date ON orders(delivery_date);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'orders'
+          AND INDEX_NAME   = 'idx_orders_city_location'
+    ) THEN
+        CREATE INDEX idx_orders_city_location ON orders(city, location);
+    END IF;
+END$$
+DELIMITER ;
+
+CALL add_orders_delivery_indexes();
+DROP PROCEDURE IF EXISTS add_orders_delivery_indexes;

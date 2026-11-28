@@ -694,7 +694,7 @@ router.get(
       const fullName = profile.full_name?.trim() || "";
       const storeLoc = profile.location?.trim() || "";
 
-      let data: Record<string, any> = {
+      const data: Record<string, any> = {
         role,
         range: { from, to },
         user: {

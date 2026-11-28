@@ -640,7 +640,7 @@ function normalizeProductName(rawName?: string, rawPkg?: string): string {
 
   // Canonical title casing for well-known catalog products
   const lower = name.toLowerCase();
-  let canonicalBase = name;
+  let canonicalBase: string;
   if (lower.includes("moringa powder")) canonicalBase = "Moringa Powder";
   else if (lower.includes("moringa seed")) canonicalBase = "Moringa Seed";
   else if (lower.includes("chia seed")) canonicalBase = "Chia Seed";

@@ -83,6 +83,9 @@ import {
 // Pure formatters
 // ─────────────────────────────────────────────────────────────────────────────
 
+// The delivery messages escape Markdown special characters, so an id
+// like ORD-1 is written ORD\-1 in the body. Telegram strips the escape
+// when it renders the message.
 describe("formatGroupDeliveryMessage", () => {
   it("formats an order with items into a delivery-group summary", () => {
     const order = {
@@ -97,18 +100,18 @@ describe("formatGroupDeliveryMessage", () => {
     };
     const text = formatGroupDeliveryMessage(order);
     expect(text).toContain("*New Delivery Order*");
-    expect(text).toContain("*Order:* ORD-1");
+    expect(text).toContain("*Order:* ORD\\-1");
     expect(text).toContain("*City:* Addis Ababa");
     expect(text).toContain("*Location:* Bole");
     expect(text).toContain("Moringa");
-    expect(text).toContain("[250g] × 2");
+    expect(text).toContain("(250g) x 2");
     expect(text).toContain("Turmeric");
-    expect(text).toContain("[100g] × 1");
+    expect(text).toContain("(100g) x 1");
   });
 
   it("falls back to 'Std' size and 'Item' name when fields are missing", () => {
     const text = formatGroupDeliveryMessage({ id: "X", items: [{}] });
-    expect(text).toContain("• Item [Std] × 1");
+    expect(text).toContain("- Item (Std) x 1");
   });
 
   it("uses 'No items listed' when items array is empty", () => {
@@ -144,9 +147,9 @@ describe("formatPrivateDeliveryMessage", () => {
       items: [{ name: "Honey", package_size: "500g", quantity: 1 }],
     });
     expect(text).toContain("*DELIVERY ORDER");
-    expect(text).toContain("*Order ID:* `ORD-99`");
-    expect(text).toContain("*Customer:* Yonas T.");
-    expect(text).toContain("*Phone:* +251911223344");
+    expect(text).toContain("*Order ID:* `ORD\\-99`");
+    expect(text).toContain("*Customer:* Yonas T\\.");
+    expect(text).toContain("*Phone:* \\+251911223344");
     expect(text).toContain("*Address:* Bole, Addis Ababa");
     expect(text).toContain("*Order Type:* Online");
     expect(text).toContain("*Total:* ETB 1750");

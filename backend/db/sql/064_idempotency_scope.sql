@@ -31,8 +31,30 @@
 DELETE FROM idempotency_keys;
 
 -- 2. Add the caller scope.
-ALTER TABLE idempotency_keys
-    ADD COLUMN IF NOT EXISTS scope_key VARCHAR(80) NOT NULL DEFAULT '' AFTER user_id;
+--
+-- ALTER TABLE ... ADD COLUMN IF NOT EXISTS is MariaDB-only; MySQL 8
+-- rejects it with a syntax error. The information_schema guard runs on
+-- both engines and keeps the file re-runnable, which is the property the
+-- IF NOT EXISTS was there to provide.
+DROP PROCEDURE IF EXISTS add_idempotency_scope_key;
+
+DELIMITER $$
+CREATE PROCEDURE add_idempotency_scope_key()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'idempotency_keys'
+          AND COLUMN_NAME  = 'scope_key'
+    ) THEN
+        ALTER TABLE idempotency_keys
+            ADD COLUMN scope_key VARCHAR(80) NOT NULL DEFAULT '' AFTER user_id;
+    END IF;
+END$$
+DELIMITER ;
+
+CALL add_idempotency_scope_key();
+DROP PROCEDURE IF EXISTS add_idempotency_scope_key;
 
 -- 3. Replace the global unique key with a per-caller one.
 ALTER TABLE idempotency_keys

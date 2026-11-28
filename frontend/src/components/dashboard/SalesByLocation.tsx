@@ -44,17 +44,21 @@ function ShareRing({ slices, topShare }: { slices: LocationStat[]; topShare: num
   const circumference = 2 * Math.PI * radius;
   const gap = 3;
 
-  let cursor = 0;
-  const segments = slices.map((slice) => {
+  // The offset of each slice is the sum of the slices before it. It is
+  // computed that way rather than with a running cursor, because a cursor
+  // that is mutated inside the map callback is a value the React compiler
+  // refuses to reason about.
+  const segments = slices.map((slice, index) => {
     const length = (slice.percentage / 100) * circumference;
-    const segment = {
+    const offset = slices
+      .slice(0, index)
+      .reduce((sum, earlier) => sum + (earlier.percentage / 100) * circumference, 0);
+    return {
       city: slice.city,
       color: slice.color,
-      offset: cursor,
+      offset,
       dash: slices.length === 1 ? circumference : Math.max(length - gap, 0.75),
     };
-    cursor += length;
-    return segment;
   });
 
   return (
