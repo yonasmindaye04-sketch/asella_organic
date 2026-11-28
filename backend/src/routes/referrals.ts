@@ -675,10 +675,15 @@ router.delete("/affiliates/:id", require2FA, async (req, res) => {
       );
     }
 
-    // Referral codes must stay unique; free the code for reuse.
+    // Referral codes must stay unique; free the code for reuse. The old
+    // code plus a suffix was longer than the column - referral_code is
+    // VARCHAR(20) - which MySQL 8 rejects in strict mode. It was only
+    // ever truncated, silently, on MariaDB. The tombstone is derived
+    // from the row id instead: unique, always within the column, and the
+    // original code is free again.
     await connection.query(
       `UPDATE affiliate_profiles
-       SET referral_code = CONCAT(referral_code, '-RETIRED-', LEFT(id, 8))
+       SET referral_code = CONCAT('RETIRED-', LEFT(id, 8))
        WHERE id = ?`,
       [affiliateId]
     );

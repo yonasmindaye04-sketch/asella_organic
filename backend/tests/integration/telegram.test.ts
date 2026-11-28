@@ -8,7 +8,12 @@ import app from "../../src/app.js";
 import pool from "../../src/config/db.js";
 import crypto from "crypto";
 
-const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET ?? "test-secret";
+// The route compares the header against process.env.TELEGRAM_WEBHOOK_SECRET,
+// so the test has to put the same value there. CI has no .env file and the
+// variable is unset there, in which case every webhook was rejected with
+// "invalid secret token" and the update never reached the database.
+process.env.TELEGRAM_WEBHOOK_SECRET ??= "test-secret";
+const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 const testOrderId = `ORD-TGTEST-${Date.now()}`;
 const testVendorOrderId = `VO-TGTEST-${Date.now()}`;
 // A second, still-pending PO: the first one is accepted by the test above,
