@@ -110,22 +110,32 @@ export async function recordMovement(
     }
 
     const previousQty = product.inventory_quantity as number;
-    const newQty      = previousQty + options.changeAmount;
+    const requestedQty = previousQty + options.changeAmount;
 
     // ── 2. Guard against negative stock ─────────────────────────
-    // When allowNegative is false (default), we throw before any mutation.
-    // When allowNegative is true (damage_loss/write-off), we allow the
-    // negative change to be recorded exactly as requested — no silent
-    // clamping, which would decouple products.inventory_quantity from
-    // the inventory_movements ledger and cause permanent drift.
-    if (!options.allowNegative && newQty < 0) {
+    //
+    // products.inventory_quantity carries a CHECK (inventory_quantity >= 0)
+    // constraint (migration 001), so the quantity on hand can never be
+    // negative — a negative write-off does not just look odd, the UPDATE
+    // is rejected by the database and the movement is lost.
+    //
+    // When allowNegative is false (default) the movement that would take
+    // the stock below zero is refused before anything is written.
+    //
+    // When allowNegative is true (a damage loss or write-off larger than
+    // the stock on hand) the stock is floored at zero and the movement is
+    // recorded with the delta that was actually applied, so the ledger and
+    // products.inventory_quantity stay in step. The amount that was asked
+    // for is kept in the notes, so nothing about the write-off is lost.
+    if (!options.allowNegative && requestedQty < 0) {
       throw new Error(
         `Insufficient stock for "${product.name}" (${product.package_size}). ` +
         `Current: ${previousQty}, requested change: ${options.changeAmount}.`
       );
     }
 
-    const finalQty = newQty;
+    const finalQty     = Math.max(0, requestedQty);
+    const appliedChange = finalQty - previousQty;
 
     // ── 3. Update products.inventory_quantity ────────────────────
     // The trg_prevent_direct_stock_update trigger (migration 046) rejects
@@ -157,7 +167,22 @@ export async function recordMovement(
     );
 
     // ── 5. Insert inventory_movement audit row ───────────────────
+    //
+    // change_amount is the delta that was actually applied, so the sum of a
+    // product's movements always equals the quantity on hand. When a write-off
+    // asked for more than the stock, the amount it asked for is kept in the
+    // notes.
     const movementId = crypto.randomUUID();
+    const clampedNotes =
+      appliedChange === options.changeAmount
+        ? options.notes ?? null
+        : [
+            options.notes ?? null,
+            `requested ${options.changeAmount}, applied ${appliedChange} (stock floored at zero)`,
+          ]
+            .filter(Boolean)
+            .join(" — ");
+
     await conn.query(
       `INSERT INTO inventory_movements
          (id, product_id, movement_type, change_amount, reason,
@@ -167,11 +192,11 @@ export async function recordMovement(
         movementId,
         options.productId,
         options.type,
-        options.changeAmount,
+        appliedChange,
         options.reason,
         options.performedBy  ?? null,
         finalQty,
-        options.notes        ?? null,
+        clampedNotes,
         options.referenceId  ?? null,
         options.referenceType ?? null,
       ]

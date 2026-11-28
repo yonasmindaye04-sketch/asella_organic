@@ -142,11 +142,15 @@ describe("GET /api/stock/movements", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 403 for employee role (needs admin/manager)", async () => {
+  it("allows the employee role — stock management was granted to employees", async () => {
     const res = await request(app)
       .get("/api/stock/movements")
       .set("Authorization", `Bearer ${employeeToken}`);
-    expect(res.status).toBe(403);
+    // 004f1af ("grant stock & inventory management … privileges") widened
+    // this route from admin/manager to admin/manager/employee/store_manager/
+    // call_center. The movement log carries quantities, reasons and actors —
+    // no unit cost or stock value — so employees need it to do their job.
+    expect(res.status).toBe(200);
   });
 
   it("returns paginated movement log for admin", async () => {
