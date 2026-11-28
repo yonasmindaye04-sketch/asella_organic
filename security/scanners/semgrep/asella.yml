@@ -1,0 +1,198 @@
+---
+# Semgrep rules — Asella Organic
+#
+# These encode the patterns this codebase has already surfaced, so a
+# regression is caught at review time rather than in a quarterly scan.
+#
+# Run:
+#   semgrep --config security/scanners/semgrep/asella.yml \
+#           --config p/security-audit backend/src
+#
+# The generic p/security-audit ruleset covers the usual OWASP patterns.
+# This file covers the application-specific ones.
+
+rules:
+  # ── Authorization ────────────────────────────────────────────────────────
+  - id: asella-blanket-role-bypass
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      A role bypasses every authorise() check. A role granted here reaches
+      every guarded route in the application, including financial and
+      credential-management endpoints. List the role explicitly on each route
+      that needs it instead.
+    metadata:
+      cwe: "CWE-269: Management of Privilege Boundaries"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      asella-ref: "SECURITY_REVIEW.md"
+    patterns:
+      - pattern-regex: 'role\s*===?\s*["'']tech_support["'']\s*\)\s*\{'
+
+  - id: asella-role-list-missing-2fa
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      A route that changes roles, passwords, or deletes records should be
+      protected by require2FA in addition to authorise().
+    metadata:
+      cwe: "CWE-308: Use of Single-factor Authentication"
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+    pattern-either:
+      - pattern: |
+          router.post($PATH, authenticate, authorise($ROLES), $HANDLER)
+          ...
+      - pattern: |
+          router.patch($PATH, authenticate, authorise($ROLES), $HANDLER)
+          ...
+    paths:
+      include:
+        - "**/routes/staff.ts"
+
+  # ── Secrets and configuration ────────────────────────────────────────────
+  - id: asella-default-jwt-secret
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      JWT_SECRET has a built-in default. If the environment variable is
+      missing, the application starts with a secret that is published in the
+      repository. Anyone with that secret can mint a token for any user.
+    metadata:
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: CRITICAL
+      asella-ref: "backend/src/config/env.ts"
+    pattern-regex: 'JWT_SECRET\s*:\s*z\.string\([^)]*\)[^;]*\.default\('
+
+  - id: asella-client-controlled-price
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      unit_price is accepted from the request and the order total is computed
+      from it. Resolve the price from the catalogue inside the transaction so
+      the client cannot set revenue or commission amounts.
+    metadata:
+      cwe: "CWE-472: External Control of Assumed-Immutable Web Parameter"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: CRITICAL
+      asella-ref: "SECURITY_REVIEW.md C"
+    pattern-regex: 'unit_price\s*:\s*z\.coerce\.number\(\)\.min\(0\)'
+
+  - id: asella-client-supplied-client-ip
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      A client-supplied header is used to derive the request IP. If the origin
+      is reachable without the proxy, a client can forge a fresh rate-limit
+      bucket on every request. Use req.ip with a correct trust-proxy setting.
+    metadata:
+      cwe: "CWE-807: Reliance on Untrusted Inputs in a Security Decision"
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: MEDIUM
+      asella-ref: "SECURITY_REVIEW.md D"
+    pattern-regex: 'headers\[["'']x-forwarded-for["'']\]'
+    paths:
+      include:
+        - "**/middleware/rateLimit.ts"
+
+  - id: asella-cors-tunnel-wildcard
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      A tunnel hostname is trusted as a CORS origin. Tunnel URLs are
+      publicly guessable and are handed out to anyone who starts a tunnel.
+      Allow-list the exact staging origins instead.
+    metadata:
+      cwe: "CWE-942: Permissive Cross-domain Policy"
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+    pattern-regex: '(ngrok\.io|trycloudflare\.com)'
+
+  - id: asella-global-idempotency-key
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      Idempotency rows are stored with a NULL user id, so keys are global
+      across all clients. A key collision returns another client's cached
+      response. Scope keys to the authenticated principal.
+    metadata:
+      cwe: "CWE-294: Authentication Bypass by Capture-replay"
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: MEDIUM
+      asella-ref: "SECURITY_REVIEW.md L"
+    pattern-regex: 'user_id\s+IS\s+NULL'
+
+  # ── Error handling and information disclosure ────────────────────────────
+  - id: asella-raw-error-message-to-client
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      A raw exception message is returned to the client. Database errors
+      include table and column names. Return a generic message and log the
+      detail server-side.
+    metadata:
+      cwe: "CWE-209: Generation of Error Message Containing Sensitive Information"
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: MEDIUM
+    pattern-regex: 'res\.status\(500\)\.json\(\{\s*success:\s*false,\s*error:\s*(err|error)\.message'
+
+  - id: asella-jwt-verify-without-algorithm-list
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      jwt.verify is called without pinning the accepted algorithms. Pass
+      { algorithms: ['HS256'] } so a token cannot select its own algorithm.
+    metadata:
+      cwe: "CWE-347: Improper Verification of Cryptographic Signature"
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: HIGH
+    patterns:
+      - pattern: jwt.verify(...)
+      - pattern-not: jwt.verify(..., { ..., algorithms: [...], ... })
+      - pattern-not: jwt.verify(..., { algorithms: [...], ... })
+
+  # ── Cryptography ─────────────────────────────────────────────────────────
+  - id: asella-weak-password-hash
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      A fast hash is used where a password hash belongs. Use bcrypt, scrypt,
+      or argon2.
+    metadata:
+      cwe: "CWE-916: Use of Password Hash With Insufficient Computational Effort"
+      confidence: HIGH
+      likelihood: HIGH
+      impact: CRITICAL
+    pattern-either:
+      - pattern: crypto.createHash("md5", ...)
+      - pattern: crypto.createHash("sha1", ...)
+
+  - id: asella-weak-randomness-for-token
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      Math.random() is used for a security-sensitive value. Use
+      crypto.randomBytes or crypto.randomUUID.
+    metadata:
+      cwe: "CWE-338: Use of Cryptographically Weak PRNG"
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: MEDIUM
+    pattern-either:
+      - pattern: Math.random()
+      - pattern: Math.random().toString(36)
+    paths:
+      include:
+        - "**/routes/**"
+        - "**/middleware/**"
+        - "**/lib/**"

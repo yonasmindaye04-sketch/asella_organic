@@ -1,0 +1,97 @@
+---
+# ZAP Automation Framework plan — Asella Organic
+#
+# Usage (staging only):
+#   docker run --rm -v "$PWD/security/scanners/zap:/zap/wrk" \
+#     -v "$PWD/security/reports:/zap/wrk/reports" \
+#     ghcr.io/zaproxy/zap-stable:latest \
+#     zap.sh -cmd automation.run -autorun /zap/wrk/automation.yaml
+#
+# The target is read from the ZAP_TARGET environment variable:
+#   docker run --rm -e ZAP_TARGET=https://staging.example.com ...
+#
+# IMPORTANT
+#   * Run this against staging only. Never point it at production.
+#   * The plan excludes the webhook and payment callback paths, which are
+#     external POST targets and would generate false positives.
+#   * Authenticated scanning is not covered here; see README.md for the
+#     replayer and authentication helper setup.
+
+env:
+  contexts:
+    - name: staging
+      urls:
+        - ${ZAP_TARGET}
+      includePaths:
+        - ${ZAP_TARGET}.*
+      excludePaths:
+        - ${ZAP_TARGET}/api/telegram/webhook
+        - ${ZAP_TARGET}/api/payment/callback
+        - ${ZAP_TARGET}/api/orders/track/.*
+      authentication:
+        method: "none"
+      sessionManagement:
+        method: "cookie"
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+    showProgressToStdout: true
+
+jobs:
+  # 1. Traditional crawl.
+  - type: spider
+    parameters:
+      context: staging
+      user: ""
+      maxDuration: 5
+      maxDepth: 12
+      maxChildren: 30
+      acceptCookies: true
+      handleODataDynamicDocuments: false
+
+  # 2. AJAX spider — the storefront is a React SPA, so the classic crawler
+  #    never sees the client-rendered routes.
+  - type: spiderAjax
+    parameters:
+      context: staging
+      user: ""
+      maxDuration: 8
+      numberOfBrowsers: 1
+      delayInMilliseconds: 500
+      maxCrawlDepth: 12
+      maxDuration: 8
+
+  # 3. Passive scan of everything discovered.
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 3
+  - type: passiveScan
+    parameters:
+      context: staging
+
+  # 4. Active scan. Only safe on staging.
+  - type: activeScan
+    parameters:
+      context: staging
+      policy: "Default Policy"
+      maxRuleDurationInMins: 3
+      maxScanDurationInMins: 25
+      addQueryParam: false
+      defaultPolicy: "Default Policy"
+      delayInMs: 200
+      threadPerHost: 2
+
+  # 5. Reports.
+  - type: report
+    parameters:
+      template: "traditional"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "zap-report.html"
+      reportTitle: "Asella Organic — Staging DAST"
+      reportDescription: "Automated ZAP run (passive + AJAX spider + active scan)"
+      reportExtensions: "html,json,md"
+
+  - type: exit
+    parameters:
+      error: false

@@ -1,0 +1,33 @@
+id: asella-cors-wildcard-or-reflection
+
+info:
+  name: Asella - CORS allows an untrusted origin
+  author: asella-security
+  severity: high
+  description: |
+    The API returns Access-Control-Allow-Origin for an origin that is not on
+    the allow-list, or returns a wildcard while credentials are enabled.
+  impact: |
+    A malicious page can read authenticated API responses on behalf of a
+    signed-in staff member.
+  remediation: |
+    Keep an explicit origin allow-list in ALLOWED_ORIGINS. Never combine a
+    wildcard with Access-Control-Allow-Credentials: true.
+  reference:
+    - https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+  classification:
+    cwe: CWE-942
+  tags: asella,cors,misconfiguration
+
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/products"
+    headers:
+      Origin: "https://evil.example"
+    matchers-condition: or
+    matchers:
+      - type: dsl
+        dsl:
+          - "contains(to_lower(all_headers), 'access-control-allow-origin: *')"
+          - "contains(to_lower(all_headers), 'access-control-allow-origin: https://evil.example')"

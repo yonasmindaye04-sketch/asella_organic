@@ -1,0 +1,34 @@
+id: asella-public-catalog-inventory
+
+info:
+  name: Asella - Public product catalog exposes exact inventory levels
+  author: asella-security
+  severity: medium
+  description: |
+    GET /api/products is public and returns inventory_quantity for every
+    product. Exact stock levels inform bulk buying and stock-out timing.
+  impact: |
+    An attacker learns current stock for the whole catalogue before any
+    interaction, and can time purchases around restocks.
+  remediation: |
+    Return a coarse availability flag (in_stock / low_stock / out_of_stock)
+    or gate the exact count behind an authenticated staff role.
+  reference:
+    - https://cwe.mitre.org/data/definitions/200.html
+    - SECURITY_REVIEW.md#i
+  classification:
+    cwe: CWE-200
+  tags: asella,exposure,privacy
+
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/products?limit=5"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: dsl
+        dsl:
+          - "contains(to_lower(body), 'inventory_quantity')"
