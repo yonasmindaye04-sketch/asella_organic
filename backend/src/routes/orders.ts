@@ -765,19 +765,6 @@ router.patch(
       return;
     }
 
-    // customer_id, telegram_chat_id, created_by_staff_id, and order_type
-    const [currentRows] = await pool.query(
-      `SELECT status, phone, customer_name, customer_id, telegram_chat_id, total, created_by_staff_id, order_type
-       FROM orders WHERE id = ? AND deleted_at IS NULL`,
-      [orderId]
-    ) as [any[], any];
-
-    const current = currentRows[0];
-    if (!current) {
-      res.status(404).json({ success: false, error: "Order not found" });
-      return;
-    }
-
     // Authorized staff roles (admin, manager, employee, store_manager, call_center, delivery) can update status on orders.
 //this is the part where we check if the status is being changed to "Delivered" and if the current status is not "Delivered". 
 // If so, we check the inventory for each item in the order to ensure there is sufficient stock. If any item has insufficient stock, 
@@ -785,16 +772,47 @@ router.patch(
 // If there is an error during stock deduction, we return a 400 error with a message indicating that stock deduction failed.
     let stockWarnings: string[] = [];
 
+    // Read inside the transaction, but used after it for the
+    // notifications below — so it is hoisted out of the try block.
+    let current: any;
+
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
+
+      // ── Read the order under a row lock ─────────────────────────
+      //
+      // ASE-2026-008: this read used to happen OUTSIDE the transaction and
+      // without a lock. Two concurrent requests to Delivered could both
+      // observe "Pending", both pass the `current.status !== "Delivered"`
+      // test, and both deduct the stock. The commission trigger is guarded
+      // against a double credit (it only fires on the transition INTO
+      // Delivered), but the stock deduction is driven by this read and was
+      // not.
+      //
+      // FOR UPDATE makes the second request wait for the first to commit,
+      // and then it reads the status the first one wrote — so the second
+      // request takes the "already Delivered" path and deducts nothing.
+      //
+      // customer_id, telegram_chat_id, created_by_staff_id, and order_type
+      const [currentRows] = await conn.query(
+        `SELECT status, phone, customer_name, customer_id, telegram_chat_id, total, created_by_staff_id, order_type
+         FROM orders WHERE id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [orderId]
+      ) as [any[], any];
+
+      current = currentRows[0];
+      if (!current) {
+        await conn.rollback();
+        res.status(404).json({ success: false, error: "Order not found" });
+        return;
+      }
 
       // ── State machine guard ──────────────────────────────────────
       if (current.status !== status) {
         const allowedNext = VALID_ORDER_TRANSITIONS[current.status as string];
         if (allowedNext && !allowedNext.includes(status)) {
           await conn.rollback();
-          conn.release();
           res.status(400).json({
             success: false,
             error: `Invalid status transition from "${current.status}" to "${status}". Allowed transitions: ${allowedNext.join(", ") || "none (terminal state)"}`,
@@ -830,7 +848,6 @@ router.patch(
           }
           if (item.inventory_quantity !== null && item.inventory_quantity < item.quantity) {
             await conn.rollback();
-            conn.release();
             res.status(400).json({
               success: false,
               error: `Insufficient stock for ${item.item_name} (${item.package_size}). Available: ${item.inventory_quantity}, needed: ${item.quantity}`,
@@ -849,7 +866,6 @@ router.patch(
           ];
         } catch (stockErr: any) {
           await conn.rollback();
-          conn.release();
           res.status(400).json({
             success: false,
             error: `Stock deduction failed: ${stockErr.message}`,
@@ -867,7 +883,6 @@ router.patch(
           );
         } catch (stockErr: any) {
           await conn.rollback();
-          conn.release();
           res.status(400).json({
             success: false,
             error: `Stock restoration failed: ${stockErr.message}`,
@@ -888,22 +903,36 @@ router.patch(
         }
       }
 
-      await conn.query(
-        `UPDATE orders SET status = ?, notes = IFNULL(?, notes), updated_at = NOW() WHERE id = ?`,
-        [status, note ?? null, orderId]
-      );
+      // A transition to the status the order is already in changes nothing.
+      // It must not write a history row, must not write an audit row, and
+      // must not notify the customer: with the row lock above, a burst of
+      // parallel requests to "Delivered" is answered by one real
+      // transition and a set of no-ops, and the customer should hear about
+      // it once.
+      if (current.status !== status) {
+        await conn.query(
+          `UPDATE orders SET status = ?, notes = IFNULL(?, notes), updated_at = NOW() WHERE id = ?`,
+          [status, note ?? null, orderId]
+        );
 
-      await conn.query(
-        `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-        [crypto.randomUUID(), orderId, current.status, status, (req as any).user?.username ?? 'system', note ?? null]
-      );
+        await conn.query(
+          `INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_by, note, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+          [crypto.randomUUID(), orderId, current.status, status, (req as any).user?.username ?? 'system', note ?? null]
+        );
 
-      await conn.query(
-        `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, old_values, new_values)
-         VALUES ('orders', ?, ?, ?, 'ORDER_STATUS_UPDATED', ?, ?)`,
-        [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ status: current.status }), JSON.stringify({ status })]
-      );
+        await conn.query(
+          `INSERT INTO audit_log (table_name, record_id, order_id, actor, action, old_values, new_values)
+           VALUES ('orders', ?, ?, ?, 'ORDER_STATUS_UPDATED', ?, ?)`,
+          [orderId, orderId, (req as any).user?.id ?? 'system', JSON.stringify({ status: current.status }), JSON.stringify({ status })]
+        );
+      } else if (note) {
+        // Nothing about the status changed, but a note was attached.
+        await conn.query(
+          `UPDATE orders SET notes = IFNULL(?, notes), updated_at = NOW() WHERE id = ?`,
+          [note, orderId]
+        );
+      }
 
       await conn.commit();
     } catch (txErr) {
@@ -913,6 +942,23 @@ router.patch(
       return;
     } finally {
       conn.release();
+    }
+
+    // A request that found the order already in the target status changed
+    // nothing, so it notifies nobody. Six parallel "Delivered" requests
+    // must not produce six messages to the customer.
+    if (current.status === status) {
+      log.info("Order status unchanged — nothing to notify", { orderId, status });
+      res.json({
+        success: true,
+        data: {
+          id: orderId,
+          status,
+          unchanged: true,
+          ...(stockWarnings.length > 0 ? { stock_warnings: stockWarnings } : {}),
+        },
+      });
+      return;
     }
 
     void mirrorOrderStatusToSheets({

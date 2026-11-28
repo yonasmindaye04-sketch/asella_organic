@@ -90,11 +90,24 @@ export function validateTelegramInitData(
     }
 
     // 3. Replay protection: verify auth_date freshness
+    //
+    // ASE-2026-007: auth_date is REQUIRED. The freshness window used to be
+    // applied only when `authDate > 0`, so a correctly signed payload with
+    // no auth_date — or with a non-numeric one, which parses to NaN and
+    // fails the same comparison — was accepted and never expired. A
+    // signature is not a timestamp: without one, whoever captured the
+    // payload can replay it for ever.
     const authDateStr = params.get("auth_date");
-    const authDate = authDateStr ? parseInt(authDateStr, 10) : 0;
+    if (!authDateStr || !/^\d+$/.test(authDateStr.trim())) {
+      return { valid: false, error: "Missing or invalid auth_date in initData" };
+    }
+    const authDate = parseInt(authDateStr.trim(), 10);
+    if (!Number.isFinite(authDate) || authDate <= 0) {
+      return { valid: false, error: "Invalid auth_date in initData" };
+    }
     const now = Math.floor(Date.now() / 1000);
 
-    if (maxAgeSeconds > 0 && authDate > 0) {
+    if (maxAgeSeconds > 0) {
       const age = now - authDate;
       if (age > maxAgeSeconds) {
         return { valid: false, error: `Authentication expired: age ${age}s exceeds limit` };

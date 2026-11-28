@@ -101,4 +101,78 @@ describe("Telegram Mini App initData Validation", () => {
     expect(result2.valid).toBe(false);
     expect(result2.error).toContain("Missing hash");
   });
+
+  // ── ASE-2026-007: auth_date is required ────────────────────────────
+  //
+  // The freshness window used to be applied only when `authDate > 0`, so a
+  // correctly signed payload with no auth_date — or with a non-numeric one,
+  // which parses to NaN and fails the same comparison — was accepted and
+  // never expired. A signature is not a timestamp: without one, whoever
+  // captured the payload can replay it for ever.
+
+  it("rejects a correctly signed payload with no auth_date", () => {
+    const rawData = {
+      query_id: "AAHdF6IQAAAAAN0XohD_test",
+      user: JSON.stringify({ id: 333, first_name: "NoDate" }),
+    };
+
+    const initData = createValidInitData(rawData, botToken);
+    const result = validateTelegramInitData(initData, botToken);
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/auth_date/i);
+  });
+
+  it("rejects a correctly signed payload with a non-numeric auth_date", () => {
+    const rawData = {
+      auth_date: "not-a-timestamp",
+      user: JSON.stringify({ id: 334, first_name: "BadDate" }),
+    };
+
+    const initData = createValidInitData(rawData, botToken);
+    const result = validateTelegramInitData(initData, botToken);
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/auth_date/i);
+  });
+
+  it("rejects a correctly signed payload with auth_date of zero", () => {
+    const rawData = {
+      auth_date: "0",
+      user: JSON.stringify({ id: 335, first_name: "Epoch" }),
+    };
+
+    const initData = createValidInitData(rawData, botToken);
+    const result = validateTelegramInitData(initData, botToken);
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/auth_date/i);
+  });
+
+  it("rejects a correctly signed payload dated in the future", () => {
+    const inTenMinutes = Math.floor(Date.now() / 1000) + 600;
+    const rawData = {
+      auth_date: String(inTenMinutes),
+      user: JSON.stringify({ id: 336, first_name: "TimeTraveler" }),
+    };
+
+    const initData = createValidInitData(rawData, botToken);
+    const result = validateTelegramInitData(initData, botToken);
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/future/i);
+  });
+
+  it("still accepts a fresh payload", () => {
+    const rawData = {
+      auth_date: String(Math.floor(Date.now() / 1000)),
+      user: JSON.stringify({ id: 337, first_name: "Fresh" }),
+    };
+
+    const initData = createValidInitData(rawData, botToken);
+    const result = validateTelegramInitData(initData, botToken);
+
+    expect(result.valid).toBe(true);
+    expect(result.authDate).toBeGreaterThan(0);
+  });
 });
