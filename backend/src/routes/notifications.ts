@@ -302,9 +302,9 @@ async function handleUnreadSummary(req: Request, res: Response): Promise<void> {
   }
 }
 
-router.get("/summary", authenticate, authorise("admin", "manager", "store_manager", "call_center"), handleUnreadSummary);
-router.get("/unread-counts", authenticate, authorise("admin", "manager", "store_manager", "call_center"), handleUnreadSummary);
-router.get("/unread", authenticate, authorise("admin", "manager", "store_manager", "call_center"), handleUnreadSummary);
+router.get("/summary", authenticate, authorise("admin", "manager", "store_manager", "call_center", "tech_support"), handleUnreadSummary);
+router.get("/unread-counts", authenticate, authorise("admin", "manager", "store_manager", "call_center", "tech_support"), handleUnreadSummary);
+router.get("/unread", authenticate, authorise("admin", "manager", "store_manager", "call_center", "tech_support"), handleUnreadSummary);
 
 // ─── Bulk & Single Mark-as-Read Handler ──────────────────────────────────────
 

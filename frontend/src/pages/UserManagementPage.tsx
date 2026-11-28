@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 import { api } from '../services/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 
@@ -18,6 +20,13 @@ const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Creating, editing and deleting staff are admin-only on the server.
+  // tech_support keeps read access to the staff directory, so the page
+  // is reachable for them, but the write controls must not be offered —
+  // the server answers 403 and the buttons would only produce errors.
+  const { user } = useSelector((state: RootState) => state.auth);
+  const canManageStaff = user?.role === 'admin';
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -155,9 +164,11 @@ const UserManagementPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-[#112415]">User Management</h1>
             <p className="text-sm text-gray-500 mt-0.5">Manage staff access and roles.</p>
           </div>
-          <button onClick={() => handleOpenModal()} className="bg-[#112415] hover:bg-[#1a3821] text-white px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-md">
-            <span className="material-symbols-outlined text-[18px]">person_add</span> Add User
-          </button>
+          {canManageStaff && (
+            <button onClick={() => handleOpenModal()} className="bg-[#112415] hover:bg-[#1a3821] text-white px-5 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-md">
+              <span className="material-symbols-outlined text-[18px]">person_add</span> Add User
+            </button>
+          )}
         </div>
 
         {error && <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg">{error}</div>}
@@ -213,16 +224,20 @@ const UserManagementPage: React.FC = () => {
                         u.role === 'call_center' ? 'bg-cyan-100 text-cyan-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                        {u.role === 'tech_support' ? 'tech support (unlimited)' : u.role === 'delivery' ? 'driver' : u.role === 'store_manager' ? 'substore manager' : u.role === 'employee' ? 'staff' : u.role}
+                        {u.role === 'tech_support' ? 'tech support (read-only)' : u.role === 'delivery' ? 'driver' : u.role === 'store_manager' ? 'substore manager' : u.role === 'employee' ? 'staff' : u.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleOpenModal(u)} className="text-gray-400 hover:text-[#4ade80] transition px-2">
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </button>
-                      <button onClick={() => handleDelete(u.id)} className="text-gray-400 hover:text-red-500 transition px-2">
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </button>
+                      {canManageStaff && (
+                        <>
+                          <button onClick={() => handleOpenModal(u)} className="text-gray-400 hover:text-[#4ade80] transition px-2">
+                            <span className="material-symbols-outlined text-lg">edit</span>
+                          </button>
+                          <button onClick={() => handleDelete(u.id)} className="text-gray-400 hover:text-red-500 transition px-2">
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -262,7 +277,7 @@ const UserManagementPage: React.FC = () => {
                   <option value="delivery">Driver / Delivery</option>
                   <option value="store_manager">Substore Manager</option>
                   <option value="call_center">Call Center Agent</option>
-                  <option value="tech_support">Tech Support (Unlimited Access)</option>
+                  <option value="tech_support">Tech Support (Read-only)</option>
                 </select>
               </div>
               <div>

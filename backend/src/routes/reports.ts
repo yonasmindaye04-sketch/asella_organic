@@ -10,7 +10,7 @@ const router = Router();
 router.get(
   "/pl",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { from, to } = req.query as Record<string, string | undefined>;

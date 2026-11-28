@@ -174,7 +174,7 @@ router.get(
   // Roles only. This is the owner's view of every employee, including
   // revenue and cancellation rates — the same class of data as the financial
   // reports, so it is gated the same way.
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
@@ -664,7 +664,7 @@ router.get(
 router.get(
   "/me",
   authenticate,
-  authorise("admin", "manager", "employee", "store_manager", "call_center", "delivery", "driver", "staff"),
+  authorise("admin", "manager", "employee", "store_manager", "call_center", "delivery", "driver", "staff", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {

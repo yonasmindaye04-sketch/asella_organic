@@ -35,7 +35,7 @@ const CreateExpenseSchema = z.object({
 router.get(
   "/",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const { category, from, to, page = "1", limit = "50" } = req.query as Record<string, string | undefined>;
 
@@ -104,7 +104,7 @@ router.get(
 router.get(
   "/summary",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { from, to } = req.query as Record<string, string | undefined>;

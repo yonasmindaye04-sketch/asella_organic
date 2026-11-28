@@ -110,7 +110,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     }
   }
 
-  if (requiredRole && user?.role !== requiredRole && user?.role !== 'admin' && user?.role !== 'tech_support') {
+  // Only 'admin' satisfies a role requirement in addition to the exact
+  // role. tech_support used to be waved through here as well, which
+  // mirrored the blanket server-side bypass that was removed in the
+  // ASE-2026-002 fix. The client is not a security boundary, but it
+  // should not promise access the server now refuses.
+  if (requiredRole && user?.role !== requiredRole && user?.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
 

@@ -178,16 +178,30 @@ export async function authenticate(
 /**
  * Role guard — always use AFTER authenticate.
  * Empty roles array = any authenticated user is allowed.
+ *
+ * Access is decided ONLY by the role list passed at the call site.
+ *
+ * There used to be an exception here: tech_support returned next()
+ * before the requested roles were ever compared, so a tech_support
+ * account passed EVERY guarded route in the application — including
+ * `authorise("admin")` on staff administration, agent referrals and
+ * expense deletion.
+ *
+ * That was not a permission, it was an omission, and it chained into
+ * full privilege escalation. require2FA only challenges accounts that
+ * have 2FA switched on, so a tech_support account with 2FA off could
+ * reach POST /api/staff (2FA required, but nothing to challenge) and
+ * create a brand new admin account in one request — then use it.
+ *
+ * tech_support is now an ordinary least-privilege role. It reaches the
+ * read-only surfaces support engineers actually need by being listed
+ * explicitly on those routes, and nothing else. See the capability
+ * summary in the PR description for the exact list.
  */
 export function authorise(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ success: false, error: "Unauthorized" });
-      return;
-    }
-    // Tech support has unlimited bypass on all authorized routes
-    if (req.user.role === "tech_support") {
-      next();
       return;
     }
 

@@ -19,7 +19,7 @@ import pool from "../../src/config/db.js";
 import { calculateCommission, resolveRule, round2 } from "../../src/lib/commission.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { generateSync } from "otplib";
+import { generateSecret, generateSync } from "otplib";
 
 const PASSWORD = "CommissionTest123!";
 
@@ -73,14 +73,22 @@ async function commissionsFor(orderId: string): Promise<any[]> {
   return rows;
 }
 
+// The referral admin routes sit behind require2FA, which is fail-closed:
+// the caller's account must have 2FA set up AND present a valid code.
+// This admin therefore runs with 2FA enabled, so the routes it exercises
+// are reachable and the assertions below can distinguish "refused because
+// no second factor" from "refused because the affiliate still has unpaid
+// commissions".
+const ADMIN_2FA_SECRET = generateSecret();
+
 beforeAll(async () => {
   const hash = await bcrypt.hash(PASSWORD, 10);
 
   await pool.query(
-    `INSERT INTO staff_users (id, username, email, password_hash, full_name, role, active)
-     VALUES (?, ?, ?, ?, 'Commission Admin', 'admin', true)
-     ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)`,
-    [adminId, uid("cm_admin"), `cm_admin_${adminId.slice(0, 8)}@test.com`, hash]
+    `INSERT INTO staff_users (id, username, email, password_hash, full_name, role, active, two_factor_enabled, two_factor_secret)
+     VALUES (?, ?, ?, ?, 'Commission Admin', 'admin', true, 1, ?)
+     ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), two_factor_enabled = 1, two_factor_secret = VALUES(two_factor_secret)`,
+    [adminId, uid("cm_admin"), `cm_admin_${adminId.slice(0, 8)}@test.com`, hash, ADMIN_2FA_SECRET]
   );
 
   // Two independent affiliate accounts. These are real staff_users rows with
@@ -549,12 +557,21 @@ describe("affiliate deletion (item 3)", () => {
     const orderId = await createOrder("Confirmed");
     await pool.query(`UPDATE orders SET status = 'Delivered' WHERE id = ?`, [orderId]);
 
-    const res = await request(app)
+    // Without a second factor the request is refused before it reaches
+    // the handler at all.
+    const noToken = await request(app)
       .delete(`/api/referrals/affiliates/${affA}`)
       .set("Authorization", `Bearer ${adminToken}`);
+    expect(noToken.status).toBe(401);
 
-    // 401 without 2FA, or 409 once 2FA is supplied — never a successful delete.
-    expect([401, 409]).toContain(res.status);
+    // With a valid 2FA token the request reaches the handler, which then
+    // refuses because the affiliate still has unpaid commissions. Never a
+    // successful delete.
+    const withToken = await request(app)
+      .delete(`/api/referrals/affiliates/${affA}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("x-2fa-token", generateSync({ secret: ADMIN_2FA_SECRET }));
+    expect(withToken.status).toBe(409);
   });
 
   it("soft deletes: the row stays but is marked deleted", async () => {
@@ -593,7 +610,10 @@ describe("affiliate deletion (item 3)", () => {
         `SELECT deleted_at, is_active FROM affiliate_profiles WHERE id = ?`, [throwaway]
       ) as [any[], any];
       expect(row[0].deleted_at).not.toBeNull();
-      expect(row[0].is_active).toBe(false);
+      // is_active is a MariaDB TINYINT(1): it comes back as 0/1, not a
+      // boolean. Compare numerically, the same way the staff_users.active
+      // assertion below does.
+      expect(Number(row[0].is_active)).toBe(0);
 
       // The portal login is revoked.
       const [user] = await pool.query(

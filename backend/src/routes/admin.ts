@@ -18,7 +18,7 @@ const router = Router();
 router.get(
   "/pool-stats",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const internals = (pool as any).pool ?? {};
@@ -62,7 +62,7 @@ router.get(
 router.get(
   "/audit-log",
   authenticate,
-  authorise("admin", "manager"),
+  authorise("admin", "manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {

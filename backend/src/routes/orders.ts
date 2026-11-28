@@ -548,7 +548,7 @@ router.get("/", authenticate,
   // authenticated principal could dump the whole customer book — name, phone,
   // address, notes — by paging through it. Affiliates are excluded: they
   // have their own scoped portal endpoints.
-  authorise("admin", "manager", "employee", "delivery", "call_center", "store_manager"),
+  authorise("admin", "manager", "employee", "delivery", "call_center", "store_manager", "tech_support"),
   async (req: Request, res: Response) => {
   const log = createLogger(req);
   try {
@@ -659,7 +659,7 @@ router.get(
   // this returns `o.*`, which includes customer name, phone and address —
   // simply by iterating the order id. The portal has its own scoped endpoints
   // for what an affiliate is allowed to see.
-  authorise("admin", "manager", "employee", "delivery", "call_center", "store_manager"),
+  authorise("admin", "manager", "employee", "delivery", "call_center", "store_manager", "tech_support"),
   async (req: Request, res: Response): Promise<void> => {
     const log = createLogger(req);
     try {
