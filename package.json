@@ -32,7 +32,11 @@
     },
     "eslint": {
       "minimatch": "^11.0.1"
-    }
+    },
+    "nodemon": {
+      "minimatch": "^11.0.1"
+    },
+    "gaxios": "^7.3.1"
   },
   "dependencies": {
     "nodemailer": "^10.2.1"
