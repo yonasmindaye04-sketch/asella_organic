@@ -107,7 +107,11 @@ const OrderItemSchema = z.object({
   name:         z.string().trim().min(1, "Item name is required"),
   package_size: z.string().trim().min(1, "Package size is required"),
   quantity:     z.coerce.number().int().positive("Quantity must be a positive integer"),
-  unit_price:   z.coerce.number().min(0, "Unit price must be non-negative"),
+  // ASE-2026-001: the selling price is NOT part of the request. It is
+  // resolved from products.price inside the order transaction, so a client
+  // cannot choose what it pays. Zod strips unknown keys, so an older
+  // client that still sends `unit_price` has it ignored rather than
+  // rejected — the order is simply priced from the catalogue.
 });
 
 export const CreateOrderSchema = z.object({

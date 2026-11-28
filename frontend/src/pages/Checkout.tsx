@@ -221,7 +221,6 @@ const Checkout: React.FC = () => {
             name:         it.name,
             package_size: it.package_size,
             quantity:     it.quantity,
-            unit_price:   it.unit_price,
           })),
         }),
       });

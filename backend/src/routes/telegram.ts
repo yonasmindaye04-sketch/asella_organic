@@ -652,7 +652,6 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
   }
 
   const { items: itemInputs, ...fields } = parsed.data;
-  const total = itemInputs.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
   const connection = await pool.getConnection();
 
@@ -666,6 +665,10 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
     product_id: string | null;
     unit_cost: number;
   }> = [];
+  // ASE-2026-001: the total is the sum of the CATALOGUE prices of the
+  // resolved lines. The price the customer typed into the chat is not part
+  // of the request any more.
+  let total: number;
 
   try {
     await connection.beginTransaction();
@@ -678,6 +681,8 @@ async function createTelegramOrder(order: ParsedTelegramOrder, chatId: string | 
       product_id:   item.productId,
       unit_cost:    item.unitCost,
     }));
+
+    total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
     const customerId = crypto.randomUUID();
     await connection.query(
@@ -1885,7 +1890,6 @@ router.post("/app-order", orderRateLimit, async (req: Request, res: Response): P
     }
 
     const { referral_code, items: itemInputs, ...fields } = parsed.data;
-    const total = itemInputs.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const orderId = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomId(4)}`;
 
     const connection = await pool.getConnection();
@@ -1897,6 +1901,9 @@ router.post("/app-order", orderRateLimit, async (req: Request, res: Response): P
       product_id: string | null;
       unit_cost: number;
     }> = [];
+    // ASE-2026-001: the total is the sum of the CATALOGUE prices of the
+    // resolved lines, computed inside the transaction below.
+    let total: number;
     try {
       await connection.beginTransaction();
 
@@ -1908,6 +1915,8 @@ router.post("/app-order", orderRateLimit, async (req: Request, res: Response): P
         product_id:   item.productId,
         unit_cost:    item.unitCost,
       }));
+
+      total = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
       const customerId = crypto.randomUUID();
       await connection.query(

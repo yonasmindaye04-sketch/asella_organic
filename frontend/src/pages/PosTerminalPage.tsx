@@ -447,7 +447,6 @@ function PosTerminalInner() {
         name: item.name,
         package_size: item.packageSize,
         quantity: item.quantity,
-        unit_price: item.unitPrice,
       })),
     };
 

@@ -1857,21 +1857,27 @@ export async function executeMockQuery(
   }
 
   // ── 1. Idempotency keys ───────────────────────────────────────────────────
+  // The lookup is by (scope_key, idem_key) — a key belongs to one caller,
+  // never to everybody (ASE-2026-006).
   if (sqlLower.includes("from idempotency_keys")) {
-    const key = params[params.length - 1];
-    const found = store.idempotency_keys.filter((k) => k.idem_key === key);
+    const scopeKey = params[params.length - 2];
+    const key      = params[params.length - 1];
+    const found = store.idempotency_keys.filter(
+      (k) => k.idem_key === key && (scopeKey === undefined || k.scope_key === scopeKey)
+    );
     return [found, []];
   }
   if (sqlLower.includes("into idempotency_keys")) {
     store.idempotency_keys.push({
-      user_id: params[0],
-      idem_key: params[1],
-      method: params[2],
-      path: params[3],
-      request_hash: params[4],
-      status: params[5],
-      response_body: params[6],
-      response_headers: params[7],
+      idem_key: params[0],
+      user_id: params[1],
+      scope_key: params[2],
+      method: params[3],
+      path: params[4],
+      request_hash: params[5],
+      status: params[6],
+      response_body: params[7],
+      response_headers: params[8],
     });
     return [{ affectedRows: 1, insertId: store.idempotency_keys.length }, []];
   }

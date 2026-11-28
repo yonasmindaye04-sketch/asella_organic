@@ -9,8 +9,17 @@ import request from "supertest";
 import app from "../../src/app.js";
 import pool from "../../src/config/db.js";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 let token: string;
+
+// ASE-2026-001: the order price comes from the catalogue, so the line has
+// to name a product that is actually in it. The test owns its product so
+// it does not depend on whatever the catalog happens to hold.
+const TEST_PRODUCT_ID = crypto.randomUUID();
+const TEST_PRODUCT_NAME = "Moringa Powder Order Test";
+const TEST_PRODUCT_SIZE = "250g";
+const TEST_PRODUCT_PRICE = 350;
 
 const TEST_ORDER = {
   source:        "website",
@@ -20,7 +29,12 @@ const TEST_ORDER = {
   location:      "Bole",
   city:          "Addis Ababa",
   items: [
-    { name: "Moringa Powder", package_size: "250g", quantity: 2, unit_price: 350 }
+    {
+      product_id:   TEST_PRODUCT_ID,
+      name:         TEST_PRODUCT_NAME,
+      package_size: TEST_PRODUCT_SIZE,
+      quantity:     2,
+    }
   ],
 };
 
@@ -32,6 +46,15 @@ beforeAll(async () => {
      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)`,
     [hash]
   );
+
+  await pool.query(
+    `INSERT INTO products
+       (id, name, package_size, price, unit_cost, active, inventory_quantity, low_stock_threshold)
+     VALUES (?, ?, ?, ?, ?, 1, 500, 10)
+     ON DUPLICATE KEY UPDATE price = VALUES(price), active = 1`,
+    [TEST_PRODUCT_ID, TEST_PRODUCT_NAME, TEST_PRODUCT_SIZE, TEST_PRODUCT_PRICE, 100]
+  );
+
   const res = await request(app)
     .post("/api/auth/login")
     .send({ email: "order_test@test.com", password: "TestPass123!" });
@@ -41,6 +64,9 @@ beforeAll(async () => {
 afterAll(async () => {
   await pool.query(`DELETE FROM staff_users WHERE username = 'order_test_user'`);
   await pool.query(`DELETE FROM orders WHERE phone = '+251900000001'`);
+  await pool.query(`DELETE FROM order_items WHERE order_id IN
+    (SELECT id FROM orders WHERE phone = '+251900000001')`);
+  await pool.query(`DELETE FROM products WHERE id = ?`, [TEST_PRODUCT_ID]);
   await pool.end();
 });
 
