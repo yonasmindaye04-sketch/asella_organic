@@ -45,7 +45,8 @@ describe("KPICards", () => {
   });
 
   it("derives the profit margin when it is not supplied", () => {
-    const { profitMargin: _omit, ...withoutMargin } = METRICS;
+    const { profitMargin, ...withoutMargin } = METRICS;
+    void profitMargin;
     renderWithProviders(<KPICards metrics={withoutMargin} />);
 
     // 720 / 1070 = 67%

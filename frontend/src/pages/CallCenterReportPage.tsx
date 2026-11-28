@@ -302,19 +302,32 @@ const CallCenterReportPage: React.FC = () => {
   const [heatmapMode, setHeatmapMode] = useState<'hourly' | 'calendar'>('hourly');
 
   // Continuous date sequence for daily chart
+  //
+  // The range bounds are read into plain variables first: the React compiler
+  // infers the dependencies of this memoization from what the body reads, and
+  // `data?.date_range?.from` inside the body is inferred as
+  // `data.date_range.from` — a different dependency expression from the one
+  // in the dependency array, which stops the memoization being preserved.
+  const rangeFrom = data?.date_range?.from;
+  const rangeTo   = data?.date_range?.to;
+
   const timelineDates = React.useMemo(() => {
-    if (!data?.date_range?.from || !data?.date_range?.to) {
+    if (!rangeFrom || !rangeTo) {
       return daily.map((d) => d.date);
     }
     const dates: string[] = [];
-    const cur = new Date(data.date_range.from);
-    const end = new Date(data.date_range.to);
-    while (cur <= end) {
-      dates.push(cur.toISOString().slice(0, 10));
-      cur.setDate(cur.getDate() + 1);
+    const end = new Date(rangeTo);
+    // Each day is a new Date: mutating one in place is what stops the React
+    // compiler from preserving this memoization.
+    let day = new Date(rangeFrom);
+    while (day <= end) {
+      dates.push(day.toISOString().slice(0, 10));
+      const next = new Date(day.getTime());
+      next.setDate(next.getDate() + 1);
+      day = next;
     }
     return dates;
-  }, [data?.date_range, daily]);
+  }, [rangeFrom, rangeTo, daily]);
 
   const dailyMapByDate = React.useMemo(() => {
     const map = new Map<string, DailyRow>();

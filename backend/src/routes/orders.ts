@@ -902,7 +902,10 @@ router.patch(
 
       await conn.commit();
     } catch (txErr) {
-      try { await conn.rollback(); } catch {}
+      // The rollback itself can fail if the connection is already gone —
+      // there is nothing to do about that, and it must not mask the
+      // original error.
+      try { await conn.rollback(); } catch { /* connection already gone */ }
       log.error("Failed to update order status transactionally", txErr);
       res.status(500).json({ success: false, error: "Internal server error" });
       return;

@@ -92,6 +92,47 @@ const TABS: Array<{ key: TeamKey; label: string; icon: string }> = [
 
 type SortKey = "name" | "workload" | "calls" | "delivered" | "cancelled" | "revenue" | "rate";
 
+/**
+ * A sortable column heading.
+ *
+ * Declared at module scope, not inside the panel: a component created during
+ * render is a new component type on every render, so React remounts it and
+ * throws away its state.
+ */
+const SortHeader = ({
+  label,
+  sort,
+  className = "",
+  sortKey,
+  sortDir,
+  onToggleSort,
+}: {
+  label: string;
+  sort?: SortKey;
+  className?: string;
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+  onToggleSort: (key: SortKey) => void;
+}) => (
+  <th className={`px-4 py-3 text-left ${className}`}>
+    {sort ? (
+      <button
+        onClick={() => onToggleSort(sort)}
+        className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer font-heading"
+      >
+        <span>{label}</span>
+        <span className={`material-symbols-outlined text-sm ${sortKey === sort ? "opacity-100 text-zinc-900 dark:text-zinc-100" : "opacity-35"}`}>
+          {sortKey === sort && sortDir === "asc" ? "arrow_upward" : "arrow_downward"}
+        </span>
+      </button>
+    ) : (
+      <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">
+        {label}
+      </span>
+    )}
+  </th>
+);
+
 interface Props {
   open:      boolean;
   onClose:   () => void;
@@ -309,36 +350,17 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
     return rows;
   }, [members, sortKey, sortDir]);
 
-  const toggleSort = (key: SortKey) => {
+  const toggleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
       setSortDir("desc");
     }
-  };
+  }, [sortKey]);
 
-  const SortHeader = ({ label, sort, className = "" }: {
-    label: string; sort?: SortKey; className?: string;
-  }) => (
-    <th className={`px-4 py-3 text-left ${className}`}>
-      {sort ? (
-        <button
-          onClick={() => toggleSort(sort)}
-          className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer font-heading"
-        >
-          <span>{label}</span>
-          <span className={`material-symbols-outlined text-sm ${sortKey === sort ? "opacity-100 text-zinc-900 dark:text-zinc-100" : "opacity-35"}`}>
-            {sortKey === sort && sortDir === "asc" ? "arrow_upward" : "arrow_downward"}
-          </span>
-        </button>
-      ) : (
-        <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">
-          {label}
-        </span>
-      )}
-    </th>
-  );
+  // Passed to every SortHeader below.
+  const sortHeaderProps = { sortKey, sortDir, onToggleSort: toggleSort };
 
   if (typeof document === "undefined") return null;
 
@@ -647,19 +669,19 @@ export default function TeamPerformancePanel({ open, onClose, from: initialFrom,
                       <table className="w-full text-sm sm:text-base min-w-[720px]">
                         <thead className="bg-zinc-100/80 dark:bg-zinc-800/80 border-b border-zinc-200 dark:border-zinc-700">
                           <tr>
-                            <SortHeader label="Member" sort="name" />
+                            <SortHeader label="Member" sort="name" {...sortHeaderProps} />
                             {tab === "all" && (
                               <th className="px-4 py-3 text-left">
                                 <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200 font-heading">Team</span>
                               </th>
                             )}
-                            {isCallTab && <SortHeader label="Calls" sort="calls" className="text-right" />}
-                            {isDeliveryTab && <SortHeader label="Assigned" sort="workload" className="text-right" />}
-                            {!isCallTab && !isDeliveryTab && <SortHeader label="Workload" sort="workload" className="text-right" />}
-                            <SortHeader label="Delivered" sort="delivered" className="text-right" />
-                            <SortHeader label="Cancelled" sort="cancelled" className="text-right" />
-                            <SortHeader label={isDeliveryTab ? "Accept Rate" : "Completion"} sort="rate" className="px-4 py-3 text-left w-[170px]" />
-                            <SortHeader label="Revenue" sort="revenue" className="text-right" />
+                            {isCallTab && <SortHeader label="Calls" sort="calls" className="text-right" {...sortHeaderProps} />}
+                            {isDeliveryTab && <SortHeader label="Assigned" sort="workload" className="text-right" {...sortHeaderProps} />}
+                            {!isCallTab && !isDeliveryTab && <SortHeader label="Workload" sort="workload" className="text-right" {...sortHeaderProps} />}
+                            <SortHeader label="Delivered" sort="delivered" className="text-right" {...sortHeaderProps} />
+                            <SortHeader label="Cancelled" sort="cancelled" className="text-right" {...sortHeaderProps} />
+                            <SortHeader label={isDeliveryTab ? "Accept Rate" : "Completion"} sort="rate" className="px-4 py-3 text-left w-[170px]" {...sortHeaderProps} />
+                            <SortHeader label="Revenue" sort="revenue" className="text-right" {...sortHeaderProps} />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">

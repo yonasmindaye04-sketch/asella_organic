@@ -35,7 +35,7 @@ const Login: React.FC = () => {
       } else {
         toast(res.error || 'Login failed', 'error');
       }
-    } catch (err: any) {
+    } catch {
       toast('Invalid credentials or network error', 'error');
     } finally {
       setLoading(false);

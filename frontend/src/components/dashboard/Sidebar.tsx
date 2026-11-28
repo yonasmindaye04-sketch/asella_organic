@@ -23,6 +23,95 @@ const Icon: React.FC<{ name: string; className?: string }> = ({ name, className 
   <span className={`material-symbols-outlined sidebar-icon ${className}`}>{name}</span>
 );
 
+/**
+ * The four values the navigation entries need from the sidebar that draws
+ * them.
+ *
+ * The entries are declared here, at module scope, rather than inside the
+ * Sidebar component. A component declared during render is a NEW component
+ * type on every render, so React unmounts the old one and mounts a fresh
+ * one: any state inside it is thrown away, and every navigation entry in
+ * the list below — there are 45 of them — is re-created 45 times on every
+ * render of the sidebar.
+ *
+ * A context carries the values they need down without threading four extra
+ * props through 45 call sites, and without putting them back inside the
+ * component body.
+ */
+interface SidebarContextValue {
+  /** True when the rail is expanded; collapsed entries show their label as a tooltip. */
+  isOpen: boolean;
+  /** Whether an unread message is waiting, which pulses the message badge. */
+  hasNewIncoming: boolean;
+  /** The current path, used to mark the active entry. */
+  pathname: string;
+  /** Closes the drawer on a phone-sized screen after an entry is followed. */
+  onNavigate: () => void;
+}
+
+const SidebarContext = React.createContext<SidebarContextValue>({
+  isOpen:          true,
+  hasNewIncoming: false,
+  pathname:        "/",
+  onNavigate:      () => { /* no sidebar to close */ },
+});
+
+const NavItem: React.FC<{
+  to: string;
+  icon: string;
+  label: string;
+  badge?: number;
+  badgeVariant?: 'amber' | 'rose' | 'emerald' | 'red';
+}> = ({ to, icon, label, badge, badgeVariant = 'amber' }) => {
+  const { isOpen, hasNewIncoming, pathname, onNavigate } = React.useContext(SidebarContext);
+  const active = pathname === to;
+  return (
+    <li>
+      <Link
+        to={to}
+        onClick={onNavigate}
+        className={`sidebar-nav-item ${active ? 'active' : ''}`}
+        title={!isOpen ? label : undefined}
+      >
+        <Icon name={icon} />
+        <span className="sidebar-nav-label">{label}</span>
+        {badge !== undefined && badge > 0 && (
+          <span className={`sidebar-badge ${(badgeVariant === 'rose' || badgeVariant === 'red') ? 'bg-red-600 text-white font-bold' : badgeVariant === 'emerald' ? 'bg-[#1b4d24]' : 'bg-amber-500'} ${hasNewIncoming && (badgeVariant === 'rose' || badgeVariant === 'red') ? 'animate-pulse ring-2 ring-red-400' : ''}`}>
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+      </Link>
+    </li>
+  );
+};
+
+const NavAction: React.FC<{ icon: string; label: string; onClick: () => void }> = ({
+  icon,
+  label,
+  onClick,
+}) => {
+  const { isOpen } = React.useContext(SidebarContext);
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        title={!isOpen ? label : undefined}
+        className="sidebar-nav-item w-full border-0 bg-transparent text-left"
+      >
+        <Icon name={icon} />
+        <span className="sidebar-nav-label">{label}</span>
+      </button>
+    </li>
+  );
+};
+
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="sidebar-section-label">{children}</div>
+);
+
+const Divider = () => <div className="sidebar-divider" />;
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const dispatch = useDispatch();
   const location = useLocation();
@@ -120,71 +209,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     };
   }, []);
 
-  const isActive = (path: string) => location.pathname === path;
-
   const isDriver = role === 'delivery' || role === 'driver';
   const isEmployee = role === 'employee' || role === 'staff';
   const isStoreManager = role === 'store_manager';
   const isCallCenter = role === 'call_center';
 
   /** Only close the drawer on mobile / small window; desktop keeps the rail open. */
-  const handleMobileNav = () => {
+  const handleMobileNav = React.useCallback(() => {
     if (window.innerWidth < 1024) onClose?.();
-  };
+  }, [onClose]);
 
-  const NavItem: React.FC<{
-    to: string;
-    icon: string;
-    label: string;
-    badge?: number;
-    badgeVariant?: 'amber' | 'rose' | 'emerald' | 'red';
-  }> = ({ to, icon, label, badge, badgeVariant = 'amber' }) => {
-    const active = isActive(to);
-    return (
-      <li>
-        <Link
-          to={to}
-          onClick={handleMobileNav}
-          className={`sidebar-nav-item ${active ? 'active' : ''}`}
-          title={!isOpen ? label : undefined}
-        >
-          <Icon name={icon} />
-          <span className="sidebar-nav-label">{label}</span>
-          {badge !== undefined && badge > 0 && (
-            <span className={`sidebar-badge ${(badgeVariant === 'rose' || badgeVariant === 'red') ? 'bg-red-600 text-white font-bold' : badgeVariant === 'emerald' ? 'bg-[#1b4d24]' : 'bg-amber-500'} ${hasNewIncoming && (badgeVariant === 'rose' || badgeVariant === 'red') ? 'animate-pulse ring-2 ring-red-400' : ''}`}>
-              {badge > 99 ? '99+' : badge}
-            </span>
-          )}
-        </Link>
-      </li>
-    );
-  };
-
-  const NavAction: React.FC<{ icon: string; label: string; onClick: () => void }> = ({
-    icon,
-    label,
-    onClick,
-  }) => (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        title={!isOpen ? label : undefined}
-        className="sidebar-nav-item w-full border-0 bg-transparent text-left"
-      >
-        <Icon name={icon} />
-        <span className="sidebar-nav-label">{label}</span>
-      </button>
-    </li>
-  );
-
-  const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="sidebar-section-label">{children}</div>
-  );
-
-  const Divider = () => <div className="sidebar-divider" />;
+  // The navigation entries read these four values from the context.
+  const sidebarContext = React.useMemo<SidebarContextValue>(() => ({
+    isOpen,
+    hasNewIncoming,
+    pathname: location.pathname,
+    onNavigate: handleMobileNav,
+  }), [isOpen, hasNewIncoming, location.pathname, handleMobileNav]);
 
   return (
+    <SidebarContext.Provider value={sidebarContext}>
     <>
       {isOpen && (
         <div
@@ -417,6 +461,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         </div>
       </aside>
     </>
+    </SidebarContext.Provider>
   );
 };
 
